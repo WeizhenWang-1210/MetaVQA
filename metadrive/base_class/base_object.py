@@ -170,6 +170,9 @@ class BaseObject(BaseRunnable):
     def panda_color(self):
         return self._panda_color
 
+    def set_color(self, new_color):
+        self._panda_color = new_color
+
     def add_body(self, physics_body, add_to_static_world=False):
         if self._body is None:
             # add it to physics world, in which this object will interact with other object (like collision)
