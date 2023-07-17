@@ -51,12 +51,14 @@ if __name__ == "__main__":
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if i % 20== 0: #note: the "1st" object in objects is the agent
+            if i % 100== 0: #note: the "1st" object in objects is the agent
                 objects = env.engine.get_objects()
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
+                
                 agent_id = list(agents.values())[0].id
                 print("Agent: ",agent.position)
+                print("Agent lane: ", agent.lane_index)
                 for id, object in objects.items():
                     if id != agent_id:
                         relative_displacement = object.convert_to_local_coordinates(object.position,agent.position)
@@ -66,7 +68,6 @@ if __name__ == "__main__":
                             #object.panda_color = [1,1,1]
                             #print("New color:", object.panda_color)
                             print("Object_relative: ",relative_distance)
-                            print("Object lane: ", object.lane)
                             #object._panda_color = old_color
 
                         

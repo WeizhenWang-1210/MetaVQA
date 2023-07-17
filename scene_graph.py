@@ -17,7 +17,8 @@ class agent_node:
                  color = (0,0,0), #Stuck. Can't rerender the objects' color. Look at Material from Panda3D
                  speed = 1,      #object.speed
                  heading = (0,1), #object.heading
-                 lane = (0,1),
+                 lane = (0,1), #lane indexing is (id1, id2, lane number(beginning from 0, left to right)). In addition, the other side of the street is
+                 #(-id1,-id2, #)
                  id = None):
         #More properties could be defined.
         self.pos =  pos #(x,y) w.r.t. to world origin
