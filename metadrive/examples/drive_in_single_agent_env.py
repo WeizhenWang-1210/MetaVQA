@@ -18,7 +18,7 @@ if __name__ == "__main__":
         # controller="joystick",
         use_render=True,
         manual_control=True,
-        traffic_density=0.1,
+        traffic_density=0.2,
         num_scenarios=100,
         random_agent_model=True,
         random_lane_width=True,
@@ -51,23 +51,31 @@ if __name__ == "__main__":
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if i % 100== 0: #note: the "1st" object in objects is the agent
+            if i % 50== 0: #note: the "1st" object in objects is the agent
                 objects = env.engine.get_objects()
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
                 
                 agent_id = list(agents.values())[0].id
-                print("Agent: ",agent.position)
-                print("Agent lane: ", agent.lane_index)
+                print("Agent: ",np.array(agent.position))
+                #print("Agent lane: ", agent.lane_index)
                 for id, object in objects.items():
                     if id != agent_id:
                         relative_displacement = object.convert_to_local_coordinates(object.position,agent.position)
                         relative_distance = np.sqrt(relative_displacement[0]**2 + relative_displacement[1]**2)
                         if relative_distance <= 30:
-                            #print("old color:", object.origin.getMaterial())
+                            panda_color = object.panda_color
+                            #adjusted = [c*255 for c in panda_color]
+
+                            #print("Object old color:", adjusted)
+
                             #object.panda_color = [1,1,1]
                             #print("New color:", object.panda_color)
+                            bounding_box = object.bounding_box
+                            relative_bounding_box = [object.convert_to_local_coordinates(box, agent.position) for box in bounding_box]
+                            
                             print("Object_relative: ",relative_distance)
+                            print("Object bounding box:", relative_bounding_box)
                             #object._panda_color = old_color
 
                         
