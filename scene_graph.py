@@ -1,9 +1,13 @@
 import json
 import random
+import numpy as np
+import argparse
+
 #import openai
 #import asyncio
 
 OPENAI_KEY = "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"
+#don't work when the scene is crowded.
 
 class agent_node:
     """
@@ -19,7 +23,9 @@ class agent_node:
                  heading = (0,1), #object.heading
                  lane = (0,1), #lane indexing is (id1, id2, lane number(beginning from 0, left to right)). In addition, the other side of the street is
                  #(-id1,-id2, #)
-                 id = None):
+                 id = None,
+                 bbox = None,
+                 type = "vehicle"):
         #More properties could be defined.
         self.pos =  pos #(x,y) w.r.t. to world origin
         self.color = color
@@ -27,12 +33,16 @@ class agent_node:
         self.heading = heading #(dx, dy) unit vector, centered at the car but in world coordinate
         self.lane = lane
         self.id = id
+        self.bbox = bbox
+        self.type = type
     
     def compute_relation(self, node):
         relation = {
             'side': self.leftORright(node),
             'front': self.frontORback(node),
             'lane': self.sameSide(node),
+            'street': self.sameStreet(node),
+            'steering': self.steering_leftORright(node)
             #etc.
         }
         return relation
@@ -48,11 +58,23 @@ class agent_node:
         return dictionary.__str__()
     
     def leftORright(self,node):
+        '''
+        On the same side of a road, you can find this informaion by comparing the lane index.
+        '''
+        """if self.lane[0]==node.lane[0] and self.lane[1]==node.lane[1] or\
+            self.lane[0]==node.lane[1] or\
+            self.lane[1]==node.lane[0]:
+            lane_idx, node_idx = self.lane[2],node.lane[2]
+            if node_idx == lane_idx:
+                return 0"""
         ego_coord = (node.pos[0] - self.pos[0], node.pos[1] - self.pos[1])
-        cross = ego_coord[0]*self.heading[1] - ego_coord[1]*self.heading[0] #cross product
-        if cross > 0:
+        l2_norm = np.sqrt(ego_coord[0]**2 + ego_coord[1]**2)
+        unit_ego_coord = (ego_coord[0]/l2_norm, ego_coord[1]/l2_norm)
+        cross = unit_ego_coord[0]*self.heading[1] - unit_ego_coord[1]*self.heading[0] #cross product
+
+        if cross > 0.05:
             return 1
-        elif cross < 0 :
+        elif cross < -0.05 :
             return -1
         else:
             return 0
@@ -60,16 +82,38 @@ class agent_node:
     def frontORback(self,node):
         ego_coord = (node.pos[0] - self.pos[0], node.pos[1] - self.pos[1])
         dot = ego_coord[0] * self.heading[0] + ego_coord[1] * self.heading[1]
-        if dot > 0:
+        if dot > 0.05:
             return 1
-        elif dot < 0:
+        elif dot < -0.05:
             return -1
         else: 
             return 0
 
-    def sameSide(self,node):
-        return int(self.lane[0] == node.lane[0] and
-                   self.lane[1] == node.lane[1])
+    def sameSide(self,node): #simple case: same road
+                            # more complicated, at turn around
+        return  int(self.lane[0] == node.lane[0] and
+                   self.lane[1] == node.lane[1]) or\
+                int (self.lane[0]== node.lane[1]) or int (self.lane[1]==node.lane[0])
+                
+    
+    def sameStreet(self, node):
+        m_id0,m_id1 = self.lane[0],self.lane[1]
+        n_id0,n_id1 = node.lane[0],node.lane[1]
+        if ("-"+m_id0 == n_id0 and "-"+m_id1 == n_id1) or\
+            (m_id0 == "-"+n_id0 and m_id1 == "-"+n_id1):
+            return 1
+        return 0
+    
+    def steering_leftORright(self,node):
+        cross = node.heading[0]*self.heading[1] - node.heading[1]*self.heading[0] #cross product
+        if cross > 0:
+            return 1
+        elif cross < 0 :
+            return -1
+        else:
+            return 0
+
+            
 
 class scene_graph:
     def __init__(self, 
@@ -193,10 +237,15 @@ class Question_Generator():
             def check_different_side(node):
                 graph = self.scenario_graph
                 return not (graph.nodes[node].sameSide(graph.nodes[self.scenario_graph.ego_id]))
+            def check_different_street(node):
+                graph = self.scenario_graph
+                return not (graph.nodes[node].sameStreet(graph.nodes[self.scenario_graph.ego_id]))
             if self.check_unique(check_same_side, candidate_id, peer_ids):
                 suffix = "The car is the only car on ego side of the road."
             elif self.check_unique(check_different_side, candidate_id, peer_ids):
                 suffix = "The car is the only car not on ego side of the road."
+            elif self.check_unique(check_different_street,candidate_id, peer_ids):
+                suffix = "The car is the only car not on the same street as ego."
             #TODO: Use distance ordering for resolution
         if suffix == "": #meaning, ambigious
             return "reject"
@@ -213,7 +262,7 @@ class Question_Generator():
         elif  direction_string == 'r':
             modifier = 'directly to the right of '
         elif  direction_string == 'rf':
-            modifier = 'to the right in front of '
+            modifier = 'to the right and in front of '
         elif  direction_string == 'rb':
             modifier = 'to the right and behind '
         elif  direction_string == 'b':
@@ -268,6 +317,8 @@ class Question_Generator():
                                      for idx in self.scenario_graph.nodes.keys() 
                                      if idx not in [ego, candidate_id]]
         #print(comparative_candidate_ids, self.scenario_graph.ego_id, candidate_id)
+        if len(comparative_candidate_ids)==0:
+            return 'reject', ego, candidate_id, "None"
         comparative_candidate_id = random.choice(comparative_candidate_ids) if compared is None else compared
         dir_ego, _ = self.find_direction(ego, comparative_candidate_id)
         modifier_ego = self.generate_modifier(dir_ego)
@@ -296,11 +347,18 @@ def demo(scene_dict):
     text, ego, candidate = test_generator.generate_simple() 
     print(text, ego, candidate)
 
+
+def transform(ori):
+    x,y = ori
+    return x,y
+
+
 if __name__ == '__main__':
-    """
-    extracted = get_info_from_metadrive(env : MetaDriveEnv, step_num : int , ...)
-    A sample returned result is as follow.
-    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--step", type=int)
+    args = parser.parse_args()
+
+
     simple = {
         0: #Some id, as 
         {
@@ -397,22 +455,40 @@ if __name__ == '__main__':
     }
     #demo(simple)
     #demo(ambigious)
+    with open('{}.json'.format(args.step),'r') as scene_file:
+        scene_dict = json.load(scene_file)
+    agent_dict = scene_dict['agent']
+    agent_id = scene_dict['agent']['id']
+
     nodes = []
-    for node_id, info in unsat.items():
+    for info in scene_dict['vehicles']:
         nodes.append(agent_node(
                                 pos = info["pos"],
                                 color = info["color"],
                                 speed = info["speed"],
                                 heading = info["heading"],
                                 lane = info["lane"],
-                                id = node_id)
+                                id = info['id'],
+                                bbox = info['bbox'])
         )
-    graph = scene_graph(0,nodes)
+    nodes.append(
+        agent_node(
+                    pos = agent_dict["pos"],
+                    color = agent_dict["color"],
+                    speed = agent_dict["speed"],
+                    heading = agent_dict["heading"],
+                    lane = agent_dict["lane"],
+                    id = agent_dict['id'],
+                    bbox = agent_dict['bbox'])
+    )
+    print(len(nodes))
+    graph = scene_graph(agent_id,nodes)
     test_generator = Question_Generator(graph)
     text, ego, candidate = test_generator.generate_simple() 
     print(text, ego, candidate)
     text, ego, candidate, compared = test_generator.generate_comparative()
     print(text, ego, candidate, compared)
+    
 
     """ openai.api_key = OPENAI_KEY
     response  = openai.ChatCompletion.create(

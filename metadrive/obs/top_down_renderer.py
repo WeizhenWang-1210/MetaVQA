@@ -443,6 +443,7 @@ class TopDownRenderer:
                 self._deads.append(v)
 
         v = self.current_track_vehicle
+        track_position = v.position
         canvas = self._runtime_canvas
         field = self._render_canvas.get_size()
         if not self.target_vehicle_heading_up:
@@ -464,8 +465,8 @@ class TopDownRenderer:
 
             rotation = np.rad2deg(v.heading_theta) + 90
             new_canvas = pygame.transform.rotozoom(self.canvas_rotate, rotation, 1)
-
             size = self._render_canvas.get_size()
+
             self._render_canvas.blit(
                 new_canvas,
                 (0, 0),
@@ -476,6 +477,7 @@ class TopDownRenderer:
                     size[1]  # Height
                 )
             )
+            off = (position[0] - field[0] / 2, position[1] - field[1] / 2)
 
         if "traffic_light_msg" in kwargs:
             raise ValueError("This function is broken")
@@ -491,24 +493,26 @@ class TopDownRenderer:
             )
 
         if self.show_agent_name:
-            raise ValueError("This function is broken")
-            # FIXME check this later
+            """raise ValueError("This function is broken")
+            # FIXME check this later"""
             if self.pygame_font is None:
                 self.pygame_font = pygame.font.SysFont("Arial.ttf", 30)
             agents = [agent.name for agent in list(self.engine.agents.values())]
             for v in self.history_objects[i]:
-                if v.name in agents:
+                if True: #v.name in agents
                     position = self._runtime_canvas.pos2pix(*v.position)
                     new_position = (position[0] - off[0], position[1] - off[1])
                     img = self.pygame_font.render(
-                        text=self.engine.object_to_agent(v.name),
-                        antialias=True,
-                        color=(0, 0, 0, 128),
+                        #self.engine.object_to_agent(v.name),
+                        v.name,
+                        True,
+                        (0, 0, 0, 128),
                     )
+                    img = pygame.transform.flip(img,flip_x=True,flip_y=False)
                     # img.set_alpha(None)
                     self.canvas.blit(
                         source=img,
-                        dest=(new_position[0] - img.get_width() / 2, new_position[1] - img.get_height() / 2),
+                        dest=((new_position[0] - img.get_width() / 2), (new_position[1] - img.get_height() / 2)),
                         # special_flags=pygame.BLEND_RGBA_MULT
                     )
 

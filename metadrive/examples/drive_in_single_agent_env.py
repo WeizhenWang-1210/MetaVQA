@@ -26,7 +26,8 @@ if __name__ == "__main__":
         # debug=True,
         # debug_static_world=True,
         map=4,  # seven block
-        start_seed=random.randint(0, 1000)
+        start_seed=random.randint(0, 1000),
+        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(320, 320)}
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
@@ -55,7 +56,9 @@ if __name__ == "__main__":
                 objects = env.engine.get_objects()
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
-                
+                #rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
+                #rgb_cam.save_image(env.vehicle, name="{}.png".format(i))
+
                 agent_id = list(agents.values())[0].id
                 print("Agent: ",np.array(agent.position))
                 #print("Agent lane: ", agent.lane_index)
@@ -66,16 +69,15 @@ if __name__ == "__main__":
                         if relative_distance <= 30:
                             panda_color = object.panda_color
                             #adjusted = [c*255 for c in panda_color]
-
                             #print("Object old color:", adjusted)
-
                             #object.panda_color = [1,1,1]
                             #print("New color:", object.panda_color)
-                            bounding_box = object.bounding_box
-                            relative_bounding_box = [object.convert_to_local_coordinates(box, agent.position) for box in bounding_box]
                             
+                            #bounding_box = object.bounding_box
+                            #relative_bounding_box = [object.convert_to_local_coordinates(box, agent.position) for box in bounding_box]
                             print("Object_relative: ",relative_distance)
-                            print("Object bounding box:", relative_bounding_box)
+                            print("Object_position_pov:", relative_displacement)
+                            #print("Object bounding box:", relative_bounding_box)
                             #object._panda_color = old_color
 
                         
@@ -91,3 +93,8 @@ if __name__ == "__main__":
         raise e
     finally:
         env.close()
+
+"""def transform(world_c, origin, heading):
+    new_c = (world_c[0]-origin[0], world_c[1]-origin[1])
+    normal = (heading[1],-heading[0])
+    x,y,z = new_c[0].project(normal), new_c[1].project(heading), world_c[2].project((0,0,1))"""
