@@ -35,14 +35,15 @@ class agent_node:
         self.id = id
         self.bbox = bbox
         self.type = type
+        #self.ref_heading = self.heading #used when the relation is observed from other's coordinate
     
-    def compute_relation(self, node):
+    def compute_relation(self, node, ref_heading):
         relation = {
-            'side': self.leftORright(node),
-            'front': self.frontORback(node),
+            'side': self.leftORright(node, ref_heading),
+            'front': self.frontORback(node, ref_heading),
             'lane': self.sameSide(node),
             'street': self.sameStreet(node),
-            'steering': self.steering_leftORright(node)
+            #'steering': self.steering_leftORright(node)
             #etc.
         }
         return relation
@@ -57,31 +58,24 @@ class agent_node:
         }
         return dictionary.__str__()
     
-    def leftORright(self,node):
-        '''
-        On the same side of a road, you can find this informaion by comparing the lane index.
-        '''
-        """if self.lane[0]==node.lane[0] and self.lane[1]==node.lane[1] or\
-            self.lane[0]==node.lane[1] or\
-            self.lane[1]==node.lane[0]:
-            lane_idx, node_idx = self.lane[2],node.lane[2]
-            if node_idx == lane_idx:
-                return 0"""
+    def leftORright(self,node, ref_heading):
+        #node w.r.t to me
+
         ego_coord = (node.pos[0] - self.pos[0], node.pos[1] - self.pos[1])
         l2_norm = np.sqrt(ego_coord[0]**2 + ego_coord[1]**2)
         unit_ego_coord = (ego_coord[0]/l2_norm, ego_coord[1]/l2_norm)
-        cross = unit_ego_coord[0]*self.heading[1] - unit_ego_coord[1]*self.heading[0] #cross product
-
-        if cross > 0.05:
+        cross = unit_ego_coord[0]*ref_heading[1] - unit_ego_coord[1]*ref_heading[0] #cross product
+        if cross > 0.1:
             return 1
-        elif cross < -0.05 :
+        elif cross < -0.1 :
             return -1
         else:
             return 0
         
-    def frontORback(self,node):
+    def frontORback(self,node, ref_heading):
+        #node w.r.t to me
         ego_coord = (node.pos[0] - self.pos[0], node.pos[1] - self.pos[1])
-        dot = ego_coord[0] * self.heading[0] + ego_coord[1] * self.heading[1]
+        dot = ego_coord[0] * ref_heading[0] + ego_coord[1] * ref_heading[1]
         if dot > 0.05:
             return 1
         elif dot < -0.05:
@@ -91,12 +85,14 @@ class agent_node:
 
     def sameSide(self,node): #simple case: same road
                             # more complicated, at turn around
+        #node w.r.t to me
         return  int(self.lane[0] == node.lane[0] and
                    self.lane[1] == node.lane[1]) or\
                 int (self.lane[0]== node.lane[1]) or int (self.lane[1]==node.lane[0])
                 
     
     def sameStreet(self, node):
+        #node w.r.t to me
         m_id0,m_id1 = self.lane[0],self.lane[1]
         n_id0,n_id1 = node.lane[0],node.lane[1]
         if ("-"+m_id0 == n_id0 and "-"+m_id1 == n_id1) or\
@@ -105,10 +101,20 @@ class agent_node:
         return 0
     
     def steering_leftORright(self,node):
+        #node w.r.t to me
         cross = node.heading[0]*self.heading[1] - node.heading[1]*self.heading[0] #cross product
-        if cross > 0:
+        if cross > 0.05:
             return 1
-        elif cross < 0 :
+        elif cross < -0.05 :
+            return -1
+        else:
+            return 0
+    
+    def steering_frontORback(self,node,ref_heading):
+        dot = node.heading[0]*ref_heading[0] + node.heading[1]*ref_heading[1] #dot product
+        if dot > 0.05:
+            return 1
+        elif dot < -0.05 :
             return -1
         else:
             return 0
@@ -123,6 +129,10 @@ class scene_graph:
         self.nodes = {}
         for node in nodes:
             self.nodes[node.id] = node
+        """ ego_heading = self.nodes[ego_id].heading
+        for node in self.nodes.values():
+            node.ref_heading = node.heading
+            node.heading = ego_heading"""
         self.ego_id = ego_id
         self.graph= self.compute_graph()
 
@@ -132,10 +142,10 @@ class scene_graph:
     def compute_graph(self):
         graph = {}
         for node_id in self.nodes.keys():
-            graph[node_id] = self.compute_multiedges(node_id)
+            graph[node_id] = self.compute_multiedges(node_id,self.ego_id)
         return graph
 
-    def compute_multiedges(self, ego_id):
+    def compute_multiedges(self, ego_id,ref_id):
         edges = {
                     'l':[],
                     'r':[],
@@ -147,9 +157,10 @@ class scene_graph:
                     'rb':[]
                 }
         ego_node =self.nodes[ego_id]
+        ref_node = self.nodes[ref_id]
         for node_id, node in self.nodes.items():
             if node_id != ego_id:
-                relation = ego_node.compute_relation(node)
+                relation = ego_node.compute_relation(node,ref_node.heading)
                 side, front = relation['side'], relation['front']
                 if side == -1 and front == 0:
                     edges['l'].append(node.id)
@@ -241,11 +252,11 @@ class Question_Generator():
                 graph = self.scenario_graph
                 return not (graph.nodes[node].sameStreet(graph.nodes[self.scenario_graph.ego_id]))
             if self.check_unique(check_same_side, candidate_id, peer_ids):
-                suffix = "The car is the only car on ego side of the road."
+                suffix = "The car is on the other car's lane of the road."
             elif self.check_unique(check_different_side, candidate_id, peer_ids):
-                suffix = "The car is the only car not on ego side of the road."
+                suffix = "The car is not on the other car's lane of the road."
             elif self.check_unique(check_different_street,candidate_id, peer_ids):
-                suffix = "The car is the only car not on the same street as ego."
+                suffix = "The car is not on the same street as the other car."
             #TODO: Use distance ordering for resolution
         if suffix == "": #meaning, ambigious
             return "reject"
@@ -355,7 +366,7 @@ def transform(ori):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=int)
+    parser.add_argument("--step", type=str)
     args = parser.parse_args()
 
 
@@ -485,9 +496,9 @@ if __name__ == '__main__':
     graph = scene_graph(agent_id,nodes)
     test_generator = Question_Generator(graph)
     text, ego, candidate = test_generator.generate_simple() 
-    print(text, ego, candidate)
+    print(text, candidate)
     text, ego, candidate, compared = test_generator.generate_comparative()
-    print(text, ego, candidate, compared)
+    print(text, candidate, compared)
     
 
     """ openai.api_key = OPENAI_KEY

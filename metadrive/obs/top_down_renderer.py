@@ -499,22 +499,21 @@ class TopDownRenderer:
                 self.pygame_font = pygame.font.SysFont("Arial.ttf", 30)
             agents = [agent.name for agent in list(self.engine.agents.values())]
             for v in self.history_objects[i]:
-                if True: #v.name in agents
-                    position = self._runtime_canvas.pos2pix(*v.position)
-                    new_position = (position[0] - off[0], position[1] - off[1])
-                    img = self.pygame_font.render(
-                        #self.engine.object_to_agent(v.name),
-                        v.name,
+                position = self._runtime_canvas.pos2pix(*v.position)
+                new_position = (position[0] - off[0], position[1] - off[1])
+                name = v.name.split('-')[0] if v.name not in agents else self.engine.object_to_agent(v.name)
+                img = self.pygame_font.render(
+                        name,
                         True,
                         (0, 0, 0, 128),
-                    )
-                    img = pygame.transform.flip(img,flip_x=True,flip_y=False)
-                    # img.set_alpha(None)
-                    self.canvas.blit(
+                )
+                img = pygame.transform.flip(img,flip_x=True,flip_y=False)
+                # img.set_alpha(None)
+                self.canvas.blit(
                         source=img,
                         dest=((new_position[0] - img.get_width() / 2), (new_position[1] - img.get_height() / 2)),
                         # special_flags=pygame.BLEND_RGBA_MULT
-                    )
+                )
 
     def _handle_event(self) -> None:
         """
