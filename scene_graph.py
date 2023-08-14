@@ -2,6 +2,7 @@ import json
 import random
 import numpy as np
 import argparse
+import glob
 
 #import openai
 #import asyncio
@@ -25,7 +26,8 @@ class agent_node:
                  #(-id1,-id2, #)
                  id = None,
                  bbox = None,
-                 type = "vehicle"):
+                 type = "vehicle",
+                 height = None):
         #More properties could be defined.
         self.pos =  pos #(x,y) w.r.t. to world origin
         self.color = color
@@ -35,6 +37,7 @@ class agent_node:
         self.id = id
         self.bbox = bbox
         self.type = type
+        self.height = height
         #self.ref_heading = self.heading #used when the relation is observed from other's coordinate
     
     def compute_relation(self, node, ref_heading):
@@ -251,12 +254,22 @@ class Question_Generator():
             def check_different_street(node):
                 graph = self.scenario_graph
                 return not (graph.nodes[node].sameStreet(graph.nodes[self.scenario_graph.ego_id]))
+            def check_taller(node):
+                graph = self.scenario_graph
+                return graph.nodes[node].height>graph.nodes[self.scenario_graph.ego_id].height
+            def check_shorter(node):
+                graph = self.scenario_graph
+                return graph.nodes[node].height<graph.nodes[self.scenario_graph.ego_id].height
             if self.check_unique(check_same_side, candidate_id, peer_ids):
                 suffix = "The car is on the other car's lane of the road."
             elif self.check_unique(check_different_side, candidate_id, peer_ids):
                 suffix = "The car is not on the other car's lane of the road."
             elif self.check_unique(check_different_street,candidate_id, peer_ids):
                 suffix = "The car is not on the same street as the other car."
+            elif self.check_unique(check_taller, candidate_id, peer_ids):
+                suffix = "The car is taller than the other car."
+            elif self.check_unique(check_shorter, candidate_id, peer_ids):
+                suffix = "The car is shorter than the other car."
             #TODO: Use distance ordering for resolution
         if suffix == "": #meaning, ambigious
             return "reject"
@@ -358,17 +371,66 @@ def demo(scene_dict):
     text, ego, candidate = test_generator.generate_simple() 
     print(text, ego, candidate)
 
+def nodify(scene_dict):
+    agent_dict = scene_dict['agent']
+    agent_id = scene_dict['agent']['id']
+    nodes = []
+    for info in scene_dict['vehicles']:
+        nodes.append(agent_node(
+                                        pos = info["pos"],
+                                        color = info["color"],
+                                        speed = info["speed"],
+                                        heading = info["heading"],
+                                        lane = info["lane"],
+                                        id = info['id'],
+                                        bbox = info['bbox'],
+                                        height = info['height'])
+                )
+    nodes.append(
+                agent_node(
+                            pos = agent_dict["pos"],
+                            color = agent_dict["color"],
+                            speed = agent_dict["speed"],
+                            heading = agent_dict["heading"],
+                            lane = agent_dict["lane"],
+                            id = agent_dict['id'],
+                            bbox = agent_dict['bbox'],
+                            height = agent_dict['height'])
+            )
+    return agent_id, nodes
 
-def transform(ori):
-    x,y = ori
-    return x,y
+def transform(ego,bbox):
+    def change_bases(x,y):
+        relative_x, relative_y = x - ego.pos[0], y - ego.pos[1]
+        new_x = ego.heading
+        new_y = (-new_x[1], new_x[0])
+        x = (relative_x*new_x[0] + relative_y*new_x[1])
+        y = (relative_y*new_y[0] + relative_y*new_y[1])
+        return x,y
+    return [change_bases(*point) for point in bbox]
 
+def distance(node1, node2):
+    dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
+    return np.sqrt(dx**2 + dy**2)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str)
+    parser.add_argument("--batch", type = bool, default= False)
+    parser.add_argument("--step", type=str, default = None)
+    parser.add_argument("--folder", type=str, default = None)
     args = parser.parse_args()
+    meta = {
+        "type":{
+            "simple":0,
+            "composite":0,
+            "unique":0,
+        },
+        "distance":[],
+        "relative_distance":[]
+        
+    }
 
+    """
 
     simple = {
         0: #Some id, as 
@@ -464,41 +526,73 @@ if __name__ == '__main__':
             'speed': 5            
         },
     }
-    #demo(simple)
-    #demo(ambigious)
-    with open('{}.json'.format(args.step),'r') as scene_file:
-        scene_dict = json.load(scene_file)
-    agent_dict = scene_dict['agent']
-    agent_id = scene_dict['agent']['id']
+    demo(simple)
+    demo(ambigious)"""
+    if args.batch == True:
+        assert args.folder is not None
+        gts = glob.glob(args.folder+"/[0-9]*_[0-9]*/world*",recursive=True)
+        for gt in gts:
+            splitted = gt.split("\\")
+            root = "/".join(splitted[:2])
+            print(root)
+            try:
+                with open(gt,'r') as scene_file:
+                    scene_dict = json.load(scene_file)
+            except:
+                print("Error in reading json file {}".format("gt"))
+            agent_id, nodes = nodify(scene_dict)
+            graph = scene_graph(agent_id,nodes)
+            test_generator = Question_Generator(graph)
+            text, ego, candidate = test_generator.generate_simple() 
+            if text == "reject":
+                text, ego, candidate, compared = test_generator.generate_comparative()
+                if text == "reject":
+                    continue
+                else:
+                    meta['type']['composite']+=1
+                    meta['distance'].append(distance(graph.nodes[ego], graph.nodes[candidate]))
+                    meta['relative_distance'].append(distance(graph.nodes[candidate], graph.nodes[compared]))
+                    qa_dict = {
+                        "text":text,
+                        "bbox":transform(graph.nodes[ego], graph.nodes[candidate].bbox),
+                        "height":graph.nodes[candidate].height,
+                        "id":candidate
+                    }
+                    try:
+                        with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
+                            json.dump(qa_dict,file)
+                    except:
+                        print("wtf")
+            else:
+                meta["type"]['simple']+=1
+                meta['distance'].append(distance(graph.nodes[ego], graph.nodes[candidate]))
+                qa_dict = {
+                    "text":text,
+                    "bbox":transform(graph.nodes[ego], graph.nodes[candidate].bbox),
+                    "height":graph.nodes[candidate].height,
+                    "id":candidate
+                }
+                try:
+                    with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
+                        json.dump(qa_dict,file)
+                except:
+                    print("wtf")
+        with open(args.folder+"/stats.json",'w') as file:
+            json.dump(meta, file)
+        print("Error recording statistics")
+    else:
+        assert args.step == True
+        with open('{}.json'.format(args.step),'r') as scene_file:
+            scene_dict = json.load(scene_file)
+        agent_id,nodes = nodify(scene_dict)
+        graph = scene_graph(agent_id,nodes)
+        test_generator = Question_Generator(graph)
+        text, ego, candidate = test_generator.generate_simple() 
+        print(text, candidate)
+        text, ego, candidate, compared = test_generator.generate_comparative()
+        print(text, candidate, compared)
 
-    nodes = []
-    for info in scene_dict['vehicles']:
-        nodes.append(agent_node(
-                                pos = info["pos"],
-                                color = info["color"],
-                                speed = info["speed"],
-                                heading = info["heading"],
-                                lane = info["lane"],
-                                id = info['id'],
-                                bbox = info['bbox'])
-        )
-    nodes.append(
-        agent_node(
-                    pos = agent_dict["pos"],
-                    color = agent_dict["color"],
-                    speed = agent_dict["speed"],
-                    heading = agent_dict["heading"],
-                    lane = agent_dict["lane"],
-                    id = agent_dict['id'],
-                    bbox = agent_dict['bbox'])
-    )
-    print(len(nodes))
-    graph = scene_graph(agent_id,nodes)
-    test_generator = Question_Generator(graph)
-    text, ego, candidate = test_generator.generate_simple() 
-    print(text, candidate)
-    text, ego, candidate, compared = test_generator.generate_comparative()
-    print(text, candidate, compared)
+    
     
 
     """ openai.api_key = OPENAI_KEY

@@ -121,7 +121,7 @@ if __name__ == "__main__":
         # debug_static_world=True,
         map=4,  # seven block
         start_seed=random.randint(0, 1000),
-        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(960, 640)}
+        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920, 1080)}
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
@@ -155,7 +155,7 @@ if __name__ == "__main__":
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if i % 20== 0: #note: the "1st" object in objects is the agent
+            if i % 60== 0: #note: the "1st" object in objects is the agent
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
                 agent_id = list(agents.values())[0].id
@@ -184,7 +184,8 @@ if __name__ == "__main__":
                         speed =  agent.speed,
                         pos = agent.position,
                         bbox = [tuple(point) for point in agent.bounding_box],
-                        type = vehicle_type(str(type(agent)))
+                        type = vehicle_type(str(type(agent))),
+                        height = agent.HEIGHT
                     )
                     object_descriptions = [
                         dict(
@@ -195,7 +196,8 @@ if __name__ == "__main__":
                             speed =  object.speed,
                             pos = object.position,
                             bbox = [tuple(point) for point in object.bounding_box],
-                            type = vehicle_type(str(type(object)))
+                            type = vehicle_type(str(type(object))),
+                            height = object.HEIGHT
                         )
                         for object in objects_of_interest
                     ]
