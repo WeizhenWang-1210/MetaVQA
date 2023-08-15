@@ -187,6 +187,10 @@ if __name__ == "__main__":
                         type = vehicle_type(str(type(agent))),
                         height = agent.HEIGHT
                     )
+                    observation = {}
+                    observation['lidar'],observable = env.vehicle.lidar.perceive(env.vehicle)
+                    observable_id = [car.id for car in list(observable)]
+                    final_objects = [object for object in objects_of_interest if object.id in observable_id]
                     object_descriptions = [
                         dict(
                             id = object.id,
@@ -201,10 +205,7 @@ if __name__ == "__main__":
                         )
                         for object in objects_of_interest
                     ]
-                    
                     scene_dict["vehicles"] = object_descriptions
-                    observation = {}
-                    observation['lidar'],_ = env.vehicle.lidar.perceive(env.vehicle)
                     rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
                     rgb_cam.save_image(env.vehicle, name= path + "/" +identifier + "/"+ "rgb_{}.png".format(identifier))
                     ret1 = env.render(mode = 'top_down', film_size=(6000, 6000), target_vehicle_heading_up=False, screen_size=(2000,2000),show_agent_name=True)
