@@ -4,6 +4,7 @@ from metadrive.component.pg_space import ParameterSpace, VehicleParameterSpace
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
 
 
+
 def convert_path(pth):
     return Filename.from_os_specific(pth).get_fullpath()
 
@@ -20,6 +21,7 @@ class DefaultVehicle(BaseVehicle):
     FRONT_WHEELBASE = 1.05234
     REAR_WHEELBASE = 1.4166
     path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+    #path = ['lambo/vehicle.glb', (0.5, 0.5, 0.5), (1, 0, 0.6), (0, 0, 0)]
 
     @property
     def LENGTH(self):
@@ -33,6 +35,28 @@ class DefaultVehicle(BaseVehicle):
     def WIDTH(self):
         return 1.852  # meters
 
+class Lambo(BaseVehicle):
+    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
+    TIRE_RADIUS = 0.3305#0.313
+    TIRE_WIDTH = 0.255#0.25
+    MASS = 1595#1100
+    LATERAL_TIRE_TO_CENTER = 1#0.815
+    FRONT_WHEELBASE = 1.36#1.05234
+    REAR_WHEELBASE = 1.45#1.4166
+    #path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+    path = ['lambo/vehicle.glb', (0.5,0.5,0.5), (1.09, 0, 0.6), (0, 0, 0)]
+
+    @property
+    def LENGTH(self):
+        return 4.87  # meters
+
+    @property
+    def HEIGHT(self):
+        return 1.139  # meters
+
+    @property
+    def WIDTH(self):
+        return 2.099
 
 # When using DefaultVehicle as traffic, please use this class.
 
@@ -271,7 +295,7 @@ def random_vehicle_type(np_random, p=None):
     prob = [1 / len(vehicle_type) for _ in range(len(vehicle_type))] if p is None else p
     return vehicle_type[np_random.choice(list(vehicle_type.keys()), p=prob)]
 
-
+#You need to add your own vehicle in order to be randomly generated.
 vehicle_type = {
     "s": SVehicle,
     "m": MVehicle,
@@ -279,7 +303,8 @@ vehicle_type = {
     "xl": XLVehicle,
     "default": DefaultVehicle,
     "static_default": StaticDefaultVehicle,
-    "varying_dynamics": VaryingDynamicsVehicle
+    "varying_dynamics": VaryingDynamicsVehicle,
+    "lambo": Lambo,
 }
 
 VaryingShapeVehicle = VaryingDynamicsVehicle

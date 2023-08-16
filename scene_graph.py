@@ -3,12 +3,25 @@ import random
 import numpy as np
 import argparse
 import glob
+from typing import Callable, Any, Iterable
 
 #import openai
 #import asyncio
 
 OPENAI_KEY = "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"
 #don't work when the scene is crowded.
+
+"""
+Note that MetaDrive uses a right-handed coordinate system with x being the heading direction
+           
+                
+                | +x    
+                |
+    +y          |     (top-down view, +z coming out of the screen)
+   ----------------------------------
+
+"""
+
 
 class agent_node:
     """
@@ -22,7 +35,7 @@ class agent_node:
                  color = (0,0,0), #Stuck. Can't rerender the objects' color. Look at Material from Panda3D
                  speed = 1,      #object.speed
                  heading = (0,1), #object.heading
-                 lane = (0,1), #lane indexing is (id1, id2, lane number(beginning from 0, left to right)). In addition, the other side of the street is
+                 lane = (0,0,1), #lane indexing is (id1, id2, lane number(beginning from 0, left to right)). In addition, the other side of the street is
                  #(-id1,-id2, #)
                  id = None,
                  bbox = None,
@@ -40,13 +53,13 @@ class agent_node:
         self.height = height
         #self.ref_heading = self.heading #used when the relation is observed from other's coordinate
     
-    def compute_relation(self, node, ref_heading):
+    def compute_relation(self, node, ref_heading:tuple)->dict:
         relation = {
             'side': self.leftORright(node, ref_heading),
             'front': self.frontORback(node, ref_heading),
             'lane': self.sameSide(node),
             'street': self.sameStreet(node),
-            #'steering': self.steering_leftORright(node)
+            'steering': self.steering_leftORright(node)
             #etc.
         }
         return relation
@@ -61,9 +74,9 @@ class agent_node:
         }
         return dictionary.__str__()
     
-    def leftORright(self,node, ref_heading):
+    def leftORright(self,node, ref_heading)->int:
         #node w.r.t to me
-
+        #ref_heading is the direction of ego_vehicle.
         ego_coord = (node.pos[0] - self.pos[0], node.pos[1] - self.pos[1])
         l2_norm = np.sqrt(ego_coord[0]**2 + ego_coord[1]**2)
         unit_ego_coord = (ego_coord[0]/l2_norm, ego_coord[1]/l2_norm)
@@ -75,7 +88,7 @@ class agent_node:
         else:
             return 0
         
-    def frontORback(self,node, ref_heading):
+    def frontORback(self,node, ref_heading)->int:
         #node w.r.t to me
         ego_coord = (node.pos[0] - self.pos[0], node.pos[1] - self.pos[1])
         dot = ego_coord[0] * ref_heading[0] + ego_coord[1] * ref_heading[1]
@@ -86,7 +99,7 @@ class agent_node:
         else: 
             return 0
 
-    def sameSide(self,node): #simple case: same road
+    def sameSide(self,node)->bool: #simple case: same road
                             # more complicated, at turn around
         #node w.r.t to me
         return  int(self.lane[0] == node.lane[0] and
@@ -94,7 +107,7 @@ class agent_node:
                 int (self.lane[0]== node.lane[1]) or int (self.lane[1]==node.lane[0])
                 
     
-    def sameStreet(self, node):
+    def sameStreet(self, node)->int:
         #node w.r.t to me
         m_id0,m_id1 = self.lane[0],self.lane[1]
         n_id0,n_id1 = node.lane[0],node.lane[1]
@@ -103,7 +116,7 @@ class agent_node:
             return 1
         return 0
     
-    def steering_leftORright(self,node):
+    def steering_leftORright(self,node)->int:
         #node w.r.t to me
         cross = node.heading[0]*self.heading[1] - node.heading[1]*self.heading[0] #cross product
         if cross > 0.05:
@@ -113,7 +126,7 @@ class agent_node:
         else:
             return 0
     
-    def steering_frontORback(self,node,ref_heading):
+    def steering_frontORback(self,node,ref_heading)->int:
         dot = node.heading[0]*ref_heading[0] + node.heading[1]*ref_heading[1] #dot product
         if dot > 0.05:
             return 1
@@ -126,8 +139,8 @@ class agent_node:
 
 class scene_graph:
     def __init__(self, 
-                 ego_id,
-                 nodes = [],
+                 ego_id:str,
+                 nodes:list = [],
                  ):
         self.nodes = {}
         for node in nodes:
@@ -139,16 +152,16 @@ class scene_graph:
         self.ego_id = ego_id
         self.graph= self.compute_graph()
 
-    def refocus(self,new_ego_id = 0):
+    def refocus(self,new_ego_id:str) -> None:
         self.ego_id = new_ego_id
     
-    def compute_graph(self):
+    def compute_graph(self) -> dict:
         graph = {}
         for node_id in self.nodes.keys():
             graph[node_id] = self.compute_multiedges(node_id,self.ego_id)
         return graph
 
-    def compute_multiedges(self, ego_id,ref_id):
+    def compute_multiedges(self, ego_id:str,ref_id:str)->dict:
         edges = {
                     'l':[],
                     'r':[],
@@ -186,7 +199,7 @@ class scene_graph:
                     exit()
         return edges
 
-    def check_ambigious(self, origin, dir):
+    def check_ambigious(self, origin:agent_node, dir:str)->int:
         candidates = self.graph[origin.id][dir]
         #-1 being UNSAT, 0 being Unambigious, 1 being ambigious
         if len(candidates)==0:
@@ -196,7 +209,7 @@ class scene_graph:
         else:
             return 1
      
-    def export(self, destination):
+    def export(self, destination:str)->bool:
         #Compute Relations
         self.compute_relations()
         #Store Relations in a Dict, indexed by nodes
@@ -212,12 +225,21 @@ class scene_graph:
             print("Something went wrong when exporting")
             return False
 
-class Question_Generator():
-    def __init__(self, graph):
+class Question_Generator:
+    def __init__(self, graph:scene_graph):
         self.scenario_graph = graph
         self.ground_truths =  self.scenario_graph.graph
+        self.stats = {
+            "type":{
+                "simple":0,
+                "composite":0,
+                "unique":0,
+            },
+            "distance":[],
+            "relative_distance":[]
+        }
 
-    def generate_simple(self, referred = None):
+    def generate_simple(self, referred:str = None):
         #Pick a node to formulate a question
         ego = self.scenario_graph.ego_id
         candidate_id = self.select_not_from([ego]) if referred is None else referred
@@ -231,20 +253,20 @@ class Question_Generator():
     
 
     
-    def select_not_from(self, ban_list):
+    def select_not_from(self, ban_list:list)->str:
         nodes = list(self.scenario_graph.nodes.keys())
         result = random.choice(nodes)
         while result in ban_list:
             result = random.choice(nodes)
         return result
         
-    def generate_description(self, direction_string, candidate_id, peer_ids):
+    def generate_description(self, direction_string:str, candidate_id:str, peer_ids:list):
         string = "The car that is "
-        modifier = self.generate_modifier(direction_string)
+        modifier = self.generate_spatial_modifier(direction_string)
         suffix = ""
         if len(peer_ids)==1:
             suffix = "ego. "   
-        else: 
+        else:
             def check_same_side(node):
                 graph = self.scenario_graph
                 return graph.nodes[node].sameSide(graph.nodes[self.scenario_graph.ego_id])
@@ -261,21 +283,21 @@ class Question_Generator():
                 graph = self.scenario_graph
                 return graph.nodes[node].height<graph.nodes[self.scenario_graph.ego_id].height
             if self.check_unique(check_same_side, candidate_id, peer_ids):
-                suffix = "The car is on the other car's lane of the road."
+                suffix += "another car.The car is on the other car's lane of the road."
             elif self.check_unique(check_different_side, candidate_id, peer_ids):
-                suffix = "The car is not on the other car's lane of the road."
+                suffix += "another car.The car is not on the other car's lane of the road."
             elif self.check_unique(check_different_street,candidate_id, peer_ids):
-                suffix = "The car is not on the same street as the other car."
+                suffix += "another car.The car is not on the same street as the other car."
             elif self.check_unique(check_taller, candidate_id, peer_ids):
-                suffix = "The car is taller than the other car."
+                suffix += "another car.The car is taller than the other car."
             elif self.check_unique(check_shorter, candidate_id, peer_ids):
-                suffix = "The car is shorter than the other car."
+                suffix += "another car.The car is shorter than the other car."
             #TODO: Use distance ordering for resolution
         if suffix == "": #meaning, ambigious
             return "reject"
         else:
             return string, modifier, suffix
-    def generate_modifier(self, direction_string):
+    def generate_spatial_modifier(self, direction_string:str)->str:
         modifier = ""
         if direction_string == 'l':
             modifier = 'directly to the left of '
@@ -295,7 +317,7 @@ class Question_Generator():
             modifier = 'directly in front of '
         return modifier
 
-    def check_unique(self, checker, candidate, peers):
+    def check_unique(self, checker:Callable[[str],bool], candidate:str, peers:list[str])->bool:
         for peer in peers:
             if peer == candidate:
                 if checker(peer):
@@ -309,14 +331,14 @@ class Question_Generator():
                     return False
         return True
 
-    def find_direction(self, origin, target):
+    def find_direction(self, origin:str, target:str)->tuple[str,list[str]]:
         for dir, peers in self.ground_truths[origin].items():
             if target in peers:
                 return dir, peers
         print('Error in finding node %s in node %s \'s coordinate' %(target, origin))
         exit()
 
-    def generate_comparative(self, referred = None, compared = None):
+    def generate_comparative(self, referred:str= None, compared:str= None)->tuple[str, str, str, str]:
         """
         Generate questions in which the target objects are disambiguated with comparative informations involving cars
         other than ego. For example, if there are two cars to the side of the ego, a question could be
@@ -345,7 +367,7 @@ class Question_Generator():
             return 'reject', ego, candidate_id, "None"
         comparative_candidate_id = random.choice(comparative_candidate_ids) if compared is None else compared
         dir_ego, _ = self.find_direction(ego, comparative_candidate_id)
-        modifier_ego = self.generate_modifier(dir_ego)
+        modifier_ego = self.generate_spatial_modifier(dir_ego)
         candidate_dir, candidate_peers = self.find_direction(comparative_candidate_id, candidate_id)
         ret = self.generate_description(candidate_dir,candidate_id,candidate_peers)
         if ret == 'reject':
@@ -355,23 +377,8 @@ class Question_Generator():
             final = Heading + modifier + "another car that is " + modifier_ego  + suffix  
             return final, ego, candidate_id, comparative_candidate_id
            
-def demo(scene_dict):
-    nodes = []
-    for node_id, info in scene_dict.items():
-        nodes.append(agent_node(
-                                pos = info["pos"],
-                                color = info["color"],
-                                speed = info["speed"],
-                                heading = info["heading"],
-                                lane = info["lane"],
-                                id = node_id)
-        )
-    graph = scene_graph(0,nodes)
-    test_generator = Question_Generator(graph)
-    text, ego, candidate = test_generator.generate_simple() 
-    print(text, ego, candidate)
 
-def nodify(scene_dict):
+def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
     agent_dict = scene_dict['agent']
     agent_id = scene_dict['agent']['id']
     nodes = []
@@ -399,7 +406,7 @@ def nodify(scene_dict):
             )
     return agent_id, nodes
 
-def transform(ego,bbox):
+def transform(ego:agent_node,bbox:Iterable)->Iterable:
     def change_bases(x,y):
         relative_x, relative_y = x - ego.pos[0], y - ego.pos[1]
         new_x = ego.heading
@@ -409,7 +416,7 @@ def transform(ego,bbox):
         return x,y
     return [change_bases(*point) for point in bbox]
 
-def distance(node1, node2):
+def distance(node1:agent_node, node2:agent_node)->float:
     dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
     return np.sqrt(dx**2 + dy**2)
 
@@ -429,105 +436,6 @@ if __name__ == '__main__':
         "relative_distance":[]
         
     }
-
-    """
-
-    simple = {
-        0: #Some id, as 
-        {
-            'pos': (0,0),           #(x,y) coordinate of a car in world frame. Unit is meter, or any other unit of choice(whatever is convenient for you)
-            'color': (0,255,0),     #(r,g,b)
-            'heading': (0,1),       #(d1,d2), unit vector representing the car's current direction in world frame
-            'lane': (0,1),           #(steet id, side id). I don't know if this functionality exists in MetaDrive.
-                                    #If not, assign unique ids to all directions of all roads. I'll adjust the shape accordingly
-            'speed': 10             #speed in m/s, or any other units. 
-            #... Maybe more properties. I can think of these for starters. 
-        },
-        1: #another car with id = 1
-        {
-            'pos': (-2,1),          
-            'color': (255,255,0),    
-            'heading': (0,1),       
-            'lane': (0,1),                          
-            'speed': 5            
-        },
-    }
-
-    ambigious =  {
-        0: #Some id, as 
-        {
-            'pos': (0,0),           #(x,y) coordinate of a car in world frame. Unit is meter, or any other unit of choice(whatever is convenient for you)
-            'color': (0,255,0),     #(r,g,b)
-            'heading': (0,1),       #(d1,d2), unit vector representing the car's current direction in world frame
-            'lane': (0,1),           #(steet id, side id). I don't know if this functionality exists in MetaDrive.
-                                    #If not, assign unique ids to all directions of all roads. I'll adjust the shape accordingly
-            'speed': 10             #speed in m/s, or any other units. 
-            #... Maybe more properties. I can think of these for starters. 
-        },
-        1: #another car with id = 1
-        {
-            'pos': (-1,1),          
-            'color': (255,255,0),    
-            'heading': (0,1),       
-            'lane': (0,0),                          
-            'speed': 5            
-        },
-        2: #another car with id = 1
-        {
-            'pos': (-2,1),          
-            'color': (255,0,0),    
-            'heading': (0,1),       
-            'lane': (0,0),                          
-            'speed': 5            
-        },
-        3: #another car with id = 1
-        {
-            'pos': (-2,2),          
-            'color': (0,255,255),    
-            'heading': (0,1),       
-            'lane': (0,1),                          
-            'speed': 5            
-        },
-    }
-    
-    unsat =  {
-        0: #Some id, as 
-        {
-            'pos': (0,0),           #(x,y) coordinate of a car in world frame. Unit is meter, or any other unit of choice(whatever is convenient for you)
-            'color': (0,255,0),     #(r,g,b)
-            'heading': (0,1),       #(d1,d2), unit vector representing the car's current direction in world frame
-            'lane': (0,1),           #(steet id, side id). I don't know if this functionality exists in MetaDrive.
-                                    #If not, assign unique ids to all directions of all roads. I'll adjust the shape accordingly
-            'speed': 10             #speed in m/s, or any other units. 
-            #... Maybe more properties. I can think of these for starters. 
-        },
-        1: #another car with id = 1
-        {
-            'pos': (-1,1),          
-            'color': (255,255,0),    
-            'heading': (0,1),       
-            'lane': (0,0),                          
-            'speed': 5            
-        },
-        2: #another car with id = 1
-        {
-            'pos': (-2,1),          
-            'color': (255,0,0),    
-            'heading': (0,1),       
-            'lane': (0,0),                          
-            'speed': 5            
-        },
-        3: #another car with id = 1
-        {
-            'pos': (-2,2),          
-            'color': (0,255,255),    
-            'heading': (0,1),       
-            'lane': (0,0),                          
-            'speed': 5            
-        },
-    }
-    demo(simple)
-    demo(ambigious)"""
     if args.batch == True:
         assert args.folder is not None
         gts = glob.glob(args.folder+"/[0-9]*_[0-9]*/world*",recursive=True)
@@ -577,9 +485,11 @@ if __name__ == '__main__':
                         json.dump(qa_dict,file)
                 except:
                     print("wtf")
-        with open(args.folder+"/stats.json",'w') as file:
-            json.dump(meta, file)
-        print("Error recording statistics")
+        try:
+            with open(args.folder+"/stats.json",'w') as file:
+                json.dump(meta, file)
+        except:
+            print("Error recording statistics")
     else:
         assert args.step == True
         with open('{}.json'.format(args.step),'r') as scene_file:

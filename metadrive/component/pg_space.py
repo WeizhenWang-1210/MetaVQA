@@ -268,6 +268,14 @@ class VehicleParameterSpace:
         max_speed_km_h=ConstantSpace(80),
     )
 
+    LAMBO = dict(
+        wheel_friction=ConstantSpace(0.7),
+        max_engine_force=BoxSpace(500, 700),
+        max_brake_force=BoxSpace(50, 100),
+        max_steering=ConstantSpace(35),
+        max_speed_km_h=ConstantSpace(355),
+    )
+
 
 class BlockParameterSpace:
     """
