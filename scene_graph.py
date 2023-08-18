@@ -4,6 +4,8 @@ import numpy as np
 import argparse
 import glob
 from typing import Callable, Any, Iterable
+from collections import defaultdict
+from pprint import pprint
 
 #import openai
 #import asyncio
@@ -23,6 +25,24 @@ Note that MetaDrive uses a right-handed coordinate system with x being the headi
 """
 
 
+class road_graph:
+    def __init__(self,ids:Iterable) -> None:
+        graph = defaultdict(lambda:"")
+        for start, end, lane, in ids:
+            graph[start] = end
+        self.graph = graph
+    def reachable(self,start,end):
+        #print(start)
+        if start == '':
+            return False
+        if start == end:
+            return True
+        else:
+            return self.reachable(self.graph[start],end)
+
+
+
+        
 class agent_node:
     """
         Indicators:
@@ -57,9 +77,9 @@ class agent_node:
         relation = {
             'side': self.leftORright(node, ref_heading),
             'front': self.frontORback(node, ref_heading),
-            'lane': self.sameSide(node),
-            'street': self.sameStreet(node),
-            'steering': self.steering_leftORright(node)
+            #'street': self.sameStreet(node),
+            #'steering_side': self.steering_leftORright(node),
+            #'steering_front': self.steering_frontORback(node)
             #etc.
         }
         return relation
@@ -81,9 +101,9 @@ class agent_node:
         l2_norm = np.sqrt(ego_coord[0]**2 + ego_coord[1]**2)
         unit_ego_coord = (ego_coord[0]/l2_norm, ego_coord[1]/l2_norm)
         cross = unit_ego_coord[0]*ref_heading[1] - unit_ego_coord[1]*ref_heading[0] #cross product
-        if cross > 0.1:
+        if cross > 0.05:
             return 1
-        elif cross < -0.1 :
+        elif cross < -0.05 :
             return -1
         else:
             return 0
@@ -99,22 +119,14 @@ class agent_node:
         else: 
             return 0
 
-    def sameSide(self,node)->bool: #simple case: same road
-                            # more complicated, at turn around
-        #node w.r.t to me
-        return  int(self.lane[0] == node.lane[0] and
-                   self.lane[1] == node.lane[1]) or\
-                int (self.lane[0]== node.lane[1]) or int (self.lane[1]==node.lane[0])
-                
-    
-    def sameStreet(self, node)->int:
+    """def sameStreet(self, node)->int:
         #node w.r.t to me
         m_id0,m_id1 = self.lane[0],self.lane[1]
         n_id0,n_id1 = node.lane[0],node.lane[1]
         if ("-"+m_id0 == n_id0 and "-"+m_id1 == n_id1) or\
             (m_id0 == "-"+n_id0 and m_id1 == "-"+n_id1):
             return 1
-        return 0
+        return 0"""
     
     def steering_leftORright(self,node)->int:
         #node w.r.t to me
@@ -135,8 +147,6 @@ class agent_node:
         else:
             return 0
 
-            
-
 class scene_graph:
     def __init__(self, 
                  ego_id:str,
@@ -145,59 +155,55 @@ class scene_graph:
         self.nodes = {}
         for node in nodes:
             self.nodes[node.id] = node
-        """ ego_heading = self.nodes[ego_id].heading
-        for node in self.nodes.values():
-            node.ref_heading = node.heading
-            node.heading = ego_heading"""
         self.ego_id = ego_id
-        self.graph= self.compute_graph()
+        self.spatial_graph= self.compute_spatial_graph()
+        self.road_graph = road_graph([node.lane for node in nodes])
 
     def refocus(self,new_ego_id:str) -> None:
         self.ego_id = new_ego_id
     
-    def compute_graph(self) -> dict:
+    def compute_spatial_graph(self) -> dict:
+        def compute_spatial_edges(ego_id:str,ref_id:str)->dict:
+            edges = {
+                        'l':[],
+                        'r':[],
+                        'f':[],
+                        'b':[],
+                        'lf':[],
+                        'rf':[],
+                        'lb':[],
+                        'rb':[]
+                    }
+            ego_node =self.nodes[ego_id]
+            ref_node = self.nodes[ref_id]
+            for node_id, node in self.nodes.items():
+                if node_id != ego_id:
+                    relation = ego_node.compute_relation(node,ref_node.heading)
+                    side, front = relation['side'], relation['front']
+                    if side == -1 and front == 0:
+                        edges['l'].append(node.id)
+                    elif side == -1 and front == -1:
+                        edges['lb'].append(node.id)
+                    elif side == -1 and front == 1:
+                        edges['lf'].append(node.id)
+                    elif side == 0 and front == -1:
+                        edges['b'].append(node.id)
+                    elif side == 0 and front == 1:
+                        edges['f'].append(node.id)
+                    elif side == 1 and front == 0:
+                        edges['r'].append(node.id)
+                    elif side == 1 and front == -1:
+                        edges['rb'].append(node.id)
+                    elif side == 1 and front == 1:
+                        edges['rf'].append(node.id)
+                    else:
+                        print("Erroenous Relations!")
+                        exit()
+            return edges
         graph = {}
         for node_id in self.nodes.keys():
-            graph[node_id] = self.compute_multiedges(node_id,self.ego_id)
+            graph[node_id] = compute_spatial_edges(node_id,self.ego_id)
         return graph
-
-    def compute_multiedges(self, ego_id:str,ref_id:str)->dict:
-        edges = {
-                    'l':[],
-                    'r':[],
-                    'f':[],
-                    'b':[],
-                    'lf':[],
-                    'rf':[],
-                    'lb':[],
-                    'rb':[]
-                }
-        ego_node =self.nodes[ego_id]
-        ref_node = self.nodes[ref_id]
-        for node_id, node in self.nodes.items():
-            if node_id != ego_id:
-                relation = ego_node.compute_relation(node,ref_node.heading)
-                side, front = relation['side'], relation['front']
-                if side == -1 and front == 0:
-                    edges['l'].append(node.id)
-                elif side == -1 and front == -1:
-                    edges['lb'].append(node.id)
-                elif side == -1 and front == 1:
-                    edges['lf'].append(node.id)
-                elif side == 0 and front == -1:
-                    edges['b'].append(node.id)
-                elif side == 0 and front == 1:
-                    edges['f'].append(node.id)
-                elif side == 1 and front == 0:
-                    edges['r'].append(node.id)
-                elif side == 1 and front == -1:
-                    edges['rb'].append(node.id)
-                elif side == 1 and front == 1:
-                    edges['rf'].append(node.id)
-                else:
-                    print("Erroenous Relations!")
-                    exit()
-        return edges
 
     def check_ambigious(self, origin:agent_node, dir:str)->int:
         candidates = self.graph[origin.id][dir]
@@ -208,96 +214,181 @@ class scene_graph:
             return 0
         else:
             return 1
-     
-    def export(self, destination:str)->bool:
-        #Compute Relations
-        self.compute_relations()
-        #Store Relations in a Dict, indexed by nodes
-        #Export the Dictionary in JSON File, which would later be used to generate ground truth.
-       
-        try:
-            print('self.compute_relations() worked')
-            with open(destination, "w") as outfile:
-                json.dump(self.relations,outfile)
-            print('Exported to %s' %(destination))
-            return True #if executed correctly.
-        except:
-            print("Something went wrong when exporting")
-            return False
+        
+    def check_sameSide(self, node1, node2):
+        n1, n2 = self.nodes[node1], self.nodes[node2]
+        return self.road_graph.reachable(n1.lane[0],n2.lane[0]) or\
+                self.road_graph.reachable(n2.lane[0],n1.lane[0])
+    
+    def check_sameStreet(self, node1, node2):
+        n1, n2 = self.nodes[node1], self.nodes[node2]
+        return self.check_sameSide(node1,node2) or\
+                self.road_graph.reachable('-'+n1.lane[0],n2.lane[0]) or\
+                self.road_graph.reachable(n2.lane[0],'-'+n1.lane[0]) or\
+                self.road_graph.reachable(n1.lane[0],'-'+n2.lane[0]) or\
+                self.road_graph.reachable('-'+n2.lane[0],n1.lane[0])
+
+def try_return_random_valid(var1, var2):
+    if var1 is None and var2 is None:
+        return None
+    elif var1 is None and var2 is not None:
+        return var2
+    elif var2 is None and var1 is not None:
+        return var1
+    else:
+        return random.choice([var1,var2])
+
+def distance(node1:agent_node, node2:agent_node)->float:
+    dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
+    return np.sqrt(dx**2 + dy**2)
+
 
 class Question_Generator:
-    def __init__(self, graph:scene_graph):
+    def __init__(self, graph:scene_graph, target:int = 1, allowance: int = 4, dir:str = './'):
         self.scenario_graph = graph
-        self.ground_truths =  self.scenario_graph.graph
-        self.stats = {
-            "type":{
-                "simple":0,
-                "composite":0,
-                "unique":0,
-            },
-            "distance":[],
-            "relative_distance":[]
-        }
+        self.ground_truths =  self.scenario_graph.spatial_graph
+        #stats for one particular scenes
+        self.stats = dict(
+            simple = 0,
+            composite = 0,
+            resolute = 0,
+            spatial = defaultdict(lambda:0),
+            relative_ego = [],
+            resoluter = defaultdict(lambda:0),
+            relative_compared = []
+        )
+        self.dir = dir
 
-    def generate_simple(self, referred:str = None):
-        #Pick a node to formulate a question
-        ego = self.scenario_graph.ego_id
+    def generate_all(self, ego:str = None):
+        if ego is None:
+            ego = self.scenario_graph.ego_id
+        simple_datapoints = []
+        composite_datapoints = []
+        for node in self.scenario_graph.nodes.keys():
+            if node != ego:
+                simple,candidate_1,resoluter,_ = self.generate(ego = ego,referred=node)
+                composites, candidate_2 = self.generate_two_hops(ego = ego,referred=node)
+                if simple[0] is not None:
+                    simple_datapoints.append((self.convert_to_str(simple),candidate_1))
+                if len(composites) > 0:
+                    composite_datapoints += [
+                        (self.convert_to_str(composite),candidate_2,composite[2]) for composite in composites
+                    ]
+        return simple_datapoints + composite_datapoints
+           
+    def generate(self, ego:str = None, referred:str = None, ignore:list = None, allowance:int = 10):
+        def check_same_side(ref,node):
+            graph = self.scenario_graph
+            return graph.check_sameSide(ref,node)
+        def check_different_side(ref,node):
+            graph = self.scenario_graph
+            return not graph.check_sameSide(ref,node)
+        """def check_different_street(ref,node):
+            graph = self.scenario_graph
+            return not (graph.check_sameStreet(ref,node))"""
+        def check_taller(ref,node):
+            #node is taller
+            graph = self.scenario_graph
+            return graph.nodes[node].height>graph.nodes[ref].height
+        def check_shorter(ref,node):
+            graph = self.scenario_graph
+            return graph.nodes[node].height<graph.nodes[ref].height
+        checkers = {
+            'same_side':check_same_side,
+            'different_side':check_different_side,
+            #'different_street':check_different_street,
+            'check_taller':check_taller,
+            'check_shorter':check_shorter,
+        }
+        #ego = self.scenario_graph.ego_id
         candidate_id = self.select_not_from([ego]) if referred is None else referred
         dir, peers = self.find_direction(ego, candidate_id)
-        ret = self.generate_description(dir, candidate_id, peers)
-        if ret == 'reject':
-            return ret, ego, candidate_id
+        choice_1,choice_2 = None,None
+        resoluter = None
+        if len(peers) == 1:
+           choice_1 = dir, None
+        unique_properties = []
+        for name, checker in checkers.items():
+            if self.check_unique(checker,ego, candidate_id, peers):
+                unique_properties.append(name)
+        if len(unique_properties)!=0:
+            resoluter = random.choice(unique_properties)
+            choice_2 = dir,resoluter
+        picked = try_return_random_valid(choice_1,choice_2)
+        if resoluter is not None:
+            debug_info = [(node,checkers[resoluter](ego,node)) for node in peers] 
         else:
-            Heading,modifier,suffix = ret
-            return Heading+modifier+suffix, ego, candidate_id
-    
+            debug_info = "No info"
+        #updating statistics
+        if picked is not None and ego == self.scenario_graph.ego_id:
+            d = distance(self.scenario_graph.nodes[ego],self.scenario_graph.nodes[candidate_id])
+            direction, resoluter = picked
+            self.stats["simple"] += 1
+            if resoluter:
+                self.stats["resolute"] += 1 
+                self.stats["resoluter"][resoluter] += 1
+            self.stats["spatial"][direction] += 1
+            self.stats["relative_ego"].append(d)
+        return [picked], candidate_id,resoluter, debug_info
+            
+    def generate_two_hops(self, ego: str, referred:str = None, allowance:int = 10):
+        #ego = self.scenario_graph.ego_id
+        candidate_id = self.select_not_from([ego]) if referred is None else referred
+        compared = [node_id for node_id in self.scenario_graph.nodes.keys() if node_id not in set([ego, candidate_id])]
+        intermediate_ids = sorted(compared,
+                             key = lambda node_id: distance(self.scenario_graph.nodes[candidate_id], self.scenario_graph.nodes[node_id])
+                             )
+        paths = []
+        for intermediate_id in intermediate_ids:
+            path = []
+            path.append((self.find_direction(ego, intermediate_id)[0],None))
+            last_path,_,_,_ = self.generate(intermediate_id, candidate_id)
+            if last_path[0] != None:
+                path.append(last_path[0])
+                ego_d = distance(self.scenario_graph.nodes[ego],self.scenario_graph.nodes[candidate_id])
+                relative_d = distance(self.scenario_graph.nodes[intermediate_id],self.scenario_graph.nodes[candidate_id])
+                ego_dir,_ = self.find_direction(ego, candidate_id)
+                _,resoluter = last_path[0]
+                self.stats["composite"] += 1
+                self.stats["spatial"][ego_dir]+=1
+                self.stats["relative_compared"].append(relative_d)
+                self.stats["relative_ego"].append(ego_d)
+                if resoluter:
+                    self.stats["resolute"]+=1
+                    self.stats["resoluter"][resoluter]+=1
+                path.append(intermediate_id)
+                paths.append(path)
+        return paths, candidate_id
 
+    def convert_to_str(self, path:Iterable):
+        def convert_resoluter(resoluter):
+            mapping = {
+                'same_side':'on the same side of the street as',
+                'different_side':'on the different side of the street as',
+                'check_taller':"is taller than",
+                'check_shorter':"is lower than",
+            }
+            return mapping[resoluter]
+        Begin = "The car that is "
+        if len(path) == 3:
+            ref = 'another car '
+            dir1, resoluter = path[1]
+            dir2,_ = path[0]
+            part_1 = self.generate_spatial_modifier(dir1)
+            suffix_1 = "that is "
+            part_2 = self.generate_spatial_modifier(dir2)
+            center = "ego."
+            resoluter = "" if resoluter is None else "The car is {} the other car.".format(convert_resoluter(resoluter))
+            return Begin + part_1 + ref +suffix_1+ part_2 + center + resoluter
+        else:
+            dir, resoluter = path[0]
+            part_1 = self.generate_spatial_modifier(dir)
+            center = "ego."
+            resoluter = "" if resoluter is None else "The car is {} ego.".format(convert_resoluter(resoluter))
+            return Begin + part_1 + center + resoluter
     
-    def select_not_from(self, ban_list:list)->str:
-        nodes = list(self.scenario_graph.nodes.keys())
-        result = random.choice(nodes)
-        while result in ban_list:
-            result = random.choice(nodes)
-        return result
-        
-    def generate_description(self, direction_string:str, candidate_id:str, peer_ids:list):
-        string = "The car that is "
-        modifier = self.generate_spatial_modifier(direction_string)
-        suffix = ""
-        if len(peer_ids)==1:
-            suffix = "ego. "   
-        else:
-            def check_same_side(node):
-                graph = self.scenario_graph
-                return graph.nodes[node].sameSide(graph.nodes[self.scenario_graph.ego_id])
-            def check_different_side(node):
-                graph = self.scenario_graph
-                return not (graph.nodes[node].sameSide(graph.nodes[self.scenario_graph.ego_id]))
-            def check_different_street(node):
-                graph = self.scenario_graph
-                return not (graph.nodes[node].sameStreet(graph.nodes[self.scenario_graph.ego_id]))
-            def check_taller(node):
-                graph = self.scenario_graph
-                return graph.nodes[node].height>graph.nodes[self.scenario_graph.ego_id].height
-            def check_shorter(node):
-                graph = self.scenario_graph
-                return graph.nodes[node].height<graph.nodes[self.scenario_graph.ego_id].height
-            if self.check_unique(check_same_side, candidate_id, peer_ids):
-                suffix += "another car.The car is on the other car's lane of the road."
-            elif self.check_unique(check_different_side, candidate_id, peer_ids):
-                suffix += "another car.The car is not on the other car's lane of the road."
-            elif self.check_unique(check_different_street,candidate_id, peer_ids):
-                suffix += "another car.The car is not on the same street as the other car."
-            elif self.check_unique(check_taller, candidate_id, peer_ids):
-                suffix += "another car.The car is taller than the other car."
-            elif self.check_unique(check_shorter, candidate_id, peer_ids):
-                suffix += "another car.The car is shorter than the other car."
-            #TODO: Use distance ordering for resolution
-        if suffix == "": #meaning, ambigious
-            return "reject"
-        else:
-            return string, modifier, suffix
     def generate_spatial_modifier(self, direction_string:str)->str:
+        #Convert direction abbreviations to natural language
         modifier = ""
         if direction_string == 'l':
             modifier = 'directly to the left of '
@@ -317,15 +408,15 @@ class Question_Generator:
             modifier = 'directly in front of '
         return modifier
 
-    def check_unique(self, checker:Callable[[str],bool], candidate:str, peers:list[str])->bool:
+    def check_unique(self, checker:Callable, ref: str, candidate:str, peers:Iterable)->bool:
         for peer in peers:
             if peer == candidate:
-                if checker(peer):
+                if checker(ref,peer):
                     continue
                 else:
                     return False
             else:
-                if not checker(peer):
+                if not checker(ref,peer):
                     continue
                 else:
                     return False
@@ -337,46 +428,16 @@ class Question_Generator:
                 return dir, peers
         print('Error in finding node %s in node %s \'s coordinate' %(target, origin))
         exit()
+ 
+    def select_not_from(self, ban_list:list)->str:
+        nodes = list(self.scenario_graph.nodes.keys())
+        result = random.choice(nodes)
+        while result in ban_list:
+            result = random.choice(nodes)
+        return result
 
-    def generate_comparative(self, referred:str= None, compared:str= None)->tuple[str, str, str, str]:
-        """
-        Generate questions in which the target objects are disambiguated with comparative informations involving cars
-        other than ego. For example, if there are two cars to the side of the ego, a question could be
-                                "Pinpoint the car further to the right."
-        And the ground truth would be the car on the right that's farthest from ego.
-
-        Type 1: Single Dimension (Further/Closer along one dimension)
-        Type 2: Double Dimension (In front of a car that's to the right of the ego)
-        Type 3: Composite (In front of the car that is farther to the right of ego)
-
-        
-
-        Type 1: Disambiguate by itself. 
-                "To the right, to the left, to the front, to the back, same direction, different direction" (w.r.t. the ego)
-        Type 2: Disambiguate with <relation> involving another object
-                "Further left, further right, in front of the car to the right         
-        Type 3: Disambiguate with <relation> involving two objects 
-        """
-        ego = self.scenario_graph.ego_id
-        candidate_id = self.select_not_from([ego]) if referred is None else referred
-        comparative_candidate_ids = [idx  
-                                     for idx in self.scenario_graph.nodes.keys() 
-                                     if idx not in [ego, candidate_id]]
-        #print(comparative_candidate_ids, self.scenario_graph.ego_id, candidate_id)
-        if len(comparative_candidate_ids)==0:
-            return 'reject', ego, candidate_id, "None"
-        comparative_candidate_id = random.choice(comparative_candidate_ids) if compared is None else compared
-        dir_ego, _ = self.find_direction(ego, comparative_candidate_id)
-        modifier_ego = self.generate_spatial_modifier(dir_ego)
-        candidate_dir, candidate_peers = self.find_direction(comparative_candidate_id, candidate_id)
-        ret = self.generate_description(candidate_dir,candidate_id,candidate_peers)
-        if ret == 'reject':
-            return ret, ego, candidate_id, comparative_candidate_id
-        else:
-            Heading,modifier,suffix = ret
-            final = Heading + modifier + "another car that is " + modifier_ego  + suffix  
-            return final, ego, candidate_id, comparative_candidate_id
-           
+    def get_stats(self):
+        return self.stats    
 
 def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
     agent_dict = scene_dict['agent']
@@ -412,7 +473,7 @@ def transform(ego:agent_node,bbox:Iterable)->Iterable:
         new_x = ego.heading
         new_y = (-new_x[1], new_x[0])
         x = (relative_x*new_x[0] + relative_y*new_x[1])
-        y = (relative_y*new_y[0] + relative_y*new_y[1])
+        y = (relative_x*new_y[0] + relative_y*new_y[1])
         return x,y
     return [change_bases(*point) for point in bbox]
 
@@ -426,16 +487,6 @@ if __name__ == '__main__':
     parser.add_argument("--step", type=str, default = None)
     parser.add_argument("--folder", type=str, default = None)
     args = parser.parse_args()
-    meta = {
-        "type":{
-            "simple":0,
-            "composite":0,
-            "unique":0,
-        },
-        "distance":[],
-        "relative_distance":[]
-        
-    }
     if args.batch == True:
         assert args.folder is not None
         gts = glob.glob(args.folder+"/[0-9]*_[0-9]*/world*",recursive=True)
@@ -451,57 +502,49 @@ if __name__ == '__main__':
             agent_id, nodes = nodify(scene_dict)
             graph = scene_graph(agent_id,nodes)
             test_generator = Question_Generator(graph)
-            text, ego, candidate = test_generator.generate_simple() 
-            if text == "reject":
-                text, ego, candidate, compared = test_generator.generate_comparative()
-                if text == "reject":
-                    continue
+            datapoints = test_generator.generate_all()
+            statistics =test_generator.get_stats()
+            scene_data = {}
+            for idx, datapoint in enumerate(datapoints):
+                if len(datapoint)==2:
+                    text, candidate = datapoint
+                    qa_dict = {
+                    "text":text,
+                    "bbox":transform(graph.nodes[agent_id], graph.nodes[candidate].bbox),
+                    "height":graph.nodes[candidate].height,
+                    "id":candidate,
+                    "ref":""
+                }
                 else:
-                    meta['type']['composite']+=1
-                    meta['distance'].append(distance(graph.nodes[ego], graph.nodes[candidate]))
-                    meta['relative_distance'].append(distance(graph.nodes[candidate], graph.nodes[compared]))
+                    text, candidate, compared = datapoint
                     qa_dict = {
                         "text":text,
-                        "bbox":transform(graph.nodes[ego], graph.nodes[candidate].bbox),
+                        "bbox":transform(graph.nodes[agent_id], graph.nodes[candidate].bbox),
                         "height":graph.nodes[candidate].height,
-                        "id":candidate
+                        "id":candidate,
+                        'ref':compared
                     }
-                    try:
-                        with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
-                            json.dump(qa_dict,file)
-                    except:
-                        print("wtf")
-            else:
-                meta["type"]['simple']+=1
-                meta['distance'].append(distance(graph.nodes[ego], graph.nodes[candidate]))
-                qa_dict = {
-                    "text":text,
-                    "bbox":transform(graph.nodes[ego], graph.nodes[candidate].bbox),
-                    "height":graph.nodes[candidate].height,
-                    "id":candidate
-                }
-                try:
-                    with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
-                        json.dump(qa_dict,file)
-                except:
-                    print("wtf")
-        try:
-            with open(args.folder+"/stats.json",'w') as file:
-                json.dump(meta, file)
-        except:
-            print("Error recording statistics")
+                scene_data[idx] = qa_dict
+            try:
+                with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
+                    json.dump(scene_data,file)
+            except:
+                print("wtf")
+            try:
+                with open(args.folder+"/stats.json",'w') as file:
+                    json.dump(statistics, file)
+            except:
+                print("Error recording statistics")
     else:
-        assert args.step == True
+        assert args.step is not None
         with open('{}.json'.format(args.step),'r') as scene_file:
             scene_dict = json.load(scene_file)
         agent_id,nodes = nodify(scene_dict)
         graph = scene_graph(agent_id,nodes)
+        #pprint(graph.spatial_graph['5aeb8b05-c199-4ac4-bf4e-f63d90684bcf'])
         test_generator = Question_Generator(graph)
-        text, ego, candidate = test_generator.generate_simple() 
-        print(text, candidate)
-        text, ego, candidate, compared = test_generator.generate_comparative()
-        print(text, candidate, compared)
-
+        points= test_generator.generate_all()
+        
     
     
 
@@ -516,7 +559,7 @@ if __name__ == '__main__':
     )"""
     """
     Prompt: 
-    rephrase 10 times: "The car that is to the right and behind us and heading the same direction as us."
+    rephrase 10 times: "The car that is to the r         ight and behind us and heading the same direction as us."
     Return:
     1. "The vehicle positioned on our right side, behind us, and traveling in the same direction as us."
     2. "The car situated to our right and following us while heading in the same direction."

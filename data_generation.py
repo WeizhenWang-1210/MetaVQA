@@ -116,7 +116,7 @@ if __name__ == "__main__":
         random_agent_model=False,
         random_lane_width=True,
         random_lane_num=True,
-        need_inverse_traffic = False,
+        need_inverse_traffic = True,
         # image_on_cuda = True,
         # debug=True,
         # debug_static_world=True,
@@ -149,6 +149,7 @@ if __name__ == "__main__":
         print("Folder has name %s" %(env.current_seed))
         for i in range(1, 9000000000):
             if count > args.num_instance:
+                env.reset()
                 break
             o, r, tm, tc, info = env.step([0, 0])
             env.render(
@@ -156,7 +157,7 @@ if __name__ == "__main__":
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if i % 60== 0: #note: the "1st" object in objects is the agent
+            if i % 40== 0: #note: the "1st" object in objects is the agent
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
                 agent_id = list(agents.values())[0].id
@@ -209,7 +210,7 @@ if __name__ == "__main__":
                     scene_dict["vehicles"] = object_descriptions
                     rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
                     rgb_cam.save_image(env.vehicle, name= path + "/" +identifier + "/"+ "rgb_{}.png".format(identifier))
-                    ret1 = env.render(mode = 'top_down', film_size=(6000, 6000), target_vehicle_heading_up=False, screen_size=(2000,2000),show_agent_name=True)
+                    ret1 = env.render(mode = 'top_down', film_size=(6000, 6000), target_vehicle_heading_up=False, screen_size=(3000,3000),show_agent_name=True)
                     ret1 = pygame.transform.flip(ret1,flip_x = True, flip_y = False)
                     file_path = os.path.join(instance_folder, "top_down_{}.png".format(identifier))
                     pygame.image.save(ret1, file_path)

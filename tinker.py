@@ -7,14 +7,15 @@ import trimesh
 #Porsche 911 Carrera 4S d01b254483794de3819786d93e0e1ebf
 #pickup 40c94d8b31f94df3bd80348cac8624f1
 #Mahindra thar 4by4 f045413d71d743c58682881cb7421d64
+
 if __name__ == "__main__":
     #uids = objaverse.load_uids()
     objects = [
         "ffba8330b24d42daac8905fa0102eb97",
     ]
     objects = objaverse.load_objects(objects,1)
-    trimesh.load(list(objects.values())[0]).show()
-    #trimesh.load("metadrive/assets/models/lambo/vehicle.glb").show()
+    #trimesh.load(list(objects.values())[0]).show()
+    trimesh.load("metadrive/assets/models/ferra/vehicle.gltf").show()
 
     car_spec = {
         "lambo":{
