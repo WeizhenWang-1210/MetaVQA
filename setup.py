@@ -51,7 +51,10 @@ install_requires = [
     "scipy",
     "psutil",
     "geopandas",
-    "shapely"
+    "shapely",
+    "objaverse",
+    "trimesh",
+    "openai"
 ]
 
 nuplan_requirement = [
