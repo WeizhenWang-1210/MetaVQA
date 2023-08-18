@@ -531,7 +531,7 @@ if __name__ == '__main__':
             except:
                 print("wtf")
             try:
-                with open(args.folder+"/stats.json",'w') as file:
+                with open(root +"/stats_{}.json".format(splitted[1]),'w') as file:
                     json.dump(statistics, file)
             except:
                 print("Error recording statistics")
