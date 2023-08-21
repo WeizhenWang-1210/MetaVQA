@@ -187,7 +187,8 @@ if __name__ == "__main__":
                         pos = agent.position,
                         bbox = [tuple(point) for point in agent.bounding_box],
                         type = vehicle_type(str(type(agent))),
-                        height = agent.HEIGHT
+                        height = agent.HEIGHT,
+                        road_type = agent.navigation.current_road.block_ID()
                     )
                     observation = {}
                     observation['lidar'],observable = env.vehicle.lidar.perceive(env.vehicle)
@@ -203,7 +204,8 @@ if __name__ == "__main__":
                             pos = object.position,
                             bbox = [tuple(point) for point in object.bounding_box],
                             type = vehicle_type(str(type(object))),
-                            height = object.HEIGHT
+                            height = object.HEIGHT,
+                            road_type = object.navigation.current_road.block_ID()
                         )
                         for object in objects_of_interest
                     ]

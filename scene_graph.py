@@ -60,7 +60,8 @@ class agent_node:
                  id = None,
                  bbox = None,
                  type = "vehicle",
-                 height = None):
+                 height = None,
+                 road_code = None):
         #More properties could be defined.
         self.pos =  pos #(x,y) w.r.t. to world origin
         self.color = color
@@ -71,6 +72,7 @@ class agent_node:
         self.bbox = bbox
         self.type = type
         self.height = height
+        self.road_code = road_code
         #self.ref_heading = self.heading #used when the relation is observed from other's coordinate
     
     def compute_relation(self, node, ref_heading:tuple)->dict:
@@ -244,6 +246,23 @@ def distance(node1:agent_node, node2:agent_node)->float:
 
 
 class Question_Generator:
+    CODE_TO_ROAD = {
+        'S': "straight road",
+        'C': "curved road",
+        'r': "in-ramp",
+        'R': "out_ramp",
+        'O': "roundabout",
+        'X': "intersection",
+        'T': 'T-intersection',
+        'y': 'merge',
+        'Y': 'split',
+        '$': 'tollgate',
+        'P': "parking lot",
+        "WIP":'fork',
+        '>': "straight road"
+    }
+
+
     def __init__(self, graph:scene_graph, target:int = 1, allowance: int = 4, dir:str = './'):
         self.scenario_graph = graph
         self.ground_truths =  self.scenario_graph.spatial_graph
@@ -269,10 +288,12 @@ class Question_Generator:
                 simple,candidate_1,resoluter,_ = self.generate(ego = ego,referred=node)
                 composites, candidate_2 = self.generate_two_hops(ego = ego,referred=node)
                 if simple[0] is not None:
-                    simple_datapoints.append((self.convert_to_str(simple),candidate_1))
+                    road_string = 'The car is on a {}.'.format(self.CODE_TO_ROAD[self.scenario_graph.nodes[candidate_1].road_code])
+                    simple_datapoints.append((self.convert_to_str(simple) + road_string,candidate_1))
                 if len(composites) > 0:
+                    road_string = 'The car is on a {}.'.format(self.CODE_TO_ROAD[self.scenario_graph.nodes[candidate_2].road_code])
                     composite_datapoints += [
-                        (self.convert_to_str(composite),candidate_2,composite[2]) for composite in composites
+                        (self.convert_to_str(composite)+ road_string,candidate_2,composite[2]) for composite in composites
                     ]
         return simple_datapoints + composite_datapoints
            
@@ -452,7 +473,8 @@ def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
                                         lane = info["lane"],
                                         id = info['id'],
                                         bbox = info['bbox'],
-                                        height = info['height'])
+                                        height = info['height'],
+                                        road_code=info['road_type'])
                 )
     nodes.append(
                 agent_node(
@@ -463,7 +485,8 @@ def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
                             lane = agent_dict["lane"],
                             id = agent_dict['id'],
                             bbox = agent_dict['bbox'],
-                            height = agent_dict['height'])
+                            height = agent_dict['height'],
+                            road_code=info['road_type'])
             )
     return agent_id, nodes
 
