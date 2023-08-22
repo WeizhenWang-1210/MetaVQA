@@ -54,7 +54,8 @@ install_requires = [
     "shapely",
     "objaverse",
     "trimesh",
-    "openai"
+    "openai",
+    "pyglet<2"
 ]
 
 nuplan_requirement = [
