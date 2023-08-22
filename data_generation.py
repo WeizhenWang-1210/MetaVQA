@@ -18,6 +18,8 @@ import math
 from panda3d.core import CollisionNode, CollisionBox,Point3,CollisionTraverser,CollisionHandlerQueue
 from panda3d.bullet import BulletConvexHullShape
 from metadrive.constants import HELP_MESSAGE
+from utils_testing import sample_bbox
+from panda3d.core import NodePath
 def generate(config, max = 100):
     count = 0
     env = MetaDriveEnv(config)
@@ -116,13 +118,13 @@ if __name__ == "__main__":
         random_agent_model=False,
         random_lane_width=True,
         random_lane_num=True,
-        need_inverse_traffic = True,
+        #need_inverse_traffic = True,
         # image_on_cuda = True,
         # debug=True,
         # debug_static_world=True,
         map=4,  # seven block
         start_seed=random.randint(0, 1000),
-        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920, 1080)}
+        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080)}
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
@@ -157,7 +159,7 @@ if __name__ == "__main__":
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if i % 40== 0: #note: the "1st" object in objects is the agent
+            if i % 30== 0: #note: the "1st" object in objects is the agent
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
                 agent_id = list(agents.values())[0].id
@@ -194,6 +196,14 @@ if __name__ == "__main__":
                     observation['lidar'],observable = env.vehicle.lidar.perceive(env.vehicle)
                     observable_id = [car.id for car in list(observable)]
                     final_objects = [object for object in objects_of_interest if object.id in observable_id]
+                    
+
+
+
+
+
+
+
                     object_descriptions = [
                         dict(
                             id = object.id,
@@ -211,6 +221,26 @@ if __name__ == "__main__":
                     ]
                     scene_dict["vehicles"] = object_descriptions
                     rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
+                    for object in final_objects:
+                        if rgb_cam.get_cam().node().isInView(object.origin.getPos(rgb_cam.get_cam())):
+                                print("RGB_Center_Observable:{}".format(object.id))
+                        """origin_x, origin_y, origin_z = agent.origin.getPos()
+                        z_augmented = [[x,y, origin_z] for x,y in agent.bounding_box]
+                        object_sample_box = sample_bbox(z_augmented,agent.height,4,4,4)
+                        observable_count = 0
+                        total_count = len(object_sample_box)
+                        for sample in object_sample_box:
+                            sample_np = NodePath("tmp_node")
+                            sample_np.reparentTo(env.engine.render)
+                            sample_np.setPos(sample[0],sample[1],sample[2])
+                            print("rgb_render",rgb_cam.get_cam().getPos(env.engine.render))
+                            print("sample_np_render",sample_np.getPos(env.engine.render))
+                            print("sample_np to rgb",sample_np.getPos(rgb_cam.get_cam()))
+                            if rgb_cam.get_cam().node().isInView(sample_np.getPos(rgb_cam.get_cam())):
+                                observable_count += 1
+                            sample_np.detach_node()
+                        print(object.id, observable_count)"""
+
                     rgb_cam.save_image(env.vehicle, name= path + "/" +identifier + "/"+ "rgb_{}.png".format(identifier))
                     ret1 = env.render(mode = 'top_down', film_size=(6000, 6000), target_vehicle_heading_up=False, screen_size=(3000,3000),show_agent_name=True)
                     ret1 = pygame.transform.flip(ret1,flip_x = True, flip_y = False)
