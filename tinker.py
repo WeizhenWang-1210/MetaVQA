@@ -71,12 +71,12 @@ if __name__ == "__main__":
     objhelper = Objverse_helper()
     uid_list, full_list, full_tag = objhelper.getTagStrictly(-1, "car")
     objects = objaverse.load_objects(
-        uids=uid_list,
+        uids=uid_list[:500],
         download_processes=processes
     )
-    with open("/home/chenda/objpath.txt", "w") as f:
-        for uid, path in objects.items():
-            f.write("{}:{}".format(uid,path))
+    # with open("/home/chenda/objpath.txt", "w") as f:
+    #     for uid, path in objects.items():
+    #         f.write("{}:{}".format(uid,path))
 
     #uids = objaverse.load_uids()
     # objects = [
