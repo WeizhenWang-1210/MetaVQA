@@ -15,7 +15,7 @@ import cv2
 import os
 import re
 import math
-from panda3d.core import CollisionNode, CollisionBox,Point3,CollisionTraverser,CollisionHandlerQueue
+from panda3d.core import CollisionNode, CollisionBox,Point3,CollisionTraverser,CollisionHandlerQueue,LPoint3f
 from panda3d.bullet import BulletConvexHullShape
 from metadrive.constants import HELP_MESSAGE
 from utils_testing import sample_bbox
@@ -124,7 +124,8 @@ if __name__ == "__main__":
         # debug_static_world=True,
         map=4,  # seven block
         start_seed=random.randint(0, 1000),
-        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080)}
+        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080)},
+        show_coordinates = True
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
@@ -222,24 +223,40 @@ if __name__ == "__main__":
                     scene_dict["vehicles"] = object_descriptions
                     rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
                     for object in final_objects:
-                        if rgb_cam.get_cam().node().isInView(object.origin.getPos(rgb_cam.get_cam())):
-                                print("RGB_Center_Observable:{}".format(object.id))
-                        """origin_x, origin_y, origin_z = agent.origin.getPos()
-                        z_augmented = [[x,y, origin_z] for x,y in agent.bounding_box]
-                        object_sample_box = sample_bbox(z_augmented,agent.height,4,4,4)
+                        """if rgb_cam.get_cam().node().isInView(object.origin.getPos(rgb_cam.get_cam())):
+                                print("RGB_Center_Observable:{}".format(object.id))"""
+                        origin_x, origin_y, _ = object.origin.getPos()
+                        #print(origin_x, origin_y)
+                        #print(object.bounding_box)
+                        #print(object.height)
+                        z_augmented = [
+                            [object.LENGTH / 2, object.WIDTH / 2,0], 
+                            [object.LENGTH / 2, -object.WIDTH / 2,0], 
+                            [-object.LENGTH / 2, -object.WIDTH / 2,0],
+                            [-object.LENGTH / 2, object.WIDTH / 2,0], 
+                        ]
+                        object_sample_box = sample_bbox(z_augmented,object.height,8,8,4)
+                        #print(object_sample_box)
                         observable_count = 0
                         total_count = len(object_sample_box)
                         for sample in object_sample_box:
                             sample_np = NodePath("tmp_node")
-                            sample_np.reparentTo(env.engine.render)
+                            sample_np.reparentTo(object.origin)
                             sample_np.setPos(sample[0],sample[1],sample[2])
-                            print("rgb_render",rgb_cam.get_cam().getPos(env.engine.render))
-                            print("sample_np_render",sample_np.getPos(env.engine.render))
-                            print("sample_np to rgb",sample_np.getPos(rgb_cam.get_cam()))
+                            #print("rgb_render",rgb_cam.get_cam().getPos(env.engine.render))
+                            #print("sample_np_render",sample_np.getPos(env.engine.render))
+                            #print("sample_np to rgb",sample_np.getPos(rgb_cam.get_cam()))
+                            #sample_point = LPoint3f(sample[0],sample[1],sample[2])
+                            #sample_point_transformed = rgb_cam.get_cam().getMat(env.engine.render).xformPoint(sample_point)
+                            #print(sample_point)
+                            #print(sample_point_transformed)
+                            #print(rgb_cam.get_cam().getPos(env.engine.render))
+                            #print(sample_np.getPos(object.origin))
                             if rgb_cam.get_cam().node().isInView(sample_np.getPos(rgb_cam.get_cam())):
                                 observable_count += 1
+                                #print('Triggered')
                             sample_np.detach_node()
-                        print(object.id, observable_count)"""
+                        print(object.id, observable_count)
 
                     rgb_cam.save_image(env.vehicle, name= path + "/" +identifier + "/"+ "rgb_{}.png".format(identifier))
                     ret1 = env.render(mode = 'top_down', film_size=(6000, 6000), target_vehicle_heading_up=False, screen_size=(3000,3000),show_agent_name=True)
