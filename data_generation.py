@@ -20,6 +20,8 @@ from panda3d.bullet import BulletConvexHullShape
 from metadrive.constants import HELP_MESSAGE
 from utils_testing import sample_bbox
 from panda3d.core import NodePath
+from direct.showbase.Loader import Loader
+from metadrive.engine.asset_loader import AssetLoader
 def generate(config, max = 100):
     count = 0
     env = MetaDriveEnv(config)
@@ -125,7 +127,7 @@ if __name__ == "__main__":
         map=4,  # seven block
         start_seed=random.randint(0, 1000),
         vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080)},
-        show_coordinates = True
+        #show_coordinates = True
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
@@ -135,8 +137,11 @@ if __name__ == "__main__":
         config.update(dict(image_observation=True))
     env = MetaDriveEnv(config)
     try:
+        
         o, _ = env.reset()
         print(HELP_MESSAGE)
+        #AssetLoader.init_loader(env.engine)
+        #loadeer = AssetLoader.get_loader()
         env.vehicle.expert_takeover = True
         if args.observation == "rgb_camera":
             assert isinstance(o, dict)
@@ -196,68 +201,67 @@ if __name__ == "__main__":
                     observation = {}
                     observation['lidar'],observable = env.vehicle.lidar.perceive(env.vehicle)
                     observable_id = [car.id for car in list(observable)]
-                    final_objects = [object for object in objects_of_interest if object.id in observable_id]
+                    Lidar_Observable_objects = [object for object in objects_of_interest if object.id in observable_id]
                     
-
-
-
-
-
-
-
-                    object_descriptions = [
-                        dict(
-                            id = object.id,
-                            color = SAME_COLOR,    
-                            heading = object.heading ,      
-                            lane = object.lane_index,                          
-                            speed =  object.speed,
-                            pos = object.position,
-                            bbox = [tuple(point) for point in object.bounding_box],
-                            type = vehicle_type(str(type(object))),
-                            height = object.HEIGHT,
-                            road_type = object.navigation.current_road.block_ID()
-                        )
-                        for object in objects_of_interest
-                    ]
-                    scene_dict["vehicles"] = object_descriptions
+                    #print(Lidar_Observable_objects)
                     rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
-                    for object in final_objects:
+                    Lidar_RGB_Observable_objects = []
+                    for object in Lidar_Observable_objects:
                         """if rgb_cam.get_cam().node().isInView(object.origin.getPos(rgb_cam.get_cam())):
                                 print("RGB_Center_Observable:{}".format(object.id))"""
+                        
+                        min_point, max_point = object.origin.getTightBounds(object.origin)
+                        
+                        """
+                        p1, p2 (max_point)
+                        p4, p3
+                        (min_point)
+                        
+                        """
+                        p1 = LPoint3f(min_point[0],max_point[1],0)
+                        p2 = LPoint3f(max_point[0],max_point[1],0)
+                        p3 = LPoint3f(max_point[0],min_point[1],0)
+                        p4 = LPoint3f(min_point[0],min_point[1],0)
+                        height = max_point[2]
                         origin_x, origin_y, _ = object.origin.getPos()
-                        #print(origin_x, origin_y)
-                        #print(object.bounding_box)
-                        #print(object.height)
-                        z_augmented = [
-                            [object.LENGTH / 2, object.WIDTH / 2,0], 
-                            [object.LENGTH / 2, -object.WIDTH / 2,0], 
-                            [-object.LENGTH / 2, -object.WIDTH / 2,0],
-                            [-object.LENGTH / 2, object.WIDTH / 2,0], 
-                        ]
-                        object_sample_box = sample_bbox(z_augmented,object.height,8,8,4)
-                        #print(object_sample_box)
+                        z_augmented = [p1,p2,p3,p4]
+                        object_sample_box = sample_bbox(z_augmented,height,8,8,4)
                         observable_count = 0
                         total_count = len(object_sample_box)
                         for sample in object_sample_box:
+                            #sample_np = loadeer.load_model(AssetLoader.file_path("models", "sphere.egg"))
+                            #sample_np.setScale(0.1,0.1,0.1)
                             sample_np = NodePath("tmp_node")
                             sample_np.reparentTo(object.origin)
                             sample_np.setPos(sample[0],sample[1],sample[2])
-                            #print("rgb_render",rgb_cam.get_cam().getPos(env.engine.render))
-                            #print("sample_np_render",sample_np.getPos(env.engine.render))
-                            #print("sample_np to rgb",sample_np.getPos(rgb_cam.get_cam()))
-                            #sample_point = LPoint3f(sample[0],sample[1],sample[2])
-                            #sample_point_transformed = rgb_cam.get_cam().getMat(env.engine.render).xformPoint(sample_point)
-                            #print(sample_point)
-                            #print(sample_point_transformed)
-                            #print(rgb_cam.get_cam().getPos(env.engine.render))
-                            #print(sample_np.getPos(object.origin))
+                            #sample_np.setPos(sample)
                             if rgb_cam.get_cam().node().isInView(sample_np.getPos(rgb_cam.get_cam())):
                                 observable_count += 1
-                                #print('Triggered')
                             sample_np.detach_node()
-                        print(object.id, observable_count)
+                        #print(object.id, observable_count)
+                        if observable_count/total_count>=0.2:
+                            Lidar_RGB_Observable_objects.append(object)
 
+                
+                    object_descriptions = [
+                        dict(
+                            id = fobject.id,
+                            color = SAME_COLOR,    
+                            heading = fobject.heading ,      
+                            lane = fobject.lane_index,                          
+                            speed =  fobject.speed,
+                            pos = fobject.position,
+                            bbox = [tuple(point) for point in fobject.bounding_box],
+                            type = vehicle_type(str(type(fobject))),
+                            height = fobject.HEIGHT,
+                            road_type = object.navigation.current_road.block_ID()
+                        )
+                        for fobject in Lidar_RGB_Observable_objects
+                    ]
+                    print(len(objects_of_interest),len(Lidar_Observable_objects), len(Lidar_RGB_Observable_objects))
+                    print(len(object_descriptions)==len(Lidar_RGB_Observable_objects))
+                    #print(objects_of_interest, observable, Lidar_Observable_objects, Lidar_RGB_Observable_objects)
+                    scene_dict["vehicles"] = object_descriptions
                     rgb_cam.save_image(env.vehicle, name= path + "/" +identifier + "/"+ "rgb_{}.png".format(identifier))
                     ret1 = env.render(mode = 'top_down', film_size=(6000, 6000), target_vehicle_heading_up=False, screen_size=(3000,3000),show_agent_name=True)
                     ret1 = pygame.transform.flip(ret1,flip_x = True, flip_y = False)
