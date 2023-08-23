@@ -2,7 +2,8 @@ from panda3d.core import VirtualFileSystem, Filename
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.component.pg_space import ParameterSpace, VehicleParameterSpace
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
-
+from metadrive.utils import Config
+from typing import Union, Optional
 
 
 def convert_path(pth):
@@ -34,7 +35,63 @@ class DefaultVehicle(BaseVehicle):
     @property
     def WIDTH(self):
         return 1.852  # meters
+class CustomizedCar(BaseVehicle):
+    # PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
+    # TIRE_RADIUS = 0.3305#0.313
+    # TIRE_WIDTH = 0.255#0.25
+    # MASS = 1595#1100
+    # LATERAL_TIRE_TO_CENTER = 1#0.815
+    # FRONT_WHEELBASE = 1.36#1.05234
+    # REAR_WHEELBASE = 1.45#1.4166
+    # #path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+    # path = ['lambo/vehicle.glb', (0.5,0.5,0.5), (1.09, 0, 0.6), (0, 0, 0)]
 
+    def __init__(
+            self,
+            asset_metainfo: dict,
+            vehicle_config: Union[dict, Config] = None,
+            name: str = None,
+            random_seed=None,
+            position=None,
+            heading=None
+    ):
+        super().__init__( vehicle_config,
+            name,
+            random_seed,
+            position,
+            heading)
+    def update_asset_metainfo(self, asset_metainfo: dict):
+        self.PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
+        self.TIRE_RADIUS = asset_metainfo["TIRE_RADIUS"]  # 0.313
+        self.TIRE_WIDTH = asset_metainfo["TIRE_WIDTH"]  # 0.25
+        self.MASS = asset_metainfo["MASS"]  # 1100
+        self.LATERAL_TIRE_TO_CENTER = asset_metainfo["LATERAL_TIRE_TO_CENTER"]  # 0.815
+        self.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
+        self.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
+        # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+        self.path = [asset_metainfo["MODEL_PATH"], asset_metainfo["MODEL_SCALE"],  asset_metainfo["MODEL_ROTATE"], asset_metainfo["MODEL_SHIFT"]]
+        self._LENGTH = asset_metainfo["LENGTH"]
+        self._HEIGHT = asset_metainfo["HEIGHT"]
+        self._WIDTH = asset_metainfo["WIDTH"]
+
+    @property
+    def LENGTH(self):
+        return self._LENGTH  # meters
+    @LENGTH.setter
+    def LENGTH(self, new_length):
+        self._LENGTH = new_length
+    @property
+    def HEIGHT(self):
+        return self._HEIGHT  # meters
+    @HEIGHT.setter
+    def HEIGHT(self, new_height):
+        self._HEIGHT = new_height
+    @property
+    def WIDTH(self):
+        return 2.099
+    @HEIGHT.setter
+    def WIDTH(self, new_width):
+        self._WIDTH = new_width
 class Lambo(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
     TIRE_RADIUS = 0.3305#0.313
