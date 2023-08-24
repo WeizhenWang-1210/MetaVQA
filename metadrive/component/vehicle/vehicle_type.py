@@ -36,62 +36,74 @@ class DefaultVehicle(BaseVehicle):
     def WIDTH(self):
         return 1.852  # meters
 class CustomizedCar(BaseVehicle):
-    # PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
-    # TIRE_RADIUS = 0.3305#0.313
-    # TIRE_WIDTH = 0.255#0.25
-    # MASS = 1595#1100
-    # LATERAL_TIRE_TO_CENTER = 1#0.815
-    # FRONT_WHEELBASE = 1.36#1.05234
-    # REAR_WHEELBASE = 1.45#1.4166
-    # #path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-    # path = ['lambo/vehicle.glb', (0.5,0.5,0.5), (1.09, 0, 0.6), (0, 0, 0)]
+    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
+    TIRE_RADIUS = 0.3305#0.313
+    TIRE_WIDTH = 0.255#0.25
+    MASS = 1595#1100
+    LATERAL_TIRE_TO_CENTER = 1#0.815
+    FRONT_WHEELBASE = 1.36#1.05234
+    REAR_WHEELBASE = 1.45#1.4166
+    #path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+    path = ['lambo/vehicle.glb', (0.5,0.5,0.5), (1.09, 0, 0.6), (0, 0, 0)]
 
     def __init__(
             self,
-            asset_metainfo: dict,
+            test_asset_meta_info: dict,
             vehicle_config: Union[dict, Config] = None,
             name: str = None,
             random_seed=None,
             position=None,
             heading=None
     ):
+        self.update_asset_metainfo(test_asset_meta_info)
         super().__init__( vehicle_config,
             name,
             random_seed,
             position,
             heading)
-    def update_asset_metainfo(self, asset_metainfo: dict):
-        self.PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
-        self.TIRE_RADIUS = asset_metainfo["TIRE_RADIUS"]  # 0.313
-        self.TIRE_WIDTH = asset_metainfo["TIRE_WIDTH"]  # 0.25
-        self.MASS = asset_metainfo["MASS"]  # 1100
-        self.LATERAL_TIRE_TO_CENTER = asset_metainfo["LATERAL_TIRE_TO_CENTER"]  # 0.815
-        self.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
-        self.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
+    @classmethod
+    def update_asset_metainfo(cls, asset_metainfo: dict):
+        print(asset_metainfo)
+        cls.PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
+        cls.TIRE_RADIUS = asset_metainfo["TIRE_RADIUS"]  # 0.313
+        cls.TIRE_WIDTH = asset_metainfo["TIRE_WIDTH"]  # 0.25
+        cls.MASS = asset_metainfo["MASS"]  # 1100
+        cls.LATERAL_TIRE_TO_CENTER = asset_metainfo["LATERAL_TIRE_TO_CENTER"]  # 0.815
+        cls.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
+        cls.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
         # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-        self.path = [asset_metainfo["MODEL_PATH"], asset_metainfo["MODEL_SCALE"],  asset_metainfo["MODEL_ROTATE"], asset_metainfo["MODEL_SHIFT"]]
-        self._LENGTH = asset_metainfo["LENGTH"]
-        self._HEIGHT = asset_metainfo["HEIGHT"]
-        self._WIDTH = asset_metainfo["WIDTH"]
-
-    @property
-    def LENGTH(self):
-        return self._LENGTH  # meters
-    @LENGTH.setter
-    def LENGTH(self, new_length):
-        self._LENGTH = new_length
-    @property
-    def HEIGHT(self):
-        return self._HEIGHT  # meters
-    @HEIGHT.setter
-    def HEIGHT(self, new_height):
-        self._HEIGHT = new_height
-    @property
-    def WIDTH(self):
-        return 2.099
-    @HEIGHT.setter
-    def WIDTH(self, new_width):
-        self._WIDTH = new_width
+        cls.path = [asset_metainfo["MODEL_PATH"], asset_metainfo["MODEL_SCALE"],  asset_metainfo["MODEL_ROTATE"], asset_metainfo["MODEL_SHIFT"]]
+        cls.LENGTH = asset_metainfo["LENGTH"]
+        cls.HEIGHT = asset_metainfo["HEIGHT"]
+        cls.WIDTH = asset_metainfo["WIDTH"]
+    @classmethod
+    def LENGTH(cls):
+        return cls.LENGTH()
+    @classmethod
+    def HEIGHT(cls):
+        return cls.HEIGHT()
+    @classmethod
+    def WIDTH(cls):
+        return cls.WIDTH()
+    #
+    # @property
+    # def LENGTH(self):
+    #     return cls.LENGTH  # meters
+    # @LENGTH.setter
+    # def LENGTH(self, new_length):
+    #     self._LENGTH = new_length
+    # @property
+    # def HEIGHT(self):
+    #     return self._HEIGHT  # meters
+    # @HEIGHT.setter
+    # def HEIGHT(self, new_height):
+    #     self._HEIGHT = new_height
+    # @property
+    # def WIDTH(self):
+    #     return self._WIDTH
+    # @HEIGHT.setter
+    # def WIDTH(self, new_width):
+    #     self._WIDTH = new_width
 class Lambo(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
     TIRE_RADIUS = 0.3305#0.313
@@ -361,7 +373,8 @@ vehicle_type = {
     "default": DefaultVehicle,
     "static_default": StaticDefaultVehicle,
     "varying_dynamics": VaryingDynamicsVehicle,
-    "lambo": Lambo,
+    # "lambo": Lambo,
+    "test": CustomizedCar
 }
 
 VaryingShapeVehicle = VaryingDynamicsVehicle
