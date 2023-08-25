@@ -43,7 +43,6 @@ class TestAssetAgentManager(AgentManager):
     def set_test_asset_config_dict(self, newdict):
         self.test_asset_meta_info = newdict
         if self.saved_test_asset_obj is not None:
-            self.saved_test_asset_obj.update_asset_metainfo(newdict)
             remove_dict = self.spawned_objects
             for vals in list(remove_dict.values()):
                 self._remove_vehicle(vals)
@@ -60,7 +59,7 @@ class TestAssetAgentManager(AgentManager):
 
             obj_name = agent_id if self.engine.global_config["force_reuse_object_name"] else None
             if v_config.get("vehicle_model", False) and v_config["vehicle_model"] == "test":
-                obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name, test_asset_meta_info=test_asset_meta_info)
+                obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name, force_spawn=True, test_asset_meta_info=test_asset_meta_info)
                 self.saved_test_asset_obj = obj
             else:
                 obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name)

@@ -1,4 +1,4 @@
-from panda3d.core import VirtualFileSystem, Filename
+from panda3d.core import Material, Filename
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.component.pg_space import ParameterSpace, VehicleParameterSpace
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
@@ -55,6 +55,7 @@ class CustomizedCar(BaseVehicle):
             position=None,
             heading=None
     ):
+        # print("init!")
         self.update_asset_metainfo(test_asset_meta_info)
         super().__init__( vehicle_config,
             name,
@@ -63,7 +64,7 @@ class CustomizedCar(BaseVehicle):
             heading)
     @classmethod
     def update_asset_metainfo(cls, asset_metainfo: dict):
-        print(asset_metainfo)
+        # print(asset_metainfo)
         cls.PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
         cls.TIRE_RADIUS = asset_metainfo["TIRE_RADIUS"]  # 0.313
         cls.TIRE_WIDTH = asset_metainfo["TIRE_WIDTH"]  # 0.25
@@ -72,19 +73,47 @@ class CustomizedCar(BaseVehicle):
         cls.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
         cls.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
         # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-        cls.path = [asset_metainfo["MODEL_PATH"], asset_metainfo["MODEL_SCALE"],  asset_metainfo["MODEL_ROTATE"], asset_metainfo["MODEL_SHIFT"]]
+        cls.path = [asset_metainfo["MODEL_PATH"], asset_metainfo["MODEL_SCALE"],  asset_metainfo["MODEL_OFFSET"], asset_metainfo["MODEL_HPR"]]
         cls.LENGTH = asset_metainfo["LENGTH"]
         cls.HEIGHT = asset_metainfo["HEIGHT"]
         cls.WIDTH = asset_metainfo["WIDTH"]
     @classmethod
     def LENGTH(cls):
-        return cls.LENGTH()
+        return cls.LENGTH
     @classmethod
     def HEIGHT(cls):
-        return cls.HEIGHT()
+        return cls.HEIGHT
     @classmethod
     def WIDTH(cls):
-        return cls.WIDTH()
+        return cls.WIDTH
+    def _add_visualization(self):
+        if self.render:
+            [path, scale, offset, HPR] = self.path
+            car_model = self.loader.loadModel(AssetLoader.file_path("models", path))
+            car_model.setTwoSided(False)
+            BaseVehicle.model_collection[path] = car_model
+            car_model.setScale(scale)
+            # model default, face to y
+            car_model.setHpr(*HPR)
+            car_model.setPos(offset[0], offset[1], offset[-1])
+            car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + offset[-1])
+            car_model.instanceTo(self.origin)
+            if self.config["random_color"]:
+                material = Material()
+                material.setBaseColor(
+                    (
+                        self.panda_color[0] * self.MATERIAL_COLOR_COEFF,
+                        self.panda_color[1] * self.MATERIAL_COLOR_COEFF,
+                        self.panda_color[2] * self.MATERIAL_COLOR_COEFF, 0.2
+                    )
+                )
+                material.setMetallic(self.MATERIAL_METAL_COEFF)
+                material.setSpecular(self.MATERIAL_SPECULAR_COLOR)
+                material.setRefractiveIndex(1.5)
+                material.setRoughness(self.MATERIAL_ROUGHNESS)
+                material.setShininess(self.MATERIAL_SHININESS)
+                material.setTwoside(False)
+                self.origin.setMaterial(material, True)
     #
     # @property
     # def LENGTH(self):

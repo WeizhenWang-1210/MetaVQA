@@ -157,9 +157,68 @@ class Objverse_filter_asset:
             json.dump(existing_data, file)
 
 
+    def get_tags_selection(self):
+        root = tk.Tk()
+        root.title("Select Tags")
+
+        tk.Label(root, text="Select tags:").pack(pady=10)
+        tags_listbox = tk.Listbox(root, selectmode=tk.MULTIPLE)
+        tags_listbox.pack(pady=5)
+
+        existing_tags = self.get_existing_tags()
+        for tag in existing_tags:
+            tags_listbox.insert(tk.END, tag)
+
+        def submit_and_destroy():
+            root.selected_tags = [tags_listbox.get(i) for i in tags_listbox.curselection()]
+            root.destroy()
+
+        tk.Button(root, text="Submit", command=submit_and_destroy).pack(pady=20)
+
+        root.mainloop()
+
+        return root.selected_tags
+
+    def get_uids_by_tags(self, selected_tags):
+        # Load the saved UIDs with tags
+        with open(self.saved_uids_path, "r") as file:
+            saved_assets = json.load(file)
+
+        matched_uids = {}
+
+        # Iterate over saved UIDs and check for tag matches
+        for uid, tags in saved_assets.items():
+            if any(tag in selected_tags for tag in tags):
+                # We'll look for the .glb file corresponding to this UID by searching the directory structure.
+                for dirpath, dirnames, filenames in os.walk(self.asset_folder_path):
+                    if "glbs" in dirpath and any(
+                            '-' in d and d.split('-')[0].isdigit() and d.split('-')[1].isdigit() for d in
+                            dirpath.split(os.sep)):
+                        for filename in filenames:
+                            if filename.endswith('.glb') and filename.replace('.glb', '') == uid:
+                                matched_uids[uid] = os.path.relpath(os.path.join(dirpath, filename),
+                                                                    self.asset_folder_path)
+
+        return matched_uids
+
+
+    def save_matched_uids_to_json(self, matched_uids, filename="matched_uids.json"):
+        full_path = os.path.join(self.asset_folder_path, filename)
+        with open(full_path, "w") as file:
+            json.dump(matched_uids, file)
+        print(f"Matched UIDs and paths saved to {full_path}")
+
+
 if __name__ == "__main__":
     objaverse_filter_helper = Objverse_filter_asset()
-    cached_uid_lists = objaverse_filter_helper.load_cached_uids()
-    saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
 
-    # objaverse_filter_helper.saved_assets_to_json(saved_assets)
+    # # Current functionality
+    # cached_uid_lists = objaverse_filter_helper.load_cached_uids()
+    # saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
+
+    # New functionality to get UIDs by tags
+    selected_tags = objaverse_filter_helper.get_tags_selection()
+    matched_uids = objaverse_filter_helper.get_uids_by_tags(selected_tags)
+
+    # Save the matched UIDs and their paths to a JSON file
+    objaverse_filter_helper.save_matched_uids_to_json(matched_uids)
