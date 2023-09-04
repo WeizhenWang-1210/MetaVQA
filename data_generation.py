@@ -22,6 +22,8 @@ from panda3d.core import NodePath
 from direct.showbase.Loader import Loader
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.utils.utils import get_object_from_node
+from metadrive.component.vehicle.base_vehicle import BaseVehicle
+from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
 def generate(config, max = 100):
     count = 0
     env = MetaDriveEnv(config)
@@ -107,6 +109,13 @@ def vehicle_type(type_str):
     return "f"
 
 
+def object_type(object):
+    if isinstance(object, TrafficCone):
+        return "cone"
+    if isinstance(object, TrafficBarrier):
+        return "planar barrier"
+    if isinstance(object, TrafficWarning):
+        return "warning sign"
 
 
 
@@ -115,12 +124,13 @@ if __name__ == "__main__":
         # controller="joystick",
         use_render=True,
         manual_control=True,
-        traffic_density=0.5,
+        traffic_density=0.2,
         num_scenarios=100,
         random_agent_model=False,
         random_lane_width=True,
         random_lane_num=True,
         need_inverse_traffic = True,
+        accident_prob = 1,
         #image_on_cuda = True,
         #debug=True,
         # debug_static_world=True,
@@ -178,12 +188,7 @@ if __name__ == "__main__":
                         if relative_distance <= 50:
                             objects_of_interest.append(object)
                 if len(objects_of_interest)>0:
-                    identifier = "{}_{}".format(env.current_seed,env.episode_step)
-                    instance_folder = os.path.join(folder,identifier)
-                    try:
-                        os.mkdir(instance_folder)
-                    except:
-                        print("Error in making instance folder")
+                    
                     scene_dict = {}
                     SAME_COLOR = (0,0,0)
                     scene_dict["agent"] = dict(
@@ -266,8 +271,16 @@ if __name__ == "__main__":
                             Lidar_RGB_Observable_objects.append(object)
                     if len(Lidar_RGB_Observable_objects) == 0:
                         continue
+                    identifier = "{}_{}".format(env.current_seed,env.episode_step)
+                    instance_folder = os.path.join(folder,identifier)
+                    try:
+                        os.mkdir(instance_folder)
+                    except:
+                        print("Error in making instance folder")
 
-                
+                    
+                        
+
                     object_descriptions = [
                         dict(
                             id = fobject.id,
@@ -277,9 +290,9 @@ if __name__ == "__main__":
                             speed =  fobject.speed,
                             pos = fobject.position,
                             bbox = [tuple(point) for point in fobject.bounding_box],
-                            type = vehicle_type(str(type(fobject))),
+                            type = "car" if isinstance(fobject, BaseVehicle) else object_type(fobject),
                             height = fobject.HEIGHT,
-                            road_type = object.navigation.current_road.block_ID()
+                            road_type = object.navigation.current_road.block_ID() if isinstance(fobject, BaseVehicle) else 'NA'
                         )
                         for fobject in Lidar_RGB_Observable_objects
                     ]

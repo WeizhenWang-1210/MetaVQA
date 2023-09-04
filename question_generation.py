@@ -284,7 +284,7 @@ class Question_Generator:
         simple_datapoints = []
         composite_datapoints = []
         for node in self.scenario_graph.nodes.keys():
-            if node != ego:
+            if node != ego and self.scenario_graph.nodes[node].type not in ["cone", "planar barrier", "warning sign"]:
                 simple,candidate_1,resoluter,_ = self.generate(ego = ego,referred=node)
                 composites, candidate_2 = self.generate_two_hops(ego = ego,referred=node)
                 if simple[0] is not None:
@@ -392,14 +392,18 @@ class Question_Generator:
             return mapping[resoluter]
         Begin = "The car that is "
         if len(path) == 3:
-            ref = 'another car '
+            intermediate_id = path[-1]
+            intermediate_type = self.scenario_graph.nodes[intermediate_id].type
+            ref = '{} {} '.format("another" if intermediate_type=="car" else "a",intermediate_type)
             dir1, resoluter = path[1]
             dir2,_ = path[0]
             part_1 = self.generate_spatial_modifier(dir1)
             suffix_1 = "that is "
             part_2 = self.generate_spatial_modifier(dir2)
             center = "ego."
-            resoluter = "" if resoluter is None else "The car is {} the other car.".format(convert_resoluter(resoluter))
+            resoluter = "" if resoluter is None else "The car is {} the {}{}.".format(convert_resoluter(resoluter),
+                                                                                       "other" if intermediate_type=="car" else "",
+                                                                                       intermediate_type)
             return Begin + part_1 + ref +suffix_1+ part_2 + center + resoluter
         else:
             dir, resoluter = path[0]
@@ -474,7 +478,9 @@ def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
                                         id = info['id'],
                                         bbox = info['bbox'],
                                         height = info['height'],
-                                        road_code=info['road_type'])
+                                        road_code=info['road_type'],
+                                        type = info['type']
+                                        )
                 )
     nodes.append(
                 agent_node(
