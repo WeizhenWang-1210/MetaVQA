@@ -42,8 +42,9 @@ class Lidar(DistanceDetector):
         res = self._get_lidar_mask(base_vehicle)
         lidar_mask = res[0] if detector_mask and self.enable_mask else None
         detected_objects = res[1]
-        return super(Lidar, self).perceive(base_vehicle, base_vehicle.engine.physics_world.dynamic_world,
-                                           lidar_mask)[0], detected_objects
+        some = super(Lidar, self).perceive(base_vehicle, base_vehicle.engine.physics_world.dynamic_world,
+                                           lidar_mask)
+        return some[0],some[1] #detected_objects
 
     @staticmethod
     def get_surrounding_vehicles(detected_objects) -> Set:

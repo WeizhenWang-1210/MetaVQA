@@ -31,3 +31,18 @@ def sample_bbox(bbox,height,x_times, y_times, z_times):
 
     return (visible_points/num_points) >= 0.1"""
 
+
+
+"""
+suppose you have a frame h,w,3
+for each pixel, you can get a (c,c,c)
+this means the frag captured in this pixel has distance 2^(c*4)*8 units to the camera
+in addition, there exist transform T(pos, heading,fov, near, far): R^2->R^3 that restore the 3d position of the pixel back to 3d space. 
+And these points consist of the point-cloud representations of the lidar's observation.
+We also need to findout the actual objects that got hit and generated such point cloud.
+void reverse(){
+  code = fragColor[0]
+  distance_to_camera = 2^(c * log(b))*base
+}
+
+"""

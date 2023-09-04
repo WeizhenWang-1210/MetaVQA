@@ -15,13 +15,13 @@ import cv2
 import os
 import re
 import math
-from panda3d.core import CollisionNode, CollisionBox,Point3,CollisionTraverser,CollisionHandlerQueue,LPoint3f
-from panda3d.bullet import BulletConvexHullShape
+from panda3d.core import LPoint3f
 from metadrive.constants import HELP_MESSAGE
 from utils_testing import sample_bbox
 from panda3d.core import NodePath
 from direct.showbase.Loader import Loader
 from metadrive.engine.asset_loader import AssetLoader
+from metadrive.utils.utils import get_object_from_node
 def generate(config, max = 100):
     count = 0
     env = MetaDriveEnv(config)
@@ -115,14 +115,14 @@ if __name__ == "__main__":
         # controller="joystick",
         use_render=True,
         manual_control=True,
-        traffic_density=0.2,
+        traffic_density=0.5,
         num_scenarios=100,
         random_agent_model=False,
         random_lane_width=True,
         random_lane_num=True,
-        #need_inverse_traffic = True,
-        # image_on_cuda = True,
-        # debug=True,
+        need_inverse_traffic = True,
+        #image_on_cuda = True,
+        #debug=True,
         # debug_static_world=True,
         map=4,  # seven block
         start_seed=random.randint(0, 1000),
@@ -200,23 +200,46 @@ if __name__ == "__main__":
                     )
                     observation = {}
                     observation['lidar'],observable = env.vehicle.lidar.perceive(env.vehicle)
-                    observable_id = [car.id for car in list(observable)]
-                    Lidar_Observable_objects = [object for object in objects_of_interest if object.id in observable_id]
                     
+                    observable = [get_object_from_node(car.getNode()) for car in list(observable)]
+                    observable_id = []
+                    unique_id = set()
+                    for node in observable:
+                            unique_id.add(node.id)
+                    observable_id = list(unique_id)
+                    #print(observable_id)
                     #print(Lidar_Observable_objects)
+                    Lidar_Observable_objects = [object for object in objects_of_interest if object.id in observable_id]
                     rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
+                    #print(rgb_cam.get_lens().getProjectionMatInv())
+
+                    hfov, vfov = rgb_cam.get_lens().fov
+
+                    """hfov_rad = math.radians(hfov)
+                    vfov_rad = math.radians(vfov)
+                    fx = 1.0 / math.tan(hfov_rad / 2.0)
+                    fy = 1.0 / math.tan(vfov_rad / 2.0)
+                    print(
+                        (
+                            (fx,0,0),
+                            (0,fy,0),
+                            (0,0,1)
+                        )
+                    )"""
+
+
+
                     Lidar_RGB_Observable_objects = []
                     for object in Lidar_Observable_objects:
                         """if rgb_cam.get_cam().node().isInView(object.origin.getPos(rgb_cam.get_cam())):
                                 print("RGB_Center_Observable:{}".format(object.id))"""
-                        
                         min_point, max_point = object.origin.getTightBounds(object.origin)
-                        
                         """
-                        p1, p2 (max_point)
-                        p4, p3
+                        p1, p2 <-----(max_point)         |
+                        p4, p3                           |  <--heading
+                        |
+                        |   
                         (min_point)
-                        
                         """
                         p1 = LPoint3f(min_point[0],max_point[1],0)
                         p2 = LPoint3f(max_point[0],max_point[1],0)
@@ -241,6 +264,8 @@ if __name__ == "__main__":
                         #print(object.id, observable_count)
                         if observable_count/total_count>=0.2:
                             Lidar_RGB_Observable_objects.append(object)
+                    if len(Lidar_RGB_Observable_objects) == 0:
+                        continue
 
                 
                     object_descriptions = [
@@ -258,8 +283,8 @@ if __name__ == "__main__":
                         )
                         for fobject in Lidar_RGB_Observable_objects
                     ]
-                    print(len(objects_of_interest),len(Lidar_Observable_objects), len(Lidar_RGB_Observable_objects))
-                    print(len(object_descriptions)==len(Lidar_RGB_Observable_objects))
+                    #print(len(objects_of_interest),len(Lidar_Observable_objects), len(Lidar_RGB_Observable_objects))
+                    #print(len(object_descriptions)==len(Lidar_RGB_Observable_objects))
                     #print(objects_of_interest, observable, Lidar_Observable_objects, Lidar_RGB_Observable_objects)
                     scene_dict["vehicles"] = object_descriptions
                     rgb_cam.save_image(env.vehicle, name= path + "/" +identifier + "/"+ "rgb_{}.png".format(identifier))

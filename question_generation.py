@@ -522,6 +522,8 @@ if __name__ == '__main__':
                     scene_dict = json.load(scene_file)
             except:
                 print("Error in reading json file {}".format("gt"))
+            if len(scene_dict["vehicles"]) == 0:
+                continue
             agent_id, nodes = nodify(scene_dict)
             graph = scene_graph(agent_id,nodes)
             test_generator = Question_Generator(graph)

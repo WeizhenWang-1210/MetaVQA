@@ -1,14 +1,15 @@
 from math import pi, sin, cos
 
-from direct.showbase.ShowBase import ShowBase
+from direct.showbase.ShowBase import ShowBase, Loader
 from direct.task import Task
 from direct.actor.Actor import Actor
 from direct.interval.IntervalGlobal import Sequence
 from panda3d.core import Point3,NodePath
 import re
 from panda3d.core import CollisionTraverser, CollisionNode, CollisionPolygon, BitMask32,CollisionHandlerQueue
-from panda3d.bullet import BulletConvexHullShape
+from panda3d.bullet import BulletConvexHullShape,BulletBodyNode
 from panda3d.core import LPoint3f,PandaNode
+from metadrive.engine.asset_loader import AssetLoader
 
 
 
@@ -22,23 +23,6 @@ class MyApp(ShowBase):
         self.disableMouse()
 
         # Load the environment model
-        """self.lens = self.camNode.getLens()
-        frustum = self.lens.makeBounds()
-        print(type(frustum))
-        collision_frustum = BulletConvexHullShape()
-        for point in frustum.getPoints():
-                collision_frustum.add_point(point) 
-        self.collision_node = CollisionNode("camera_frustum")
-        self.collision_node.add_solid(collision_frustum)
-        self.camera.attach_new_node(self.collision_node)
-        self.traverser = CollisionTraverser()
-        self.handler = CollisionHandlerQueue()
-        self.traverser.add_collider(self.collision_node, self.handler)"""
-        #self.camNode.showFrustum()
-        print(self.camLens.get_fov())
-        print(self.camLens.getNear())
-        
-
 
         self.scene = self.loader.loadModel("models/environment")
         # Reparent the model to render.
@@ -51,17 +35,30 @@ class MyApp(ShowBase):
 
         # Add the spinCameraTask procedure to the task manager.
         self.taskMgr.add(self.spinCameraTask, "SpinCameraTask")
-        self.taskMgr.add(self.findObservableNodes, "check observed")
+        #self.taskMgr.add(self.findObservableNodes, "check observed")
         
+
 
         # Load and transform the panda actor.
         self.pandaActor = Actor("models/panda-model",
                                 {"walk": "models/panda-walk4"})
-        #self.taskMgr.add(self.checkFrustum,"PandaVisible")
         self.pandaActor.setScale(0.005, 0.005, 0.005)
         self.pandaActor.reparentTo(self.render)
+        #AssetLoader.init_loader()
+        #loadeer = AssetLoader.get_loader()
+        self.pandaActor2 = Actor("models/panda-model",
+                                {"walk": "models/panda-walk4"})
+        #self.taskMgr.add(self.checkFrustum,"PandaVisible")
+        self.pandaActor2.setScale(0.01, 0.01, 0.01)
+        self.pandaActor2.reparentTo(self.render)
+        self.pandaActor2.setPos(self.render, 10,10,0)
+
+
+
+
         # Loop its animation.
-        self.pandaActor.loop("walk")
+        #self.pandaActor.loop("walk")
+        #self.pandaActor2.loop("walk")
 
         # Create the four lerp intervals needed for the panda to
         # walk back and forth.
@@ -123,7 +120,8 @@ class MyApp(ShowBase):
     def spinCameraTask(self, task):
         angleDegrees = task.time * 6.0
         angleRadians = angleDegrees * (pi / 180.0)
-        self.camera.setPos(20 * sin(angleRadians), -20 * cos(angleRadians), 3)
+        radius = 40
+        self.camera.setPos(radius * sin(angleRadians), -radius * cos(angleRadians), 3)
         self.camera.setHpr(angleDegrees, 0, 0)
         return Task.cont
 
