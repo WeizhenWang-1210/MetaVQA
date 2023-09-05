@@ -179,6 +179,19 @@ if __name__ == "__main__":
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
                 agent_id = list(agents.values())[0].id
+
+                amin_point, amax_point = agent.origin.getTightBounds()
+                p1 = amax_point[0],amax_point[1]
+                p2 = amax_point[0],amin_point[1]
+                p3 = amin_point[0],amin_point[1]
+                p4 = amin_point[0],amax_point[1]
+                atight_box = [p1,p2,p3,p4]
+                """ print(atight_box)
+                print(agent.position)
+                print(agent.bounding_box)"""
+                aheight = amax_point[2]
+
+
                 objects = env.engine.get_objects()
                 objects_of_interest = []
                 for id, object in objects.items():
@@ -198,9 +211,9 @@ if __name__ == "__main__":
                         lane = agent.lane_index,                          
                         speed =  agent.speed,
                         pos = agent.position,
-                        bbox = [tuple(point) for point in agent.bounding_box],
+                        bbox = [point for point in atight_box],
                         type = vehicle_type(str(type(agent))),
-                        height = agent.HEIGHT,
+                        height = aheight,
                         road_type = agent.navigation.current_road.block_ID()
                     )
                     observation = {}
@@ -235,10 +248,14 @@ if __name__ == "__main__":
 
 
                     Lidar_RGB_Observable_objects = []
+                    Lidar_RGB_Observable_boxs = []
+                    Lidar_RGB_Observable_heights = []
                     for object in Lidar_Observable_objects:
                         """if rgb_cam.get_cam().node().isInView(object.origin.getPos(rgb_cam.get_cam())):
                                 print("RGB_Center_Observable:{}".format(object.id))"""
                         min_point, max_point = object.origin.getTightBounds(object.origin)
+                        g_min_point,g_max_point = object.origin.getTightBounds()
+                        Height = max_point[2]
                         """
                         p1, p2 <-----(max_point)         |
                         p4, p3                           |  <--heading
@@ -246,10 +263,11 @@ if __name__ == "__main__":
                         |   
                         (min_point)
                         """
-                        p1 = LPoint3f(min_point[0],max_point[1],0)
-                        p2 = LPoint3f(max_point[0],max_point[1],0)
-                        p3 = LPoint3f(max_point[0],min_point[1],0)
-                        p4 = LPoint3f(min_point[0],min_point[1],0)
+                        p4 = LPoint3f(min_point[0],max_point[1],0)
+                        p1 = LPoint3f(max_point[0],max_point[1],0)
+                        p2 = LPoint3f(max_point[0],min_point[1],0)
+                        p3 = LPoint3f(min_point[0],min_point[1],0)
+                        tight_box = [p1,p2,p3,p4]
                         height = max_point[2]
                         origin_x, origin_y, _ = object.origin.getPos()
                         z_augmented = [p1,p2,p3,p4]
@@ -269,6 +287,13 @@ if __name__ == "__main__":
                         #print(object.id, observable_count)
                         if observable_count/total_count>=0.2:
                             Lidar_RGB_Observable_objects.append(object)
+                            p4 = g_min_point[0],g_max_point[1]
+                            p1 = g_max_point[0],g_max_point[1]
+                            p2 = g_max_point[0],g_min_point[1]
+                            p3 = g_min_point[0],g_min_point[1]
+                            tight_box = [p1,p2,p3,p4]
+                            Lidar_RGB_Observable_boxs.append(tight_box)
+                            Lidar_RGB_Observable_heights.append(height)
                     if len(Lidar_RGB_Observable_objects) == 0:
                         continue
                     identifier = "{}_{}".format(env.current_seed,env.episode_step)
@@ -280,21 +305,20 @@ if __name__ == "__main__":
 
                     
                         
-
                     object_descriptions = [
                         dict(
-                            id = fobject.id,
+                            id = Lidar_RGB_Observable_objects[i].id,
                             color = SAME_COLOR,    
-                            heading = fobject.heading ,      
-                            lane = fobject.lane_index,                          
-                            speed =  fobject.speed,
-                            pos = fobject.position,
-                            bbox = [tuple(point) for point in fobject.bounding_box],
-                            type = "car" if isinstance(fobject, BaseVehicle) else object_type(fobject),
-                            height = fobject.HEIGHT,
-                            road_type = object.navigation.current_road.block_ID() if isinstance(fobject, BaseVehicle) else 'NA'
+                            heading =  Lidar_RGB_Observable_objects[i].heading ,      
+                            lane =  Lidar_RGB_Observable_objects[i].lane_index,                          
+                            speed =   Lidar_RGB_Observable_objects[i].speed,
+                            pos =  Lidar_RGB_Observable_objects[i].position,
+                            bbox = [point for point in Lidar_RGB_Observable_boxs[i]],
+                            type = "car" if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else object_type(Lidar_RGB_Observable_objects[i]),
+                            height =  Lidar_RGB_Observable_heights[i],
+                            road_type = object.navigation.current_road.block_ID() if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else 'NA'
                         )
-                        for fobject in Lidar_RGB_Observable_objects
+                        for i in range(len(Lidar_RGB_Observable_objects))
                     ]
                     #print(len(objects_of_interest),len(Lidar_Observable_objects), len(Lidar_RGB_Observable_objects))
                     #print(len(object_descriptions)==len(Lidar_RGB_Observable_objects))

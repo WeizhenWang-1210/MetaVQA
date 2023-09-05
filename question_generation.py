@@ -401,7 +401,7 @@ class Question_Generator:
             suffix_1 = "that is "
             part_2 = self.generate_spatial_modifier(dir2)
             center = "ego."
-            resoluter = "" if resoluter is None else "The car is {} the {}{}.".format(convert_resoluter(resoluter),
+            resoluter = "" if resoluter is None else "The car is {} the {} {}.".format(convert_resoluter(resoluter),
                                                                                        "other" if intermediate_type=="car" else "",
                                                                                        intermediate_type)
             return Begin + part_1 + ref +suffix_1+ part_2 + center + resoluter
