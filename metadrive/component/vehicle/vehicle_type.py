@@ -69,6 +69,54 @@ class StaticDefaultVehicle(DefaultVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.STATIC_DEFAULT_VEHICLE)
 
 
+class ImportedVehicle_1(DefaultVehicle):
+    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
+    TIRE_RADIUS = 0.313#0.313
+    TIRE_WIDTH = 0.25#0.25
+    MASS = 1100#1100
+    LATERAL_TIRE_TO_CENTER = 0.815#0.815
+    FRONT_WHEELBASE = 1.05234#1.05234
+    REAR_WHEELBASE = 2#1.4166
+    path = ['imp1/vehicle.glb', (0.9,-0.9,0.9), (-1.616600790513834, 3, -0.03557312252964451), (0, 0, 0)]
+    
+    @property
+    def LENGTH(self):
+        return 4.515  # meters
+
+    @property
+    def HEIGHT(self):
+        return 1.1216004700352527  # meters
+
+    @property
+    def WIDTH(self):
+        return 1.852
+    
+class ImportedVehicle_2(DefaultVehicle):
+    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
+    TIRE_RADIUS = 0.313#0.313
+    TIRE_WIDTH = 0.25#0.25
+    MASS = 1100#1100
+    LATERAL_TIRE_TO_CENTER = 0.9795918367346941#0.815
+    FRONT_WHEELBASE =  1.1805929919137466#1.05234
+    REAR_WHEELBASE = 1.4166#1.4166
+    path = ['imp2/vehicle.glb', 
+            (1.5487959442332064,1.5487959442332064,1.5487959442332064), 
+            (-3.357048748353096,1.5441370223978916,-0.2266139657444004), 
+            (152, 0, 0)]
+    
+    @property
+    def LENGTH(self):
+        return 4.515  # meters
+
+    @property
+    def HEIGHT(self):
+        return 1.139  # meters
+
+    @property
+    def WIDTH(self):
+        return 1.852
+
+
 class XLVehicle(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.XL_VEHICLE)
     # LENGTH = 5.8
@@ -305,6 +353,8 @@ vehicle_type = {
     "static_default": StaticDefaultVehicle,
     "varying_dynamics": VaryingDynamicsVehicle,
     "lambo": Lambo,
+    "imp1": ImportedVehicle_1,
+    "imp2": ImportedVehicle_2
 }
 
 VaryingShapeVehicle = VaryingDynamicsVehicle
