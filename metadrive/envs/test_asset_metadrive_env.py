@@ -320,8 +320,9 @@ class TestAssetMetaDriveEnv(BaseEnv):
     def stop(self):
         self.in_stop = not self.in_stop
 
-    def step(self, test_asset_config_dict, actions):
-        self.agent_manager.set_test_asset_config_dict(test_asset_config_dict)
+    def step(self, test_asset_config_dict = None, actions = None):
+        if test_asset_config_dict is not None:
+            self.agent_manager.set_test_asset_config_dict(test_asset_config_dict)
         ret = super(TestAssetMetaDriveEnv, self).step(actions)
         while self.in_stop:
             self.engine.taskMgr.step()

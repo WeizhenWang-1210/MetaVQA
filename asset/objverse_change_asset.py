@@ -3,7 +3,7 @@ from tkinter import ttk
 from functools import partial
 from metadrive.envs.test_asset_metadrive_env import TestAssetMetaDriveEnv
 import json
-
+import os
 class AssetMetaInfoUpdater:
     def __init__(self, model_path, save_path=None):
         self.asset_metainfo = {
@@ -28,10 +28,17 @@ class AssetMetaInfoUpdater:
             "FRONT_WHEELBASE": (-2, 2),
             "REAR_WHEELBASE": (-2, 2),
             "MODEL_SCALE": (-2, 2),
-            "MODEL_OFFSET": (-3, 3),
+            "MODEL_OFFSET": (-4, 4),
             "MODEL_HPR": (-180, 180)  # Assuming the model's heading, pitch, roll are in degrees.
             # ... add other attributes as needed
         }
+        if save_path and os.path.exists(save_path):
+            with open(save_path, 'r') as file:
+                loaded_metainfo = json.load(file)
+                self.asset_metainfo.update(loaded_metainfo)  # update the asset_metainfo with the values from the file
+                self.asset_metainfo["MODEL_SCALE"] = tuple(self.asset_metainfo["MODEL_SCALE"])
+                self.asset_metainfo["MODEL_OFFSET"] = tuple(self.asset_metainfo["MODEL_OFFSET"])
+                self.asset_metainfo["MODEL_SCALE"] = tuple(self.asset_metainfo["MODEL_SCALE"])
         self.env_config = {
             "manual_control": True,
             "use_render": True,
@@ -76,6 +83,14 @@ class AssetMetaInfoUpdater:
                 new_val = constraints["MODEL_OFFSET"](new_val)
             current_tuple[idx] = new_val
             self.asset_metainfo["MODEL_OFFSET"] = tuple(current_tuple)
+        elif  name.startswith("MODEL_HPR_"):
+            idx = int(name.split("_")[-1])
+            current_tuple = list(self.asset_metainfo["MODEL_HPR"])
+            new_val = float(value)
+            if "MODEL_HPR" in constraints:
+                new_val = constraints["MODEL_HPR"](new_val)
+            current_tuple[idx] = new_val
+            self.asset_metainfo["MODEL_HPR"] = tuple(current_tuple)
         else:
             if isinstance(self.asset_metainfo[name], tuple):
                 new_val = [float(value)] * 3
@@ -207,9 +222,11 @@ class AssetMetaInfoUpdater:
         if self.save_path is not None:
             with open(self.save_path, 'w') as file:
                 json.dump(self.asset_metainfo, file)
+        self.root.destroy()
     def run(self):
         self.root.after(10, self.environment_step)
         self.root.mainloop()
+        self.env.close()
 
 if __name__ == "__main__":
    model_path_input = 'test/vehicle.glb'

@@ -73,7 +73,8 @@ class CustomizedCar(BaseVehicle):
         cls.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
         cls.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
         # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-        cls.path = [asset_metainfo["MODEL_PATH"], asset_metainfo["MODEL_SCALE"],  asset_metainfo["MODEL_OFFSET"], asset_metainfo["MODEL_HPR"]]
+        cls.path = [asset_metainfo["MODEL_PATH"], tuple(asset_metainfo["MODEL_SCALE"]),
+                    tuple(asset_metainfo["MODEL_OFFSET"]), tuple(asset_metainfo["MODEL_HPR"])]
         cls.LENGTH = asset_metainfo["LENGTH"]
         cls.HEIGHT = asset_metainfo["HEIGHT"]
         cls.WIDTH = asset_metainfo["WIDTH"]

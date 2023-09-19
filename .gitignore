@@ -37,3 +37,12 @@
 /metadrive/assets/textures/heightfield.png
 **/test_read_copy_waymo
 /[0-9]*
+*.json
+*.jpg
+*.glb
+*.png
+*.bin
+*.gltf
+**/metadrive/assets/
+*.txt
+*.jpeg

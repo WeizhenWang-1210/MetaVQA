@@ -9,24 +9,29 @@ import json
 
 
 class Objverse_filter_asset:
-    def __init__(self, asset_folder_path="f:\\metaasset\\hf-objaverse-v1"):
+    def __init__(self, isTagList = False, asset_folder_path="C:\\research\\dataset\\.objaverse\\hf-objaverse-v1", tag = "Test"):
         self.asset_folder_path = asset_folder_path
-        self.json_gz_path = os.path.join(asset_folder_path, "object-paths.json.gz")
-        self.json_path = os.path.join(asset_folder_path, "object-paths.json")
+        self.isTagList = isTagList
+        if self.isTagList:
+            self.json_path = os.path.join(asset_folder_path, "object-list-paths-{}.json".format(tag))
+        else:
+            self.json_path = os.path.join(asset_folder_path, "object-paths-{}.json".format(tag))
+        self.processed_uids_path = os.path.join(asset_folder_path, "processed_uids_{}.json".format(tag))
+        self.saved_uids_path = os.path.join(asset_folder_path, "saved_uids_{}.json".format(tag))
         self.cached_asset_uids = []
-        self.processed_uids_path = os.path.join(asset_folder_path, "processed_uids.json")
-        self.saved_uids_path = os.path.join(asset_folder_path, "saved_uids.json")
         self.current_session_tags = set()
     def load_cached_uids(self):
         uids = []
-
+        with open(self.json_path, "r") as f:
+            uid_dict = json.load(f)
         for dirpath, dirnames, filenames in os.walk(self.asset_folder_path):
             if "glbs" in dirpath and any('-' in d and d.split('-')[0].isdigit() and d.split('-')[1].isdigit() for d in
                                          dirpath.split(os.sep)):
                 for filename in filenames:
                     if filename.endswith('.glb'):
                         uid = filename.replace('.glb', '')
-                        uids.append(uid)
+                        if uid in uid_dict.keys():
+                            uids.append(uid)
 
         print(len(uids))
         return uids
@@ -210,15 +215,18 @@ class Objverse_filter_asset:
 
 
 if __name__ == "__main__":
-    objaverse_filter_helper = Objverse_filter_asset()
+    asset_folder_path = "C:\\research\\dataset\\.objaverse\\hf-objaverse-v1"
+    tag = "crosswalk"
+    objaverse_filter_helper = Objverse_filter_asset(isTagList=True,asset_folder_path=asset_folder_path, tag = tag)
 
-    # # Current functionality
-    # cached_uid_lists = objaverse_filter_helper.load_cached_uids()
-    # saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
+    # # # Current functionality
+    cached_uid_lists = objaverse_filter_helper.load_cached_uids()
+    saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
 
     # New functionality to get UIDs by tags
-    selected_tags = objaverse_filter_helper.get_tags_selection()
-    matched_uids = objaverse_filter_helper.get_uids_by_tags(selected_tags)
-
-    # Save the matched UIDs and their paths to a JSON file
-    objaverse_filter_helper.save_matched_uids_to_json(matched_uids)
+    # selected_tags = objaverse_filter_helper.get_tags_selection()
+    # matched_uids = objaverse_filter_helper.get_uids_by_tags(selected_tags)
+    #
+    # # Save the matched UIDs and their paths to a JSON file
+    # filename = "matched_uids_{}.json".format("_".join(selected_tags))
+    # objaverse_filter_helper.save_matched_uids_to_json(matched_uids, filename=filename)
