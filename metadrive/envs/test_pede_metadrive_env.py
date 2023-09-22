@@ -1,3 +1,5 @@
+# Search for "Sidewalkmanager" to track the manager that adds pedestrian
+# Adjusted env that add static object on sidewalk
 import copy
 from typing import Union
 

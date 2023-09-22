@@ -1,3 +1,4 @@
+# Download Asset with given Tag or Tag List from Objaverse
 import objaverse
 import json
 import pprint
@@ -7,21 +8,21 @@ import openai
 import multiprocessing
 import asyncio
 import trimesh
-#car packs 20f9af9b8a404d5cb022ac6fe87f21f5
-#landrover ffba8330b24d42daac8905fa0102eb97
-#2021 Lamborghini Countach LPI 800-4 d76b94884432422b966d1a7f8815afb5
-#Porsche 911 Carrera 4S d01b254483794de3819786d93e0e1ebf
-#pickup 40c94d8b31f94df3bd80348cac8624f1
-#Mahindra thar 4by4 f045413d71d743c58682881cb7421d64
+
 class Objverse_helper:
-    def __init__(
-            self,
-            target_prompt = "Please filter the list to only keep words that are strictly a wellknowned type of vehicle and have no other meaning.",
-            openai_key = "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"
-        ):
-        self.target_prompt = target_prompt
-        openai.api_key =  openai_key
+    def __init__(self):
+        pass
     def getAllTag(self, num_uids=-1):
+        """
+        Retrieves all unique tags from the Objaverse with the given number of uids.
+
+        Parameters:
+        - num_uids (int): The number of UIDs to retrieve. If -1, retrieves all UIDs.
+
+        Returns:
+        - annotations: Objaverse annotation dict with key as uid and val as content
+        - tag: Unique tags from the given uids
+        """
         uids = objaverse.load_uids()
         print("Load all annotations...")
         annotations = objaverse.load_annotations(uids[:num_uids])
@@ -31,6 +32,20 @@ class Objverse_helper:
                 tag.add(eachtag["name"])
         return annotations, tag
     def getTagStrictly(self, num_uids=-1, target_tag = "car", strict=True):
+        """
+        Searches annotations to retrieve specified tags. Can search strictly or loosely based on the target tag.
+
+        Parameters:
+        - num_uids (int): The number of UIDs to retrieve. If -1, retrieves all UIDs.
+        - target_tag (str): The target tag to search for.
+        - strict (bool): If True, searches for exact matches. If False, searches for partial matches.
+
+        Returns:
+        - uid_list (list): List of UIDs that matched the criteria.
+        - full_list (list): List of annotations corresponding to the matched UIDs.
+        - full_tag (list): List of all the tags found.
+        """
+
         uids = objaverse.load_uids()
         print("Load all annotations...")
         annotations = objaverse.load_annotations(uids[:num_uids])
@@ -50,6 +65,18 @@ class Objverse_helper:
                         full_list.append(content)
         return uid_list, full_list, full_tag
     def getTagList(self, num_uids=-1, target_tag_list = []):
+        """
+        Searches annotations to retrieve any tags that are in the provided target tag list.
+
+        Parameters:
+        - num_uids (int): The number of UIDs to retrieve. If -1, retrieves all UIDs.
+        - target_tag_list (list): List of target tags to search for.
+
+        Returns:
+        - uid_list (list): List of UIDs that matched the criteria.
+        - full_list (list): List of annotations corresponding to the matched UIDs.
+        - full_tag (list): List of all the tags found.
+        """
         uids = objaverse.load_uids()
         print("Load all annotations...")
         annotations = objaverse.load_annotations(uids[:num_uids])
@@ -64,6 +91,19 @@ class Objverse_helper:
                     full_list.append(content)
         return uid_list, full_list, full_tag
     def saveTag(self, objects, tagname, parent_folder, isTagList = False, tagList = None):
+        """
+        Saves the provided objects path information to a JSON file with a specified name.
+
+        Parameters:
+        - objects (dict): The objects uid(key) and path(val) to save.
+        - tagname (str): The name used for naming the saved JSON file.
+        - parent_folder (str): The directory in which the file will be saved.
+        - isTagList (bool): If True, a tag list will be included in the saved objects (for example, human might include man and woman tags).
+        - tagList (list, optional): List of tags to be included in the saved objects if isTagList is True.
+
+        Returns:
+        - None
+        """
         if isTagList:
             assert tagList is not None
         if not isTagList:
@@ -79,13 +119,20 @@ class Objverse_helper:
 if __name__ == "__main__":
     processes = 16
     objhelper = Objverse_helper()
+    #======================================Get All Tags from Objverse===============
     # _, tag = objhelper.getAllTag()
     # with open("C:\\research\\dataset\\alltag.txt", "w+") as f:
     #     for each in tag:
     #         f.write("{}\n".format(each))
+
+
+
+    # ======================================Get UIDS and objects for single TAG===============
     # tag = "pedestrian"
     # uid_list, full_list, full_tag = objhelper.getTagStrictly(-1, tag, strict=False)
     # print(len(uid_list))
+    #============================Note: This will download the asset and return, could be time consuming
+    #============================Note: Objects is a dict with key as uid, and val as path
     # objects = objaverse.load_objects(
     #     uids=uid_list[:100],
     #     download_processes=processes
@@ -94,6 +141,8 @@ if __name__ == "__main__":
     # path =  "object-paths-{}.json".format(tag)
     # objhelper.saveTag(objects, tagname=tag, parent_folder="C:\\research\\dataset\\.objaverse\\hf-objaverse-v1",
     #                   isTagList=False)
+
+    # ======================================Get UIDS and objects for list of TAGs===============
     tag = "crosswalk"
     taglist = ["crosswalksign", "americancrosswalksign", "crosswalk", "americancrosswalk", ]
 
@@ -101,6 +150,8 @@ if __name__ == "__main__":
     uid_list, full_list, full_tag = objhelper.getTagList(num_uids=-1, target_tag_list = taglist)
     uid_list.sort()
     print(len(uid_list))
+    #============================Note: This will download the asset and return, could be time consuming
+    #============================Note: Objects is a dict with key as uid, and val as path
     objects = objaverse.load_objects(
         uids=uid_list[:150],
         download_processes=processes

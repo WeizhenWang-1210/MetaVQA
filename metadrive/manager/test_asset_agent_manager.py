@@ -1,3 +1,5 @@
+# Agent manager that can spawn cars and interactively change its parameters
+# check set_test_asset_config_dict and _get_vehicles for details.
 import copy
 from metadrive.policy.idm_policy import TrajectoryIDMPOlicy
 from typing import Dict
@@ -40,6 +42,7 @@ class TestAssetAgentManager(AgentManager):
             self._object_to_agent.pop(vehicle_name)
         if vehicle_name in self._active_objects:
             del self._active_objects[vehicle_name]
+    # if new parameters comes, remove current vehicle and spawn new one
     def set_test_asset_config_dict(self, newdict):
         self.test_asset_meta_info = newdict
         if self.saved_test_asset_obj is not None:
@@ -58,6 +61,7 @@ class TestAssetAgentManager(AgentManager):
                 vehicle_type[v_config["vehicle_model"] if v_config.get("vehicle_model", False) else "default"]
 
             obj_name = agent_id if self.engine.global_config["force_reuse_object_name"] else None
+            # Note: we must use force spawn
             if v_config.get("vehicle_model", False) and v_config["vehicle_model"] == "test":
                 obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name, force_spawn=True, test_asset_meta_info=test_asset_meta_info)
                 self.saved_test_asset_obj = obj

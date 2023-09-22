@@ -1,3 +1,7 @@
+# Environment that enable interactively change asset's parameters.
+# Search for agent_manager to know how it spawn object and change the parameters
+# '_get_agent_manager' is to init the agent manager
+# "step()" can pass in new parameters we want
 import copy
 from typing import Union
 
@@ -321,6 +325,7 @@ class TestAssetMetaDriveEnv(BaseEnv):
         self.in_stop = not self.in_stop
 
     def step(self, test_asset_config_dict = None, actions = None):
+        # if we have new parameters, set it
         if test_asset_config_dict is not None:
             self.agent_manager.set_test_asset_config_dict(test_asset_config_dict)
         ret = super(TestAssetMetaDriveEnv, self).step(actions)

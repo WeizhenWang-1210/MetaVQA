@@ -1,3 +1,8 @@
+# Script used to Add static model\GLTF model (not car model) and make sure it has proper size and proper tire position.
+# Please refer to "CustomizedCar" class in metadrive/component/vehicle/vehicle_type.py for how the car model class is defined
+# You don't need to understand how ttk works, just use it!
+# Use objverse_change_asset_script.py to call this updater for each newly added car asset.
+# Please refer to "objverse_change_asset.py" for detailed comments
 import tkinter as tk
 from tkinter import ttk
 from functools import partial

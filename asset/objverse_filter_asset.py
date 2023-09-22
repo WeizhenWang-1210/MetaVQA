@@ -1,3 +1,6 @@
+# Display the downloaded Objaverse Asset (using download_assets.py) and decide whether or not to use it later.
+# Save the asset you have checked and the asset you want to use in a json file for later reference.
+# You can also annotate for each asset you want to save (for example, assign tags like human, female, male, etc)
 import time
 import objaverse
 import os
@@ -10,17 +13,41 @@ import json
 
 class Objverse_filter_asset:
     def __init__(self, isTagList = False, asset_folder_path="C:\\research\\dataset\\.objaverse\\hf-objaverse-v1", tag = "Test"):
+        """
+        Initialize the Objverse_filter_asset instance.
+
+        :param isTagList: If true, use a different JSON naming convention.
+        :param asset_folder_path: The base directory where assets and related JSON files (from download_assets.py) are stored.
+        :param tag: Save the resulting json file as xxx-tags.json.
+
+        :return: None
+        """
+        # Base directory for assets
         self.asset_folder_path = asset_folder_path
+
+        # Determine which JSON naming convention to use
         self.isTagList = isTagList
+        # json path is saved from download_assets.py. It is a json file containing asset uids and asset paths.
         if self.isTagList:
             self.json_path = os.path.join(asset_folder_path, "object-list-paths-{}.json".format(tag))
         else:
             self.json_path = os.path.join(asset_folder_path, "object-paths-{}.json".format(tag))
+        # Path to save all the uids you have taken a look, avoid to re-check them in the future
         self.processed_uids_path = os.path.join(asset_folder_path, "processed_uids_{}.json".format(tag))
+        # Path to save the uids you want to use later along with corresponding annotation you write
         self.saved_uids_path = os.path.join(asset_folder_path, "saved_uids_{}.json".format(tag))
         self.cached_asset_uids = []
         self.current_session_tags = set()
     def load_cached_uids(self):
+        """
+        Go over the asset folder, and then find asset file within each subfolder.
+        Save asset's UID and return
+        The asset folder should follow the Objaverse standard
+        Example: hf-objaverse-v1/123456/7zfedb.glb
+
+        Returns:
+        - list[str]: UIDs of assets that have been downloaded and cached by objaverse on local.
+        """
         uids = []
         with open(self.json_path, "r") as f:
             uid_dict = json.load(f)
@@ -37,6 +64,12 @@ class Objverse_filter_asset:
         return uids
 
     def load_processed_uids(self, filename=None):
+        """
+        Load UIDs that have been processed from the saved json file.
+
+        Returns:
+        - list[str]: A list of processed UIDs.
+        """
         if filename is None:
             filename = self.processed_uids_path
         if os.path.exists(filename):
@@ -45,6 +78,12 @@ class Objverse_filter_asset:
         return []
 
     def save_processed_uid(self, uid, filename=None):
+        """
+        Save a UID to the list of processed UIDs and saved as json file.
+
+        Returns:
+        - None
+        """
         if filename is None:
             filename = self.processed_uids_path
         processed_uids = self.load_processed_uids(filename)
@@ -54,6 +93,12 @@ class Objverse_filter_asset:
                 json.dump(processed_uids, file)
 
     def get_existing_tags(self, filename=None):
+        """
+        Get already assigned annotations from the saved json, for potential reuse.
+
+        Returns:
+        - list[str]: A list of tags from saved json
+        """
         if filename is None:
             filename = self.saved_uids_path
 
@@ -71,6 +116,13 @@ class Objverse_filter_asset:
         return merged_tags
 
     def get_user_input(self):
+        """
+        Capture user input through a GUI interface.
+
+        Returns:
+        - str: The choice made by the user (y,n, or q for quit and save)
+        - list[str]: A list of tags specified or selected by the user.
+        """
         root = tk.Tk()
         root.title("Mesh Input")
 
@@ -118,6 +170,12 @@ class Objverse_filter_asset:
         return user_input, tags
 
     def filter_uid_raw(self, uids):
+        """
+        Process and filter and annotated UIDs based on user input.
+
+        Returns:
+        - dict: A dictionary where keys are UIDs and values are lists of tags.
+        """
         objects = objaverse.load_objects(uids=uids)
         saved_assets = {}  # This will contain UID:tags key-value pairs
         processed_uids = self.load_processed_uids()
@@ -144,6 +202,12 @@ class Objverse_filter_asset:
         return saved_assets
 
     def saved_assets_to_json(self, saved_assets, filename=None):
+        """
+        Save assets you want to save along with annotations you made to a JSON file.
+
+        Returns:
+        - None
+        """
         if filename is None:
             filename = self.saved_uids_path
 
@@ -163,6 +227,12 @@ class Objverse_filter_asset:
 
 
     def get_tags_selection(self):
+        """
+        Capture annotation selections from the user through a GUI interface.
+
+        Returns:
+        - list[str]: A list of annotation selected by the user.
+        """
         root = tk.Tk()
         root.title("Select Tags")
 
@@ -185,6 +255,12 @@ class Objverse_filter_asset:
         return root.selected_tags
 
     def get_uids_by_tags(self, selected_tags):
+        """
+        Get saved UIDs that match specific annotations.
+
+        Returns:
+        - dict: A dictionary where keys are UIDs and values are file paths.
+        """
         # Load the saved UIDs with tags
         with open(self.saved_uids_path, "r") as file:
             saved_assets = json.load(file)
@@ -208,6 +284,12 @@ class Objverse_filter_asset:
 
 
     def save_matched_uids_to_json(self, matched_uids, filename="matched_uids.json"):
+        """
+        Save UIDs with matched annotations to a JSON file.
+
+        Returns:
+        - None
+        """
         full_path = os.path.join(self.asset_folder_path, filename)
         with open(full_path, "w") as file:
             json.dump(matched_uids, file)
@@ -215,15 +297,16 @@ class Objverse_filter_asset:
 
 
 if __name__ == "__main__":
+
     asset_folder_path = "C:\\research\\dataset\\.objaverse\\hf-objaverse-v1"
     tag = "crosswalk"
     objaverse_filter_helper = Objverse_filter_asset(isTagList=True,asset_folder_path=asset_folder_path, tag = tag)
 
-    # # # Current functionality
+    # Filter and annotate each asset you downloaded.
     cached_uid_lists = objaverse_filter_helper.load_cached_uids()
     saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
 
-    # New functionality to get UIDs by tags
+    # Select the annotaions you have made so far, and return all uids has a matched annotation
     # selected_tags = objaverse_filter_helper.get_tags_selection()
     # matched_uids = objaverse_filter_helper.get_uids_by_tags(selected_tags)
     #
