@@ -124,7 +124,7 @@ if __name__ == "__main__":
         # controller="joystick",
         use_render=True,
         manual_control=True,
-        traffic_density=0.2,
+        traffic_density=0.3,
         num_scenarios=100,
         random_agent_model=False,
         random_lane_width=True,
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         # debug_static_world=True,
         map=4,  # seven block
         start_seed=random.randint(0, 1000),
-        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080)},
+        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080), "show_lidar":True, "show_navi_mark":False},
         #show_coordinates = True
     )
     parser = argparse.ArgumentParser()
