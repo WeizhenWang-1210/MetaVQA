@@ -1,0 +1,21 @@
+---
+storage_path : "./"
+rgb_setting: 
+  use_rgb: True
+  shape: [512,256]
+lidar_setting:
+  use_lidar: True
+  num_laser: 240
+  max_range: 50
+map_setting:
+  PG: True
+  map_size: 7
+  map_sequence: ""
+  traffic_density: 0.4
+  inverse_traffic: True
+  structures_density: 0
+  accident_prob: 0
+  num_scenarios: 100
+sample_frequency: 20
+num_samples: 10
+...

@@ -117,26 +117,39 @@ def object_type(object):
     if isinstance(object, TrafficWarning):
         return "warning sign"
 
-
+import yaml
 
 if __name__ == "__main__":
-    config = dict(
+    """
+    load config for desired scenario's setting
+    """
+    try:
+        with open('scene_generation_config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+    except:
+        print("Couldn't load config for dataset generation! Exiting")
+        exit(1)
+
+    scene_config = dict(
         # controller="joystick",
         use_render=True,
         manual_control=True,
-        traffic_density=0.3,
-        num_scenarios=100,
+        traffic_density=config["map_setting"]["traffic_density"],
+        num_scenarios=config["map_setting"]["num_scenarios"],
         random_agent_model=False,
         random_lane_width=True,
         random_lane_num=True,
-        need_inverse_traffic = True,
-        accident_prob = 1,
+        need_inverse_traffic = config["map_setting"]["inverse_traffic"],
+        accident_prob = config["map_setting"]["accident_prob"],
         #image_on_cuda = True,
         #debug=True,
-        # debug_static_world=True,
-        map=4,  # seven block
+        #debug_static_world=True,
+        map=config["map_setting"]["map_size"] if config["map_setting"]["PG"] else config["map_setting"]["map_sequence"],  # seven block
         start_seed=random.randint(0, 1000),
-        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(1920,1080), "show_lidar":True, "show_navi_mark":False},
+        vehicle_config = {"image_source":"rgb_camera", 
+                          "rgb_camera":(config["rgb_setting"]["shape"][0], config["rgb_setting"]["shape"][1]), 
+                          "show_lidar":False, 
+                          "show_navi_mark":False},
         #show_coordinates = True
     )
     parser = argparse.ArgumentParser()
@@ -145,7 +158,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.observation == "rgb_camera":
         config.update(dict(image_observation=True))
-    env = MetaDriveEnv(config)
+    env = MetaDriveEnv(scene_config)
     try:
         
         o, _ = env.reset()
@@ -161,7 +174,7 @@ if __name__ == "__main__":
             print("The observation is an numpy array with shape: ", o.shape)
         count = 1
         path = '{}'.format(env.current_seed)
-        folder = os.path.join(os.getcwd(), path)
+        folder = os.path.join(config["storage_path"], path)
         os.mkdir(folder)
         print(folder)
         print("Folder has name %s" %(env.current_seed))
@@ -175,7 +188,7 @@ if __name__ == "__main__":
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if i % 30== 0: #note: the "1st" object in objects is the agent
+            if i % config["sample_frequency"]== 0: #note: the "1st" object in objects is the agent
                 agents = env.engine.agents
                 agent = list(agents.values())[0] #if single-agent setting
                 agent_id = list(agents.values())[0].id
