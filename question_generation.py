@@ -52,7 +52,7 @@ class agent_node:
     """
     def __init__(self,
                  pos = (0,0), #object.position
-                 color = (0,0,0), #Stuck. Can't rerender the objects' color. Look at Material from Panda3D
+                 color = "white", #Stuck. Can't rerender the objects' color. Look at Material from Panda3D
                  speed = 1,      #object.speed
                  heading = (0,1), #object.heading
                  lane = (0,0,1), #lane indexing is (id1, id2, lane number(beginning from 0, left to right)). In addition, the other side of the street is
@@ -64,7 +64,7 @@ class agent_node:
                  road_code = None):
         #More properties could be defined.
         self.pos =  pos #(x,y) w.r.t. to world origin
-        self.color = color
+        self.color = "white"
         self.speed = speed
         self.heading = heading #(dx, dy) unit vector, centered at the car but in world coordinate
         self.lane = lane
@@ -464,6 +464,22 @@ class Question_Generator:
     def get_stats(self):
         return self.stats    
 
+    def generate_counting(self, type: str = "car", property:str = "color", val: str = "white")->(str, int):
+        format = "How many {} with {} of {} are there?".format(type, property, val)
+        ans = 0
+        for id, object in self.scenario_graph.nodes.items():
+            print(object.color)
+            print(object.type)
+            if object.type == type:
+                if property == "color":
+                    ans += 1 if object.color == val else 0
+        return format, ans
+
+
+
+
+
+
 def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
     agent_dict = scene_dict['agent']
     agent_id = scene_dict['agent']['id']
@@ -574,6 +590,9 @@ if __name__ == '__main__':
         graph = scene_graph(agent_id,nodes)
         test_generator = Question_Generator(graph)
         points= test_generator.generate_all()
+        print(test_generator.generate_counting())
+        print(test_generator.scenario_graph.nodes.values())
+
         
     
     
