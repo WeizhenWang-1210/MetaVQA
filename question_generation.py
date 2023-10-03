@@ -24,278 +24,10 @@ Note that MetaDrive uses a right-handed coordinate system with x being the headi
 
 """
 
-
-class road_graph:
-    def __init__(self,ids:Iterable) -> None:
-        graph = defaultdict(lambda:"")
-        for start, end, lane, in ids:
-            graph[start] = end
-        self.graph = graph
-    def reachable(self,start,end):
-        #print(start)
-        if start == '':
-            return False
-        if start == end:
-            return True
-        else:
-            return self.reachable(self.graph[start],end)
-
-
-
+from scene_graph import scene_graph
+from agent_node import AgentNode
         
-class agent_node:
-    """
-        Indicators:
-            Left  | Right | colinear:  -1 | 1 | 0
-            Back  | Front | colinear:  -1 | 1 | 0
-            Same Side(of road) | Different Side:  1 | 0
-    """
-    def __init__(self,
-                 pos = (0,0), #object.position
-                 color = "white", #Stuck. Can't rerender the objects' color. Look at Material from Panda3D
-                 speed = 1,      #object.speed
-                 heading = (0,1), #object.heading
-                 lane = (0,0,1), #lane indexing is (id1, id2, lane number(beginning from 0, left to right)). In addition, the other side of the street is
-                 #(-id1,-id2, #)
-                 id = None,
-                 bbox = None,
-                 type = "vehicle",
-                 height = None,
-                 road_code = None):
-        #More properties could be defined.
-        self.pos =  pos #(x,y) w.r.t. to world origin
-        self.color = "white"
-        self.speed = speed
-        self.heading = heading #(dx, dy) unit vector, centered at the car but in world coordinate
-        self.lane = lane
-        self.id = id
-        self.bbox = bbox
-        self.type = type
-        self.height = height
-        self.road_code = road_code
-        #self.ref_heading = self.heading #used when the relation is observed from other's coordinate
-    
-    def compute_relation(self, node, ref_heading:tuple)->dict:
-        relation = {
-            'side': self.leftORright(node, ref_heading),
-            'front': self.frontORback(node, ref_heading),
-            #'street': self.sameStreet(node),
-            #'steering_side': self.steering_leftORright(node),
-            #'steering_front': self.steering_frontORback(node)
-            #etc.
-        }
-        return relation
-    
-    def __str__(self):
-        dictionary = {
-            'pos': self.pos,
-            'color' : self.color,
-            'speed' : self.speed,
-            'heading' : self.heading,
-            'lane' : self.lane
-        }
-        return dictionary.__str__()
-    
-    def leftORright(self,node, ref_heading)->int:
-        """
-        return 1 for right, -1 for left, and 0 for in the middle
-        """
 
-        #Decide Left or Right relationships base on the bounding box of the tested object and the left/right boundary
-        #of the compared object. If all vertices are to the left of the front boundary, then we way the tested object
-        #is to the left of the compared object(and vice versa for right). 
-        #node w.r.t to me
-        #ref_heading is the direction of ego_vehicle.This direction may not be the heading for me
-
-        ego_left = self.bbox[0]
-        ego_right = self.bbox[1]
-        node_bbox = node.bbox  
-        left_cross = []
-        right_cross = []
-        for node_vertice in node_bbox:
-            l_vector = (node_vertice[0]-ego_left[0], node_vertice[1] - ego_left[1]) 
-            r_vector = (node_vertice[0]-ego_right[0], node_vertice[1] - ego_right[1]) 
-            l_cross = l_vector[0]*ref_heading[1] - l_vector[1]*ref_heading[0]
-            r_cross = r_vector[0]*ref_heading[1] - r_vector[1]*ref_heading[0]
-            left_cross.append(l_cross)
-            right_cross.append(r_cross)
-        l = True
-        r = True
-        for val in left_cross:
-            if val > 0:
-                l = False
-                break
-        for val in right_cross:
-            if val < 0:
-                r = False
-                break
-        if l and not r:
-            return -1
-        elif r and not l:
-            return 1
-        else:
-            return 0
-       
-        
-    def frontORback(self,node, ref_heading)->int:
-        """
-        return 1 for front, -1 for back, and 0 for in the middle
-        """
-        #Decide Front or Back relationships base on the bounding box of the tested object and the front/back boundary
-        #of the compared object. If all vertices are in front of the front boundary, then we way the tested object
-        #is in front of the compared object(and vice versa for back). 
-        #node w.r.t to me
-        ego_front = self.bbox[0]
-        ego_back = self.bbox[3]
-        node_bbox = node.bbox  
-        front_dot = []
-        back_dot = []
-        for node_vertice in node_bbox:
-            f_vector = (node_vertice[0]-ego_front[0], node_vertice[1] - ego_front[1]) 
-            b_vector = (node_vertice[0]-ego_back[0], node_vertice[1] - ego_back[1]) 
-            f_dot = f_vector[0]*ref_heading[0] + f_vector[1]*ref_heading[1]
-            b_dot = b_vector[0]*ref_heading[0] + b_vector[1]*ref_heading[1]
-            front_dot.append(f_dot)
-            back_dot.append(b_dot)
-        f = True
-        b = True
-        for val in back_dot:
-            if val > 0:
-                b = False
-                break
-        for val in front_dot:
-            if val < 0:
-                f = False
-                break
-        if b and not f:
-            return -1
-        elif f and not b:
-            return 1
-        else:
-            return 0
-
-    """def sameStreet(self, node)->int:
-        #node w.r.t to me
-        m_id0,m_id1 = self.lane[0],self.lane[1]
-        n_id0,n_id1 = node.lane[0],node.lane[1]
-        if ("-"+m_id0 == n_id0 and "-"+m_id1 == n_id1) or\
-            (m_id0 == "-"+n_id0 and m_id1 == "-"+n_id1):
-            return 1
-        return 0"""
-    
-    def steering_leftORright(self,node)->int:
-        #node w.r.t to me
-        cross = node.heading[0]*self.heading[1] - node.heading[1]*self.heading[0] #cross product
-        if cross > 0.05:
-            return 1
-        elif cross < -0.05 :
-            return -1
-        else:
-            return 0
-    
-    def steering_frontORback(self,node,ref_heading)->int:
-        dot = node.heading[0]*ref_heading[0] + node.heading[1]*ref_heading[1] #dot product
-        if dot > 0.05:
-            return 1
-        elif dot < -0.05 :
-            return -1
-        else:
-            return 0
-
-class scene_graph:
-    def __init__(self, 
-                 ego_id:str,
-                 nodes:list = [],
-                 ):
-        self.nodes = {}
-        for node in nodes:
-            self.nodes[node.id] = node
-        self.ego_id = ego_id
-        self.spatial_graph= self.compute_spatial_graph()
-        self.road_graph = road_graph([node.lane for node in nodes])
-
-    def refocus(self,new_ego_id:str) -> None:
-        self.ego_id = new_ego_id
-    
-    def compute_spatial_graph(self) -> dict:
-        def compute_spatial_edges(ego_id:str,ref_id:str)->dict:
-            edges = {
-                        'l':[],
-                        'r':[],
-                        'f':[],
-                        'b':[],
-                        'lf':[],
-                        'rf':[],
-                        'lb':[],
-                        'rb':[]
-                    }
-            ego_node =self.nodes[ego_id]
-            ref_node = self.nodes[ref_id]
-            for node_id, node in self.nodes.items():
-                if node_id != ego_id:
-                    relation = ego_node.compute_relation(node,ref_node.heading)
-                    side, front = relation['side'], relation['front']
-                    if side == -1 and front == 0:
-                        edges['l'].append(node.id)
-                    elif side == -1 and front == -1:
-                        edges['lb'].append(node.id)
-                    elif side == -1 and front == 1:
-                        edges['lf'].append(node.id)
-                    elif side == 0 and front == -1:
-                        edges['b'].append(node.id)
-                    elif side == 0 and front == 1:
-                        edges['f'].append(node.id)
-                    elif side == 1 and front == 0:
-                        edges['r'].append(node.id)
-                    elif side == 1 and front == -1:
-                        edges['rb'].append(node.id)
-                    elif side == 1 and front == 1:
-                        edges['rf'].append(node.id)
-                    else:
-                        print("Erroenous Relations!")
-                        exit()
-            return edges
-        graph = {}
-        for node_id in self.nodes.keys():
-            graph[node_id] = compute_spatial_edges(node_id,self.ego_id)
-        return graph
-
-    def check_ambigious(self, origin:agent_node, dir:str)->int:
-        candidates = self.graph[origin.id][dir]
-        #-1 being UNSAT, 0 being Unambigious, 1 being ambigious
-        if len(candidates)==0:
-            return -1
-        elif len(candidates)==1:
-            return 0
-        else:
-            return 1
-        
-    def check_sameSide(self, node1, node2):
-        n1, n2 = self.nodes[node1], self.nodes[node2]
-        return self.road_graph.reachable(n1.lane[0],n2.lane[0]) or\
-                self.road_graph.reachable(n2.lane[0],n1.lane[0])
-    
-    def check_sameStreet(self, node1, node2):
-        n1, n2 = self.nodes[node1], self.nodes[node2]
-        return self.check_sameSide(node1,node2) or\
-                self.road_graph.reachable('-'+n1.lane[0],n2.lane[0]) or\
-                self.road_graph.reachable(n2.lane[0],'-'+n1.lane[0]) or\
-                self.road_graph.reachable(n1.lane[0],'-'+n2.lane[0]) or\
-                self.road_graph.reachable('-'+n2.lane[0],n1.lane[0])
-
-def try_return_random_valid(var1, var2):
-    if var1 is None and var2 is None:
-        return None
-    elif var1 is None and var2 is not None:
-        return var2
-    elif var2 is None and var1 is not None:
-        return var1
-    else:
-        return random.choice([var1,var2])
-
-def distance(node1:agent_node, node2:agent_node)->float:
-    dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
-    return np.sqrt(dx**2 + dy**2)
 
 
 class Question_Generator:
@@ -314,6 +46,18 @@ class Question_Generator:
         "WIP":'fork',
         '>': "straight road"
     }
+
+    COLORS = set(
+        ["White", "Black", "Grey", "Blue", "Red", "Green", "Orange","Yellow","Purple"]
+    )
+
+    OBJECTS = set(
+        ["SUV", "Sedan", "Truck", "Sportscar", "Traffic cone", "Pedestrian", "Warning sign"]
+    )
+
+
+
+
 
 
     def __init__(self, graph:scene_graph, target:int = 1, allowance: int = 4, dir:str = './'):
@@ -351,6 +95,9 @@ class Question_Generator:
         return simple_datapoints + composite_datapoints
            
     def generate(self, ego:str = None, referred:str = None, ignore:list = None, allowance:int = 10):
+        """
+        Generate a path with only one node.
+        """
         def check_same_side(ref,node):
             graph = self.scenario_graph
             return graph.check_sameSide(ref,node)
@@ -406,6 +153,9 @@ class Question_Generator:
         return [picked], candidate_id,resoluter, debug_info
             
     def generate_two_hops(self, ego: str, referred:str = None, allowance:int = 10):
+        """
+        Generate a path with one intermediate node
+        """
         #ego = self.scenario_graph.ego_id
         candidate_id = self.select_not_from([ego]) if referred is None else referred
         compared = [node_id for node_id in self.scenario_graph.nodes.keys() if node_id not in set([ego, candidate_id])]
@@ -435,6 +185,10 @@ class Question_Generator:
         return paths, candidate_id
 
     def convert_to_str(self, path:Iterable):
+        """
+        Given a spatial relationship path to resolute a target node from ego, return the English interpretation
+        of this spatial relationship. 
+        """
         def convert_resoluter(resoluter):
             mapping = {
                 'same_side':'on the same side of the street as',
@@ -466,7 +220,9 @@ class Question_Generator:
             return Begin + part_1 + center + resoluter
     
     def generate_spatial_modifier(self, direction_string:str)->str:
-        #Convert direction abbreviations to natural language
+        """
+        Return the English meaning encoded by the direction_string
+        """
         modifier = ""
         if direction_string == 'l':
             modifier = 'directly to the left of '
@@ -487,6 +243,10 @@ class Question_Generator:
         return modifier
 
     def check_unique(self, checker:Callable, ref: str, candidate:str, peers:Iterable)->bool:
+        """
+        Return True if checker returns true ONLY for candidate. ref is here when spatial relationships are examined
+        and the heading of the ego vehicle needs to be passed into the checker.
+        """
         for peer in peers:
             if peer == candidate:
                 if checker(ref,peer):
@@ -501,6 +261,9 @@ class Question_Generator:
         return True
 
     def find_direction(self, origin:str, target:str)->tuple[str,list[str]]:
+        """
+        Return the direction of target w.r.t. to origin and all the nodes that also fall along in that direction.
+        """
         for dir, peers in self.ground_truths[origin].items():
             if target in peers:
                 return dir, peers
@@ -508,6 +271,9 @@ class Question_Generator:
         exit()
  
     def select_not_from(self, ban_list:list)->str:
+        """
+        Select a random node in the scene graph with id not in the ban list
+        """
         nodes = list(self.scenario_graph.nodes.keys())
         result = random.choice(nodes)
         while result in ban_list:
@@ -518,54 +284,39 @@ class Question_Generator:
         return self.stats    
 
     def generate_counting(self, type: str = "car", property:str = "color", val: str = "white")->(str, int):
+
+
+
+
+
+        """
+        How many <object> are observable?
+        How many <object> are
+        
+        """
+
+
+
         format = "How many {} with {} of {} are there?".format(type, property, val)
         ans = 0
         for id, object in self.scenario_graph.nodes.items():
-            print(object.color)
-            print(object.type)
             if object.type == type:
                 if property == "color":
                     ans += 1 if object.color == val else 0
+                if property == ""
         return format, ans
 
 
+    """
+    Filter, objects
+    color = Red, Type = White, Spatial = None
+    """
 
 
 
 
-def nodify(scene_dict:dict)->tuple[str,list[agent_node]]:
-    agent_dict = scene_dict['agent']
-    agent_id = scene_dict['agent']['id']
-    nodes = []
-    for info in scene_dict['vehicles']:
-        nodes.append(agent_node(
-                                        pos = info["pos"],
-                                        color = info["color"],
-                                        speed = info["speed"],
-                                        heading = info["heading"],
-                                        lane = info["lane"],
-                                        id = info['id'],
-                                        bbox = info['bbox'],
-                                        height = info['height'],
-                                        road_code=info['road_type'],
-                                        type = info['type']
-                                        )
-                )
-    nodes.append(
-                agent_node(
-                            pos = agent_dict["pos"],
-                            color = agent_dict["color"],
-                            speed = agent_dict["speed"],
-                            heading = agent_dict["heading"],
-                            lane = agent_dict["lane"],
-                            id = agent_dict['id'],
-                            bbox = agent_dict['bbox'],
-                            height = agent_dict['height'],
-                            road_code=info['road_type'])
-            )
-    return agent_id, nodes
 
-def transform(ego:agent_node,bbox:Iterable)->Iterable:
+def transform(ego:AgentNode,bbox:Iterable)->Iterable:
     def change_bases(x,y):
         relative_x, relative_y = x - ego.pos[0], y - ego.pos[1]
         new_x = ego.heading
@@ -575,7 +326,7 @@ def transform(ego:agent_node,bbox:Iterable)->Iterable:
         return x,y
     return [change_bases(*point) for point in bbox]
 
-def distance(node1:agent_node, node2:agent_node)->float:
+def distance(node1:AgentNode, node2:AgentNode)->float:
     dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
     return np.sqrt(dx**2 + dy**2)
 
