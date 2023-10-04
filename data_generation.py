@@ -23,6 +23,8 @@ from direct.showbase.Loader import Loader
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.utils.utils import get_object_from_node
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
+from metadrive.component.vehicle.vehicle_type import SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle
+from metadrive.component.vehicle.vehicle_type import Lambo, ImportedVehicle_1, ImportedVehicle_2
 from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
 def generate(config, max = 100):
     count = 0
@@ -93,29 +95,52 @@ def generate(config, max = 100):
     return count
 
 
-def vehicle_type(type_str):
+def vehicle_type(object):
     vehicle_type = {
-        "SVehicle": "s",
-        "MVehicle": "m",
-        "LVehicle": "l",
-        "XLVehicle": "xl",
-        "DefaultVehicle": "default",
-        "StaticDefaultVehicle": "static_default",
-        "VaryingDynamicsVehicle": "varying_dynamics"
+        SVehicle: "Compact Sedan",
+        MVehicle: "Sedan",
+        LVehicle: "Pickup",
+        XLVehicle: "Truck",
+        DefaultVehicle: "Sedan",
+        StaticDefaultVehicle: "Sedan",
+        VaryingDynamicsVehicle: "Sedan",
+        Lambo:"Sportscar",
+        ImportedVehicle_1:"SUV",
+        ImportedVehicle_2:"Jeep"
     }
-    for t in vehicle_type.keys():
-        if re.search(t,type_str) is not None:
-            return vehicle_type[t]
+    for c,name in vehicle_type.items():
+        if isinstance(object, c):
+            return name
     return "f"
 
 
 def object_type(object):
     if isinstance(object, TrafficCone):
-        return "cone"
+        return "Traffic Cone"
     if isinstance(object, TrafficBarrier):
-        return "planar barrier"
+        return "Planar Barrier"
     if isinstance(object, TrafficWarning):
-        return "warning sign"
+        return "Warning Sign"
+    
+
+def vehicle_color(object):
+    vehicle_type = {
+        SVehicle: "Blue",
+        MVehicle: "White",
+        LVehicle: "Grey",
+        XLVehicle: "White",
+        DefaultVehicle: "Red",
+        StaticDefaultVehicle: "Red",
+        VaryingDynamicsVehicle: "Red",
+        Lambo:"Grey",
+        ImportedVehicle_1:"White",
+        ImportedVehicle_2:"Red"
+    }
+    for c,color in vehicle_type.items():
+        if isinstance(object, c):
+            return color
+    return "f"
+
 
 import yaml
 
@@ -219,15 +244,16 @@ if __name__ == "__main__":
                     SAME_COLOR = (0,0,0)
                     scene_dict["agent"] = dict(
                         id = agent.id,
-                        color = SAME_COLOR,    
+                        color = vehicle_color(agent),    
                         heading = agent.heading ,      
                         lane = agent.lane_index,                          
                         speed =  agent.speed,
                         pos = agent.position,
                         bbox = [point for point in atight_box],
-                        type = vehicle_type(str(type(agent))),
+                        type = vehicle_type(agent),
                         height = aheight,
-                        road_type = agent.navigation.current_road.block_ID()
+                        road_type = agent.navigation.current_road.block_ID(),
+                        class_name = str(type(agent))
                     )
                     observation = {}
                     observation['lidar'],observable = env.vehicle.lidar.perceive(env.vehicle)
@@ -321,15 +347,16 @@ if __name__ == "__main__":
                     object_descriptions = [
                         dict(
                             id = Lidar_RGB_Observable_objects[i].id,
-                            color = SAME_COLOR,    
+                            color = vehicle_color(Lidar_RGB_Observable_objects[i]) if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else "NA",
                             heading =  Lidar_RGB_Observable_objects[i].heading ,      
                             lane =  Lidar_RGB_Observable_objects[i].lane_index,                          
                             speed =   Lidar_RGB_Observable_objects[i].speed,
                             pos =  Lidar_RGB_Observable_objects[i].position,
                             bbox = [point for point in Lidar_RGB_Observable_boxs[i]],
-                            type = "car" if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else object_type(Lidar_RGB_Observable_objects[i]),
+                            type = vehicle_type(Lidar_RGB_Observable_objects[i]) if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else object_type(Lidar_RGB_Observable_objects[i]),
                             height =  Lidar_RGB_Observable_heights[i],
-                            road_type = object.navigation.current_road.block_ID() if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else 'NA'
+                            road_type = object.navigation.current_road.block_ID() if isinstance(Lidar_RGB_Observable_objects[i], BaseVehicle) else 'NA',
+                            class_name = str(type(Lidar_RGB_Observable_objects[i]))
                         )
                         for i in range(len(Lidar_RGB_Observable_objects))
                     ]

@@ -2,7 +2,7 @@
 storage_path : "./"
 rgb_setting: 
   use_rgb: True
-  shape: [512,256]
+  shape: [1024,512]
 lidar_setting:
   use_lidar: True
   num_laser: 240

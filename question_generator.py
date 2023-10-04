@@ -34,11 +34,13 @@ def color_wrapper(colors:Iterable[str]):
     return color
 
 def type_wrapper(types:Iterable[str]):
+    print(types)
     def type(candidates:Iterable[AgentNode]):
         results = []
         for candidate in candidates:
-            for type in types:
-                if candidate.type == type  or subclass(candidate.type, type):
+            print(candidate)
+            for t in types:
+                if candidate.type == t  or subclass(candidate.type, t):
                     results.append(candidate)
                     break
         return results
@@ -87,17 +89,17 @@ def subclass(class1:str, class2:str)->bool:
 
 def get_inheritance()->defaultdict:
     inheritance = defaultdict(lambda:[])
-    inheritance["vehicle"] = ["SUV", "Sedan", "Truck", "Sportscar"]
-    inheritance["traffic obstacle"] = ["Traffic cone", "Warning sign"]
-    inheritance["traffic participant"] = ["vehicle", "pedestrian"]
+    inheritance["Vehicle"] = ["SUV", "Sedan", "Truck", "Sportscar","Jeep","Pickup","Compact Sedan"]
+    inheritance["Traffic Obstacle"] = ["Traffic Cone", "Warning sign", "Planar Barrier"]
+    inheritance["Traffic Participant"] = ["Vehicle", "Pedestrian"]
     return inheritance
 
 
-dict(
+"""dict(
     color = "white",
     type = "car",
     ...
-)
+)"""
 
 class QuestionGenerator:
     def __init__(self, query_lists: list[dict], queryanswerer: QueryAnswerer):
@@ -153,64 +155,45 @@ def nodify(scene_dict:dict)->tuple[str,list[AgentNode]]:
                             id = agent_dict['id'],
                             bbox = agent_dict['bbox'],
                             height = agent_dict['height'],
-                            road_code=info['road_type'])
+                            road_code=info['road_type'],
+                            type = info['type'])
             )
     return agent_id, nodes
 
+def transform(ego:AgentNode,bbox:Iterable)->Iterable:
+    def change_bases(x,y):
+        relative_x, relative_y = x - ego.pos[0], y - ego.pos[1]
+        new_x = ego.heading
+        new_y = (-new_x[1], new_x[0])
+        x = (relative_x*new_x[0] + relative_y*new_x[1])
+        y = (relative_x*new_y[0] + relative_y*new_y[1])
+        return x,y
+    return [change_bases(*point) for point in bbox]
+
+def distance(node1:AgentNode, node2:AgentNode)->float:
+    dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
+    return np.sqrt(dx**2 + dy**2)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch", type = bool, default= False)
     parser.add_argument("--step", type=str, default = None)
-    parser.add_argument("--folder", type=str, default = None)
     args = parser.parse_args()
-    if args.batch == True:
-        assert args.folder is not None
-        gts = glob.glob(args.folder+"/[0-9]*_[0-9]*/world*",recursive=True)
-        for gt in gts:
-            splitted = gt.split("\\")
-            root = "/".join(splitted[:2])
-            print(root)
-            try:
-                with open(gt,'r') as scene_file:
-                    scene_dict = json.load(scene_file)
-            except:
-                print("Error in reading json file {}".format("gt"))
-            if len(scene_dict["vehicles"]) == 0:
-                continue
-            agent_id, nodes = nodify(scene_dict)
-            graph = scene_graph(agent_id,nodes)
-            test_generator = Question_Generator(graph)
-            datapoints = test_generator.generate_all()
-            statistics =test_generator.get_stats()
-            scene_data = {}
-            for idx, datapoint in enumerate(datapoints):
-                if len(datapoint)==2:
-                    text, candidate = datapoint
-                    qa_dict = {
-                    "text":text,
-                    "bbox":transform(graph.nodes[agent_id], graph.nodes[candidate].bbox),
-                    "height":graph.nodes[candidate].height,
-                    "id":candidate,
-                    "ref":""
-                }
-                else:
-                    text, candidate, compared = datapoint
-                    qa_dict = {
-                        "text":text,
-                        "bbox":transform(graph.nodes[agent_id], graph.nodes[candidate].bbox),
-                        "height":graph.nodes[candidate].height,
-                        "id":candidate,
-                        'ref':compared
-                    }
-                scene_data[idx] = qa_dict
-            try:
-                with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
-                    json.dump(scene_data,file)
-            except:
-                print("wtf")
-            try:
-                with open(root +"/stats_{}.json".format(splitted[1]),'w') as file:
-                    json.dump(statistics, file)
-            except:
-                print("Error recording statistics")
+    try:
+        print(args.step)
+        with open('{}.json'.format(args.step),'r') as scene_file:
+                scene_dict = json.load(scene_file)
+    except:
+        print("Wrong")
+    agent_id,nodes = nodify(scene_dict)
+    
+    graph = SceneGraph(agent_id,nodes)
+    prophet = QueryAnswerer(graph)
+    query_list = [
+        dict(color = None,
+             type  = ["Vehicle"],
+             pos = None)
+    ]
+    test_generator = QuestionGenerator(query_list, prophet)
+    print(test_generator.answers)
+   
+            

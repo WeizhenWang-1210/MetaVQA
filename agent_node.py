@@ -20,7 +20,7 @@ class AgentNode:
                  road_code = None):
         #More properties could be defined.
         self.pos =  pos #(x,y) w.r.t. to world origin
-        self.color = "white"
+        self.color = color
         self.speed = speed
         self.heading = heading #(dx, dy) unit vector, centered at the car but in world coordinate
         self.lane = lane
@@ -48,7 +48,8 @@ class AgentNode:
             'color' : self.color,
             'speed' : self.speed,
             'heading' : self.heading,
-            'lane' : self.lane
+            'lane' : self.lane,
+            'type' : self.type
         }
         return dictionary.__str__()
     
