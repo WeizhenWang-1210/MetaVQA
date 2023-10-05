@@ -34,11 +34,11 @@ def color_wrapper(colors:Iterable[str]):
     return color
 
 def type_wrapper(types:Iterable[str]):
-    print(types)
+    #print(types)
     def type(candidates:Iterable[AgentNode]):
         results = []
         for candidate in candidates:
-            print(candidate)
+            #print(candidate)
             for t in types:
                 if candidate.type == t  or subclass(candidate.type, t):
                     results.append(candidate)
@@ -50,7 +50,8 @@ def pos_wrapper(ego: AgentNode, spatial_retionships: Iterable[str]):
     def pos(candidates: Iterable[AgentNode]):
         results = []
         for candidate in candidates:
-            if ego.compute_relation(candidate, ego.heading) in spatial_retionships:
+            #print(ego.id, candidate.id, ego.compute_relation(candidate,ego.heading))
+            if ego.id != candidate.id and ego.compute_relation_string(candidate, ego.heading) in spatial_retionships:
                 results.append(candidate)
         return results
     return pos
@@ -105,10 +106,10 @@ class QuestionGenerator:
     def __init__(self, query_lists: list[dict], queryanswerer: QueryAnswerer):
         self.prophet: QueryAnswerer = queryanswerer
         self.paths: list[dict] = query_lists
-        self.queries: Iterable[Iterable[Callable]] = self.create_queries()
+        self.queries: Iterable[Iterable[Callable]] = self.create_queries(self.prophet.graph.get_ego_node())
         self.answers: Iterable = self.answer()
 
-    def create_queries(self) -> list[list[Callable]]:
+    def create_queries(self,ego) -> list[list[Callable]]:
         queries = []
         for path in self.paths:
             partial = []
@@ -117,7 +118,7 @@ class QuestionGenerator:
             if path["type"]:
                 partial.append(type_wrapper(path["type"]))
             if path["pos"]:
-                partial.append(pos_wrapper(path["pos"]))
+                partial.append(pos_wrapper(ego,path["pos"]))
             queries.append(partial)
         return queries
     
@@ -190,10 +191,11 @@ if __name__ == "__main__":
     prophet = QueryAnswerer(graph)
     query_list = [
         dict(color = None,
-             type  = ["Vehicle"],
-             pos = None)
+             type  = None,
+             pos = ["rf"])
     ]
     test_generator = QuestionGenerator(query_list, prophet)
+    #print(graph.spatial_graph[graph.ego_id])
     print(test_generator.answers)
    
             

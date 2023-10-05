@@ -42,6 +42,29 @@ class AgentNode:
         }
         return relation
     
+    def compute_relation_string(self,node,ref_heading:tuple)->str:
+        relation = self.compute_relation(node,ref_heading)
+        side = relation['side']
+        front = relation['front']
+        if side == -1 and front == 0:
+            return 'l'
+        elif side == -1 and front == -1:
+            return 'lb'
+        elif side == -1 and front == 1:
+            return 'lf'
+        elif side == 0 and front == -1:
+            return 'b'
+        elif side == 0 and front == 1:
+            return 'f'
+        elif side == 1 and front == 0:
+            return 'r'
+        elif side == 1 and front == -1:
+            return 'rb'
+        elif side == 1 and front == 1:
+            return 'rf'
+        else:
+            return 'm'
+    
     def __str__(self):
         dictionary = {
             'pos': self.pos,

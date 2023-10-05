@@ -99,3 +99,6 @@ class SceneGraph:
     
     def get_nodes(self)->AgentNode:
         return list(self.nodes.values())
+    
+    def get_ego_node(self)->AgentNode:
+        return self.nodes[self.ego_id]
