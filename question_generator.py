@@ -1,4 +1,4 @@
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 from scene_graph import SceneGraph
 from agent_node import AgentNode
 from collections import defaultdict
@@ -22,6 +22,17 @@ class QueryAnswerer:
         if not candidates:
             candidates = self.graph.get_nodes()
         return len(self.filter(candidates,filter))
+    
+    def locating(self, candidates: Iterable[str] = None, filter = list[Callable]):
+        ans = {}
+        if not candidates:
+            candidates = self.graph.get_nodes()
+        agents = self.filter(candidates, filter)
+        for agent in  agents:
+            ans[agent.id] = agent.bbox
+        return ans
+        
+        
         
         
 def color_wrapper(colors:Iterable[str]):
@@ -102,11 +113,27 @@ def get_inheritance()->defaultdict:
     ...
 )"""
 
+class Query:
+    def __init__(self, filters, type) -> None:
+        self.filters = filters
+        self.type = type
+
+
+
+"""
+Dictionary, specification
+
+"""
+
+
+
+        
+
 class QuestionGenerator:
     def __init__(self, query_lists: list[dict], queryanswerer: QueryAnswerer):
         self.prophet: QueryAnswerer = queryanswerer
         self.paths: list[dict] = query_lists
-        self.queries: Iterable[Iterable[Callable]] = self.create_queries(self.prophet.graph.get_ego_node())
+        self.queries: Iterable[Iterable[Query]] = self.create_queries(self.prophet.graph.get_ego_node())
         self.answers: Iterable = self.answer()
 
     def create_queries(self,ego) -> list[list[Callable]]:
@@ -119,13 +146,19 @@ class QuestionGenerator:
                 partial.append(type_wrapper(path["type"]))
             if path["pos"]:
                 partial.append(pos_wrapper(ego,path["pos"]))
-            queries.append(partial)
+            query = Query(partial, path["format"])
+            queries.append(query)
         return queries
     
     def answer(self)->list:
         answers = []
         for query in self.queries:
-            answers.append(self.prophet.counting(filter = query))
+            if query.type == "counting":
+                answers.append(self.prophet.counting(filter = query.filters))
+            elif query.type == "locating":
+                answers.append(self.prophet.locating(filter = query.filters))
+            elif query.type == "logical":
+                answer = None
         return answers
 
 def nodify(scene_dict:dict)->tuple[str,list[AgentNode]]:
@@ -175,6 +208,23 @@ def distance(node1:AgentNode, node2:AgentNode)->float:
     dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
     return np.sqrt(dx**2 + dy**2)
 
+
+def greater(A,B):
+    return A > B
+def equal(A,B):
+    return A==B
+def less(A,B):
+    return A<B
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--step", type=str, default = None)
@@ -191,9 +241,36 @@ if __name__ == "__main__":
     prophet = QueryAnswerer(graph)
     query_list = [
         dict(color = None,
-             type  = None,
-             pos = ["rf"])
+             type  = ["Vehicle"],
+             pos = ["lf"],
+             format = "counting"),
+        dict(color = None,
+             type = ["Compact Sedan"],
+             pos = ["lf"],
+             format = "locating"),
+        dict(paths = [
+            dict(
+                color = None,
+                type = ["Compact Sedan"],
+                pos = None),
+            dict(
+                color = None,
+                type = ["Sportscar"],
+                pos = [""]
+            )],
+             format = "logical",
+             predicate = equal)
     ]
+
+
+
+
+
+
+
+    query_graphs = []
+
+
     test_generator = QuestionGenerator(query_list, prophet)
     #print(graph.spatial_graph[graph.ego_id])
     print(test_generator.answers)
