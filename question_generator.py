@@ -57,13 +57,13 @@ def type_wrapper(types:Iterable[str]):
         return results
     return type
 
-def pos_wrapper(ego: AgentNode, spatial_retionships: Iterable[str]):
+def pos_wrapper(egos: [AgentNode], spatial_retionships: Iterable[str], ref_heading: tuple = None):
     def pos(candidates: Iterable[AgentNode]):
         results = []
         for candidate in candidates:
-            #print(ego.id, candidate.id, ego.compute_relation(candidate,ego.heading))
-            if ego.id != candidate.id and ego.compute_relation_string(candidate, ego.heading) in spatial_retionships:
-                results.append(candidate)
+            for ego in egos:
+                if ego.id != candidate.id and ego.compute_relation_string(candidate, ref_heading) in spatial_retionships:
+                    results.append((ego,candidate))
         return results
     return pos
 
@@ -83,11 +83,12 @@ def target_type(candidates:Iterable[AgentNode], types:Iterable[str]):
                 break
     return results
 
-def target_pos(candidates: Iterable[AgentNode], ego: AgentNode, spatial_retionships: Iterable[str]):
+def target_pos(candidates: Iterable[AgentNode], egos: Iterable[AgentNode], ref_heading: tuple, spatial_retionships: Iterable[str]):
     results = []
     for candidate in candidates:
-        if ego.compute_relation(candidate, ego.heading) in spatial_retionships:
-            results.append(candidate)
+        for ego in egos:
+            if ego.compute_relation(candidate, ref_heading) in spatial_retionships:
+                results.append((ego,candidate))
     return results
 
 def subclass(class1:str, class2:str)->bool:
@@ -114,9 +115,26 @@ def get_inheritance()->defaultdict:
 )"""
 
 class Query:
-    def __init__(self, filters, type) -> None:
-        self.filters = filters
+    def __init__(self, type, prev = None, next = None, *args) -> None:
+        self.args = args
         self.type = type
+        self.next = None
+        self.prev = None
+        self.answer = None
+    
+    def instantiate(self, prev):
+        if prev.type != 'pos':
+            prev_result_nodes = prev.answer
+        else:
+            prev_result_nodes = [y for (x,y) in prev.answer]
+        if self.type == "pos":
+            return pos_wrapper(prev_result_nodes, *self.args)
+            
+        
+
+
+        
+
 
 
 
