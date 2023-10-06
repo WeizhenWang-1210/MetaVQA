@@ -1,4 +1,5 @@
 import numpy as np
+from dataset_utils import find_extremities
 class AgentNode:
     """
         Indicators:
@@ -86,9 +87,8 @@ class AgentNode:
         #is to the left of the compared object(and vice versa for right). 
         #node w.r.t to me
         #ref_heading is the direction of ego_vehicle.This direction may not be the heading for me
-
-        ego_left = self.bbox[0]
-        ego_right = self.bbox[1]
+        normal = -ref_heading[1], ref_heading[0]
+        ego_left, ego_right = find_extremities(normal, self.bbox, self.pos)
         node_bbox = node.bbox  
         left_cross = []
         right_cross = []
@@ -124,8 +124,7 @@ class AgentNode:
         #of the compared object. If all vertices are in front of the front boundary, then we way the tested object
         #is in front of the compared object(and vice versa for back). 
         #node w.r.t to me
-        ego_front = self.bbox[0]
-        ego_back = self.bbox[3]
+        ego_front,ego_back = find_extremities(ref_heading,self.bbox, self.pos)
         node_bbox = node.bbox  
         front_dot = []
         back_dot = []
