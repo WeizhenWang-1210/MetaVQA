@@ -8,33 +8,76 @@ import numpy as np
 import argparse
 import glob
 from dataset_utils import transform, distance, nodify
-class QueryAnswerer:
-    def __init__(self, scene_graph:SceneGraph) -> None:
-        self.graph:SceneGraph = scene_graph
-        self.ego_id:str = scene_graph.ego_id
 
-    def filter(self, candidates: Iterable[str], filters:list[Callable])->Iterable[str]:
-        result = candidates
-        for filter in filters:
-            result = filter(result)
-        return result
+class FilterConstructor:
+    def __init__(self, type, plan: dict) -> None:
+        self.plan = plan
+        self.paths = None
     
-    def counting(self, candidates: Iterable[str] = None, filter = list[Callable]):
-        if not candidates:
-            candidates = self.graph.get_nodes()
-        return len(self.filter(candidates,filter))
+
+    def readplan(self, plan):
+        if not plan:
+            plan = self.plan
+        if plan['format'] == "logical":
+            for path in plan["paths"]:
+                subplan = (path["color"], path["type"], path["pos"])
+
+class SubQuery:
+    def __init__(self, color, type, pos, next, prev) -> None:
+        self.color = color
+        self.type = type
+        self.pos = pos
+        self.next = next
+        self.prev = prev
+        self.funcs = None
+        self.ans = None
     
-    def locating(self, candidates: Iterable[str] = None, filter = list[Callable]):
-        ans = {}
-        if not candidates:
-            candidates = self.graph.get_nodes()
-        agents = self.filter(candidates, filter)
-        for agent in  agents:
-            ans[agent.id] = agent.bbox
-        return ans
+    def instantiate(self, ref_heading):
+        color_func = color_wrapper(self.color) if self.color else None
+        type_func = type_wrapper(self) if self.type else None
+        pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None
+        self.funcs = color_func, type_func, pos_func
+    
+    def __call__(self, candidates) -> Any:
+        ans = candidates
+        for func in self.funcs:
+            if func:
+                ans = func(ans)
+        self.ans = ans
+        return self.ans
+
+class Query:
+    def __init__(self, heads: Iterable[SubQuery], format, end_filter, ref_heading = None, candidates = None) -> None:
+        self.candidates = candidates
+        self.format = format
+        self.heads = heads
+        self.final = end_filter
+        self.ref_heading = ref_heading
+        self.ans = None
+
+    def set_reference(self, heading):
+        self.ref_heading = heading
+    
+    def set_searchspace(self, nodes):
+        self.candidates = nodes
+    
+    def proceed(self):
+        search_spaces = []
+        for head in self.heads:
+            traverser = head
+            search_space = self.candidates
+            while traverser:
+                if not traverser.funcs:
+                    traverser.instantiate(self.ref_heading)
+                search_space = traverser(search_space)
+                traverser = traverser.next
+            search_spaces.append(search_space)
+        if len(search_spaces) == 1:
+            search_spaces = search_spaces[0]
+        self.ans = self.final(search_spaces)
+        return self.ans
         
-        
-        
+
         
 def color_wrapper(colors:Iterable[str]):
     def color(candidates:Iterable[AgentNode]):
@@ -107,46 +150,60 @@ def get_inheritance()->defaultdict:
     inheritance["Traffic Obstacle"] = ["Traffic Cone", "Warning sign", "Planar Barrier"]
     inheritance["Traffic Participant"] = ["Vehicle", "Pedestrian"]
     return inheritance
+        
 
 
-"""dict(
-    color = "white",
-    type = "car",
-    ...
-)"""
 
-class Query:
-    def __init__(self, type, prev = None, next = None, *args) -> None:
-        self.args = args
-        self.type = type
-        self.next = None
-        self.prev = None
-        self.answer = None
-    
-    def instantiate(self, prev):
-        if prev.type != 'pos':
-            prev_result_nodes = prev.answer
+
+
+class QueryAnswerer:
+    def __init__(self, scene_graph:SceneGraph, queries: Iterable[Query]) -> None:
+        self.graph:SceneGraph = scene_graph
+        self.ego_id:str = scene_graph.ego_id
+        self.queries: Iterable[Query] = queries
+        self.log = None
+
+
+
+    def ans(self, query: Query = None):
+        answers = []
+        if not query:
+            for query in self.queries:
+                query.set_reference(self.graph.get_ego_node().heading)
+                query.set_searchspace(self.graph.get_nodes())
+                answers.append(query.proceed())
         else:
-            prev_result_nodes = [y for (x,y) in prev.answer]
-        if self.type == "pos":
-            return pos_wrapper(prev_result_nodes, *self.args)
-            
+            query.set_reference(self.graph.get_ego_node().heading)
+            answers.append(query.proceed())
+        return answers
+
+
+    
+
+    def filter(self, candidates: Iterable[str], filter_constructor)->Iterable[str]:
+        result = candidates
+        filter = filter_constructor.generate()
+        while filter:
+            result = filter(result)
+            filter = filter_constructor.generate()
+        return result
+    
+    def counting(self, candidates: Iterable[str] = None, filter = list[Callable]):
+        if not candidates:
+            candidates = self.graph.get_nodes()
+        return len(self.filter(candidates,filter))
+    
+    def locating(self, candidates: Iterable[str] = None, filter = list[Callable]):
+        ans = {}
+        if not candidates:
+            candidates = self.graph.get_nodes()
+        agents = self.filter(candidates, filter)
+        for agent in  agents:
+            ans[agent.id] = agent.bbox
+        return ans
         
 
 
-        
-
-
-
-
-"""
-Dictionary, specification
-
-"""
-
-
-
-        
 
 class QuestionGenerator:
     def __init__(self, query_lists: list[dict], queryanswerer: QueryAnswerer):
@@ -194,8 +251,9 @@ def equal(A,B):
 def less(A,B):
     return A<B
 
-
-
+def count(stuff: Iterable):
+    return len(count)
+    
 
 
 
@@ -217,34 +275,22 @@ if __name__ == "__main__":
     
     graph = SceneGraph(agent_id,nodes)
     prophet = QueryAnswerer(graph)
-    query_list = [
-        dict(color = None,
-             type  = ["Vehicle"],
-             pos = ["lf"],
-             format = "counting"),
-        dict(color = None,
-             type = ["Compact Sedan"],
-             pos = ["lf"],
-             format = "locating"),
-        dict(paths = [
-            dict(
-                color = None,
-                type = ["Compact Sedan"],
-                pos = None),
-            dict(
-                color = None,
-                type = ["Sportscar"],
-                pos = [""]
-            )],
-             format = "logical",
-             predicate = equal)
-    ]
-
-    query_graphs = []
 
 
-    test_generator = QuestionGenerator(query_list, prophet)
+    q1 = SubQuery(None, ["Vehicle"], ["lf"])
+    q2 = SubQuery(None, ["Compact Sedan"], ["rf"], next = None, prev = q1)
+    q = Query([q1],"counting",count)
+
+    result = prophet.ans(q)
+    
+
+    print(result)
+    
+    
+    
+    
+    #test_generator = QuestionGenerator(query_list, prophet)
     #print(graph.spatial_graph[graph.ego_id])
-    print(test_generator.answers)
+    
    
             

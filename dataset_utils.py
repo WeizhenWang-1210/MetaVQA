@@ -1,6 +1,6 @@
 from agent_node import AgentNode
 from typing import Iterable
-from numpy import np
+import numpy as np
 
 
 def transform(ego:AgentNode,bbox:Iterable)->Iterable:
