@@ -304,19 +304,33 @@ if __name__ == "__main__":
 
 
     graph = SceneGraph(agent_id,nodes) 
+    """ego = graph.get_ego_node()
+    sport_car = graph.get_node("15c7ec81-9a9a-42de-bf31-06c9beba503c")
+    print(ego.compute_relation(sport_car, ego.heading))"""
+
+    
 
 
-    q1 = SubQuery(None,None, ['lf'], None, None)
+
+
+
+
+    
+
+
+
+    
+    #q1 = SubQuery(None,None, ['lf'], None, None)
     #q2 = SubQuery(None, ["Compact Sedan"], ["rf"], next = None, prev = q1)
     #q1.next = q2
-    q = Query([q1],"counting",lambda x : x)
-    prophet = QueryAnswerer(graph,[q])
+    #q = Query([q1],"counting",lambda x : x)
+    #ophet = QueryAnswerer(graph,[q])
 
-    result = prophet.ans(q)
+    #result = prophet.ans(q)
     
     """for r in result[0]:
         print(r.id)"""
-    print(result[0])
+    #print(result[0])
     
     
     
