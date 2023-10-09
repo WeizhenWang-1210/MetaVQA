@@ -224,8 +224,8 @@ def nodify(scene_dict:dict)->tuple[str,list[AgentNode]]:
                             id = agent_dict['id'],
                             bbox = agent_dict['bbox'],
                             height = agent_dict['height'],
-                            road_code=info['road_type'],
-                            type = info['type'])
+                            road_code=agent_dict['road_type'],
+                            type = agent_dict['type'])
             )
     return agent_id, nodes
 
