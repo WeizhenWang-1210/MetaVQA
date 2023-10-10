@@ -1,8 +1,11 @@
 import json
 import os
 import shutil
+import yaml
+from pathlib import Path
 from asset.objverse_change_asset import AssetMetaInfoUpdater
 from asset.objverse_change_asset_static import StaticAssetMetaInfoUpdater
+from asset.read_config import configReader
 def load_json(file_path):
     """
     Load json file
@@ -17,6 +20,8 @@ def copy_file(uid, src_folder, src, dst_folder, tag):
     """
     true_filename = os.path.basename(src)
     dst = f"{tag}-{uid}.glb"
+    dst_folder, dst = Path(dst_folder), Path(dst)
+    src_folder, src = Path(src_folder), Path(src)
     return_path = os.path.join(dst_folder, dst)
     shutil.copy(os.path.join(src_folder,src), return_path)
     return return_path
@@ -46,7 +51,8 @@ def delete_folder(folder_path):
         print(f"Deleted folder: {folder_path}")
     else:
         print(f"Folder '{folder_path}' does not exist!")
-def model_update(is_car_model, destination_folder, json_path, save_path_folder, src_parent_folder, ignore_list_path):
+def model_update(is_car_model, destination_folder, json_path, adj_parameter_folder, src_parent_folder, ignore_list_path):
+    print(destination_folder)
     if os.path.exists(ignore_list_path):
         ignore_list = load_json(ignore_list_path)
     else:
@@ -60,7 +66,7 @@ def model_update(is_car_model, destination_folder, json_path, save_path_folder, 
         # First copy the model into metadrive's model folder
         copied_model_path = copy_file(uid, src_parent_folder, relative_path,
                                       destination_folder, tag=tag)  # This will now be your new model_path_input
-        save_path = os.path.join(save_path_folder, f"{tag}-{uid}.json")
+        save_path = os.path.join(adj_parameter_folder, f"{tag}-{uid}.json")
         if is_car_model:
             updater = AssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), save_path)
         else:
@@ -71,7 +77,7 @@ def model_update(is_car_model, destination_folder, json_path, save_path_folder, 
             ignore_list.append(uid)
             print(ignore_list)
         save_ignore_list(ignore_list_path, ignore_list)
-def gltf_updater(destination_folder, save_path_folder, src_parent_folder, ignore_list_path):
+def gltf_updater(destination_folder, adj_parameter_folder, src_parent_folder, ignore_list_path):
     if os.path.exists(ignore_list_path):
         ignore_list = load_json(ignore_list_path)
     else:
@@ -86,7 +92,7 @@ def gltf_updater(destination_folder, save_path_folder, src_parent_folder, ignore
             # Check if the 'scene.gltf' file exists in this subfolder
             if os.path.exists(gltf_file_path):
                 print(f"Found 'scene.gltf' in {subfolder}")
-                save_path = os.path.join(save_path_folder, f"{tag}-{subfolder}.json")
+                save_path = os.path.join(adj_parameter_folder, f"{tag}-{subfolder}.json")
                 dest_subfolder_path = os.path.join(destination_folder, subfolder)
                 if not os.path.exists(dest_subfolder_path):
                     shutil.copytree(subfolder_path, dest_subfolder_path)
@@ -103,43 +109,46 @@ def gltf_updater(destination_folder, save_path_folder, src_parent_folder, ignore
 
 
 if __name__ == "__main__":
+    config = configReader()
+
+    tag_config = config.loadTag()
+    tag = tag_config["tag"]
+    istaglist = tag_config["istaglist"]
+
+    path_config = config.loadPath()
+    asset_folder_path = path_config["assetfolder"]
+
+    raw_asset_path_folder = path_config["raw_asset_path_folder"]
+    filter_asset_path_folder = path_config["filter_asset_path_folder"]
+    match_uid_path_folder = path_config["match_uid_path_folder"]
+    # Folder where you want to copy the asset into, should be this path, otherwise metadrive won't recognize it.
+    destination_folder = path_config["metadriveasset"]  # Folder where you want to copy the files
+    # Assets you want to use, with their paths. Generated from objverse_filter_asset.py
+    match_uid_path_folder = path_config["match_uid_path_folder"]
+    json_path = os.path.join(match_uid_path_folder, "matched_uids_{}.json".format(tag))
+    # Folder where you want to save Adjusted parameters to
+    adj_parameter_folder = path_config["adj_parameter_folder"]
+    # Original asset parent folder (the path from above matched.json is relative)
+    src_parent_folder = path_config["assetfolder"]
+    # List of uids you want to ignore.
+    ignore_adj_folder = os.path.join(path_config["ignore_adj_folder"], "ignore_list_{}.json".format(tag))
     # ===========================================Car Model=======================================
-    # tag = "car"
-    # # Folder where you want to copy the asset into, should be this path, otherwise metadrive won't recognize it.
-    # destination_folder = 'C:\\research\\gitplay\\MetaVQA\\metadrive\\assets\\models\\test'  # Folder where you want to copy the files
-    # # Assets you want to use, with their paths. Generated from objverse_filter_asset.py
-    # json_path = "C:\\research\\dataset\\hf-objaverse-v1\\matched_uids_{}.json".format(tag)
-    # # Folder where you want to save Adjusted parameters to
-    # save_path_folder = 'C:\\research\\gitplay\\MetaVQA\\asset'
-    # # Original asset parent folder (the path from above matched.json is relative)
-    # src_parent_folder = 'C:\\research\\dataset\\hf-objaverse-v1'
-    # # List of uids you want to ignore.
-    # ignore_list_path = 'C:\\research\\dataset\\hf-objaverse-v1\\ignore_list_{}.json'.format(tag)
-    #
     # model_update(is_car_model=True,
-    #              destination_folder=destination_folder,
+    #              destination_folder= destination_folder,
     #              json_path = json_path,
-    #              save_path_folder= save_path_folder,
-    #              src_parent_folder=src_parent_folder,
-    #              ignore_list_path=ignore_list_path)
+    #              adj_parameter_folder = adj_parameter_folder,
+    #              src_parent_folder = src_parent_folder,
+    #              ignore_list_path = ignore_adj_folder)
     # ===========================================Static Model=======================================
-    # tag = "traffic light"
-    # destination_folder = 'C:\\research\\gitplay\\MetaVQA\\metadrive\\assets\\models\\test'  # Folder where you want to copy the files
-    # json_path = "C:\\research\\dataset2\\.objaverse\\hf-objaverse-v1\\matched_uids_{}.json".format(tag)
-    # save_path_folder = 'C:\\research\\gitplay\\MetaVQA\\asset'
-    # src_parent_folder = 'C:\\research\\dataset2\\.objaverse\\hf-objaverse-v1'
-    # ignore_list_path = 'C:\\research\\dataset2\\.objaverse\\hf-objaverse-v1\\ignore_list_{}.json'.format(tag)
     # model_update(is_car_model=False,
-    #              destination_folder=destination_folder,
+    #              destination_folder= destination_folder,
     #              json_path = json_path,
-    #              save_path_folder= save_path_folder,
-    #              src_parent_folder=src_parent_folder,
-    #              ignore_list_path=ignore_list_path)
+    #              adj_parameter_folder= adj_parameter_folder,
+    #              src_parent_folder = src_parent_folder,
+    #              ignore_list_path = ignore_adj_folder)
     # ===========================================GLTF Model=======================================
-    tag = "newpede"
-    destination_folder = 'C:\\research\\gitplay\\MetaVQA\\metadrive\\assets\\models'  # Folder where you want to copy the files
-    save_path_folder = 'C:\\research\\gitplay\\MetaVQA\\asset'
-    src_parent_folder = 'C:\\research\\dataset\\download_asset\\pede'
-    ignore_list_path = 'C:\\research\\dataset\\download_asset\\pede\\ignore_list.json'
-    gltf_updater(destination_folder=destination_folder,save_path_folder=save_path_folder,src_parent_folder=src_parent_folder,
-                 ignore_list_path=ignore_list_path)
+    src_parent_folder = path_config["metadriveassetgltf"]  # Folder where you want to copy the files
+    gltf_updater(destination_folder = destination_folder,
+                 adj_parameter_folder= adj_parameter_folder,
+                 src_parent_folder = src_parent_folder,
+                 ignore_list_path = ignore_adj_folder)

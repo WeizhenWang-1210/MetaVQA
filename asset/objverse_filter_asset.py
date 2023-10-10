@@ -4,15 +4,23 @@
 import time
 import objaverse
 import os
-import trimesh
 import subprocess
 import tkinter as tk
-from tkinter import simpledialog, messagebox
 import json
-
+import yaml
+from asset.read_config import configReader
 
 class Objverse_filter_asset:
-    def __init__(self, isTagList = False, asset_folder_path="C:\\research\\dataset\\.objaverse\\hf-objaverse-v1", tag = "Test"):
+    def __init__(
+                    self,
+                    isTagList = False,
+                    asset_folder_path="./objaverse/hf-objaverse-v1",
+                    raw_asset_path_folder = "./raw_asset_path_folder",
+                    filter_asset_path_folder = "./filter_asset_path_folder",
+                    match_uid_path_folder = "./match_uid_path_folder",
+                    tag = "Test",
+
+                 ):
         """
         Initialize the Objverse_filter_asset instance.
 
@@ -29,13 +37,18 @@ class Objverse_filter_asset:
         self.isTagList = isTagList
         # json path is saved from download_assets.py. It is a json file containing asset uids and asset paths.
         if self.isTagList:
-            self.json_path = os.path.join(asset_folder_path, "object-list-paths-{}.json".format(tag))
+            self.json_path = os.path.join(raw_asset_path_folder, "object-list-paths-{}.json".format(tag))
         else:
-            self.json_path = os.path.join(asset_folder_path, "object-paths-{}.json".format(tag))
+            self.json_path = os.path.join(raw_asset_path_folder, "object-paths-{}.json".format(tag))
+        if not os.path.exists(filter_asset_path_folder):
+            os.mkdir(filter_asset_path_folder)
         # Path to save all the uids you have taken a look, avoid to re-check them in the future
-        self.processed_uids_path = os.path.join(asset_folder_path, "processed_uids_{}.json".format(tag))
+        self.processed_uids_path = os.path.join(filter_asset_path_folder, "processed_uids_{}.json".format(tag))
         # Path to save the uids you want to use later along with corresponding annotation you write
-        self.saved_uids_path = os.path.join(asset_folder_path, "saved_uids_{}.json".format(tag))
+        self.saved_uids_path = os.path.join(filter_asset_path_folder, "saved_uids_{}.json".format(tag))
+        if not os.path.exists(match_uid_path_folder):
+            os.mkdir(match_uid_path_folder)
+        self.match_uid_path_folder = match_uid_path_folder
         self.cached_asset_uids = []
         self.current_session_tags = set()
     def load_cached_uids(self):
@@ -290,26 +303,40 @@ class Objverse_filter_asset:
         Returns:
         - None
         """
-        full_path = os.path.join(self.asset_folder_path, filename)
+        full_path = os.path.join(self.match_uid_path_folder, filename)
         with open(full_path, "w") as file:
             json.dump(matched_uids, file)
         print(f"Matched UIDs and paths saved to {full_path}")
 
 
 if __name__ == "__main__":
+    config = configReader()
+    path_config = config.loadPath()
+    asset_folder_path = path_config["assetfolder"]
+    raw_asset_path_folder = path_config["raw_asset_path_folder"]
+    filter_asset_path_folder = path_config["filter_asset_path_folder"]
+    match_uid_path_folder = path_config["match_uid_path_folder"]
 
-    asset_folder_path = "C:\\research\\dataset\\.objaverse\\hf-objaverse-v1"
-    tag = "crosswalk"
-    objaverse_filter_helper = Objverse_filter_asset(isTagList=True,asset_folder_path=asset_folder_path, tag = tag)
+    tag_config = config.loadTag()
+    tag = tag_config["tag"]
+    istaglist = tag_config["istaglist"]
+    objaverse_filter_helper = Objverse_filter_asset(
+        isTagList=istaglist,
+        asset_folder_path= asset_folder_path,
+        raw_asset_path_folder= raw_asset_path_folder,
+        filter_asset_path_folder= filter_asset_path_folder,
+        match_uid_path_folder = match_uid_path_folder,
+        tag= tag,
+    )
 
     # Filter and annotate each asset you downloaded.
-    cached_uid_lists = objaverse_filter_helper.load_cached_uids()
-    saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
+    # cached_uid_lists = objaverse_filter_helper.load_cached_uids()
+    # saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
 
     # Select the annotaions you have made so far, and return all uids has a matched annotation
-    # selected_tags = objaverse_filter_helper.get_tags_selection()
-    # matched_uids = objaverse_filter_helper.get_uids_by_tags(selected_tags)
-    #
-    # # Save the matched UIDs and their paths to a JSON file
-    # filename = "matched_uids_{}.json".format("_".join(selected_tags))
-    # objaverse_filter_helper.save_matched_uids_to_json(matched_uids, filename=filename)
+    selected_tags = objaverse_filter_helper.get_tags_selection()
+    matched_uids = objaverse_filter_helper.get_uids_by_tags(selected_tags)
+
+    # Save the matched UIDs and their paths to a JSON file
+    filename = "matched_uids_{}.json".format("_".join(selected_tags))
+    objaverse_filter_helper.save_matched_uids_to_json(matched_uids, filename=filename)

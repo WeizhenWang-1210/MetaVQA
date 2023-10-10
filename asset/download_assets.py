@@ -1,13 +1,10 @@
 # Download Asset with given Tag or Tag List from Objaverse
 import objaverse
 import json
-import pprint
 import os
 from tqdm import tqdm
-import openai
-import multiprocessing
-import asyncio
-import trimesh
+import yaml
+from asset.read_config import configReader
 
 class Objverse_helper:
     def __init__(self):
@@ -117,43 +114,35 @@ class Objverse_helper:
 
 
 if __name__ == "__main__":
+    config = configReader()
+    path_config = config.loadPath()
     processes = 16
     objhelper = Objverse_helper()
     #======================================Get All Tags from Objverse===============
     # _, tag = objhelper.getAllTag()
-    # with open("C:\\research\\dataset\\alltag.txt", "w+") as f:
+    # with open(path_config["all_tag_path"]), "w+") as f:
     #     for each in tag:
     #         f.write("{}\n".format(each))
 
-
-
-    # ======================================Get UIDS and objects for single TAG===============
-    # tag = "pedestrian"
-    # uid_list, full_list, full_tag = objhelper.getTagStrictly(-1, tag, strict=False)
-    # print(len(uid_list))
-    #============================Note: This will download the asset and return, could be time consuming
-    #============================Note: Objects is a dict with key as uid, and val as path
-    # objects = objaverse.load_objects(
-    #     uids=uid_list[:100],
-    #     download_processes=processes
-    # )
-    #
-    # path =  "object-paths-{}.json".format(tag)
-    # objhelper.saveTag(objects, tagname=tag, parent_folder="C:\\research\\dataset\\.objaverse\\hf-objaverse-v1",
-    #                   isTagList=False)
-
     # ======================================Get UIDS and objects for list of TAGs===============
-    tag = "crosswalk"
-    taglist = ["crosswalksign", "americancrosswalksign", "crosswalk", "americancrosswalk", ]
-
-
-    uid_list, full_list, full_tag = objhelper.getTagList(num_uids=-1, target_tag_list = taglist)
-    uid_list.sort()
-    print(len(uid_list))
+    tag_config = config.loadTag()
+    tag = tag_config["tag"]
+    istaglist = tag_config["istaglist"]
+    taglist = tag_config["taglist"]
+    if istaglist:
+        uid_list, full_list, full_tag = objhelper.getTagList(num_uids=-1, target_tag_list = taglist)
+        uid_list.sort()
+        print(len(uid_list))
+    else:
+        uid_list, full_list, full_tag = objhelper.getTagStrictly(-1, tag, strict=False)
+        print(len(uid_list))
     #============================Note: This will download the asset and return, could be time consuming
     #============================Note: Objects is a dict with key as uid, and val as path
     objects = objaverse.load_objects(
         uids=uid_list[:150],
         download_processes=processes
     )
-    objhelper.saveTag(objects,tagname=tag, parent_folder="C:\\research\\dataset\\.objaverse\\hf-objaverse-v1", isTagList=True, tagList=taglist)
+    raw_asset_path_folder = path_config["raw_asset_path_folder"]
+    if not os.path.exists(raw_asset_path_folder):
+        os.mkdir(raw_asset_path_folder)
+    objhelper.saveTag(objects,tagname=tag, parent_folder=raw_asset_path_folder, isTagList=istaglist, tagList=taglist)

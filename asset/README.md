@@ -35,6 +35,13 @@ cd metadrive && pip install -e .
 ```bash
 cd .. && pip install -e .
 ```
+5. Change the saving path for Objaverse (The default path is ugly)
+```python
+# Go to the Objaverse Site Package, something like:Path\to\your\env\Lib\site-packages\objaverse\__init__.py
+# And change this line'
+BASE_PATH = os.path.join(os.path.expanduser("~"), ".objaverse")
+# To whatever the path you want Objaverse to download asset to
+```
 
 ## File Descriptions
 

@@ -2,7 +2,7 @@
 from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
-
+from asset.read_config import configReader
 import os
 import json
 import tkinter as tk
@@ -297,10 +297,12 @@ if __name__ == "__main__":
             "show_side_detector": False,
         },
     }
+    config = configReader()
 
-
-    folder_path = "C:\\research\\gitplay\\MetaVQA\\asset"
-    save_path =  "C:\\research\\gitplay\\MetaVQA\\asset\\spawn_object2.json"
+    path_config = config.loadPath()
+    asset_folder_path = path_config["assetfolder"]
+    folder_path = path_config["adj_parameter_folder"]
+    save_path = os.path.join(path_config["layout_static_info_folder"], "spawn_object2.json")
     adjuster = AssetAdjuster(env_config, folder_path, save_path)
     # call process folder if you want to place new items
     # adjuster.process_folder()

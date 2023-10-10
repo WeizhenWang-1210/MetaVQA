@@ -101,7 +101,7 @@ class TestGLTFObject(TrafficObject):
         self.set_static(static)
         if self.render:
             # model_file_path1 = AssetLoader.file_path("models", "test", "stop sign-8be31e33b3df4d6db7c75730ff11dfd8.glb")
-            model_file_path2 = AssetLoader.file_path("models", self.foldername, self.filename)
+            model_file_path2 = AssetLoader.file_path("models", "test", self.foldername, self.filename)
             model = self.loader.loadModel(model_file_path2)
             model.setH(self.hshift)
             model.setPos(self.pos0, self.pos1, self.pos2)
