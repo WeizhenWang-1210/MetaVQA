@@ -1,28 +1,17 @@
 from typing import Any, Callable, Iterable
 from scene_graph import SceneGraph
-from agent_node import AgentNode,transform, distance, nodify
+from agent_node import AgentNode,nodify
 from collections import defaultdict
 import json
-import random
 import numpy as np
 import argparse
-import glob
-
-class FilterConstructor:
-    def __init__(self, type, plan: dict) -> None:
-        self.plan = plan
-        self.paths = None
-    
-
-    def readplan(self, plan):
-        if not plan:
-            plan = self.plan
-        if plan['format'] == "logical":
-            for path in plan["paths"]:
-                subplan = (path["color"], path["type"], path["pos"])
 
 class SubQuery:
-    def __init__(self, color, type, pos, next = None, prev = None) -> None:
+    def __init__(self, color:Iterable[str] = None, 
+                 type:Iterable[str] = None,
+                 pos:Iterable[str] = None,
+                 next = None,
+                 prev = None) -> None:
         self.color = color
         self.type = type
         self.pos = pos
@@ -31,7 +20,8 @@ class SubQuery:
         self.funcs = None
         self.ans = None
     
-    def instantiate(self, egos, ref_heading):
+    def instantiate(self, egos: Iterable[AgentNode], 
+                    ref_heading:tuple):
         color_func = color_wrapper(self.color) if self.color else None
         type_func = type_wrapper(self.type) if self.type else None
         """print(self.prev)
@@ -39,11 +29,13 @@ class SubQuery:
         if not self.prev:
             pos_func = pos_wrapper(egos, self.pos, ref_heading) if self.pos else None
         else:
-            print(self.prev.ans)
+            #print(self.prev.ans)
             pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None        
         self.funcs = color_func, type_func, pos_func
     
-    def __call__(self, candidates, all_nodes) -> Any:
+    def __call__(self, 
+                 candidates:Iterable[AgentNode],
+                 all_nodes: Iterable[AgentNode]) -> Any:
         #print(candidates)
         ans = candidates
         color_func, type_func,pos_func = self.funcs
@@ -54,7 +46,9 @@ class SubQuery:
         return self.ans
 
 class Query:
-    def __init__(self, heads: Iterable[SubQuery], format, end_filter, ref_heading = None, candidates = None) -> None:
+    def __init__(self, heads: Iterable[SubQuery], format: str, end_filter: callable,
+                  ref_heading: tuple = None, 
+                  candidates:Iterable[AgentNode] = None) -> None:
         self.candidates = candidates
         self.format = format
         self.heads = heads
@@ -63,13 +57,13 @@ class Query:
         self.ans = None
         self.egos = None
 
-    def set_reference(self, heading):
+    def set_reference(self, heading: tuple)->None:
         self.ref_heading = heading
     
-    def set_searchspace(self, nodes):
+    def set_searchspace(self, nodes: Iterable[AgentNode])->None:
         self.candidates = nodes
 
-    def set_egos(self, nodes):
+    def set_egos(self, nodes: Iterable[AgentNode]):
         self.egos = nodes
     
     def proceed(self):
@@ -77,24 +71,17 @@ class Query:
         for head in self.heads:
             traverser = head
             search_space = self.candidates
-            """print(search_space)
-            print(self.egos)"""
             while traverser:
                 if not traverser.funcs:
                     traverser.instantiate(self.egos,self.ref_heading)
-                #print(traverser.color, traverser.type, traverser.pos)
-                #print(search_space)
                 search_space = traverser(search_space, self.candidates)
                 traverser = traverser.next
             search_spaces.append(search_space)
-        if len(search_spaces) == 1:
-            search_spaces = search_spaces[0]
         self.ans = self.final(search_spaces)
         return self.ans
         
-
-        
-def color_wrapper(colors:Iterable[str]):
+     
+def color_wrapper(colors:Iterable[str])->Callable:
     def color(candidates:Iterable[AgentNode]):
         results = []
         for candidate in candidates:
@@ -103,7 +90,7 @@ def color_wrapper(colors:Iterable[str]):
         return results
     return color
 
-def type_wrapper(types:Iterable[str]):
+def type_wrapper(types:Iterable[str])->Callable:
     #print(types)
     def type(candidates:Iterable[AgentNode]):
         #print(candidates)
@@ -121,7 +108,7 @@ def type_wrapper(types:Iterable[str]):
         return results
     return type
 
-def pos_wrapper(egos: [AgentNode], spatial_retionships: Iterable[str], ref_heading: tuple = None):
+def pos_wrapper(egos: [AgentNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
     def pos(candidates: Iterable[AgentNode]):
         results = []
         for candidate in candidates:
@@ -131,14 +118,14 @@ def pos_wrapper(egos: [AgentNode], spatial_retionships: Iterable[str], ref_headi
         return results
     return pos
 
-def target_color(colors:Iterable[str],candidates:Iterable[AgentNode]):
+def target_color(colors:Iterable[str],candidates:Iterable[AgentNode])->Iterable[AgentNode]:
     results = []
     for candidate in candidates:
         if candidate.color in colors:
             results.append(candidate)
     return results
 
-def target_type(candidates:Iterable[AgentNode], types:Iterable[str]):
+def target_type(candidates:Iterable[AgentNode], types:Iterable[str])->Iterable[AgentNode]:
     results = []
     for candidate in candidates:
         for type in types:
@@ -147,7 +134,7 @@ def target_type(candidates:Iterable[AgentNode], types:Iterable[str]):
                 break
     return results
 
-def target_pos(candidates: Iterable[AgentNode], egos: Iterable[AgentNode], ref_heading: tuple, spatial_retionships: Iterable[str]):
+def target_pos(candidates: Iterable[AgentNode], egos: Iterable[AgentNode], ref_heading: tuple, spatial_retionships: Iterable[str])->Iterable[AgentNode]:
     results = []
     for candidate in candidates:
         for ego in egos:
@@ -171,19 +158,12 @@ def get_inheritance()->defaultdict:
     inheritance["Traffic Participant"] = ["Vehicle", "Pedestrian"]
     return inheritance
         
-
-
-
-
-
 class QueryAnswerer:
     def __init__(self, scene_graph:SceneGraph, queries: Iterable[Query]) -> None:
         self.graph:SceneGraph = scene_graph
         self.ego_id:str = scene_graph.ego_id
         self.queries: Iterable[Query] = queries
         self.log = None
-
-
 
     def ans(self, query: Query = None):
         answers = []
@@ -201,96 +181,40 @@ class QueryAnswerer:
         return answers
 
 
-    
-
-    def filter(self, candidates: Iterable[str], filter_constructor)->Iterable[str]:
-        result = candidates
-        filter = filter_constructor.generate()
-        while filter:
-            result = filter(result)
-            filter = filter_constructor.generate()
-        return result
-    
-    def counting(self, candidates: Iterable[str] = None, filter = list[Callable]):
-        if not candidates:
-            candidates = self.graph.get_nodes()
-        return len(self.filter(candidates,filter))
-    
-    def locating(self, candidates: Iterable[str] = None, filter = list[Callable]):
-        ans = {}
-        if not candidates:
-            candidates = self.graph.get_nodes()
-        agents = self.filter(candidates, filter)
-        for agent in  agents:
-            ans[agent.id] = agent.bbox
-        return ans
-        
-
-
-
-class QuestionGenerator:
-    def __init__(self, query_lists: list[dict], queryanswerer: QueryAnswerer):
-        self.prophet: QueryAnswerer = queryanswerer
-        self.paths: list[dict] = query_lists
-        self.queries: Iterable[Iterable[Query]] = self.create_queries(self.prophet.graph.get_ego_node())
-        self.answers: Iterable = self.answer()
-
-    def create_queries(self,ego) -> list[list[Callable]]:
-        queries = []
-        for path in self.paths:
-            partial = []
-            if path["color"]:
-                partial.append(color_wrapper(path["color"]))
-            if path["type"]:
-                partial.append(type_wrapper(path["type"]))
-            if path["pos"]:
-                partial.append(pos_wrapper(ego,path["pos"]))
-            query = Query(partial, path["format"])
-            queries.append(query)
-        return queries
-    
-    def answer(self)->list:
-        answers = []
-        for query in self.queries:
-            if query.type == "counting":
-                answers.append(self.prophet.counting(filter = query.filters))
-            elif query.type == "locating":
-                answers.append(self.prophet.locating(filter = query.filters))
-            elif query.type == "logical":
-                answer = None
-        return answers
-
-
-
-
-
-
-
-
-def greater(A,B):
+def greater(A,B)->bool:
     return A > B
-def equal(A,B):
+def equal(A,B)->bool:
     return A==B
-def less(A,B):
+def less(A,B)->bool:
     return A<B
 
-def count(stuff: Iterable):
-    return len(stuff)
+def count(stuff: Iterable)->int:
+    return [len(s) for s in stuff]
     
-def locate(stuff: Iterable):
+def locate(stuff: Iterable[AgentNode])->Iterable:
     result = []
     for s in  stuff:
         result.append(s.bbox)
     return result
         
 
+def CountGreater(search_spaces)->bool:
+    nums = count(search_spaces)
+    return greater(nums[0],nums[1])
 
+def CountEqual(searcch_spaces)->bool:
+    nums = count(searcch_spaces)
+    return equal(nums[0],nums[1])
+
+def CountLess(searcch_spaces)->bool:
+    nums = count(searcch_spaces)
+    return less(nums[0],nums[1])
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default = None)
+    parser.add_argument("--step", type=str, default = "520/520_60/world_520_60")
     args = parser.parse_args()
     try:
         print(args.step)
@@ -299,50 +223,14 @@ if __name__ == "__main__":
     except:
         print("Wrong")
     agent_id,nodes = nodify(scene_dict)
-    
-
-
-    graph = SceneGraph(agent_id,nodes) 
-    """ego = graph.get_ego_node()
-    sport_car = graph.get_node("15c7ec81-9a9a-42de-bf31-06c9beba503c")
-    print(ego.compute_relation(sport_car, ego.heading))"""
-
-    
-
-
-
-
-
-
-    
-
-
-
-    
-    q1 = SubQuery(None,["Compact Sedan"], ['rf'], None, None)
-    q2 = SubQuery(None, ["Truck"], ["lf"], next = None, prev = q1)
-    q3 = SubQuery(None, None, ["l"], None, q2)
-    q1.next = q2
-    q2.next = q3
-    q = Query([q1],"counting",lambda x : x)
-    prophet = QueryAnswerer(graph,[q])
-
-   
+    graph = SceneGraph(agent_id,nodes)     
+    q1 = SubQuery(None,["Sportscar"], ['rf'], None, None)
+    q3 = SubQuery(None, ["Compact Sedan"], ['b'], None, q1)
+    q1.next = q3
+    q2 = SubQuery(None,["Compact Sedan"],None,None,None)
+    q = Query([q1,q2],"counting",CountEqual)
+    prophet = QueryAnswerer(graph,[q]) 
     result = prophet.ans(q)
 
-    """for r in result[0]:
-        print(r.id)"""
-    print(result[0][0].id)
-    print(result)
-    #print(result[0][0].id)
-    """for stuff in result[0]:
-        print(stuff.id)"""
-    
-    
-    
-    
-    #test_generator = QuestionGenerator(query_list, prophet)
-    #print(graph.spatial_graph[graph.ego_id])
-    
-   
+
             

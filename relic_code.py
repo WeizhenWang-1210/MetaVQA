@@ -269,3 +269,74 @@ class Question_Generator:
                 if property == ""
         return format, ans
 
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch", type = bool, default= False)
+    parser.add_argument("--step", type=str, default = None)
+    parser.add_argument("--folder", type=str, default = None)
+    args = parser.parse_args()
+    if args.batch == True:
+        assert args.folder is not None
+        gts = glob.glob(args.folder+"/[0-9]*_[0-9]*/world*",recursive=True)
+        for gt in gts:
+            splitted = gt.split("\\")
+            root = "/".join(splitted[:2])
+            print(root)
+            try:
+                with open(gt,'r') as scene_file:
+                    scene_dict = json.load(scene_file)
+            except:
+                print("Error in reading json file {}".format("gt"))
+            if len(scene_dict["vehicles"]) == 0:
+                continue
+            agent_id, nodes = nodify(scene_dict)
+            graph = scene_graph(agent_id,nodes)
+            test_generator = Question_Generator(graph)
+            datapoints = test_generator.generate_all()
+            statistics =test_generator.get_stats()
+            scene_data = {}
+            for idx, datapoint in enumerate(datapoints):
+                if len(datapoint)==2:
+                    text, candidate = datapoint
+                    qa_dict = {
+                    "text":text,
+                    "bbox":transform(graph.nodes[agent_id], graph.nodes[candidate].bbox),
+                    "height":graph.nodes[candidate].height,
+                    "id":candidate,
+                    "ref":""
+                }
+                else:
+                    text, candidate, compared = datapoint
+                    qa_dict = {
+                        "text":text,
+                        "bbox":transform(graph.nodes[agent_id], graph.nodes[candidate].bbox),
+                        "height":graph.nodes[candidate].height,
+                        "id":candidate,
+                        'ref':compared
+                    }
+                scene_data[idx] = qa_dict
+            try:
+                with open(root + '/qa_{}.json'.format(splitted[1]),'w') as file:
+                    json.dump(scene_data,file)
+            except:
+                print("wtf")
+            try:
+                with open(root +"/stats_{}.json".format(splitted[1]),'w') as file:
+                    json.dump(statistics, file)
+            except:
+                print("Error recording statistics")
+    else:
+        assert args.step is not None
+        with open('{}.json'.format(args.step),'r') as scene_file:
+            scene_dict = json.load(scene_file)
+        agent_id,nodes = nodify(scene_dict)
+        graph = scene_graph(agent_id,nodes)
+        test_generator = Question_Generator(graph)
+        points= test_generator.generate_all()
+        print(test_generator.generate_counting())
+        print(test_generator.scenario_graph.nodes.values())
+
+        
+    
