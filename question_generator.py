@@ -39,18 +39,17 @@ class SubQuery:
         if not self.prev:
             pos_func = pos_wrapper(egos, self.pos, ref_heading) if self.pos else None
         else:
-            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None
-        pos_func
-
-        
+            print(self.prev.ans)
+            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None        
         self.funcs = color_func, type_func, pos_func
     
-    def __call__(self, candidates) -> Any:
+    def __call__(self, candidates, all_nodes) -> Any:
         #print(candidates)
         ans = candidates
-        for func in self.funcs:
-            if func:
-                ans = func(ans)
+        color_func, type_func,pos_func = self.funcs
+        ans = pos_func(all_nodes) if pos_func else ans
+        ans = type_func(ans) if type_func else ans
+        ans = color_func(ans) if color_func else ans
         self.ans = ans
         return self.ans
 
@@ -85,7 +84,7 @@ class Query:
                     traverser.instantiate(self.egos,self.ref_heading)
                 #print(traverser.color, traverser.type, traverser.pos)
                 #print(search_space)
-                search_space = traverser(search_space)
+                search_space = traverser(search_space, self.candidates)
                 traverser = traverser.next
             search_spaces.append(search_space)
         if len(search_spaces) == 1:
@@ -320,17 +319,22 @@ if __name__ == "__main__":
 
 
     
-    q1 = SubQuery(None,["Vehicle"], ['rf'], None, None)
-    q2 = SubQuery(None, ["Sportscar"], ["f"], next = None, prev = q1)
+    q1 = SubQuery(None,["Compact Sedan"], ['rf'], None, None)
+    q2 = SubQuery(None, ["Truck"], ["lf"], next = None, prev = q1)
+    q3 = SubQuery(None, None, ["l"], None, q2)
     q1.next = q2
+    q2.next = q3
     q = Query([q1],"counting",lambda x : x)
     prophet = QueryAnswerer(graph,[q])
 
+   
     result = prophet.ans(q)
-    
+
     """for r in result[0]:
         print(r.id)"""
     print(result[0][0].id)
+    print(result)
+    #print(result[0][0].id)
     """for stuff in result[0]:
         print(stuff.id)"""
     
