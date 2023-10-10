@@ -34,8 +34,8 @@ class SubQuery:
     def instantiate(self, egos, ref_heading):
         color_func = color_wrapper(self.color) if self.color else None
         type_func = type_wrapper(self.type) if self.type else None
-        print(self.prev)
-        print(self.type)
+        """print(self.prev)
+        print(self.type)"""
         if not self.prev:
             pos_func = pos_wrapper(egos, self.pos, ref_heading) if self.pos else None
         else:
@@ -78,8 +78,8 @@ class Query:
         for head in self.heads:
             traverser = head
             search_space = self.candidates
-            print(search_space)
-            print(self.egos)
+            """print(search_space)
+            print(self.egos)"""
             while traverser:
                 if not traverser.funcs:
                     traverser.instantiate(self.egos,self.ref_heading)
@@ -107,16 +107,16 @@ def color_wrapper(colors:Iterable[str]):
 def type_wrapper(types:Iterable[str]):
     #print(types)
     def type(candidates:Iterable[AgentNode]):
-        print(candidates)
+        #print(candidates)
         if not candidates:
             return []
         results = []
         for candidate in candidates:
             #print(candidate)
             for t in types:
-                print(candidate.type, t)
+                #print(candidate.type, t)
                 if candidate.type == t  or subclass(candidate.type, t):
-                    print(candidate.id)
+                    #print(candidate.id)
                     results.append(candidate)
                     break
         return results
@@ -320,17 +320,19 @@ if __name__ == "__main__":
 
 
     
-    #q1 = SubQuery(None,None, ['lf'], None, None)
-    #q2 = SubQuery(None, ["Compact Sedan"], ["rf"], next = None, prev = q1)
-    #q1.next = q2
-    #q = Query([q1],"counting",lambda x : x)
-    #ophet = QueryAnswerer(graph,[q])
+    q1 = SubQuery(None,["Vehicle"], ['rf'], None, None)
+    q2 = SubQuery(None, ["Sportscar"], ["f"], next = None, prev = q1)
+    q1.next = q2
+    q = Query([q1],"counting",lambda x : x)
+    prophet = QueryAnswerer(graph,[q])
 
-    #result = prophet.ans(q)
+    result = prophet.ans(q)
     
     """for r in result[0]:
         print(r.id)"""
-    #print(result[0])
+    print(result[0][0].id)
+    """for stuff in result[0]:
+        print(stuff.id)"""
     
     
     
