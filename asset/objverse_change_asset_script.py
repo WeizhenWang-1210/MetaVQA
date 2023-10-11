@@ -5,6 +5,7 @@ import yaml
 from pathlib import Path
 from asset.objverse_change_asset import AssetMetaInfoUpdater
 from asset.objverse_change_asset_static import StaticAssetMetaInfoUpdater
+from asset.objverse_autochange_asset_static import AutoStaticAssetMetaInfoUpdater
 from asset.read_config import configReader
 def load_json(file_path):
     """
@@ -36,6 +37,10 @@ def delete_file(filepath):
 
 def save_ignore_list(file_path, ignore_list):
     """Save the ignore list to a file."""
+    directory = os.path.dirname(file_path)
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     with open(file_path, 'w') as file:
         json.dump(ignore_list, file)
 def delete_folder(folder_path):
@@ -68,6 +73,37 @@ def model_update(is_car_model, destination_folder, json_path, adj_parameter_fold
                                       destination_folder, tag=tag)  # This will now be your new model_path_input
         save_path = os.path.join(adj_parameter_folder, f"{tag}-{uid}.json")
         if is_car_model:
+            updater = AssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), save_path)
+        else:
+            updater = StaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), save_path)
+        save_flag = updater.run()
+        if not save_flag:
+            delete_file(copied_model_path)
+            ignore_list.append(uid)
+            print(ignore_list)
+        save_ignore_list(ignore_list_path, ignore_list)
+def folder_asset_update(is_auto, is_car_model, destination_folder, adj_parameter_folder, raw_asset_src_folder, ignore_list_path):
+    if os.path.exists(ignore_list_path):
+        ignore_list = load_json(ignore_list_path)
+    else:
+        ignore_list = []
+    for filename in os.listdir(raw_asset_src_folder):
+        try:
+            tag, rest = filename.split('-')
+            uid, fileextension = rest.split('.')
+        except ValueError:
+            print("Wrong asset name format, should be tag-uid.glb/gltf")
+        if uid in ignore_list:
+            print(f"UID {uid} is in the ignore list. Skipping...")
+            continue
+        print("dealing with: {}".format(uid))
+        # First copy the model into metadrive's model folder
+        copied_model_path = copy_file(uid, raw_asset_src_folder, filename,
+                                      destination_folder, tag=tag)  # This will now be your new model_path_input
+        save_path = os.path.join(adj_parameter_folder, f"{tag}-{uid}.json")
+        if is_auto:
+            updater = AutoStaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), save_path)
+        elif is_car_model:
             updater = AssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), save_path)
         else:
             updater = StaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), save_path)
@@ -147,8 +183,16 @@ if __name__ == "__main__":
     #              src_parent_folder = src_parent_folder,
     #              ignore_list_path = ignore_adj_folder)
     # ===========================================GLTF Model=======================================
-    src_parent_folder = path_config["metadriveassetgltf"]  # Folder where you want to copy the files
-    gltf_updater(destination_folder = destination_folder,
-                 adj_parameter_folder= adj_parameter_folder,
-                 src_parent_folder = src_parent_folder,
-                 ignore_list_path = ignore_adj_folder)
+    # src_parent_folder = path_config["metadriveassetgltf"]  # Folder where you want to copy the files
+    # gltf_updater(destination_folder = destination_folder,
+    #              adj_parameter_folder= adj_parameter_folder,
+    #              src_parent_folder = src_parent_folder,
+    #              ignore_list_path = ignore_adj_folder)
+    # ============================================Raw Asset Folder==================================
+    raw_asset_src_folder = path_config["raw_assetfolder"]
+    folder_asset_update( is_auto = True,
+                is_car_model=False,
+                destination_folder = destination_folder,
+                adj_parameter_folder= adj_parameter_folder,
+                raw_asset_src_folder = raw_asset_src_folder,
+                ignore_list_path = ignore_adj_folder)

@@ -1,44 +1,73 @@
-tag:
-  istaglist: False
-  tag: "pede"
-#  taglist: ["crosswalksign", "americancrosswalksign", "crosswalk", "americancrosswalk", ]
-  selecttag: "pede"
+others:
+  color:
+  - Red
+  - Blue
+  - Green
+  - Yellow
+  - Black
+  - White
+  - Purple
+  - Orange
+  - Brown
+  - Gray
+  - Cyan
+  - Lime
+  - Pink
+  - Gold
+  - Teal
+  - Maroon
+  - Navy
+  - Olive
+  - Silver
+  - Violet
 path:
-  assetfolder: "D:/research/dataset/.objaverse/hf-objaverse-v1"
-  metadriveasset: 'D:/research/MetaVQA/metadrive/assets/models/test'  # Folder where you want to copy the files
-  metadriveassetgltf: 'D:/research/dataset/pede'  # Folder where you want to copy the files
-  parentfolder: "D:/research/dataset"
+  assetfolder: D:/research/dataset/.objaverse/hf-objaverse-v1
+  metadriveasset: D:/research/MetaVQA/metadrive/assets/models/test
+  metadriveassetgltf: D:/research/dataset/pede
+  parentfolder: D:/research/dataset
+  raw_assetfolder: D:/research/dataset/raw_asset_folder
   subfolders:
-    all_tag_path: "all_tag_list.json"
-    raw_asset_path_folder: "raw_asset_path_folder" # raw asset with certain tag, saved as uid: path, generated from download_assets.py
-    filter_asset_path_folder: "filter_asset_path_folder" # filtered asset with annotated tags
-    match_uid_path_folder: "match_uid_path_folder"
-    adj_parameter_folder: "adj_parameter_folder"
-    ignore_adj_folder: "ignore_adj_folder"
-    layout_static_info_folder: "layout_static_info_folder"
-
-
-
-
-
-
-
-#tag:
-#  istaglist: False
-#  tag: "crosswalk"
-#  taglist: ["crosswalksign", "americancrosswalksign", "crosswalk", "americancrosswalk", ]
-#  selecttag: "crosswalk"
-#path:
-#  assetfolder: "D:/research/dataset/.objaverse/hf-objaverse-v1"
-#  metadriveasset: 'D:/research/MetaVQA/metadrive/assets/models/test'  # Folder where you want to copy the files
-#  metadriveassetgltf: 'D:/research/MetaVQA/metadrive/assets/models'  # Folder where you want to copy the files
-#  parentfolder: "D:/research/dataset"
-#  subfolders:
-#    all_tag_path: "all_tag_list.json"
-#    raw_asset_path_folder: "raw_asset_path_folder" # raw asset with certain tag, saved as uid: path, generated from download_assets.py
-#    filter_asset_path_folder: "filter_asset_path_folder" # filtered asset with annotated tags
-#    match_uid_path_folder: "match_uid_path_folder"
-#    adj_parameter_folder: "adj_parameter_folder"
-#    ignore_adj_folder: "ignore_adj_folder"
-#    layout_static_info_folder: "layout_static_info_folder"
-#
+    adj_parameter_folder: adj_parameter_folder
+    all_tag_path: all_tag_list.json
+    filter_asset_path_folder: filter_asset_path_folder
+    ignore_adj_folder: ignore_adj_folder
+    layout_static_info_folder: layout_static_info_folder
+    match_uid_path_folder: match_uid_path_folder
+    raw_asset_path_folder: raw_asset_path_folder
+tag:
+  istaglist: false
+  selecttag: pede
+  tag: pede
+type:
+  guidance_objects:
+  - Cone
+  - StopSign
+  - Warning
+  - Wall
+  - NoAccess
+  - TrafficLight
+  structures:
+  - Tollgate
+  - BusStop
+  - Curbside
+  - GasStation
+  - FireHose
+  - Parking Meter
+  two_wheeled:
+  - Bike
+  - Motorcycle
+  vehicle:
+  - SUV
+  - Sedan
+  - Truck
+  - SportCar
+  - Jeep
+  - Pickup
+  - Junk Car
+typeinfo:
+  Bike:
+    length: 2.2435598373413086
+    width: 0.9756231307983398
+  test:
+    height: 10
+    width: 10

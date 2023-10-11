@@ -105,6 +105,15 @@ class StaticAssetMetaInfoUpdater:
         else:
             self.current_obj = self.env.engine.spawn_object(TestObject, position=[10, -5], heading_theta=0, random_seed=1, force_spawn=True,
                                     asset_metainfo=self.asset_metainfo)
+        amin_point, amax_point = self.current_obj.origin.getTightBounds()
+        p1 = amax_point[0], amax_point[1]
+        p2 = amax_point[0], amin_point[1]
+        p3 = amin_point[0], amin_point[1]
+        p4 = amin_point[0], amax_point[1]
+        atight_box = [p1, p2, p3, p4]
+        length, width = amax_point[0] - amin_point[0], amax_point[1] - amin_point[1]
+        print(length, width)
+        test = 1
         o, r, tm, tc, info = self.env.step([0, 0])
 
         self.root.after(10, self.environment_step)  # schedule the function to run again after 10 milliseconds

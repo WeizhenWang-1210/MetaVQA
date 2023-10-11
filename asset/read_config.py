@@ -27,3 +27,16 @@ class configReader:
         return result_folder_dict
     def loadTag(self):
         return self.config["tag"]
+    def loadType(self):
+        return self.config["type"]
+    def loadTypeInfo(self):
+        with open("config.yaml", "r") as file:
+            self.config = yaml.safe_load(file)
+        return self.config["typeinfo"]
+    def loadColorList(self):
+        return self.config["others"]["color"]
+    def updateTypeInfo(self, new_info_dict):
+        for key, val in new_info_dict.items():
+            self.config["typeinfo"][key] = val
+            with open("config.yaml", "w") as file:
+                yaml.safe_dump(self.config, file)
