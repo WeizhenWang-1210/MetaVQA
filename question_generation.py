@@ -5,7 +5,6 @@ import argparse
 import glob
 from typing import Callable, Any, Iterable
 from collections import defaultdict
-OPENAI_KEY = "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"
 from question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess
 from scene_graph import SceneGraph
 from agent_node import nodify
