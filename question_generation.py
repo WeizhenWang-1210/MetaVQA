@@ -5,7 +5,7 @@ import argparse
 import glob
 from typing import Callable, Any, Iterable
 from collections import defaultdict
-from question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess
+from question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess, locate_wrapper
 from scene_graph import SceneGraph
 from agent_node import nodify
 
@@ -88,7 +88,8 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
             elif type == "Count Less":
                 return CountLess
             elif type == "localize":
-                return locate
+                func = locate_wrapper(self.graph.get_ego_node())
+                return func
         
         paths = self.type["paths"]
         subqueries = []
@@ -274,8 +275,8 @@ localization_example = dict(
         [
              dict(
                 type = ["Vehicle"],
-                color = ["Blue"],
-                pos = ['l']
+                color = None,
+                pos = ['f']
             )
         ]
     ],

@@ -181,9 +181,20 @@ class AgentNode:
         
     """
     
-    
 
-def transform(ego:AgentNode,bbox:Iterable[float])->Iterable:
+
+def extend_bbox(bbox: Iterable[Iterable[float]], z: float)->Iterable[Iterable[float]]:
+    assert len(bbox) == 4, "Expecting 4 vertices of bbox in the xy plane!"
+    result = []
+    for h in (0,z):
+        for box in bbox:
+            result.append(box+[h])
+    return result
+
+
+
+
+def transform(ego:AgentNode,bbox:Iterable[Iterable[float]])->Iterable:
     """
     Coordinate system transformation from world coordinate to ego's coordinate.
     +x being ego's heading, +y being +x rotate 90 degrees counterclockwise.
@@ -195,7 +206,7 @@ def transform(ego:AgentNode,bbox:Iterable[float])->Iterable:
         new_y = (-new_x[1], new_x[0])
         x = (relative_x*new_x[0] + relative_y*new_x[1])
         y = (relative_x*new_y[0] + relative_y*new_y[1])
-        return x,y
+        return [x,y]
     return [change_bases(*point) for point in bbox]
 
 def distance(node1:AgentNode, node2:AgentNode)->float:

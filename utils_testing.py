@@ -1,8 +1,9 @@
 import numpy as np
 def sample_bbox(bbox,height,x_times, y_times, z_times):
-    #BBOX: top left -> top right ->bottom right ->top left
-    #divide the bbox to points with x_times along width, y_times along length, and z times along height.
-    #(x,y,z)
+    """BBOX: top left -> top right ->bottom right ->top left
+    divide the bbox to points with x_times along width, y_times along length, and z times along height.
+    (x,y,z)
+    """
     array_bbox = [np.asarray(point) for point in bbox]
     seg_x = array_bbox[1]-array_bbox[0]
     seg_y = array_bbox[3]-array_bbox[0]

@@ -4,7 +4,7 @@ import numpy as np
 import argparse
 import glob
 from typing import Callable, Any, Iterable
-from APIKEY import OPEN_AI_KEY
+#from APIKEY import OPEN_AI_KEY
 from question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess 
 from scene_graph import SceneGraph
 from agent_node import nodify

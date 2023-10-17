@@ -1,6 +1,6 @@
 from typing import Any, Callable, Iterable
 from scene_graph import SceneGraph
-from agent_node import AgentNode,nodify
+from agent_node import AgentNode,nodify,transform,extend_bbox
 from collections import defaultdict
 import json
 import numpy as np
@@ -223,7 +223,7 @@ def less(A,B)->bool:
 def count(stuff: Iterable)->int:
     return [len(s) for s in stuff]
     
-def locate(stuff: Iterable[AgentNode])->Iterable:
+def locate(stuff: Iterable[AgentNode], origin: AgentNode)->Iterable:
     """
     Return the bbox of all AgentNodes in stuff.
     """
@@ -231,7 +231,22 @@ def locate(stuff: Iterable[AgentNode])->Iterable:
     for s in stuff:
         for more_stuff in s:
             result.append(more_stuff.bbox)
+            print(transform(origin,more_stuff.bbox))
     return result
+
+
+def locate_wrapper(origin: AgentNode)->Callable:
+    def locate(stuff: Iterable[AgentNode]):
+        result = []
+        for s in stuff:
+            for more_stuff in s:
+                ego_bbox = transform(origin,more_stuff.bbox)
+                ego_3dbbox = extend_bbox(ego_bbox, more_stuff.height)
+                result.append(ego_3dbbox)
+        return result
+    return locate
+
+
 
 def CountGreater(search_spaces)->bool:
     """
