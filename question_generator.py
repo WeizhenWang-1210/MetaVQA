@@ -7,6 +7,10 @@ import numpy as np
 import argparse
 
 class SubQuery:
+    """
+    A subquery is a single functional program. It can be stringed into a query. It has takes a search space and returns all
+    AgentNode(from the search space) satisfy some conditions(color, type, position w.r.t. to user defined center).
+    """
     def __init__(self, color:Iterable[str] = None, 
                  type:Iterable[str] = None,
                  pos:Iterable[str] = None,
@@ -46,6 +50,13 @@ class SubQuery:
         return self.ans
 
 class Query:
+    """
+    A query is a functional implentation of an English question. It can have a single-thread of subqueries(counting/referral),
+    or it can have multiple lines of subqueries and aggregate the answers at the end.(In logical questions). 
+
+    self.ans should either be None or bboxes (n, 4, 2), int, True/False
+
+    """
     def __init__(self, heads: Iterable[SubQuery], format: str, end_filter: callable,
                   ref_heading: tuple = None, 
                   candidates:Iterable[AgentNode] = None) -> None:
@@ -79,7 +90,9 @@ class Query:
             search_spaces.append(search_space)
         self.ans = self.final(search_spaces)
         return self.ans
-        
+    
+    def __str__(self) -> str:
+        print(self.format,[node.id.split("-")[0] for node in self.ans])
      
 def color_wrapper(colors:Iterable[str])->Callable:
     def color(candidates:Iterable[AgentNode]):
@@ -159,11 +172,19 @@ def get_inheritance()->defaultdict:
     return inheritance
         
 class QueryAnswerer:
-    def __init__(self, scene_graph:SceneGraph, queries: Iterable[Query]) -> None:
+    """
+    A queryanswerer is a "prophet". It has knowledge about a particular scene_graph, and it contains a list of queries
+    to be answered. 
+
+    self.ans() returns List[List[AgentNode]|None]
+    
+    """
+
+    def __init__(self, scene_graph:SceneGraph, queries: list[Query]) -> None:
         self.graph:SceneGraph = scene_graph
         self.ego_id:str = scene_graph.ego_id
-        self.queries: Iterable[Query] = queries
-        self.log = None
+        self.queries: list[Query] = queries
+        self.log = []
 
     def ans(self, query: Query = None):
         answers = []
@@ -177,8 +198,20 @@ class QueryAnswerer:
             query.set_reference(self.graph.get_ego_node().heading)
             query.set_searchspace(self.graph.get_nodes())
             query.set_egos([self.graph.get_ego_node()])
-            answers.append(query.proceed())
+            return query.proceed()
         return answers
+    
+
+    def add_query(self, query: Query):
+        self.queries.append(query)
+
+    def display_queries(self):
+        for query in self.queries:
+            print(query)
+
+
+
+
 
 
 def greater(A,B)->bool:
@@ -187,27 +220,44 @@ def equal(A,B)->bool:
     return A==B
 def less(A,B)->bool:
     return A<B
-
 def count(stuff: Iterable)->int:
     return [len(s) for s in stuff]
     
 def locate(stuff: Iterable[AgentNode])->Iterable:
+    """
+    Return the bbox of all AgentNodes in stuff.
+    """
     result = []
-    for s in  stuff:
-        result.append(s.bbox)
+    for s in stuff:
+        for more_stuff in s:
+            result.append(more_stuff.bbox)
     return result
-        
 
 def CountGreater(search_spaces)->bool:
-    nums = count(search_spaces)
+    """
+    Return True if the first set in the search_spaces has greater length than the second set.
+    """
+    assert len(search_spaces) == 2, "CountGreater should have only two sets to work with"
+    nums = count(search_spaces)#[count(search_space) for search_space in search_spaces]
     return greater(nums[0],nums[1])
 
-def CountEqual(searcch_spaces)->bool:
-    nums = count(searcch_spaces)
-    return equal(nums[0],nums[1])
+def CountEqual(search_spaces)->bool:
+    """
+    Return True if all sets in search_spaces have the same length.
+    """
+    nums = count(search_spaces)#[count(search_space) for search_space in search_spaces]
+    first = nums[0]
+    for num in nums:
+        if num != first:
+            return False
+    return True
 
-def CountLess(searcch_spaces)->bool:
-    nums = count(searcch_spaces)
+def CountLess(search_spaces)->bool:
+    """
+    Return True if the first set in the search_spaces has greater smaller than the second set.
+    """
+    assert len(search_spaces) == 2, "CountGreater should have only two sets to work with"
+    nums = count(search_spaces)#[count(search_space) for search_space in search_spaces]
     return less(nums[0],nums[1])
 
 

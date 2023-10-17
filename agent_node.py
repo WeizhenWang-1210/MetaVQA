@@ -2,12 +2,7 @@ import numpy as np
 from dataset_utils import find_extremities
 from typing import Iterable
 class AgentNode:
-    """
-        Indicators:
-            Left  | Right | colinear:  -1 | 1 | 0
-            Back  | Front | colinear:  -1 | 1 | 0
-            Same Side(of road) | Different Side:  1 | 0
-    """
+   
     def __init__(self,
                  pos = (0,0), #object.position
                  color = "white", #Stuck. Can't rerender the objects' color. Look at Material from Panda3D
@@ -31,9 +26,16 @@ class AgentNode:
         self.type = type
         self.height = height
         self.road_code = road_code
-        #self.ref_heading = self.heading #used when the relation is observed from other's coordinate
-    
-    def compute_relation(self, node, ref_heading:tuple)->dict:
+
+    def compute_relation(self, node, ref_heading:Iterable[float])->dict:
+        """
+        Encode spatial relation with ints.
+        Indicators:
+            Left  | Right | colinear:  -1 | 1 | 0
+            Back  | Front | colinear:  -1 | 1 | 0
+            (Deprecated) Same Side(of road) | Different Side:  1 | 0
+        """
+        assert node is not None, "node is None in agent_node.AgentNode.compute_relation"
         relation = {
             'side': self.leftORright(node, ref_heading),
             'front': self.frontORback(node, ref_heading),
@@ -44,7 +46,8 @@ class AgentNode:
         }
         return relation
     
-    def compute_relation_string(self,node,ref_heading:tuple)->str:
+    def compute_relation_string(self,node,ref_heading:Iterable[float])->str:
+        assert node is not None, "node is None in agent_node.AgentNode.compute_relation_string"
         relation = self.compute_relation(node,ref_heading)
         side = relation['side']
         front = relation['front']
@@ -67,22 +70,22 @@ class AgentNode:
         else:
             return 'm'
     
-    def __str__(self):
+    def __str__(self)->str:
         dictionary = {
             'pos': self.pos,
             'color' : self.color,
             'speed' : self.speed,
             'heading' : self.heading,
             'lane' : self.lane,
-            'type' : self.type
+            'type' : self.type,
+            "id" : self.id
         }
         return dictionary.__str__()
     
-    def leftORright(self,node, ref_heading)->int:
+    def leftORright(self,node, ref_heading:Iterable[float])->int:
         """
         return 1 for right, -1 for left, and 0 for in the middle
         """
-
         #Decide Left or Right relationships base on the bounding box of the tested object and the left/right boundary
         #of the compared object. If all vertices are to the left of the front boundary, then we way the tested object
         #is to the left of the compared object(and vice versa for right). 
@@ -117,7 +120,7 @@ class AgentNode:
         else:
             return 0
        
-    def frontORback(self,node, ref_heading)->int:
+    def frontORback(self,node, ref_heading:Iterable[float])->int:
         """
         return 1 for front, -1 for back, and 0 for in the middle
         """
@@ -125,6 +128,7 @@ class AgentNode:
         #of the compared object. If all vertices are in front of the front boundary, then we way the tested object
         #is in front of the compared object(and vice versa for back). 
         #node w.r.t to me
+        
         ego_front,ego_back = find_extremities(ref_heading,self.bbox, self.pos)
         node_bbox = node.bbox  
         front_dot = []
@@ -153,15 +157,7 @@ class AgentNode:
         else:
             return 0
 
-    """def sameStreet(self, node)->int:
-        #node w.r.t to me
-        m_id0,m_id1 = self.lane[0],self.lane[1]
-        n_id0,n_id1 = node.lane[0],node.lane[1]
-        if ("-"+m_id0 == n_id0 and "-"+m_id1 == n_id1) or\
-            (m_id0 == "-"+n_id0 and m_id1 == "-"+n_id1):
-            return 1
-        return 0"""
-    
+    """    
     def steering_leftORright(self,node, ref_heading)->int:
         #node w.r.t to me
         cross = node.heading[0]*ref_heading[1] - node.heading[1]*ref_heading[0] #cross product
@@ -180,9 +176,19 @@ class AgentNode:
             return -1
         else:
             return 0
+    
+        
+        
+    """
+    
+    
 
-
-def transform(ego:AgentNode,bbox:Iterable)->Iterable:
+def transform(ego:AgentNode,bbox:Iterable[float])->Iterable:
+    """
+    Coordinate system transformation from world coordinate to ego's coordinate.
+    +x being ego's heading, +y being +x rotate 90 degrees counterclockwise.
+    """
+    assert len(bbox) == 4 ,"bbox has more than four points in agent_node.transform"
     def change_bases(x,y):
         relative_x, relative_y = x - ego.pos[0], y - ego.pos[1]
         new_x = ego.heading
@@ -193,10 +199,17 @@ def transform(ego:AgentNode,bbox:Iterable)->Iterable:
     return [change_bases(*point) for point in bbox]
 
 def distance(node1:AgentNode, node2:AgentNode)->float:
+    """
+    Return the Euclidean distance between two AgentNodes
+    """
     dx,dy = node1.pos[0]-node2.pos[0], node1.pos[1]-node2.pos[1]
     return np.sqrt(dx**2 + dy**2)
 
 def nodify(scene_dict:dict)->tuple[str,list[AgentNode]]:
+    """
+    Read world JSON file into nodes. 
+    Return <ego id, list of AgentNodes>
+    """
     agent_dict = scene_dict['agent']
     agent_id = scene_dict['agent']['id']
     nodes = []

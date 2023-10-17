@@ -6,10 +6,9 @@ import glob
 from typing import Callable, Any, Iterable
 from collections import defaultdict
 OPENAI_KEY = "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"
-from question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, CountLess
+from question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess
 from scene_graph import SceneGraph
 from agent_node import nodify
-#don't work when the scene is crowded.
 
 """
 Note that MetaDrive uses a right-handed coordinate system with x being the heading direction
@@ -31,24 +30,44 @@ User -> QuestionSpecifier -> Query         ------- Answer
             English Questioin
 
 """
+"""
+format:= count | logical | localize
+end:= count | localize | Count Greater | Cout Less | Count Equal
+
+"""
 
 
-class QuestionSpecifier:
+
+class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular query
+    """
+    The intermediate representation of a question. Used to intantiate the functional program associated with this representation 
+    and to generate the English translation of this representation. Bridge English with functional program queries.
+    
+    """
     def __init__(self,
                  specification,
                  graph: SceneGraph) -> None:
+        
+        """
+        In the current English translation implementation, only can't generate fluent English like "Green Car or Red Car". In 
+        addition, can only generate logical questions with two threads.
+        """
         self.type = specification
         self.graph = graph
 
 
     def translate_to_En(self):
+        """
+        Generate the corresponding English Question.
+        """
         format = self.type["format"]
         if format == "count":
-            return counting_translator()(QtoEn(self.type["paths"]))
+            translator = counting_translator_generator()
         elif format == "logical":
             translator = decode_predicate(self.type["end"])
-            return translator(QtoEn(self.type["paths"]))
-        return ""
+        elif format == "localize":
+            translator = localization_translator_generator()
+        return translator(QtoEn(self.type["paths"]))
         
 
     def translate_to_Q(self):
@@ -69,8 +88,8 @@ class QuestionSpecifier:
                 return CountEqual
             elif type == "Count Less":
                 return CountLess
-            else:
-                return lambda x: x
+            elif type == "localize":
+                return locate
         
         paths = self.type["paths"]
         subqueries = []
@@ -86,18 +105,39 @@ class QuestionSpecifier:
         return query
                 
 
+
+def localization_translator_generator():
+    def func(query_string):
+        result = "Locate the {}".format(query_string)
+        return result
+    return func
+
+
+
+
+
+
 def QtoEn(paths):
+    """
+    Convert List[List[dict]] into English. 
+    
+    """
+
     result = []
-    for path in paths[::-1]:
+    for path in paths:
         string = ""
         for q_spec in path[::-1]:
             string += subQtoEn(q_spec)
+        string += "us " if path[0]["pos"] else ""
         result.append(string)
     if len(result) == 1:
         result = result[0]
     return result
 
 def subQtoEn(spec):
+    """
+    Takes dict(type = , color = , pos = ) and convert this into English
+    """
     #print(spec)
     pos_string = decode_pos(spec["pos"])
     color_string = decode_color(spec["color"])
@@ -105,6 +145,9 @@ def subQtoEn(spec):
     return "{}{}{}".format(color_string, type_string, pos_string)
 
 def decode_pos(pos_strings):
+    """
+    Convert str-encoded pos_strings into English
+    """
     if not pos_strings:
         return ""
     direction_string = pos_strings[0]
@@ -129,11 +172,15 @@ def decode_pos(pos_strings):
     return prefix + modifier
 
 def decode_color(colors):
+    """Convert string-encoded color into English"""
     if not colors:
         return ""
     return colors[0].lower() + " "
 
 def decode_type(types):
+    """
+    Convert string-encoded type into English
+    """
     if not types:
         return ""
     return types[0].lower() + " "
@@ -151,7 +198,7 @@ def decode_predicate(type):
 
 
 
-def counting_translator():
+def counting_translator_generator():
     def func(query_string):
         result = "How many {}are visible and lidar detectable?".format(query_string)
         return result
@@ -166,18 +213,13 @@ logic_example = dict(
         [
             dict(
                 type = ["Vehicle"],
-                color = ["White"],
-                pos = None),
-            dict(
-                type = ["Vehicle"],
                 color = ["Grey"],
-                pos = ["l"]),
-
+                pos = None),
         ],
         [
             dict(
             type = ["Vehicle"],
-            color = ["Red"],
+            color = ["Blue"],
             pos = None)
         ]
     ],
@@ -193,9 +235,10 @@ counting_example = dict(
     paths =  [
         [
             dict(
-                type = ["Vehicle"],
-                color = ["White"],
-                pos = ["lf"]),
+                type = ["Compact Sedan", "Vehicle"],
+                color = None,
+                pos = None
+            ),
             dict(
                 type = ["Sportscar"],
                 color = ["Grey"],
@@ -205,6 +248,41 @@ counting_example = dict(
     ],
     end = "count"
 )
+
+
+composite_example = dict(
+    format = "count",
+    paths = [
+        [
+             dict(
+                type = ["SUV"],
+                color = ["White"],
+                pos = ["l"]
+            ),
+            dict(
+                type = ["Vehicle"],
+                color = ["Blue"],
+                pos = ["f"]
+            )
+        ]
+    ],
+    end = "count"
+)
+
+localization_example = dict(
+    format = "localize",
+    paths = [
+        [
+             dict(
+                type = ["Vehicle"],
+                color = ["Blue"],
+                pos = ['l']
+            )
+        ]
+    ],
+    end = "localize"
+)
+
 
 #How many grey sportscar that is in front of white vehicles are visible and lidar detectable?
 #   <end>                     <q1>                                         <end>
@@ -221,10 +299,20 @@ if __name__ == "__main__":
         print("Wrong")
     agent_id,nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id,nodes)  
-    test = QuestionSpecifier(counting_example, graph)
-    prophet = QueryAnswerer(graph, [test.translate_to_Q()])
+    test = QuestionSpecifier(logic_example, graph)
+    prophet = QueryAnswerer(graph, [])
     print(test.translate_to_En())
-    print(prophet.ans())
+    print(prophet.ans(test.translate_to_Q()))
+    test = QuestionSpecifier(counting_example, graph)
+    print(test.translate_to_En())
+    print(prophet.ans(test.translate_to_Q()))
+    test = QuestionSpecifier(composite_example, graph)
+    print(test.translate_to_En())
+    print(prophet.ans(test.translate_to_Q()))
+    test = QuestionSpecifier(localization_example, graph)
+    print(test.translate_to_En())
+    print(prophet.ans(test.translate_to_Q()))
+
     #print(test.translate_to_Q())
 
 

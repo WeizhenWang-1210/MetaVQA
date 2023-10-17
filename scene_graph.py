@@ -7,7 +7,7 @@ class RoadGraph:
         for start, end, lane, in ids:
             graph[start] = end
         self.graph = graph
-    def reachable(self,start,end):
+    def reachable(self,start:str,end:str):
         #print(start)
         if start == '':
             return False
@@ -21,7 +21,7 @@ class SceneGraph:
                  ego_id:str,
                  nodes:list = [],
                  ):
-        self.nodes:dict = {}
+        self.nodes:dict[str,AgentNode] = {}
         for node in nodes:
             self.nodes[node.id] = node
         self.ego_id:str = ego_id
@@ -84,12 +84,12 @@ class SceneGraph:
         else:
             return 1
         
-    def check_sameSide(self, node1, node2):
+    def check_sameSide(self, node1:str, node2:str):
         n1, n2 = self.nodes[node1], self.nodes[node2]
         return self.road_graph.reachable(n1.lane[0],n2.lane[0]) or\
                 self.road_graph.reachable(n2.lane[0],n1.lane[0])
     
-    def check_sameStreet(self, node1, node2):
+    def check_sameStreet(self, node1:str, node2:str):
         n1, n2 = self.nodes[node1], self.nodes[node2]
         return self.check_sameSide(node1,node2) or\
                 self.road_graph.reachable('-'+n1.lane[0],n2.lane[0]) or\
@@ -103,5 +103,5 @@ class SceneGraph:
     def get_ego_node(self)->AgentNode:
         return self.nodes[self.ego_id]
     
-    def get_node(self, id)->AgentNode:
+    def get_node(self, id:str)->AgentNode:
         return self.nodes[id]
