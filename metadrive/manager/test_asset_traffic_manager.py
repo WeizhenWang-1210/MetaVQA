@@ -4,8 +4,10 @@ from collections import namedtuple
 from typing import Dict
 
 import math
+import os
+import json
 import numpy as np
-
+from asset.read_config import configReader
 from metadrive.component.lane.abs_lane import AbstractLane
 from metadrive.component.map.base_map import BaseMap
 from metadrive.component.pgblock.first_block import FirstPGBlock
@@ -43,6 +45,23 @@ class TestAssetTrafficManager(BaseManager):
             random_vehicle_config = {"spawn_lane_index": lane.index, "spawn_longitude": long, "enable_reverse": False}
             potential_vehicle_configs.append(random_vehicle_config)
         return potential_vehicle_configs
+    def _init_additional_model(self):
+        self.config = configReader()
+        self.path_config = self.config.loadPath()
+        self.adj_params_folder = self.path_config["adj_parameter_folder"]
+        self.car_configs = []  # List to store the file paths
+        for root, dirs, files in os.walk(self.adj_params_folder ):
+            for file in files:
+                if file.lower().startswith("car"):
+                    os.path.join(root, file)
+                    with open(os.path.join(root, file), 'r') as file:
+                        loaded_metainfo = json.load(file)
+                        loaded_metainfo["MODEL_SCALE"] = tuple(loaded_metainfo["MODEL_SCALE"])
+                        loaded_metainfo["MODEL_OFFSET"] = tuple(loaded_metainfo["MODEL_OFFSET"])
+                        loaded_metainfo["MODEL_SCALE"] = tuple(loaded_metainfo["MODEL_SCALE"])
+                    self.car_configs.append(loaded_metainfo)
+    def randomCustomizedCar(self):
+
     def _create_vehicles_once(self, map: BaseMap, traffic_density: float) -> None:
         """
         Trigger mode, vehicles will be triggered only once, and disappear when arriving destination

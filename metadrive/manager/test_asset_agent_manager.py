@@ -25,7 +25,7 @@ class TestAssetAgentManager(AgentManager):
     """
     INITIALIZED = False  # when vehicles instances are created, it will be set to True
 
-    def __init__(self, init_observations, init_action_space, test_asset_meta_info):
+    def __init__(self, init_observations, init_action_space, test_asset_meta_info, initpos):
         """
         The real init is happened in self.init(), in which super().__init__() will be called
         """
@@ -33,6 +33,7 @@ class TestAssetAgentManager(AgentManager):
         super().__init__(init_observations, init_action_space)
         self.test_asset_meta_info = test_asset_meta_info
         self.saved_test_asset_obj = None
+        self.initpos = initpos
     def _remove_vehicle(self, vehicle):
         vehicle_name = vehicle.name
         # assert vehicle_name not in self._active_objects
@@ -61,9 +62,10 @@ class TestAssetAgentManager(AgentManager):
                 vehicle_type[v_config["vehicle_model"] if v_config.get("vehicle_model", False) else "default"]
 
             obj_name = agent_id if self.engine.global_config["force_reuse_object_name"] else None
+
             # Note: we must use force spawn
             if v_config.get("vehicle_model", False) and v_config["vehicle_model"] == "test":
-                obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name, force_spawn=True, test_asset_meta_info=test_asset_meta_info)
+                obj = self.spawn_object(v_type, position=self.initpos, heading=0, vehicle_config=v_config, name=obj_name, force_spawn=True, test_asset_meta_info=test_asset_meta_info)
                 self.saved_test_asset_obj = obj
             else:
                 obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name)

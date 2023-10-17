@@ -116,11 +116,11 @@ class Objverse_helper:
 if __name__ == "__main__":
     config = configReader()
     path_config = config.loadPath()
-    processes = 16
+    processes = 1
     objhelper = Objverse_helper()
     #======================================Get All Tags from Objverse===============
     # _, tag = objhelper.getAllTag()
-    # with open(path_config["all_tag_path"]), "w+") as f:
+    # with open(path_config["all_tag_path"], "w+") as f:
     #     for each in tag:
     #         f.write("{}\n".format(each))
 

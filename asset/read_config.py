@@ -35,6 +35,8 @@ class configReader:
         return self.config["typeinfo"]
     def loadColorList(self):
         return self.config["others"]["color"]
+    def loadCarType(self):
+        return self.config["type"]["vehicle"]
     def updateTypeInfo(self, new_info_dict):
         for key, val in new_info_dict.items():
             self.config["typeinfo"][key] = val

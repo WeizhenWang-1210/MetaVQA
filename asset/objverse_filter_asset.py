@@ -330,8 +330,8 @@ if __name__ == "__main__":
     )
 
     # Filter and annotate each asset you downloaded.
-    # cached_uid_lists = objaverse_filter_helper.load_cached_uids()
-    # saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
+    cached_uid_lists = objaverse_filter_helper.load_cached_uids()
+    saved_assets = objaverse_filter_helper.filter_uid_raw(cached_uid_lists)
 
     # Select the annotaions you have made so far, and return all uids has a matched annotation
     selected_tags = objaverse_filter_helper.get_tags_selection()

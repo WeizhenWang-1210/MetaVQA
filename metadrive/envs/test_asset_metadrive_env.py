@@ -65,11 +65,22 @@ METADRIVE_DEFAULT_CONFIG = dict(
 
     # ===== Agent =====
     random_spawn_lane_index=True,
+    # target_vehicle_configs={
+    #     DEFAULT_AGENT: dict(
+    #         use_special_color=True,
+    #         vehicle_model="test",
+    #         spawn_lane_index=(FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, 0),
+    #     ),
+    #     "test_agent": dict(
+    #         use_special_color=True,
+    #         vehicle_model="default",
+    #         spawn_lane_index=(FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, 1),
+    #     )
+    # },
     target_vehicle_configs={
         DEFAULT_AGENT: dict(
             use_special_color=True,
             vehicle_model="test",
-            spawn_lane_index=(FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, 0),
         ),
         "test_agent": dict(
             use_special_color=True,
@@ -112,6 +123,7 @@ class TestAssetMetaDriveEnv(BaseEnv):
         return config
 
     def __init__(self, config: Union[dict, None] = None):
+        self.initpos = [0, 0]
         self.test_asset_meta_info = config["test_asset_meta_info"]
         del config["test_asset_meta_info"]
         self.default_config_copy = Config(self.default_config(), unchangeable=True)
@@ -123,7 +135,7 @@ class TestAssetMetaDriveEnv(BaseEnv):
         self.in_stop = False
 
     def _get_agent_manager(self):
-        return TestAssetAgentManager(init_observations=self._get_observations(), init_action_space=self._get_action_space(), test_asset_meta_info = self.test_asset_meta_info)
+        return TestAssetAgentManager(init_observations=self._get_observations(), init_action_space=self._get_action_space(), test_asset_meta_info = self.test_asset_meta_info, initpos=self.initpos)
     def _merge_extra_config(self, config: Union[dict, Config]) -> Config:
         config = self.default_config().update(config, allow_add_new_key=False)
         if config["vehicle_config"]["lidar"]["distance"] > 50:

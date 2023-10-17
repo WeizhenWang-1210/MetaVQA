@@ -9,21 +9,24 @@ from functools import partial
 from metadrive.envs.metadrive_env import MetaDriveEnv
 import json
 import os
+import fnmatch
 import yaml
 from asset.read_config import configReader
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
 from metadrive.component.static_object.traffic_object import TrafficCone, TrafficWarning
 class AutoStaticAssetMetaInfoUpdater:
-    def __init__(self, file_name,  save_path=None, folder_name=None, isGLTF = False):
-        if save_path and os.path.exists(save_path):
-            with open(save_path, 'r') as file:
+    def __init__(self, file_name,  save_path_folder=None, uid = None, folder_name=None, isGLTF = False):
+        self.setInitValue(file_name, folder_name)
+        self.save_path_folder = save_path_folder
+        self.uid = uid
+        self.save_path = self.find_uid_file(uid = uid, folder_path = save_path_folder)
+        if self.save_path:
+            print(self.save_path)
+            with open(os.path.join(self.save_path_folder, self.save_path), 'r') as file:
                 loaded_metainfo = json.load(file)
                 self.asset_metainfo.update(loaded_metainfo)  # update the asset_metainfo with the values from the file
-        if save_path and not os.path.exists(os.path.dirname(save_path)):
-            os.mkdir(os.path.dirname(save_path))
 
-        self.setInitValue(file_name, folder_name)
         self.isGLTF = isGLTF
         self.entries = {}
         self.config = configReader()
@@ -32,11 +35,19 @@ class AutoStaticAssetMetaInfoUpdater:
         o, _ = self.env.reset()
         self.initTK()
         self.setup_ui()
-        self.save_path = save_path
         self.run_result = None
         self.current_obj = None
-        self.env.engine.spawn_object(TrafficWarning, position=[10, -5], heading_theta=0,
+        self.env.engine.spawn_object(TrafficWarning, position=[0, 0], heading_theta=0,
                                      random_seed=1)
+
+    def find_uid_file(self, uid, folder_path):
+        pattern = f'*-{uid}.json'
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+            return None
+        files = os.listdir(folder_path)
+        matching_files = fnmatch.filter(files, pattern)
+        return matching_files[0] if matching_files else None
     def initTK(self):
         self.root = tk.Tk()
         self.root.title("Asset MetaInfo Updater")
@@ -57,6 +68,8 @@ class AutoStaticAssetMetaInfoUpdater:
             if isinstance(self.entries[name], dict):  # Check if it's a dictionary
                 for idx, entry_var in self.entries[name].items():
                     entry_var.set(value)
+            elif isinstance(self.entries[name], float) or isinstance(self.entries[name], str):
+                self.entries[name] = value
             else:
                 self.entries[name].set(value)
 
@@ -65,32 +78,23 @@ class AutoStaticAssetMetaInfoUpdater:
         if self.current_obj is not None:
             self.env.engine.clear_objects([self.current_obj.id], force_destroy=True)
         if self.isGLTF:
-            self.current_obj = self.env.engine.spawn_object(TestGLTFObject, position=[10, -5], heading_theta=0,
+            self.current_obj = self.env.engine.spawn_object(TestGLTFObject, position=[0, 0], heading_theta=0,
                                                             random_seed=1, force_spawn=True,
                                                             asset_metainfo=self.asset_metainfo)
         else:
-            self.current_obj = self.env.engine.spawn_object(TestObject, position=[10, -5], heading_theta=0, random_seed=1, force_spawn=True,
+            self.current_obj = self.env.engine.spawn_object(TestObject, position=[0, 0], heading_theta=0, random_seed=1, force_spawn=True,
                                     asset_metainfo=self.asset_metainfo)
-        amin_point, amax_point = self.current_obj.origin.getTightBounds()
-        p1 = amax_point[0], amax_point[1]
-        p2 = amax_point[0], amin_point[1]
-        p3 = amin_point[0], amin_point[1]
-        p4 = amin_point[0], amax_point[1]
-        atight_box = [p1, p2, p3, p4]
-        length, width = amax_point[0] - amin_point[0], amax_point[1] - amin_point[1]
-        # print(length, width)
-        test = 1
         o, r, tm, tc, info = self.env.step([0, 0])
 
         self.root.after(10, self.environment_step)  # schedule the function to run again after 10 milliseconds
     def getCurrHW(self):
         if self.current_obj is None:
             if self.isGLTF:
-                self.current_obj = self.env.engine.spawn_object(TestGLTFObject, position=[10, -5], heading_theta=0,
+                self.current_obj = self.env.engine.spawn_object(TestGLTFObject, position=[0, 0], heading_theta=0,
                                                                 random_seed=1, force_spawn=True,
                                                                 asset_metainfo=self.asset_metainfo)
             else:
-                self.current_obj = self.env.engine.spawn_object(TestObject, position=[10, -5], heading_theta=0,
+                self.current_obj = self.env.engine.spawn_object(TestObject, position=[0, 0], heading_theta=0,
                                                                 random_seed=1, force_spawn=True,
                                                                 asset_metainfo=self.asset_metainfo)
         amin_point, amax_point = self.current_obj.origin.getTightBounds()
@@ -98,9 +102,10 @@ class AutoStaticAssetMetaInfoUpdater:
         p2 = amax_point[0], amin_point[1]
         p3 = amin_point[0], amin_point[1]
         p4 = amin_point[0], amax_point[1]
-        atight_box = [p1, p2, p3, p4]
+        bounding_box = [p1, p2, p3, p4]
         length, width = amax_point[0] - amin_point[0], amax_point[1] - amin_point[1]
-        return length, width, atight_box
+        center = [(amax_point[0] + amin_point[0])/2, (amax_point[1] + amin_point[1]) / 2]
+        return length, width, bounding_box, center
     def on_general_type_selected(self, event):
         # Populate detailed types based on selected general type
         general_type = self.general_type_var.get()
@@ -110,32 +115,41 @@ class AutoStaticAssetMetaInfoUpdater:
             self.detailed_type_var.set(detailed_types[0])  # Set default value
         else:
             print("Warning: No Type for {}".format(general_type))
-
+    def on_update_scale(self):
+        computed_scale = (self.dimensions['length'] + self.dimensions['width']) / 2
+        length, width, boudingbox, center = self.getCurrHW()
+        current_scale = (length + width) / 2
+        # self.create_ui_component('scale')
+        self.asset_metainfo['scale'] = computed_scale / current_scale
+        self.entries['scale'] = self.asset_metainfo['scale']
     def on_detailed_type_selected(self, event):
         detailed_type = self.detailed_type_var.get()
+        self.save_path = f"{self.general_type_var.get()}_{detailed_type}-{self.uid}.json"
         # Check if dimensions exist in the YAML data
-        dimensions = self.config.loadTypeInfo().get(detailed_type)
-        if dimensions:
+        self.dimensions = self.config.loadTypeInfo().get(detailed_type)
+        if self.dimensions:
             # Set the scale or dimensions in the UI accordingly
             # Chenda:TODO: Add logic to set the scale in UI based on YAML data
-            self.message_label.config(text=f"Dimensions found for {detailed_type}: {dimensions['length']} x {dimensions['width']}")
-            computed_scale = (dimensions['length'] + dimensions['width']) / 2
-            length, width, _ = self.getCurrHW()
-            current_scale = (length + width) / 2
-            self.asset_metainfo['scale'] = computed_scale / current_scale
+            self.message_label.config(text=f"Dimensions found for {detailed_type}: {self.dimensions['length']} x {self.dimensions['width']}")
+            self.on_update_scale()
+            save_button = ttk.Button(self.root, text="Update Scale", command=self.on_update_scale)
+            save_button.pack(pady=10)
+            save_button = ttk.Button(self.root, text="Save to YAML", command=self.save_width_height_to_yaml)
+            save_button.pack(pady=10)
 
-            # Update the UI element representing scale with the computed value
-            self.entries['scale'] = computed_scale
         else:
             # Allow the user to manually adjust the scale
             # TODO: Add logic for manual scale adjustment
             self.message_label.config(text=f"Dimensions not found for {detailed_type}")
-            self.create_ui_component('scale')
+            # self.create_ui_component('scale')
             save_button = ttk.Button(self.root, text="Save to YAML", command=self.save_width_height_to_yaml)
             save_button.pack(pady=10)
     def save_width_height_to_yaml(self):
-        length, width, _ = self.getCurrHW()
-        self.config.updateTypeInfo({self.detailed_type_var.get(): {"length":length, "width": width}})
+        length, width, bounding_box, center = self.getCurrHW()
+        self.config.updateTypeInfo({self.detailed_type_var.get(): {"length":length,
+                                                                   "width": width,
+                                                                   "bounding_box":bounding_box,
+                                                                   "center":center}})
 
 
     def create_ui_component(self, key):
@@ -178,18 +192,24 @@ class AutoStaticAssetMetaInfoUpdater:
         ttk.Label(self.root, text="Select Color:").pack(pady=10)
         color_dropdown = ttk.Combobox(self.root, textvariable=self.color_var, values=self.color_list)
         color_dropdown.pack(pady=10)
-        # About Color
-        if self.color_list:  # Set the default value to the first color if the list is not empty
-            self.color_var.set(self.color_list[0])
 
 
         for key, value in self.asset_metainfo.items():
-            if key != "scale" and value is not None and isinstance(value, (int, float)):  # Exclude scale since it's handled separately
+            if value is not None and isinstance(value, (int, float)):  # Exclude scale since it's handled separately
                 self.create_ui_component(key)
+        make_center_button = ttk.Button(self.root, text="Make Center", command=self.make_center)
+        make_center_button.pack(pady=10)
         save_button = ttk.Button(self.root, text="Save", command=self.save_metainfo_to_json)
         save_button.pack(pady=10)
+        next_button = ttk.Button(self.root, text="Next", command=self.no_change_and_exit)
+        next_button.pack(pady=10)
         cancel_button = ttk.Button(self.root, text="Cancel", command=self.cancel_and_exit)
         cancel_button.pack(side=tk.RIGHT, padx=5, pady=10)
+    def make_center(self):
+        length, width, bounding_box, center = self.getCurrHW()
+        self.asset_metainfo['pos0'] -= center[0]
+        self.asset_metainfo['pos1'] -= center[1]
+
     def slider_command(self, v, key, idx=None):
         self.update_value(key, v, idx)
         if idx is not None:
@@ -207,22 +227,26 @@ class AutoStaticAssetMetaInfoUpdater:
             print("Invalid value entered.")
     def save_metainfo_to_json(self):
         """Save the modified MetaInfo to a JSON file."""
-        length, width, bounding_box = self.getCurrHW()
+        self.save_width_height_to_yaml()
+        length, width, bounding_box, center = self.getCurrHW()
         general_info_dict = {
             "length": length,
             "width": width,
             "bounding_box": bounding_box,
+            "center": center,
             "color": self.color_var.get(),
             "general_type": self.general_type_var.get(),
             "detail_type":self.detailed_type_var.get()
         }
         self.asset_metainfo["general"] = general_info_dict
         if self.save_path is not None:
-
-            with open(self.save_path, 'w') as file:
+            with open(os.path.join(self.save_path_folder, self.save_path), 'w') as file:
                 json.dump(self.asset_metainfo, file)
         self.run_result = True
         self.root.destroy()
+    def no_change_and_exit(self):
+        self.root.destroy()
+        self.run_result = True
     def cancel_and_exit(self):
         """Close the app without saving."""
         self.root.destroy()
@@ -283,7 +307,7 @@ class AutoStaticAssetMetaInfoUpdater:
         }
 if __name__ == "__main__":
    model_path_input = 'test/vehicle.glb'
-   updater = AssetMetaInfoUpdater(model_path_input)
+   updater = AutoAssetMetaInfoUpdater(model_path_input)
    updater.run()
 #
 # from metadrive.envs.test_asset_metadrive_env import TestAssetMetaDriveEnv

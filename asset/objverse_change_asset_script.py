@@ -6,6 +6,7 @@ from pathlib import Path
 from asset.objverse_change_asset import AssetMetaInfoUpdater
 from asset.objverse_change_asset_static import StaticAssetMetaInfoUpdater
 from asset.objverse_autochange_asset_static import AutoStaticAssetMetaInfoUpdater
+from asset.objverse_autochange_asset import AutoAssetMetaInfoUpdater
 from asset.read_config import configReader
 def load_json(file_path):
     """
@@ -56,7 +57,7 @@ def delete_folder(folder_path):
         print(f"Deleted folder: {folder_path}")
     else:
         print(f"Folder '{folder_path}' does not exist!")
-def model_update(is_car_model, destination_folder, json_path, adj_parameter_folder, src_parent_folder, ignore_list_path):
+def model_update(is_auto, is_car_model, destination_folder, json_path, adj_parameter_folder, src_parent_folder, ignore_list_path):
     print(destination_folder)
     if os.path.exists(ignore_list_path):
         ignore_list = load_json(ignore_list_path)
@@ -72,10 +73,16 @@ def model_update(is_car_model, destination_folder, json_path, adj_parameter_fold
         copied_model_path = copy_file(uid, src_parent_folder, relative_path,
                                       destination_folder, tag=tag)  # This will now be your new model_path_input
         save_path = os.path.join(adj_parameter_folder, f"{tag}-{uid}.json")
-        if is_car_model:
-            updater = AssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), save_path)
+        if is_auto:
+            if is_car_model:
+                updater = AutoAssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), adj_parameter_folder, uid)
+            else:
+                updater = AutoStaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), adj_parameter_folder, uid)
         else:
-            updater = StaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), save_path)
+            if is_car_model:
+                updater = AssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), save_path)
+            else:
+                updater = StaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), save_path)
         save_flag = updater.run()
         if not save_flag:
             delete_file(copied_model_path)
@@ -100,9 +107,9 @@ def folder_asset_update(is_auto, is_car_model, destination_folder, adj_parameter
         # First copy the model into metadrive's model folder
         copied_model_path = copy_file(uid, raw_asset_src_folder, filename,
                                       destination_folder, tag=tag)  # This will now be your new model_path_input
-        save_path = os.path.join(adj_parameter_folder, f"{tag}-{uid}.json")
+        # save_path = os.path.join(adj_parameter_folder, f"{tag}-{uid}.json")
         if is_auto:
-            updater = AutoStaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), save_path)
+            updater = AutoStaticAssetMetaInfoUpdater(os.path.basename(copied_model_path), adj_parameter_folder, uid)
         elif is_car_model:
             updater = AssetMetaInfoUpdater("test/" + os.path.basename(copied_model_path), save_path)
         else:
@@ -169,14 +176,16 @@ if __name__ == "__main__":
     # List of uids you want to ignore.
     ignore_adj_folder = os.path.join(path_config["ignore_adj_folder"], "ignore_list_{}.json".format(tag))
     # ===========================================Car Model=======================================
-    # model_update(is_car_model=True,
-    #              destination_folder= destination_folder,
-    #              json_path = json_path,
-    #              adj_parameter_folder = adj_parameter_folder,
-    #              src_parent_folder = src_parent_folder,
-    #              ignore_list_path = ignore_adj_folder)
+    model_update(is_auto=True,
+                 is_car_model=True,
+                 destination_folder= destination_folder,
+                 json_path = json_path,
+                 adj_parameter_folder = adj_parameter_folder,
+                 src_parent_folder = src_parent_folder,
+                 ignore_list_path = ignore_adj_folder)
     # ===========================================Static Model=======================================
-    # model_update(is_car_model=False,
+    # model_update(is_auto = True,
+    #              is_car_model=False,
     #              destination_folder= destination_folder,
     #              json_path = json_path,
     #              adj_parameter_folder= adj_parameter_folder,
@@ -189,10 +198,10 @@ if __name__ == "__main__":
     #              src_parent_folder = src_parent_folder,
     #              ignore_list_path = ignore_adj_folder)
     # ============================================Raw Asset Folder==================================
-    raw_asset_src_folder = path_config["raw_assetfolder"]
-    folder_asset_update( is_auto = True,
-                is_car_model=False,
-                destination_folder = destination_folder,
-                adj_parameter_folder= adj_parameter_folder,
-                raw_asset_src_folder = raw_asset_src_folder,
-                ignore_list_path = ignore_adj_folder)
+    # raw_asset_src_folder = path_config["raw_assetfolder"]
+    # folder_asset_update( is_auto = True,
+    #             is_car_model=False,
+    #             destination_folder = destination_folder,
+    #             adj_parameter_folder= adj_parameter_folder,
+    #             raw_asset_src_folder = raw_asset_src_folder,
+    #             ignore_list_path = ignore_adj_folder)
