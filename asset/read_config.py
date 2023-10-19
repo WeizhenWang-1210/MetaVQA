@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Dict
 class configReader:
     def __init__(self, config_path = "config.yaml"):
+        self.spawnPosDict = None
+        self.spawnNumDict = None
+        self.reverseType = None
         with open("config.yaml", "r") as file:
             self.config = yaml.safe_load(file)
     def loadSubPath(self, parent_folder: str, child_folder_dict: Dict):
@@ -36,7 +39,20 @@ class configReader:
     def loadColorList(self):
         return self.config["others"]["color"]
     def loadCarType(self):
-        return self.config["type"]["vehicle"]
+        return self.config["type"]["vehicle"].keys()
+    def getReverseType(self):
+        self.reverseType = dict()
+        for general_type, detail_type_dict in self.config['type'].items():
+            for detail_type in detail_type_dict.keys():
+                self.reverseType[detail_type] = general_type
+    def getSpawnNum(self, detail_type):
+        if self.reverseType is None:
+            self.getReverseType()
+        return self.config['type'][self.reverseType[detail_type]][detail_type]["spawnnum"]
+    def getSpawnPos(self, detail_type):
+        if self.reverseType is None:
+            self.getReverseType()
+        return self.config['type'][self.reverseType[detail_type]][detail_type]["spawnpos"]
     def updateTypeInfo(self, new_info_dict):
         for key, val in new_info_dict.items():
             self.config["typeinfo"][key] = val

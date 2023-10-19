@@ -56,12 +56,15 @@ class CustomizedCar(BaseVehicle):
             heading=None
     ):
         # print("init!")
+        self.asset_meta_info = test_asset_meta_info
         self.update_asset_metainfo(test_asset_meta_info)
         super().__init__( vehicle_config,
             name,
             random_seed,
             position,
             heading)
+    def get_asset_metainfo(self):
+        return self.asset_meta_info
     @classmethod
     def update_asset_metainfo(cls, asset_metainfo: dict):
         # print(asset_metainfo)

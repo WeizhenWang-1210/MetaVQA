@@ -10,7 +10,7 @@ def try_pedestrian(render=False):
     env = TestPedeMetaDriveEnv(
         {
             "num_scenarios": 1,
-            "traffic_density": 0.,
+            "traffic_density": 1.,
             "traffic_mode": "hybrid",
             "start_seed": 22,
             "debug": False,
@@ -50,6 +50,7 @@ def try_pedestrian(render=False):
         # obj_1 = env.engine.spawn_object(TestObject, position=[30, -5], heading_theta=0, random_seed=1, force_spawn=True, asset_metainfo = asset_metainfo)
         for s in range(1, 1000):
             o, r, tm, tc, info = env.step([0, 0])
+
     finally:
         env.close()
 

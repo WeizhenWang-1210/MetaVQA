@@ -52,33 +52,87 @@ tag:
   - car-vehicle
 type:
   guidance_objects:
-  - Cone
-  - StopSign
-  - Warning
-  - Wall
-  - NoAccess
-  - TrafficLight
+    Cone:
+      spawnpos: onroad
+      spawnnum: -1
+    StopSign:
+      spawnpos: onsidewalk
+      spawnnum: 1
+    Warning:
+      spawnpos: onroad
+      spawnnum: -1
+    Wall:
+      spawnpos: onroad
+      spawnnum: 1
+    NoAccess:
+      spawnpos: onroad
+      spawnnum: 1
+    TrafficLight:
+      spawnpos: onroad
+      spawnnum: 1
+
   structures:
-  - Tollgate
-  - BusStop
-  - Curbside
-  - GasStation
-  - FireHose
-  - Parking Meter
+    Tollgate:
+      spawnpos: outsidewalk
+      spawnnum: 1
+    BusStop:
+      spawnpos: outsidewalk
+      spawnnum: 1
+    Curbside:
+      spawnpos: outsidewalk
+      spawnnum: 1
+    GasStation:
+      spawnpos: outsidewalk
+      spawnnum: 1
+    FireHose:
+      spawnpos: outsidewalk
+      spawnnum: 1
+    Parking Meter:
+      spawnpos: onsidewalk
+      spawnnum: 4
+
   two_wheeled:
-  - Bike
-  - Motorcycle
+    Bike:
+      spawnpos: onsidewalk
+      spawnnum: 2
+    Motorcycle:
+      spawnpos: onsidewalk
+      spawnnum: 2
+
   vehicle:
-  - SUV
-  - Sedan
-  - Truck
-  - SportCar
-  - Jeep
-  - Pickup
-  - Junk Car
-  - Hatchback
-  - Coupe
-  - Policecar
+    SUV:
+      spawnpos: onroad
+      spawnnum: -1
+    Sedan:
+      spawnpos: onroad
+      spawnnum: -1
+    Truck:
+      spawnpos: onroad
+      spawnnum: -1
+    SportCar:
+      spawnpos: onroad
+      spawnnum: -1
+    Jeep:
+      spawnpos: onroad
+      spawnnum: -1
+    Pickup:
+      spawnpos: onroad
+      spawnnum: -1
+    Junk Car:
+      spawnpos: onroad
+      spawnnum: -1
+    Hatchback:
+      spawnpos: onroad
+      spawnnum: -1
+    Coupe:
+      spawnpos: onroad
+      spawnnum: -1
+    Policecar:
+      spawnpos: onroad
+      spawnnum: -1
+
+  human:
+    Pedestrian: { }
 typeinfo:
   ? ''
   : bounding_box:
