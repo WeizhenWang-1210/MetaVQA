@@ -1,8 +1,9 @@
-from panda3d.core import VirtualFileSystem, Filename
+from panda3d.core import Material, Filename
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.component.pg_space import ParameterSpace, VehicleParameterSpace
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
-
+from metadrive.utils import Config
+from typing import Union, Optional
 
 
 def convert_path(pth):
@@ -34,7 +35,108 @@ class DefaultVehicle(BaseVehicle):
     @property
     def WIDTH(self):
         return 1.852  # meters
+class CustomizedCar(BaseVehicle):
+    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
+    TIRE_RADIUS = 0.3305#0.313
+    TIRE_WIDTH = 0.255#0.25
+    MASS = 1595#1100
+    LATERAL_TIRE_TO_CENTER = 1#0.815
+    FRONT_WHEELBASE = 1.36#1.05234
+    REAR_WHEELBASE = 1.45#1.4166
+    #path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+    path = ['lambo/vehicle.glb', (0.5,0.5,0.5), (1.09, 0, 0.6), (0, 0, 0)]
 
+    def __init__(
+            self,
+            test_asset_meta_info: dict,
+            vehicle_config: Union[dict, Config] = None,
+            name: str = None,
+            random_seed=None,
+            position=None,
+            heading=None
+    ):
+        # print("init!")
+        self.asset_meta_info = test_asset_meta_info
+        self.update_asset_metainfo(test_asset_meta_info)
+        super().__init__( vehicle_config,
+            name,
+            random_seed,
+            position,
+            heading)
+    def get_asset_metainfo(self):
+        return self.asset_meta_info
+    @classmethod
+    def update_asset_metainfo(cls, asset_metainfo: dict):
+        # print(asset_metainfo)
+        cls.PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
+        cls.TIRE_RADIUS = asset_metainfo["TIRE_RADIUS"]  # 0.313
+        cls.TIRE_WIDTH = asset_metainfo["TIRE_WIDTH"]  # 0.25
+        cls.MASS = asset_metainfo["MASS"]  # 1100
+        cls.LATERAL_TIRE_TO_CENTER = asset_metainfo["LATERAL_TIRE_TO_CENTER"]  # 0.815
+        cls.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
+        cls.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
+        # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+        cls.path = [asset_metainfo["MODEL_PATH"], tuple(asset_metainfo["MODEL_SCALE"]),
+                    tuple(asset_metainfo["MODEL_OFFSET"]), tuple(asset_metainfo["MODEL_HPR"])]
+        cls.LENGTH = asset_metainfo["LENGTH"]
+        cls.HEIGHT = asset_metainfo["HEIGHT"]
+        cls.WIDTH = asset_metainfo["WIDTH"]
+    @classmethod
+    def LENGTH(cls):
+        return cls.LENGTH
+    @classmethod
+    def HEIGHT(cls):
+        return cls.HEIGHT
+    @classmethod
+    def WIDTH(cls):
+        return cls.WIDTH
+    def _add_visualization(self):
+        if self.render:
+            [path, scale, offset, HPR] = self.path
+            car_model = self.loader.loadModel(AssetLoader.file_path("models", path))
+            car_model.setTwoSided(False)
+            BaseVehicle.model_collection[path] = car_model
+            car_model.setScale(scale)
+            # model default, face to y
+            car_model.setHpr(*HPR)
+            car_model.setPos(offset[0], offset[1], offset[-1])
+            car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + offset[-1])
+            car_model.instanceTo(self.origin)
+            if self.config["random_color"]:
+                material = Material()
+                material.setBaseColor(
+                    (
+                        self.panda_color[0] * self.MATERIAL_COLOR_COEFF,
+                        self.panda_color[1] * self.MATERIAL_COLOR_COEFF,
+                        self.panda_color[2] * self.MATERIAL_COLOR_COEFF, 0.2
+                    )
+                )
+                material.setMetallic(self.MATERIAL_METAL_COEFF)
+                material.setSpecular(self.MATERIAL_SPECULAR_COLOR)
+                material.setRefractiveIndex(1.5)
+                material.setRoughness(self.MATERIAL_ROUGHNESS)
+                material.setShininess(self.MATERIAL_SHININESS)
+                material.setTwoside(False)
+                self.origin.setMaterial(material, True)
+    #
+    # @property
+    # def LENGTH(self):
+    #     return cls.LENGTH  # meters
+    # @LENGTH.setter
+    # def LENGTH(self, new_length):
+    #     self._LENGTH = new_length
+    # @property
+    # def HEIGHT(self):
+    #     return self._HEIGHT  # meters
+    # @HEIGHT.setter
+    # def HEIGHT(self, new_height):
+    #     self._HEIGHT = new_height
+    # @property
+    # def WIDTH(self):
+    #     return self._WIDTH
+    # @HEIGHT.setter
+    # def WIDTH(self, new_width):
+    #     self._WIDTH = new_width
 class Lambo(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
     TIRE_RADIUS = 0.3305#0.313
@@ -67,54 +169,6 @@ class TrafficDefaultVehicle(DefaultVehicle):
 
 class StaticDefaultVehicle(DefaultVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.STATIC_DEFAULT_VEHICLE)
-
-
-class ImportedVehicle_1(DefaultVehicle):
-    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
-    TIRE_RADIUS = 0.313#0.313
-    TIRE_WIDTH = 0.25#0.25
-    MASS = 1100#1100
-    LATERAL_TIRE_TO_CENTER = 0.815#0.815
-    FRONT_WHEELBASE = 1.05234#1.05234
-    REAR_WHEELBASE = 2#1.4166
-    path = ['imp1/vehicle.glb', (0.9,-0.9,0.9), (-1.616600790513834, 3, -0.03557312252964451), (0, 0, 0)]
-    
-    @property
-    def LENGTH(self):
-        return 4.515  # meters
-
-    @property
-    def HEIGHT(self):
-        return 1.1216004700352527  # meters
-
-    @property
-    def WIDTH(self):
-        return 1.852
-    
-class ImportedVehicle_2(DefaultVehicle):
-    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.LAMBO)
-    TIRE_RADIUS = 0.313#0.313
-    TIRE_WIDTH = 0.25#0.25
-    MASS = 1100#1100
-    LATERAL_TIRE_TO_CENTER = 0.9795918367346941#0.815
-    FRONT_WHEELBASE =  1.1805929919137466#1.05234
-    REAR_WHEELBASE = 1.4166#1.4166
-    path = ['imp2/vehicle.glb', 
-            (1.5487959442332064,1.5487959442332064,1.5487959442332064), 
-            (-3.357048748353096,1.5441370223978916,-0.2266139657444004), 
-            (152, 0, 0)]
-    
-    @property
-    def LENGTH(self):
-        return 4.515  # meters
-
-    @property
-    def HEIGHT(self):
-        return 1.139  # meters
-
-    @property
-    def WIDTH(self):
-        return 1.852
 
 
 class XLVehicle(BaseVehicle):
@@ -343,6 +397,9 @@ def random_vehicle_type(np_random, p=None):
     prob = [1 / len(vehicle_type) for _ in range(len(vehicle_type))] if p is None else p
     return vehicle_type[np_random.choice(list(vehicle_type.keys()), p=prob)]
 
+def test_vehicle():
+    return CustomizedCar
+
 #You need to add your own vehicle in order to be randomly generated.
 vehicle_type = {
     "s": SVehicle,
@@ -352,9 +409,8 @@ vehicle_type = {
     "default": DefaultVehicle,
     "static_default": StaticDefaultVehicle,
     "varying_dynamics": VaryingDynamicsVehicle,
-    "lambo": Lambo,
-    "imp1": ImportedVehicle_1,
-    "imp2": ImportedVehicle_2
+    # "lambo": Lambo,
+    "test": CustomizedCar
 }
 
 VaryingShapeVehicle = VaryingDynamicsVehicle
