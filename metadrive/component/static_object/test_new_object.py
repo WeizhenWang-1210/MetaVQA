@@ -49,6 +49,8 @@ class TestObject(TrafficObject):
             model.setPos(self.pos0, self.pos1, self.pos2)
             model.setScale(self.scale)
             model.reparentTo(self.origin)
+    def get_asset_metainfo(self):
+        return self.asset_metainfo
     @property
     def LENGTH(self):
         return self._length
