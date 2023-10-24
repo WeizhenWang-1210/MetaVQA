@@ -130,9 +130,22 @@ if __name__ == "__main__":
             dcam = env.vehicle.get_camera(env.vehicle.config["image_source"])
             depth = dcam.get_image(env.vehicle)[..., -1]    
             hfov,vfov = dcam.lens.fov 
+
+            
             """cv2.imshow("dcam", depth)
             cv2.waitKey(1)
             cv2.imwrite("depth.png",depth)"""
+            print(dcam.cam.getNetTransform().getMat())
+
+            #Get transformation from world's coordinate to camera's coordinate
+            #[R T] -> [R^-1, -R^-1 * T]
+            #[0 1]    [0   ,     1    ]
+
+            mat = dcam.cam.getNetTransform().getMat()
+            print(m)
+            R = mat[:3,:3]
+            
+
             points  = cloud_points(depth,84,84,hfov,vfov)
             if len(points)>0:
                     for i in range(len(points)):

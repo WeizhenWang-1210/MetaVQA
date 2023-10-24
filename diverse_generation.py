@@ -80,9 +80,6 @@ def try_pedestrian(render=False):
                 aheight = amax_point[2]
 
 
-
-
-
                 agent_description = dict(
                         id = agent.id,
                         color = 'red',    
@@ -132,6 +129,11 @@ def try_pedestrian(render=False):
                     p2 = LPoint3f(max_point[0],min_point[1],0)
                     p3 = LPoint3f(min_point[0],min_point[1],0)
                     tight_box = [p1,p2,p3,p4]
+
+
+                    print(tight_box)
+                    print(object.get_asset_metainfo()["general"]["bounding_box"])
+
                     height = max_point[2]
                     origin_x, origin_y, _ = object.origin.getPos()
                     z_augmented = [p1,p2,p3,p4]
@@ -210,12 +212,6 @@ def try_pedestrian(render=False):
                     print("Error in storing JSON file")
                 print("Generated the %d th data point" %(count))
                 count += 1
-            """for obj_id,obj in env.engine.get_objects().items():
-                if isinstance(obj,CustomizedCar) or isinstance(obj, TestObject):
-                    print(obj.get_asset_metainfo())
-                else:
-                    print(type(obj))"""
-
             if (tm or tc) and info["arrive_dest"]:
                 env.reset()
                 env.current_track_vehicle.expert_takeover = True

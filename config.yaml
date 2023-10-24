@@ -22,9 +22,9 @@ others:
   - Violet
 path:
   assetfolder: D:/research/dataset/.objaverse/hf-objaverse-v1
-  metadriveasset: E:/bolei/MetaVQA/metadrive/assets/models/test
+  metadriveasset: C:/school/bolei/metavqa/metadrive/assets/models/test
   metadriveassetgltf: D:/research/dataset/pede
-  parentfolder: E:/bolei/VQAAsset
+  parentfolder: C:/school/bolei/MetaAsset
   raw_assetfolder: D:/research/dataset/raw_asset_folder
   subfolders:
     adj_parameter_folder: adj_parameter_folder

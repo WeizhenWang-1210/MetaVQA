@@ -97,7 +97,7 @@ class AutoStaticAssetMetaInfoUpdater:
                 self.current_obj = self.env.engine.spawn_object(TestObject, position=[0, 0], heading_theta=0,
                                                                 random_seed=1, force_spawn=True,
                                                                 asset_metainfo=self.asset_metainfo)
-        amin_point, amax_point = self.current_obj.origin.getTightBounds()
+        amin_point, amax_point = self.current_obj.origin.getTightBounds(self.current_obj.origin)
         p1 = amax_point[0], amax_point[1]
         p2 = amax_point[0], amin_point[1]
         p3 = amin_point[0], amin_point[1]

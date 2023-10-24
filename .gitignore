@@ -39,3 +39,4 @@
 /[0-9]*
 APIKEY.py
 /metadrive/assets/models/test/
+config.yaml
