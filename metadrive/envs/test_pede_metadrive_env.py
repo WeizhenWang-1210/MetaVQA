@@ -335,7 +335,7 @@ class TestPedeMetaDriveEnv(BaseEnv):
         self.engine.accept("]", self.next_seed_reset)
         self.engine.accept("[", self.last_seed_reset)
         self.engine.accept("p", self.stop)
-        from metadrive.manager.traffic_manager import PGTrafficManager
+        #from metadrive.manager.traffic_manager import PGTrafficManager
         from metadrive.manager.pg_map_manager import PGMapManager
         from metadrive.manager.object_manager import TrafficObjectManager
         from metadrive.manager.sidewalk_manager import SidewalkManager

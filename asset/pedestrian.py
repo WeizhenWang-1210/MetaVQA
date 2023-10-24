@@ -5,12 +5,12 @@ from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject
 from metadrive.envs.test_pede_metadrive_env import TestPedeMetaDriveEnv
-
+from metadrive.component.vehicle.vehicle_type import CustomizedCar
 def try_pedestrian(render=False):
     env = TestPedeMetaDriveEnv(
         {
             "num_scenarios": 1,
-            "traffic_density": 1.,
+            "traffic_density": 0.2,
             "traffic_mode": "hybrid",
             "start_seed": 22,
             "debug": False,
@@ -20,7 +20,7 @@ def try_pedestrian(render=False):
             "decision_repeat": 5,
             "need_inverse_traffic": False,
             "rgb_clip": True,
-            "map": "SX",
+            "map": 8,
             # "agent_policy": IDMPolicy,
             "random_traffic": False,
             "random_lane_width": True,
@@ -48,8 +48,18 @@ def try_pedestrian(render=False):
     env.reset()
     try:
         # obj_1 = env.engine.spawn_object(TestObject, position=[30, -5], heading_theta=0, random_seed=1, force_spawn=True, asset_metainfo = asset_metainfo)
-        for s in range(1, 1000):
+        for s in range(1, 100000000):
             o, r, tm, tc, info = env.step([0, 0])
+
+            for obj_id,obj in env.engine.get_objects().items():
+                if isinstance(obj,CustomizedCar) or isinstance(obj, TestObject):
+                    print(obj.get_asset_metainfo())
+                else:
+                    print(type(obj))
+
+            if (tm or tc) and info["arrive_dest"]:
+                env.reset()
+                env.current_track_vehicle.expert_takeover = True
 
     finally:
         env.close()

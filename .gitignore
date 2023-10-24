@@ -38,3 +38,4 @@
 **/test_read_copy_waymo
 /[0-9]*
 APIKEY.py
+/metadrive/assets/models/test/
