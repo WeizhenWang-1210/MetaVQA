@@ -3,13 +3,16 @@ from typing import Tuple
 
 from panda3d.bullet import BulletBoxShape
 from panda3d.bullet import BulletCylinderShape
+from panda3d.core import Material, Vec3, TransformState
 
 from metadrive.component.static_object.base_static_object import BaseStaticObject
 from metadrive.component.static_object.traffic_object import TrafficObject
 from metadrive.constants import CollisionGroup
 from metadrive.constants import MetaDriveType
 from metadrive.engine.asset_loader import AssetLoader
+from metadrive.engine.engine_utils import get_engine, engine_initialized
 from metadrive.engine.physics_node import BaseRigidBodyNode
+
 
 LaneIndex = Tuple[str, str, int]
 
@@ -27,8 +30,6 @@ class TestObject(TrafficObject):
     def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
         super(TestObject, self).__init__(position, heading_theta, lane, random_seed, name)
         self.asset_metainfo = asset_metainfo
-        n = BaseRigidBodyNode(self.name, self.asset_metainfo['CLASS_NAME'])
-        self.add_body(n)
         self._length = asset_metainfo["length"]
         self._width = asset_metainfo["width"]
         self._height = asset_metainfo["height"]
@@ -39,8 +40,12 @@ class TestObject(TrafficObject):
         self.pos2 = asset_metainfo["pos2"]
         self.scale = asset_metainfo["scale"]
 
+        n = self._create_obj_chassis()
+        self.add_body(n)
+
         self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
-        self.set_static(static)
+
+        # self.set_static(static)
         if self.render:
             # model_file_path1 = AssetLoader.file_path("models", "test", "stop sign-8be31e33b3df4d6db7c75730ff11dfd8.glb")
             model_file_path2 = AssetLoader.file_path("models", "test", self.filename)
@@ -49,6 +54,23 @@ class TestObject(TrafficObject):
             model.setPos(self.pos0, self.pos1, self.pos2)
             model.setScale(self.scale)
             model.reparentTo(self.origin)
+
+    def _create_obj_chassis(self):
+
+        chassis = BaseRigidBodyNode(self.name, self.asset_metainfo['CLASS_NAME'])
+        self._node_path_list.append(chassis)
+
+        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, self.HEIGHT / 2))
+        ts = TransformState.makePos(Vec3(0, 0, self.HEIGHT / 2))
+        chassis.addShape(chassis_shape, ts)
+        chassis.setDeactivationEnabled(False)
+        chassis.notifyCollisions(True)  # advance collision check, do callback in pg_collision_callback
+
+        # physics_world = get_engine().physics_world
+        # vehicle_chassis = BulletVehicle(physics_world.dynamic_world, chassis)
+        # vehicle_chassis.setCoordinateSystem(ZUp)
+        self.dynamic_nodes.append(chassis)
+        return chassis
     def get_asset_metainfo(self):
         return self.asset_metainfo
     @property
