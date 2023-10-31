@@ -24,75 +24,11 @@ from metadrive.engine.asset_loader import AssetLoader
 from metadrive.utils.utils import get_object_from_node
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
 from metadrive.component.vehicle.vehicle_type import SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle
-from metadrive.component.vehicle.vehicle_type import Lambo, ImportedVehicle_1, ImportedVehicle_2
+from metadrive.component.vehicle.vehicle_type import Lambo
 from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
-def generate(config, max = 100):
-    count = 0
-    env = MetaDriveEnv(config)
-    try:
-        o, _ = env.reset()
-        print(HELP_MESSAGE)
-        env.vehicle.expert_takeover = True
-        agents = env.engine.agents
-        agent = list(agents.values())[0] #if single-agent setting
-        agent_id = list(agents.values())[0].id
-        for i in range(1, 1000000000):
-            o, r, tm, tc, info = env.step([0, 0])
-            env.render(
-                text={
-                    "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
-                }
-            )
-            if i % 20== 0: #note: the "1st" object in objects is the agent
-                count += 1
-                objects = env.engine.get_objects()
-                objects_of_interest = []
-                for id, object in objects.items():
-                    if id != agent_id:
-                        relative_displacement = agent.convert_to_local_coordinates(object.position,agent.position)
-                        relative_distance = np.sqrt(relative_displacement[0]**2 + relative_displacement[1]**2)
-                        if relative_distance <= 50:
-                            objects_of_interest.append(object)
-                scene_dict = {}
-                SAME_COLOR = (0,0,0)
-                scene_dict["agent"] = dict(
-                    id = agent.id,
-                    color = SAME_COLOR,    
-                    heading = agent.heading ,      
-                    lane = agent.lane_index,                          
-                    speed =  agent.speed,
-                    pos = agent.position,
-                    bbox = agent.bounding_box
-                )
-                object_descriptions = [
-                    dict(
-                        id = object.id,
-                        color = SAME_COLOR,    
-                        heading = object.heading ,      
-                        lane = object.lane_index,                          
-                        speed =  object.speed,
-                        pos = object.position,
-                        bbox = object.bounding_box
-                    )
-                    for object in objects_of_interest
-                ]
-                scene_dict["nodes"] = object_descriptions
-                observation = {}
-                observation['lidar'] = env.vehicle.lidar.perceive(env.vehicle)
-                camera = env.vehicle.image_sensors["rgb_camera"]
-                observation['camera'] = camera.get_pixels_array(env.vehicle, False)
-                print("Generated the %d th data point" %(count))
-                if count > max:
-                    print("Reached Maximum Limit")
-                    return count
-            if (tm or tc) and info["arrive_dest"]:
-                env.reset()
-                env.current_track_vehicle.expert_takeover = True        
-    except Exception as e:
-        raise e
-    finally:
-        env.close()
-    return count
+
+
+
 
 
 def vehicle_type(object):
@@ -105,8 +41,6 @@ def vehicle_type(object):
         StaticDefaultVehicle: "Sedan",
         VaryingDynamicsVehicle: "Sedan",
         Lambo:"Sportscar",
-        ImportedVehicle_1:"SUV",
-        ImportedVehicle_2:"Jeep"
     }
     for c,name in vehicle_type.items():
         if isinstance(object, c):
@@ -133,8 +67,17 @@ def vehicle_color(object):
         StaticDefaultVehicle: "Red",
         VaryingDynamicsVehicle: "Red",
         Lambo:"Grey",
-        ImportedVehicle_1:"White",
-        ImportedVehicle_2:"Red"
+    }
+    for c,color in vehicle_type.items():
+        if isinstance(object, c):
+            return color
+    return "f"
+
+def object_color(object):
+    vehicle_type = {
+        TrafficCone: "Orange",
+        TrafficBarrier: "White",
+        TrafficWarning: "Red",
     }
     for c,color in vehicle_type.items():
         if isinstance(object, c):

@@ -115,6 +115,12 @@ if __name__ == "__main__":
             logical_specs = choose_two(specs)
             logical_specs = clean(logical_specs, [lambda xs: xs[0][1]!=xs[1][1]])
 
+
+            specs = [(None, "Motorcycle",None),(None, "Bike", None)]
+            logical_specs = [[(None, "Bike", None),(None, "Motorcycle", None)]]
+
+
+
             idx = 0
             
             for spec in specs:
@@ -137,6 +143,7 @@ if __name__ == "__main__":
                 if prophet.ans(spec_1_specifier.translate_to_Q())[0] == 0 or prophet.ans(spec_2_specifier.translate_to_Q())[0] == 0:
                     continue
                 for format, end in logical_combinations:
+                    print(format, end)
                     single_length_question_specifier = construct_question(spec, format,end, graph)
                     English = single_length_question_specifier.translate_to_En()
                     ans = prophet.ans(single_length_question_specifier.translate_to_Q())

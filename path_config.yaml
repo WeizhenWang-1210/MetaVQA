@@ -1,8 +1,8 @@
 path:
   assetfolder: D:/research/dataset/.objaverse/hf-objaverse-v1
-  metadriveasset: D:/research/metavqa_main/MetaVQA/metadrive/assets/models/test
+  metadriveasset: E:/bolei/MetaVQA/metadrive/assets/models/test
   metadriveassetgltf: D:/research/dataset/pede
-  parentfolder: D:/research/dataset
+  parentfolder: E:/bolei/VQAAsset
   raw_assetfolder: D:/research/dataset/raw_asset_folder
   subfolders:
     adj_parameter_folder: adj_parameter_folder

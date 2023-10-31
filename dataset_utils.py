@@ -1,4 +1,6 @@
 from typing import Iterable
+import numpy as np
+
 
 
 
@@ -34,4 +36,35 @@ def find_extremities(ref_heading: Iterable[float],
     right_bbox[1] += center[1]
     
     return left_bbox, right_bbox
+
+
+
+def transform_to_world(points_ego, ego_world_position, heading_vector):
+    points_ego = np.array(points_ego)
+    ego_world_position = np.array(ego_world_position)
+    heading_vector = np.array(heading_vector)
+    # Extract components of the unit vector
+    u_x, u_y = heading_vector
+    
+    # Create the rotation matrix from the unit vector
+    R = np.array([
+        [u_x, -u_y],
+        [u_y, u_x]
+    ])
+    
+    # Rotate the points
+    points_rotated = np.dot(R, points_ego.T).T
+    
+    # Translate the points
+    points_world = points_rotated + ego_world_position
+    
+    return points_world.tolist()
+
+# Example
+points_ego = np.array([[1, 1], [2, 2]])
+ego_world_position = np.array([5, 5])
+heading_vector = np.array([1/np.sqrt(2), 1/np.sqrt(2)])  # Unit vector at 45 degrees
+
+points_world = transform_to_world(points_ego, ego_world_position, heading_vector)
+print(points_world)
     

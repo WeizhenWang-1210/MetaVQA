@@ -186,7 +186,7 @@ def decode_type(types):
     return types[0].lower() + " "
 
 def decode_predicate(type):
-    if type == "Count Larger":
+    if type == "Count Greater":
         return lambda x : "Are there more {}than {}?".format(x[0],x[1])
     elif type == "Count Equal":
         return lambda x : "Are there equal number of {} and {}?".format(x[0],x[1])

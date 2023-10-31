@@ -1,11 +1,11 @@
 # Test Pedestrain manager that can generate static pedestrian on sidewalk
 # Please refer to  metadrive.manager.sidewalk_manager for implementation detail
 # !!!!!!!!!!!!You need to change asset used in  metadrive.manager.sidewalk_manager
-from metadrive.component.traffic_participants.pedestrian import Pedestrian
-from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject
 from metadrive.envs.test_pede_metadrive_env import TestPedeMetaDriveEnv
 from metadrive.component.vehicle.vehicle_type import CustomizedCar
+from metadrive.component.vehicle.base_vehicle import BaseVehicle
+from scene_generation import vehicle_type, object_type, vehicle_color, object_color
 from metadrive.utils.utils import get_object_from_node
 from utils_testing import sample_bbox
 from panda3d.core import LPoint3f, NodePath
@@ -15,6 +15,32 @@ import os
 import pygame
 import cv2
 import json
+from dataset_utils import transform_to_world
+
+
+def devtype(obj):
+     return isinstance(obj, CustomizedCar) or isinstance(obj, TestObject)
+
+
+def get_type(object):
+    if devtype(object):
+        return object.get_asset_metainfo()["general"]["detail_type"]
+    if isinstance(object, BaseVehicle):
+        return vehicle_type(object)
+    else:
+        return object_type(object)
+
+def get_color(object):
+    if devtype(object):
+        return object.get_asset_metainfo()["general"]["color"]
+    if isinstance(object, BaseVehicle):
+        return vehicle_color(object)
+    else:
+        return object_color(object)
+    
+     
+
+
 
 def try_pedestrian(render=False):
     try:
@@ -81,7 +107,7 @@ def try_pedestrian(render=False):
 
 
                 agent_description = dict(
-                        id = agent.id,
+                        id = agent_id,
                         color = 'red',    
                         heading = agent.heading ,      
                         lane = agent.lane_index,                          
@@ -98,10 +124,6 @@ def try_pedestrian(render=False):
 
 
                 rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
-                hfov, vfov = rgb_cam.get_lens().fov
-
-
-
                 observable = [get_object_from_node(car.getNode()) for car in list(observable)]
                 if len(observable)==0:
                      continue
@@ -112,32 +134,25 @@ def try_pedestrian(render=False):
                 Lidar_RGB_Observable_objects = []
                 Lidar_RGB_Observable_boxs = []
                 Lidar_RGB_Observable_heights = []
-
-
-
-
                 for node in observable:
                     if node.id not in unique_id:
                         unique_id.add(node.id)
                         observable_objects.append(node)
                 for object in observable_objects:
-                    min_point, max_point = object.origin.getTightBounds(object.origin)
-                    g_min_point,g_max_point = object.origin.getTightBounds()
-                    Height = max_point[2]
-                    p4 = LPoint3f(min_point[0],max_point[1],0)
-                    p1 = LPoint3f(max_point[0],max_point[1],0)
-                    p2 = LPoint3f(max_point[0],min_point[1],0)
-                    p3 = LPoint3f(min_point[0],min_point[1],0)
-                    tight_box = [p1,p2,p3,p4]
+                    if not devtype(object):
+                        min_point, max_point = object.origin.getTightBounds(object.origin)
+                        Height = max_point[2]
+                        p4 = LPoint3f(min_point[0],max_point[1],0)
+                        p1 = LPoint3f(max_point[0],max_point[1],0)
+                        p2 = LPoint3f(max_point[0],min_point[1],0)
+                        p3 = LPoint3f(min_point[0],min_point[1],0)
+                    else:
+                        box = object.get_asset_metainfo()["general"]["bounding_box"]
+                        p1,p2,p3,p4 = [LPoint3f(p[0],p[1],0) for p in box]
+                        Height = object.get_asset_metainfo()['height'] if 'height' in object.get_asset_metainfo().keys() else  object.get_asset_metainfo()['HEIGHT']
 
-
-                    print(tight_box)
-                    print(object.get_asset_metainfo()["general"]["bounding_box"])
-
-                    height = max_point[2]
-                    origin_x, origin_y, _ = object.origin.getPos()
                     z_augmented = [p1,p2,p3,p4]
-                    object_sample_box = sample_bbox(z_augmented,height,8,8,4)
+                    object_sample_box = sample_bbox(z_augmented,Height,12,12,8)
                     observable_count = 0
                     total_count = len(object_sample_box)
                     for sample in object_sample_box:
@@ -149,13 +164,17 @@ def try_pedestrian(render=False):
                             sample_np.detach_node()
                     if observable_count/total_count>=0.2:
                             Lidar_RGB_Observable_objects.append(object)
-                            p4 = g_min_point[0],g_max_point[1]
-                            p1 = g_max_point[0],g_max_point[1]
-                            p2 = g_max_point[0],g_min_point[1]
-                            p3 = g_min_point[0],g_min_point[1]
-                            tight_box = [p1,p2,p3,p4]
+                            if not devtype(object):
+                                g_min_point, g_max_point = object.origin.getTightBounds()
+                                p4 = g_min_point[0],g_max_point[1]
+                                p1 = g_max_point[0],g_max_point[1]
+                                p2 = g_max_point[0],g_min_point[1]
+                                p3 = g_min_point[0],g_min_point[1]
+                                tight_box = [p1,p2,p3,p4]
+                            else:
+                                tight_box = transform_to_world(object.get_asset_metainfo()["general"]["bounding_box"], object.position, object.heading)
                             Lidar_RGB_Observable_boxs.append(tight_box)
-                            Lidar_RGB_Observable_heights.append(height)
+                            Lidar_RGB_Observable_heights.append(Height)
                 if len(Lidar_RGB_Observable_objects) == 0:
                         continue
                 identifier = "{}_{}".format(env.current_seed,env.episode_step)
@@ -167,19 +186,13 @@ def try_pedestrian(render=False):
                 object_descriptions = [
                         dict(
                             id = Lidar_RGB_Observable_objects[i].id,
-                            color = Lidar_RGB_Observable_objects[i].get_asset_metainfo()["general"]["color"] \
-                                if (isinstance(Lidar_RGB_Observable_objects[i], CustomizedCar) \
-                                    or  isinstance(Lidar_RGB_Observable_objects[i], TestObject))\
-                                else "NA",
+                            color = get_color(Lidar_RGB_Observable_objects[i]),
                             heading =  Lidar_RGB_Observable_objects[i].heading ,      
                             lane =  Lidar_RGB_Observable_objects[i].lane_index,                          
                             speed =   Lidar_RGB_Observable_objects[i].speed,
                             pos =  Lidar_RGB_Observable_objects[i].position,
                             bbox = [point for point in Lidar_RGB_Observable_boxs[i]],
-                            type =Lidar_RGB_Observable_objects[i].get_asset_metainfo()["general"]["detail_type"] \
-                                if (isinstance(Lidar_RGB_Observable_objects[i], CustomizedCar) \
-                                    or  isinstance(Lidar_RGB_Observable_objects[i], TestObject))\
-                                else "NA",
+                            type = get_type(Lidar_RGB_Observable_objects[i]),
                             height =  Lidar_RGB_Observable_heights[i],
                             road_type = "NA",
                             class_name = str(type(Lidar_RGB_Observable_objects[i]))
