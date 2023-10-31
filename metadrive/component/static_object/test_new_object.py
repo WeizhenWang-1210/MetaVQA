@@ -30,8 +30,12 @@ class TestObject(TrafficObject):
     def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
         super(TestObject, self).__init__(position, heading_theta, lane, random_seed, name)
         self.asset_metainfo = asset_metainfo
-        self._length = asset_metainfo["length"]
-        self._width = asset_metainfo["width"]
+        # self._length = asset_metainfo["length"]
+        # self._width = asset_metainfo["width"]
+        # self._length = asset_metainfo["general"]["length"]
+        # self._width = asset_metainfo["general"]["width"]
+        self._length = 2
+        self._width = 2
         self._height = asset_metainfo["height"]
         self.filename = asset_metainfo["filename"]
         self.hshift = asset_metainfo["hshift"]

@@ -51,11 +51,11 @@ def try_pedestrian(render=False):
         for s in range(1, 100000000):
             o, r, tm, tc, info = env.step([0, 0])
 
-            for obj_id,obj in env.engine.get_objects().items():
-                if isinstance(obj,CustomizedCar) or isinstance(obj, TestObject):
-                    print(obj.get_asset_metainfo())
-                else:
-                    print(type(obj))
+            # for obj_id,obj in env.engine.get_objects().items():
+            #     if isinstance(obj,CustomizedCar) or isinstance(obj, TestObject):
+            #         print(obj.get_asset_metainfo())
+            #     else:
+            #         print(type(obj))
 
             if (tm or tc) and info["arrive_dest"]:
                 env.reset()

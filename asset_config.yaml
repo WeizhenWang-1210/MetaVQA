@@ -20,20 +20,6 @@ others:
   - Olive
   - Silver
   - Violet
-path:
-  assetfolder: D:/research/dataset/.objaverse/hf-objaverse-v1
-  metadriveasset: C:/school/bolei/metavqa/metadrive/assets/models/test
-  metadriveassetgltf: D:/research/dataset/pede
-  parentfolder: C:/school/bolei/MetaAsset
-  raw_assetfolder: D:/research/dataset/raw_asset_folder
-  subfolders:
-    adj_parameter_folder: adj_parameter_folder
-    all_tag_path: all_tag_list.json
-    filter_asset_path_folder: filter_asset_path_folder
-    ignore_adj_folder: ignore_adj_folder
-    layout_static_info_folder: layout_static_info_folder
-    match_uid_path_folder: match_uid_path_folder
-    raw_asset_path_folder: raw_asset_path_folder
 tag:
   istaglist: true
   selecttag: car
@@ -57,7 +43,8 @@ type:
       spawnnum: -1
     StopSign:
       spawnpos: onsidewalk
-      spawnnum: 1
+      spawnnum: 0
+      spawnheading: [0] # * pi
     Warning:
       spawnpos: onroad
       spawnnum: -1
@@ -78,6 +65,7 @@ type:
     BusStop:
       spawnpos: outsidewalk
       spawnnum: 1
+      spawnheading: [0.5] # * pi
     Curbside:
       spawnpos: outsidewalk
       spawnnum: 1
@@ -94,10 +82,12 @@ type:
   two_wheeled:
     Bike:
       spawnpos: onsidewalk
-      spawnnum: 2
+      spawnnum: 1
+      spawnheading: [0.5, 1.5]
     Motorcycle:
       spawnpos: onsidewalk
-      spawnnum: 2
+      spawnnum: 1
+      spawnheading: [0.5, 1.5]
 
   vehicle:
     SUV:
