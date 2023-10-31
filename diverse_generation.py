@@ -16,7 +16,7 @@ import pygame
 import cv2
 import json
 from dataset_utils import transform_to_world
-
+import argparse
 
 def devtype(obj):
      return isinstance(obj, CustomizedCar) or isinstance(obj, TestObject)
@@ -42,7 +42,7 @@ def get_color(object):
 
 
 
-def try_pedestrian(render=False):
+def try_pedestrian(render=False, save = True):
     try:
         with open('scene_generation_config.yaml', 'r') as f:
             config = yaml.safe_load(f)
@@ -70,18 +70,6 @@ def try_pedestrian(render=False):
     env = TestPedeMetaDriveEnv(
         scene_config
     )
-    asset_metainfo = {
-        "length": 2,
-        "width": 2,
-        "height": 2,
-        "filename": "car-3f699c7ce86c4ba1bad62a350766556f.glb",
-        "CLASS_NAME": "06e459171a264e999b3763335403b719",
-        "hshift": 0,
-        "pos0": 0,
-        "pos1": 0,
-        "pos2": 0,
-        "scale": 1
-    }
     env.reset()
     path = '{}'.format(env.current_seed)
     folder = os.path.join(config["storage_path"], path)
@@ -119,10 +107,6 @@ def try_pedestrian(render=False):
                         road_type = "NA",
                         class_name = str(type(agent))
                     )
-
-
-
-
                 rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
                 observable = [get_object_from_node(car.getNode()) for car in list(observable)]
                 if len(observable)==0:
