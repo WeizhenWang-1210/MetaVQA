@@ -176,21 +176,21 @@ if __name__ == "__main__":
     # List of uids you want to ignore.
     ignore_adj_folder = os.path.join(path_config["ignore_adj_folder"], "ignore_list_{}.json".format(tag))
     # ===========================================Car Model=======================================
-    model_update(is_auto=True,
-                 is_car_model=True,
-                 destination_folder= destination_folder,
-                 json_path = json_path,
-                 adj_parameter_folder = adj_parameter_folder,
-                 src_parent_folder = src_parent_folder,
-                 ignore_list_path = ignore_adj_folder)
-    # ===========================================Static Model=======================================
-    # model_update(is_auto = True,
-    #              is_car_model=False,
+    # model_update(is_auto=True,
+    #              is_car_model=True,
     #              destination_folder= destination_folder,
     #              json_path = json_path,
-    #              adj_parameter_folder= adj_parameter_folder,
+    #              adj_parameter_folder = adj_parameter_folder,
     #              src_parent_folder = src_parent_folder,
     #              ignore_list_path = ignore_adj_folder)
+    # ===========================================Static Model=======================================
+    model_update(is_auto = True,
+                 is_car_model=False,
+                 destination_folder= destination_folder,
+                 json_path = json_path,
+                 adj_parameter_folder= adj_parameter_folder,
+                 src_parent_folder = src_parent_folder,
+                 ignore_list_path = ignore_adj_folder)
     # ===========================================GLTF Model=======================================
     # src_parent_folder = path_config["metadriveassetgltf"]  # Folder where you want to copy the files
     # gltf_updater(destination_folder = destination_folder,
