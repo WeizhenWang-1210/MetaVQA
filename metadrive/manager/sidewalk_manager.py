@@ -271,6 +271,8 @@ class SidewalkManager(BaseManager):
                              lane.width + DrivableAreaProperty.SIDEWALK_WIDTH / 2 + DrivableAreaProperty.SIDEWALK_LINE_DIST)
             out_lateral_range = (1.5 * lane.width + DrivableAreaProperty.SIDEWALK_WIDTH / 2 + DrivableAreaProperty.SIDEWALK_LINE_DIST,
                              2 * lane.width + DrivableAreaProperty.SIDEWALK_WIDTH / 2 + DrivableAreaProperty.SIDEWALK_LINE_DIST)
+            near_sidewalk_range = (-0.5 * lane.width + DrivableAreaProperty.SIDEWALK_WIDTH / 2 + DrivableAreaProperty.SIDEWALK_LINE_DIST,
+                             -0.5 * lane.width + DrivableAreaProperty.SIDEWALK_WIDTH / 2 + DrivableAreaProperty.SIDEWALK_LINE_DIST)
             for detail_type, meta_info_list in self.type_metainfo_dict.items():
                 position = self.pos_dict[detail_type]
                 num = self.num_dict[detail_type]
@@ -291,6 +293,13 @@ class SidewalkManager(BaseManager):
                                          lane=lane,
                                          long_range=long_range,
                                          lateral_range=out_lateral_range,
+                                         heading_list = heading)
+                elif position == "nearsidewalk":
+                    for _ in range(num):
+                        self.randomObjSpawn(obj_json_list=meta_info_list,
+                                         lane=lane,
+                                         long_range=long_range,
+                                         lateral_range= near_sidewalk_range,
                                          heading_list = heading)
 
 

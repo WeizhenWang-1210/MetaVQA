@@ -110,9 +110,10 @@ class AutoStaticAssetMetaInfoUpdater:
         # Populate detailed types based on selected general type
         general_type = self.general_type_var.get()
         detailed_types = self.types.get(general_type, [])
-        self.detailed_type_dropdown['values'] = detailed_types
+        self.detailed_type_dropdown['values'] = list(detailed_types.keys())
         if detailed_types:
-            self.detailed_type_var.set(detailed_types[0])  # Set default value
+            pass
+            # self.detailed_type_var.set(list(detailed_types.keys())[0])  # Set default value
         else:
             print("Warning: No Type for {}".format(general_type))
     def on_update_scale(self):

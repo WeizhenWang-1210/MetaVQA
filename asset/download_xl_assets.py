@@ -1,5 +1,5 @@
 # Download Asset with given Tag or Tag List from Objaverse
-import objaverse as objaverse
+import objaverse.xl as objaverse
 #BASE_PATH = os.path.join("D:\\research\\dataset", ".objaverse")
 import json
 import os
@@ -120,30 +120,30 @@ if __name__ == "__main__":
     processes = 1
     objhelper = Objverse_helper()
     #======================================Get All Tags from Objverse===============
-    # _, tag = objhelper.getAllTag()
-    # with open(path_config["all_tag_path"], "w+") as f:
-    #     for each in tag:
-    #         f.write("{}\n".format(each))
+    _, tag = objhelper.getAllTag()
+    with open(path_config["all_tag_path"], "w+") as f:
+        for each in tag:
+            f.write("{}\n".format(each))
 
     # ======================================Get UIDS and objects for list of TAGs===============
-    tag_config = config.loadTag()
-    tag = tag_config["tag"]
-    istaglist = tag_config["istaglist"]
-    taglist = tag_config["taglist"]
-    if istaglist:
-        uid_list, full_list, full_tag = objhelper.getTagList(num_uids=-1, target_tag_list = taglist)
-        uid_list.sort()
-        print(len(uid_list))
-    else:
-        uid_list, full_list, full_tag = objhelper.getTagStrictly(-1, tag, strict=False)
-        print(len(uid_list))
+    # tag_config = config.loadTag()
+    # tag = tag_config["tag"]
+    # istaglist = tag_config["istaglist"]
+    # taglist = tag_config["taglist"]
+    # if istaglist:
+    #     uid_list, full_list, full_tag = objhelper.getTagList(num_uids=-1, target_tag_list = taglist)
+    #     uid_list.sort()
+    #     print(len(uid_list))
+    # else:
+    #     uid_list, full_list, full_tag = objhelper.getTagStrictly(-1, tag, strict=False)
+    #     print(len(uid_list))
     #============================Note: This will download the asset and return, could be time consuming
     #============================Note: Objects is a dict with key as uid, and val as path
-    objects = objaverse.load_objects(
-        uids=uid_list[:150],
-        download_processes=processes
-    )
-    raw_asset_path_folder = path_config["raw_asset_path_folder"]
-    if not os.path.exists(raw_asset_path_folder):
-        os.mkdir(raw_asset_path_folder)
-    objhelper.saveTag(objects,tagname=tag, parent_folder=raw_asset_path_folder, isTagList=istaglist, tagList=taglist)
+    # objects = objaverse.load_objects(
+    #     uids=uid_list[:150],
+    #     download_processes=processes
+    # )
+    # raw_asset_path_folder = path_config["raw_asset_path_folder"]
+    # if not os.path.exists(raw_asset_path_folder):
+    #     os.mkdir(raw_asset_path_folder)
+    # objhelper.saveTag(objects,tagname=tag, parent_folder=raw_asset_path_folder, isTagList=istaglist, tagList=taglist)

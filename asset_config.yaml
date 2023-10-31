@@ -22,107 +22,115 @@ others:
   - Violet
 tag:
   istaglist: true
-  selecttag: car
-  tag: car
+  selecttag: dog
+  tag: dog
   taglist:
-  - sportcars
-  - 3dfreecarmodel
-  - blackcar
-  - luxary-car
-  - urbancar
-  - car-moscvich
-  - nypd-car
-  - motorcar
-  - car-audi-vehicle-luxurycar-cars
-  - moderncar
-  - car-vehicle
+  - dog-girl
+  - brittany-dog
+  - bull-dog
+  - puppy-dog
+  - sled-dog
+  - dog-people
+  - lion-dog
+  - boxer-dog
+  - australian-cattle-dog
+  - dog
 type:
+  animal:
+    dog:
+      spawnnum: 2
+      spawnpos: onsidewalk
   guidance_objects:
     Cone:
-      spawnpos: onroad
       spawnnum: -1
-    StopSign:
-      spawnpos: onsidewalk
-      spawnnum: 0
-      spawnheading: [0] # * pi
-    Warning:
       spawnpos: onroad
-      spawnnum: -1
-    Wall:
-      spawnpos: onroad
-      spawnnum: 1
     NoAccess:
+      spawnnum: 1
       spawnpos: onroad
-      spawnnum: 1
-    TrafficLight:
-      spawnpos: onroad
-      spawnnum: 1
-
-  structures:
-    Tollgate:
-      spawnpos: outsidewalk
-      spawnnum: 1
-    BusStop:
-      spawnpos: outsidewalk
-      spawnnum: 1
-      spawnheading: [0.5] # * pi
-    Curbside:
-      spawnpos: outsidewalk
-      spawnnum: 1
-    GasStation:
-      spawnpos: outsidewalk
-      spawnnum: 1
-    FireHose:
-      spawnpos: outsidewalk
-      spawnnum: 1
-    Parking Meter:
+    StopSign:
+      spawnheading:
+      - 0
+      spawnnum: 0
       spawnpos: onsidewalk
+    TrafficLight:
+      spawnnum: 1
+      spawnpos: onroad
+    Wall:
+      spawnnum: 1
+      spawnpos: onroad
+    Warning:
+      spawnnum: -1
+      spawnpos: onroad
+  human:
+    Pedestrian: {}
+  structures:
+    BusStop:
+      spawnheading:
+      - 0.5
+      spawnnum: 1
+      spawnpos: outsidewalk
+    Curbside:
+      spawnnum: 1
+      spawnpos: outsidewalk
+    FireHose:
+      spawnnum: 1
+      spawnpos: outsidewalk
+    FoodTruck:
+      spawnnum: 1
+      spawnpos: nearsidewalk
+    GasStation:
+      spawnnum: 1
+      spawnpos: outsidewalk
+    Parking Meter:
       spawnnum: 4
-
+      spawnpos: onsidewalk
+    Tollgate:
+      spawnnum: 1
+      spawnpos: outsidewalk
   two_wheeled:
     Bike:
-      spawnpos: onsidewalk
+      spawnheading:
+      - 0.5
+      - 1.5
       spawnnum: 1
-      spawnheading: [0.5, 1.5]
+      spawnpos: onsidewalk
     Motorcycle:
-      spawnpos: onsidewalk
+      spawnheading:
+      - 0.5
+      - 1.5
       spawnnum: 1
-      spawnheading: [0.5, 1.5]
-
+      spawnpos: onsidewalk
   vehicle:
-    SUV:
-      spawnpos: onroad
-      spawnnum: -1
-    Sedan:
-      spawnpos: onroad
-      spawnnum: -1
-    Truck:
-      spawnpos: onroad
-      spawnnum: -1
-    SportCar:
-      spawnpos: onroad
-      spawnnum: -1
-    Jeep:
-      spawnpos: onroad
-      spawnnum: -1
-    Pickup:
-      spawnpos: onroad
-      spawnnum: -1
-    Junk Car:
-      spawnpos: onroad
-      spawnnum: -1
-    Hatchback:
-      spawnpos: onroad
-      spawnnum: -1
     Coupe:
-      spawnpos: onroad
       spawnnum: -1
+      spawnpos: onroad
+    Hatchback:
+      spawnnum: -1
+      spawnpos: onroad
+    Jeep:
+      spawnnum: -1
+      spawnpos: onroad
+    Junk Car:
+      spawnnum: -1
+      spawnpos: onroad
+    Pickup:
+      spawnnum: -1
+      spawnpos: onroad
     Policecar:
-      spawnpos: onroad
       spawnnum: -1
-
-  human:
-    Pedestrian: { }
+      spawnpos: onroad
+    SUV:
+      spawnnum: -1
+      spawnpos: onroad
+    Sedan:
+      spawnnum: -1
+      spawnpos: onroad
+    SportCar:
+      spawnnum: -1
+      spawnpos: onroad
+    Truck:
+      spawnnum: -1
+      spawnpos: onroad
 typeinfo:
   ? ''
   : bounding_box:
@@ -199,6 +207,21 @@ typeinfo:
     - -0.00030678510665893555
     length: 4.706641674041748
     width: 2.1515249013900757
+  FoodTruck:
+    bounding_box:
+    - - 2.638686418533325
+      - 1.4521691799163818
+    - - 2.638686418533325
+      - -1.4521692991256714
+    - - -2.638686418533325
+      - -1.4521692991256714
+    - - -2.638686418533325
+      - 1.4521691799163818
+    center:
+    - 0.0
+    - -5.960464477539063e-08
+    length: 5.27737283706665
+    width: 2.9043384790420532
   Hatchback:
     bounding_box:
     - - 2.4702351093292236
@@ -334,6 +357,21 @@ typeinfo:
     - 0.0003603696823120117
     length: 4.913746118545532
     width: 1.6957212686538696
+  dog:
+    bounding_box:
+    - - 0.43805068731307983
+      - 0.1132429838180542
+    - - 0.43805068731307983
+      - -0.1132429838180542
+    - - -0.43805068731307983
+      - -0.1132429838180542
+    - - -0.43805068731307983
+      - 0.1132429838180542
+    center:
+    - 0.0
+    - 0.0
+    length: 0.8761013746261597
+    width: 0.2264859676361084
   test:
     height: 10
     width: 10
