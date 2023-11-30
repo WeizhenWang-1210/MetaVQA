@@ -1,0 +1,114 @@
+from typing import Iterable, Callable, List
+import numpy as np
+from metadrive.engine.engine_utils import get_engine
+from metadrive.envs.base_env import BaseEnv
+from metadrive.base_class.base_object import BaseObject
+from metadrive.component.vehicle.vehicle_type import SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle
+from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
+from vqa.dataset_utils import transform_to_world
+def annotate_type(object):
+    """
+    Return the predefined type annotation of an object. This only applies to metadrive-native classes.
+    """
+    #TODO extend the function to work on Chenda's imported assets.
+    vehicle_type = {
+        SVehicle: "Compact Sedan",
+        MVehicle: "Sedan",
+        LVehicle: "Pickup",
+        XLVehicle: "Truck",
+        DefaultVehicle: "Sedan",
+        StaticDefaultVehicle: "Sedan",
+        VaryingDynamicsVehicle: "Sedan",
+        TrafficBarrier:"Barrier",
+        TrafficWarning:"Warning Sign",
+        TrafficCone: "Traffic Cone"
+    }
+    for c,name in vehicle_type.items():
+        if isinstance(object, c):
+            return name
+    return "f"
+
+def annotate_color(object):
+    """
+    Return the predefined type annotation of an object. This only applies to metadrive-native classes.
+    """
+    #TODO extend the function to work on Chenda's imported assets.
+    vehicle_type = {
+        SVehicle: "Blue",
+        MVehicle: "White",
+        LVehicle: "Grey",
+        XLVehicle: "White",
+        DefaultVehicle: "Red",
+        StaticDefaultVehicle: "Red",
+        VaryingDynamicsVehicle: "Red",
+        TrafficCone: "Orange",
+        TrafficBarrier: "White",
+        TrafficWarning: "Red",
+    }
+    for c,color in vehicle_type.items():
+        if isinstance(object, c):
+            return color
+    return "f"
+
+def get_visible_object_ids(imgs:np.array, mapping: dict(), filter: Callable)->Iterable[str]:
+    '''
+    imgs: np.array(H,W,C), the observation by the instance segmentation camera, clipped between 0,1
+    mapping: dictionary mapping (r,g,b) to object id. Note that each float is rounded to 5 points
+    filter: boolean function to filter out certain colors. Takes a tuple (r,g,b) and an int c 
+    
+    return an iterable containings the ids of all visible items
+    '''
+    flattened = imgs.reshape(-1, imgs.shape[2])
+    unique_colors, counts = np.unique(flattened,axis = 0,return_counts=True)
+    unique_colors, counts = unique_colors.tolist(), counts.tolist()
+    unique_colors_filtered = [(r,g,b) for (b,g,r),c in zip(unique_colors, counts) if filter(r,g,b,c)]
+    unique_colors_processed = [(round(r,5), round(g,5), round(b,5)) for r,g,b in unique_colors_filtered]
+    return [mapping[unique_color] for unique_color in unique_colors_processed], \
+        {mapping[unique_colors_processed[i]]: unique_colors_filtered[i]  for i in range(len(unique_colors_processed))}
+    
+def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv) -> Iterable[dict]:
+    result =  []
+    for obj in objects:
+        g_min_point,g_max_point = obj.origin.getTightBounds()
+        height = g_max_point[2]
+        p4 = g_min_point[0],g_max_point[1]
+        p1 = g_max_point[0],g_max_point[1]
+        p2 = g_max_point[0],g_min_point[1]
+        p3 = g_min_point[0],g_min_point[1]
+        box = [p1,p2,p3,p4]
+        speed = -1
+        position = obj.position.tolist()
+        if isinstance(obj, BaseObject):
+            speed = obj.speed
+        annotation = dict(
+            id = obj.id,
+            color = annotate_color(obj),
+            heading = obj.heading,
+            speed = speed,
+            pos = position,
+            bbox = box,
+            type = annotate_type(obj),
+            height = height, 
+            class_name = str(type(obj)),
+            lane = obj.lane_index
+        )
+        result.append(annotation)
+    return result
+
+def genearte_annotation(object: BaseObject, env: BaseEnv) -> dict:
+    return generate_annotations([object], env)[0]
+
+def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, )-> np.array:
+    """
+    Hight light imgs
+    """
+    H,W,C = img.shape
+    img = img / 255 #needed as the r,g,b values in the mapping is clipped.
+    flattened = img.reshape(H*W, C)
+    for id, high_light in zip(ids, colors):
+        color = mapping[id]
+        masks = np.all(np.isclose(flattened, color), axis=1) #Robust against floating-point arithmetic
+        flattened[masks] = high_light
+    flattened = flattened * 255 #Restore into 0-255 so that cv2.imwrite can property write the image
+    flattened = flattened[:,[2,1,0]] #Convert rgb back to bgr
+    return flattened.reshape(H,W,C)

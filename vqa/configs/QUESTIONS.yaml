@@ -1,0 +1,9 @@
+FIND_CARS:
+  format: count
+  paths:
+      - 
+        - 
+          type: ["Vehicle"]
+          color: null
+          pos: null
+  end: count
