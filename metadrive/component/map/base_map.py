@@ -1,17 +1,19 @@
 import logging
 import math
+from abc import ABC
 
 import cv2
 import numpy as np
+
 from metadrive.base_class.base_runnable import BaseRunnable
-from metadrive.constants import MapTerrainSemanticColor, MetaDriveType, DrivableAreaProperty
+from metadrive.constants import MapTerrainSemanticColor, MetaDriveType, PGDrivableAreaProperty
 from metadrive.engine.engine_utils import get_global_config
-from shapely.geometry import Polygon, MultiPolygon
+from metadrive.utils.shapely_utils.geom import find_longest_edge
 
 logger = logging.getLogger(__name__)
 
 
-class BaseMap(BaseRunnable):
+class BaseMap(BaseRunnable, ABC):
     """
     Base class for Map generation!
     """
@@ -47,7 +49,11 @@ class BaseMap(BaseRunnable):
         # ], "Global seed {} should equal to seed in map config {}".format(random_seed, map_config[self.SEED])
         super(BaseMap, self).__init__(config=map_config)
         self.film_size = (get_global_config()["draw_map_resolution"], get_global_config()["draw_map_resolution"])
+
+        # map features
         self.road_network = self.road_network_type()
+        self.crosswalks = {}
+        self.sidewalks = {}
 
         # A flatten representation of blocks, might cause chaos in city-level generation.
         self.blocks = []
@@ -128,12 +134,19 @@ class BaseMap(BaseRunnable):
         pass
 
     def get_map_features(self, interval=2):
+        """
+        Get the map features represented by a set of point lists or polygons
+        Args:
+            interval: Sampling rate
+
+        Returns: None
+
+        """
         map_features = self.road_network.get_map_features(interval)
-
         boundary_line_vector = self.get_boundary_line_vector(interval)
-
         map_features.update(boundary_line_vector)
-
+        map_features.update(self.sidewalks)
+        map_features.update(self.crosswalks)
         return map_features
 
     def get_boundary_line_vector(self, interval):
@@ -150,26 +163,26 @@ class BaseMap(BaseRunnable):
         layer=("lane_line", "lane")
     ):
         """
-        Get semantics of the map
+        Get semantics of the map for terrain generation
         :param size: [m] length and width
         :param pixels_per_meter: the returned map will be in (size*pixels_per_meter * size*pixels_per_meter) size
         :param color_setting: color palette for different attribute. When generating terrain, make sure using
         :param line_sample_interval: [m] It determines the resolution of sampled points.
         :param layer: layer to get
         MapTerrainAttribute
-        :return: heightfield image
+        :return: semantic map
         """
         if self._semantic_map is None:
             all_lanes = self.get_map_features(interval=line_sample_interval)
             polygons = []
             polylines = []
 
-            points_to_skip = math.floor(DrivableAreaProperty.STRIPE_LENGTH * 2 / line_sample_interval)
+            points_to_skip = math.floor(PGDrivableAreaProperty.STRIPE_LENGTH * 2 / line_sample_interval)
             for obj in all_lanes.values():
                 if MetaDriveType.is_lane(obj["type"]) and "lane" in layer:
                     polygons.append((obj["polygon"], MapTerrainSemanticColor.get_color(obj["type"])))
                 elif "lane_line" in layer and (MetaDriveType.is_road_line(obj["type"])
-                                               or MetaDriveType.is_sidewalk(obj["type"])):
+                                               or MetaDriveType.is_road_boundary_line(obj["type"])):
                     if MetaDriveType.is_broken_line(obj["type"]):
                         for index in range(0, len(obj["polyline"]) - 1, points_to_skip * 2):
                             if index + points_to_skip < len(obj["polyline"]):
@@ -183,8 +196,8 @@ class BaseMap(BaseRunnable):
                         polylines.append((obj["polyline"], MapTerrainSemanticColor.get_color(obj["type"])))
 
             size = int(size * pixels_per_meter)
-            mask = np.zeros([size, size, 4], dtype=np.float32)
-            mask[..., 0:] = color_setting.get_color(MetaDriveType.GROUND)
+            mask = np.zeros([size, size, 1], dtype=np.float32)
+            mask[..., 0] = color_setting.get_color(MetaDriveType.GROUND)
             # create an example bounding box polygon
             # for idx in range(len(polygons)):
             center_p = self.get_center_point()
@@ -204,9 +217,33 @@ class BaseMap(BaseRunnable):
                     ] for p in line
                 ]
                 cv2.polylines(mask, np.array([points]).astype(np.int32), False, color, polyline_thickness)
+
+            if "crosswalk" in layer:
+                for id, sidewalk in self.crosswalks.items():
+                    polygon = sidewalk["polygon"]
+                    points = [
+                        [
+                            int((x - center_p[0]) * pixels_per_meter + size / 2),
+                            int((y - center_p[1]) * pixels_per_meter) + size / 2
+                        ] for x, y in polygon
+                    ]
+                    # edges = find_longest_parallel_edges(polygon)
+                    # p_1, p_2 = edges[0]
+                    p_1, p_2 = find_longest_edge(polygon)[0]
+                    dir = (
+                        p_2[0] - p_1[0],
+                        p_2[1] - p_1[1],
+                    )
+                    # 0-2pi
+                    angle = np.arctan2(*dir) / np.pi * 180 + 180
+                    # normalize to 0.4-0.714
+                    angle = angle / 1000 + MapTerrainSemanticColor.get_color(MetaDriveType.CROSSWALK)
+                    cv2.fillPoly(mask, np.array([points]).astype(np.int32), color=angle)
+
             self._semantic_map = mask
         return self._semantic_map
 
+    # @time_me
     def get_height_map(
         self,
         size=2048,
@@ -215,7 +252,7 @@ class BaseMap(BaseRunnable):
         height=1,
     ):
         """
-        Get height of the map
+        Get height of the map for terrain generation
         :param size: [m] length and width
         :param pixels_per_meter: the returned map will be in (size*pixels_per_meter * size*pixels_per_meter) size
         :param extension: If > 1, the returned height map's drivable region will be enlarged.
@@ -236,31 +273,24 @@ class BaseMap(BaseRunnable):
 
             center_p = self.get_center_point()
             need_scale = abs(extension - 1) > 1e-1
+
+            for sidewalk in self.sidewalks.values():
+                polygons.append(sidewalk["polygon"])
+
             for polygon in polygons:
-                if need_scale:
-                    scaled_polygon = Polygon(polygon).buffer(extension, join_style=2)
-                    if isinstance(scaled_polygon, MultiPolygon):
-                        scaled_polygons = scaled_polygon.geoms
-                    else:
-                        scaled_polygons = [scaled_polygon]
-                    for scaled_polygon in scaled_polygons:
-                        points = [
-                            [
-                                int(
-                                    (scaled_polygon.exterior.coords.xy[0][index] - center_p[0]) * pixels_per_meter +
-                                    size / 2
-                                ),
-                                int((scaled_polygon.exterior.coords.xy[1][index] - center_p[1]) * pixels_per_meter) +
-                                size / 2
-                            ] for index in range(len(scaled_polygon.exterior.coords.xy[0]))
-                        ]
-                else:
-                    points = [
-                        [
-                            int((x - center_p[0]) * pixels_per_meter + size / 2),
-                            int((y - center_p[1]) * pixels_per_meter) + size / 2
-                        ] for x, y in polygon
-                    ]
+                points = [
+                    [
+                        int((x - center_p[0]) * pixels_per_meter + size / 2),
+                        int((y - center_p[1]) * pixels_per_meter) + size / 2
+                    ] for x, y in polygon
+                ]
                 cv2.fillPoly(mask, np.asarray([points]).astype(np.int32), color=[height])
+            if need_scale:
+                # Define a kernel. A 3x3 rectangle kernel
+                kernel = np.ones(((extension + 1) * pixels_per_meter, (extension + 1) * pixels_per_meter), np.uint8)
+
+                # Apply dilation
+                mask = cv2.dilate(mask, kernel, iterations=1)
+                mask = np.expand_dims(mask, axis=-1)
             self._height_map = mask
         return self._height_map

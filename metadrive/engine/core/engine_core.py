@@ -7,19 +7,22 @@ import gltf
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase import ShowBase
 from panda3d.bullet import BulletDebugNode
-from panda3d.core import AntialiasAttrib, loadPrcFileData, LineSegs, PythonCallbackObject, Vec3, NodePath
+from panda3d.core import AntialiasAttrib, loadPrcFileData, LineSegs, PythonCallbackObject, Vec3, NodePath, LVecBase4
 
+from metadrive.component.sensors.base_sensor import BaseSensor
 from metadrive.constants import RENDER_MODE_OFFSCREEN, RENDER_MODE_NONE, RENDER_MODE_ONSCREEN, EDITION, CamMask, \
     BKG_COLOR
 from metadrive.engine.asset_loader import initialize_asset_loader, close_asset_loader, randomize_cover, get_logo_file
 from metadrive.engine.core.collision_callback import collision_callback
+from metadrive.engine.core.draw_line import ColorLineNodePath
 from metadrive.engine.core.force_fps import ForceFPS
+from metadrive.engine.core.image_buffer import ImageBuffer
 from metadrive.engine.core.light import Light
 from metadrive.engine.core.onscreen_message import ScreenMessage
 from metadrive.engine.core.physics_world import PhysicsWorld
+from metadrive.engine.core.pssm import PSSM
 from metadrive.engine.core.sky_box import SkyBox
 from metadrive.engine.core.terrain import Terrain
-from metadrive.render_pipeline.rpcore import RenderPipeline
 from metadrive.utils.utils import is_mac, setup_logger
 
 
@@ -29,11 +32,13 @@ def _suppress_warning():
     loadPrcFileData("", "notify-level-pnmimage fatal")
     loadPrcFileData("", "notify-level-thread fatal")
     loadPrcFileData("", "notify-level-bullet fatal")
+    loadPrcFileData("", "notify-level-display fatal")
 
 
 def _free_warning():
     loadPrcFileData("", "notify-level-glgsg debug")
     # loadPrcFileData("", "notify-level-pgraph debug")  # press 4 to use toggle analyze to do this
+    loadPrcFileData("", "notify-level-display debug")  # press 4 to use toggle analyze to do this
     loadPrcFileData("", "notify-level-pnmimage debug")
     loadPrcFileData("", "notify-level-thread debug")
 
@@ -95,14 +100,14 @@ class EngineCore(ShowBase.ShowBase):
         #     pass
         # else:
         EngineCore.global_config = global_config
-
+        self.mode = global_config["_render_mode"]
         if self.global_config["pstats"]:
             # pstats debug provided by panda3d
             loadPrcFileData("", "want-pstats 1")
 
         # Setup onscreen render
         if self.global_config["use_render"]:
-            self.mode = RENDER_MODE_ONSCREEN
+            assert self.mode == RENDER_MODE_ONSCREEN, "Render mode error"
             # Warning it may cause memory leak, Pand3d Official has fixed this in their master branch.
             # You can enable it if your panda version is latest.
             if self.global_config["multi_thread_render"] and not self.use_render_pipeline:
@@ -111,16 +116,12 @@ class EngineCore(ShowBase.ShowBase):
         else:
             self.global_config["show_coordinates"] = False
             if self.global_config["image_observation"]:
-                self.mode = RENDER_MODE_OFFSCREEN
+                assert self.mode == RENDER_MODE_OFFSCREEN, "Render mode error"
                 if self.global_config["multi_thread_render"] and not self.use_render_pipeline:
                     # render-pipeline can not work with multi-thread rendering
                     loadPrcFileData("", "threading-model {}".format(self.global_config["multi_thread_render_mode"]))
-                if self.global_config["vehicle_config"]["image_source"] != "main_camera":
-                    # reduce size as we don't use the main camera content for improving efficiency
-                    self.global_config["window_size"] = (1, 1)
-
             else:
-                self.mode = RENDER_MODE_NONE
+                assert self.mode == RENDER_MODE_NONE, "Render mode error"
                 if self.global_config["show_interface"]:
                     # Disable useless camera capturing in none mode
                     self.global_config["show_interface"] = False
@@ -131,6 +132,10 @@ class EngineCore(ShowBase.ShowBase):
         loadPrcFileData("", "win-size {} {}".format(*self.global_config["window_size"]))
 
         if self.use_render_pipeline:
+            from metadrive.render_pipeline.rpcore import RenderPipeline
+            from metadrive.render_pipeline.rpcore.rpobject import RPObject
+            if not self.global_config["debug"]:
+                RPObject.set_output_level("warning")  # warning
             self.render_pipeline = RenderPipeline()
             self.render_pipeline.pre_showbase_init()
             # disable it, as some model errors happen!
@@ -147,7 +152,8 @@ class EngineCore(ShowBase.ShowBase):
         if self.global_config["debug"]:
             # debug setting
             EngineCore.DEBUG = True
-            _free_warning()
+            if self.global_config["debug_panda3d"]:
+                _free_warning()
             setup_logger(debug=True)
             self.accept("1", self.toggleDebug)
             self.accept("2", self.toggleWireframe)
@@ -282,10 +288,19 @@ class EngineCore(ShowBase.ShowBase):
                 self.sky_box = SkyBox(not self.global_config["show_skybox"])
                 self.sky_box.attach_to_world(self.render, self.physics_world)
 
-                self.world_light = Light(self.global_config)
+                self.world_light = Light()
                 self.world_light.attach_to_world(self.render, self.physics_world)
                 self.render.setLight(self.world_light.direction_np)
                 self.render.setLight(self.world_light.ambient_np)
+
+                # lens property
+                lens = self.cam.node().getLens()
+                lens.setFov(self.global_config["camera_fov"])
+
+                # setup pssm shadow
+                self.pssm = PSSM(self)
+
+                # enable default shaders
                 self.render.setShaderAuto()
                 self.render.setAntialias(AntialiasAttrib.MAuto)
 
@@ -293,9 +308,6 @@ class EngineCore(ShowBase.ShowBase):
             self.cam.node().setCameraMask(CamMask.MainCam)
             self.cam.node().getDisplayRegion(0).setClearColorActive(True)
             self.cam.node().getDisplayRegion(0).setClearColor(BKG_COLOR)
-            lens = self.cam.node().getLens()
-
-            lens.setFov(self.global_config["camera_fov"])
 
             # ui and render property
             if self.global_config["show_fps"]:
@@ -318,6 +330,10 @@ class EngineCore(ShowBase.ShowBase):
         self.coordinate_line = []
         if self.global_config["show_coordinates"]:
             self.show_coordinates()
+
+        # create sensors
+        self.sensors = {}
+        self.setup_sensors()
 
     def render_frame(self, text: Optional[Union[dict, str]] = None):
         """
@@ -445,6 +461,13 @@ class EngineCore(ShowBase.ShowBase):
         # np.reparentTo(self.render)
         return np
 
+    def draw_lines_3d(self, point_lists, parent_node=None, color=LVecBase4(1), thickness=1.0):
+        assert self.mode == RENDER_MODE_ONSCREEN, "Can not call this API in render mode: {}".format(self.mode)
+        np = ColorLineNodePath(parent_node, thickness=thickness, colorVec=color)
+        np.drawLines(point_lists)
+        np.create()
+        return np
+
     def show_coordinates(self):
         if len(self.coordinate_line) > 0:
             return
@@ -475,3 +498,29 @@ class EngineCore(ShowBase.ShowBase):
     def reload_shader(self):
         if self.render_pipeline is not None:
             self.render_pipeline.reload_shaders()
+
+    def setup_sensors(self):
+        for sensor_id, sensor_cfg in self.global_config["sensors"].items():
+            if sensor_id == "main_camera":
+                # It is added when initializing main_camera
+                continue
+            cls = sensor_cfg[0]
+            args = sensor_cfg[1:]
+            assert issubclass(cls, BaseSensor), "{} is not a subclass of BaseSensor".format(cls.__name__)
+            if issubclass(cls, ImageBuffer):
+                self.add_image_sensor(sensor_id, cls, args)
+            else:
+                self.sensors[sensor_id] = cls(*args, self)
+
+    def get_sensor(self, sensor_id):
+        if sensor_id not in self.sensors:
+            raise ValueError("Can not get {}, available sensors: {}".format(sensor_id, self.sensors.keys()))
+        return self.sensors[sensor_id]
+
+    def add_image_sensor(self, name: str, cls, args):
+        if self.global_config["image_on_cuda"] and name == self.global_config["vehicle_config"]["image_source"]:
+            sensor = cls(*args, self, cuda=True)
+        else:
+            sensor = cls(*args, self, cuda=False)
+        assert isinstance(sensor, ImageBuffer), "This API is for adding image sensor"
+        self.sensors[name] = sensor

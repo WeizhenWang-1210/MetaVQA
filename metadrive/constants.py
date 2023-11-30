@@ -1,13 +1,15 @@
 import math
+from collections import namedtuple
 from typing import List, Tuple
 
+import numpy as np
 from panda3d.bullet import BulletWorld
 from panda3d.core import Vec3
 from panda3d.core import Vec4, BitMask32
-
+from metadrive.version import VERSION
 from metadrive.type import MetaDriveType
 
-EDITION = "MetaDrive v0.3.0.1"
+EDITION = "MetaDrive v{}".format(VERSION)
 DATA_VERSION = EDITION  # Use MetaDrive version to mark the data version
 DEFAULT_AGENT = "default_agent"
 RENDER_MODE_NONE = "none"  # Do not render
@@ -24,8 +26,10 @@ class TerminationState:
     CRASH_HUMAN = "crash_human"
     CRASH_OBJECT = "crash_object"
     CRASH_BUILDING = "crash_building"
+    CRASH_SIDEWALK = "crash_sidewalk"
     CURRENT_BLOCK = "current_block"
     ENV_SEED = "env_seed"
+    IDLE = "idle"
 
 
 HELP_MESSAGE = "Keyboard Shortcuts:\n" \
@@ -59,10 +63,14 @@ COLLISION_INFO_COLOR = dict(
 # Used for rendering the banner in Interface.
 COLOR = {
     MetaDriveType.BOUNDARY_LINE: "red",
+    MetaDriveType.BOUNDARY_SIDEWALK: "red",
     MetaDriveType.LINE_SOLID_SINGLE_WHITE: "orange",
     MetaDriveType.LINE_SOLID_SINGLE_YELLOW: "orange",
     MetaDriveType.LINE_BROKEN_SINGLE_YELLOW: "yellow",
     MetaDriveType.LINE_BROKEN_SINGLE_WHITE: "green",
+    MetaDriveType.LANE_SURFACE_STREET: "green",
+    MetaDriveType.LANE_SURFACE_UNSTRUCTURE: "green",
+    MetaDriveType.LANE_BIKE_LANE: "green",
     MetaDriveType.VEHICLE: "red",
     MetaDriveType.GROUND: "yellow",
     MetaDriveType.TRAFFIC_OBJECT: "yellow",
@@ -75,6 +83,7 @@ COLOR = {
     MetaDriveType.LIGHT_RED: "red",
     MetaDriveType.LIGHT_YELLOW: "orange",
     MetaDriveType.LIGHT_GREEN: "green",
+    MetaDriveType.UNSET: "orange",
 }
 
 
@@ -111,6 +120,7 @@ class CamMask(Mask):
     PARA_VIS = BitMask32.bit(13)
     DepthCam = BitMask32.bit(14)
     ScreenshotCam = BitMask32.bit(15)
+    SemanticCam = BitMask32.bit(16)
 
 
 class CollisionGroup(Mask):
@@ -138,7 +148,7 @@ class CollisionGroup(Mask):
             (cls.Terrain, cls.Vehicle, True),
             (cls.Terrain, cls.ContinuousLaneLine, False),
             (cls.Terrain, cls.InvisibleWall, False),
-            (cls.Terrain, cls.Sidewalk, True),
+            (cls.Terrain, cls.Sidewalk, False),
             (cls.Terrain, cls.LidarBroadDetector, False),
             (cls.Terrain, cls.TrafficObject, True),
             (cls.Terrain, cls.TrafficParticipants, True),
@@ -193,7 +203,7 @@ class CollisionGroup(Mask):
             (cls.Sidewalk, cls.Sidewalk, False),
             (cls.Sidewalk, cls.LidarBroadDetector, False),
             (cls.Sidewalk, cls.TrafficObject, True),
-            (cls.Sidewalk, cls.TrafficParticipants, False),  # don't allow sidewalk contact
+            (cls.Sidewalk, cls.TrafficParticipants, True),  # don't allow sidewalk contact
 
             # LidarBroadDetector
             (cls.LidarBroadDetector, cls.LidarBroadDetector, False),
@@ -258,10 +268,11 @@ BKG_COLOR = Vec3(1, 1, 1)
 class PGLineType:
     """A lane side line type."""
 
-    NONE = "none"
-    BROKEN = "broken"
-    CONTINUOUS = "continuous"
-    SIDE = "side"
+    NONE = MetaDriveType.LINE_UNKNOWN
+    BROKEN = MetaDriveType.LINE_BROKEN_SINGLE_WHITE
+    CONTINUOUS = MetaDriveType.LINE_SOLID_SINGLE_WHITE
+    SIDE = MetaDriveType.BOUNDARY_LINE
+    GUARDRAIL = MetaDriveType.GUARDRAIL
 
     @staticmethod
     def prohibit(line_type) -> bool:
@@ -276,7 +287,10 @@ class PGLineColor:
     YELLOW = (255 / 255, 200 / 255, 0 / 255, 1)
 
 
-class DrivableAreaProperty:
+class PGDrivableAreaProperty:
+    """
+    Defining some properties for creating PGMap
+    """
     # road network property
     ID = None  # each block must have a unique ID
     SOCKET_NUM = None
@@ -287,10 +301,12 @@ class DrivableAreaProperty:
     LANE_LINE_WIDTH = 0.15
     LANE_LINE_THICKNESS = 0.016
 
-    SIDEWALK_THICKNESS = 0.4
+    SIDEWALK_THICKNESS = 0.3
     SIDEWALK_LENGTH = 3
-    SIDEWALK_WIDTH = 3
+    SIDEWALK_WIDTH = 2
     SIDEWALK_LINE_DIST = 0.6
+
+    GUARDRAIL_HEIGHT = 4.0
 
     # visualization color property
     LAND_COLOR = (0.4, 0.4, 0.4, 1)
@@ -314,6 +330,7 @@ class DrivableAreaProperty:
 
 
 class ObjectState:
+    # this is for internal recording/replaying system
     POSITION = "position"
     HEADING_THETA = "heading_theta"
     VELOCITY = "velocity"
@@ -336,45 +353,106 @@ class PolicyState:
 
 REPLAY_DONE = "replay_done"
 
-
-class SemanticColor:
-    @staticmethod
-    def get_color(type):
-        raise NotImplementedError
+label_color = namedtuple("label_color", "label color")
 
 
-class MapSemanticColor(SemanticColor):
-    """I didn't use it at this time and keep it the same as MapTerrainAttribute"""
-    @staticmethod
-    def get_color(type):
-        if MetaDriveType.is_yellow_line(type):
-            # return (255, 0, 0, 0)
-            return (1, 0, 0, 0)
-        elif MetaDriveType.is_lane(type):
-            return (0, 1, 0, 0)
-        elif type == MetaDriveType.GROUND:
-            return (0, 0, 1, 0)
-        elif MetaDriveType.is_white_line(type) or MetaDriveType.is_road_edge(type):
-            return (0, 0, 0, 1)
-        else:
-            raise ValueError("Unsupported type: {}".format(type))
+class Semantics:
+    """
+    For semantic camera
+    """
+    # CitySpace colormap: https://github.com/mcordts/cityscapesScripts/blob/master/cityscapesscripts/helpers/labels.py
+    UNLABELED = label_color("UNLABELED", (0, 0, 0))
+    CAR = label_color("CAR", (0, 0, 142))
+    TRUCK = label_color("TRUCK", (0, 0, 70))
+    PEDESTRIAN = label_color("PEDESTRIAN", (220, 20, 60))
+    BIKE = label_color("BIKE", (119, 11, 32))  # bicycle
+    TERRAIN = label_color("TERRAIN", (152, 251, 152))
+    ROAD = label_color("ROAD", (128, 64, 128))  # road
+    SIDEWALK = label_color("SIDEWALK", (244, 35, 232))
+    SKY = label_color("SKY", (70, 130, 180))
+    TRAFFIC_LIGHT = label_color("TRAFFIC_LIGHT", (250, 170, 30))
+    FENCE = label_color("FENCE", (190, 153, 153))
+    TRAFFIC_SIGN = label_color("TRAFFIC_SIGN", (220, 220, 0))
+
+    # customized
+    LANE_LINE = label_color("LANE_LINE", (255, 255, 255))
 
 
-class MapTerrainSemanticColor(SemanticColor):
+class MapTerrainSemanticColor:
     """
     Do not modify this as it is for terrain generation. If you want your own palette, just add a new one or modify
     class lMapSemanticColor
     """
     @staticmethod
     def get_color(type):
+        """
+        Each channel represents a type. This should be aligned with shader terrain.frag.glsl
+        Args:
+            type: MetaDriveType
+
+        Returns:
+
+        """
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # Note: modify it with shaders together!
         if MetaDriveType.is_yellow_line(type):
             # return (255, 0, 0, 0)
-            return (1, 0, 0, 0)
+            # return (1, 0, 0, 0)
+            return 0.1
         elif MetaDriveType.is_lane(type):
-            return (0, 1, 0, 0)
+            # return (0, 1, 0, 0)
+            return 0.2
         elif type == MetaDriveType.GROUND:
-            return (0, 0, 1, 0)
-        elif MetaDriveType.is_white_line(type) or MetaDriveType.is_road_edge(type):
-            return (0, 0, 0, 1)
+            # return (0, 0, 1, 0)
+            return 0.0
+        elif MetaDriveType.is_white_line(type) or MetaDriveType.is_road_boundary_line(type):
+            # return (0, 0, 0, 1)
+            return 0.3
+        elif type == MetaDriveType.CROSSWALK:
+            # The range of crosswalk value is 0.4 <= value < 0.76,
+            # so people can save the angle (degree) of the crosswalk in attribute map
+            # the value * 10 = angle of crosswalk. It is a trick for saving memory.
+            return 0.4  # this value can be overwritten latter
         else:
             raise ValueError("Unsupported type: {}".format(type))
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # Note: modify it with shaders together!
+
+
+class TopDownSemanticColor:
+    """
+    Do not modify this as it is for terrain generation. If you want your own palette, just add a new one or modify
+    class lMapSemanticColor
+    """
+    @staticmethod
+    def get_color(type):
+        if MetaDriveType.is_lane(type):
+            # intersection and others
+            if type == MetaDriveType.LANE_SURFACE_UNSTRUCTURE:
+                ret = np.array([186, 186, 186])
+            # a set of lanes
+            else:
+                ret = np.array([210, 210, 210])
+        # road divider
+        elif MetaDriveType.is_yellow_line(type):
+            ret = np.array([20, 20, 20])
+        # lane divider
+        elif MetaDriveType.is_road_boundary_line(type) or MetaDriveType.is_white_line(type):
+            ret = np.array([140, 140, 140])
+        # vehicle
+        elif MetaDriveType.is_vehicle(type):
+            ret = np.array([224, 177, 67])
+        # construction object
+        elif MetaDriveType.is_traffic_object(type):
+            ret = np.array([67, 143, 224])
+        # human
+        elif type == MetaDriveType.PEDESTRIAN:
+            ret = np.array([224, 67, 67])
+        # cyclist and motorcycle
+        elif type == MetaDriveType.CYCLIST:
+            ret = np.array([75, 224, 67])
+        else:
+            ret = np.array([125, 67, 224])
+        # else:
+        #     raise ValueError("Unsupported type: {}".format(type))
+        return ret

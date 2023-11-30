@@ -6,11 +6,14 @@ Note: This script require rendering, please following the installation instructi
 environment that allows popping up an window.
 """
 import argparse
+import logging
 import random
 
+import cv2
 import numpy as np
 
 from metadrive import MetaDriveEnv
+from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.constants import HELP_MESSAGE
 
 if __name__ == "__main__":
@@ -18,25 +21,37 @@ if __name__ == "__main__":
         # controller="joystick",
         use_render=True,
         manual_control=True,
-        traffic_density=0.2,
-        num_scenarios=100,
-        random_agent_model=True,
+        traffic_density=0.1,
+        num_scenarios=10000,
+        random_agent_model=False,
         random_lane_width=True,
         random_lane_num=True,
-        # debug=True,
-        # debug_static_world=True,
+        on_continuous_line_done=False,
+        out_of_route_done=True,
+        vehicle_config=dict(show_lidar=False, show_navi_mark=False),
+        debug=True,
+        debug_static_world=True,
+        #debug_physics_world = True,
+        multi_thread_render = False,
         map=4,  # seven block
-        start_seed=random.randint(0, 1000),
-        vehicle_config = {"image_source":"rgb_camera", "rgb_camera":(320, 320)}
+        start_seed=10,
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
     args = parser.parse_args()
     if args.observation == "rgb_camera":
-        config.update(dict(image_observation=True))
+        config.update(
+            dict(
+                image_observation=True,
+                sensors=dict(rgb_camera=(RGBCamera, 512, 256)),
+                interface_panel=["rgb_camera", "dashboard"]
+            )
+        )
+    else:
+        config["vehicle_config"]["show_lidar"] = True
     env = MetaDriveEnv(config)
     try:
-        o, _ = env.reset()
+        o, _ = env.reset(seed=21)
         print(HELP_MESSAGE)
         env.vehicle.expert_takeover = True
         if args.observation == "rgb_camera":
@@ -50,51 +65,18 @@ if __name__ == "__main__":
             env.render(
                 text={
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
+                    "Current Observation": args.observation,
+                    "Keyboard Control": "W,A,S,D",
                 }
             )
-            if i % 50== 0: #note: the "1st" object in objects is the agent
-                objects = env.engine.get_objects()
-                agents = env.engine.agents
-                agent = list(agents.values())[0] #if single-agent setting
-                #rgb_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
-                #rgb_cam.save_image(env.vehicle, name="{}.png".format(i))
 
-                agent_id = list(agents.values())[0].id
-                print("Agent: ",np.array(agent.position))
-                #print("Agent lane: ", agent.lane_index)
-                for id, object in objects.items():
-                    if id != agent_id:
-                        relative_displacement = object.convert_to_local_coordinates(object.position,agent.position)
-                        relative_distance = np.sqrt(relative_displacement[0]**2 + relative_displacement[1]**2)
-                        if relative_distance <= 30:
-                            panda_color = object.panda_color
-                            #adjusted = [c*255 for c in panda_color]
-                            #print("Object old color:", adjusted)
-                            #object.panda_color = [1,1,1]
-                            #print("New color:", object.panda_color)
-                            
-                            #bounding_box = object.bounding_box
-                            #relative_bounding_box = [object.convert_to_local_coordinates(box, agent.position) for box in bounding_box]
-                            print("Object_relative: ",relative_distance)
-                            print("Object_position_pov:", relative_displacement)
-                            #print("Object bounding box:", relative_bounding_box)
-                            #object._panda_color = old_color
-
-                        
-                        
-            
-
-               
-                    
+            if args.observation == "rgb_camera":
+                cv2.imshow('RGB Image in Observation', o["image"][..., -1])
+                cv2.waitKey(1)
             if (tm or tc) and info["arrive_dest"]:
-                env.reset()
+                env.reset(env.current_seed + 1)
                 env.current_track_vehicle.expert_takeover = True
     except Exception as e:
         raise e
     finally:
         env.close()
-
-"""def transform(world_c, origin, heading):
-    new_c = (world_c[0]-origin[0], world_c[1]-origin[1])
-    normal = (heading[1],-heading[0])
-    x,y,z = new_c[0].project(normal), new_c[1].project(heading), world_c[2].project((0,0,1))"""

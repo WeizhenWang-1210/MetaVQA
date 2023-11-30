@@ -108,7 +108,7 @@ class PluginManager(RPObject):
     def load_plugin_settings(self, plugin_id, plugin_pth):
         """ Internal method to load all settings of a plugin, given its plugin
         id and path to the plugin base directory """
-        config_file = join(plugin_pth, "path_config.yaml")
+        config_file = join(plugin_pth, "config.yaml")
         config = load_yaml_file(config_file)
         # When you don't specify anything in the settings, instead of
         # returning an empty dictionary, pyyaml returns None

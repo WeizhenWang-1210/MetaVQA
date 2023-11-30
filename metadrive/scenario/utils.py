@@ -1,11 +1,11 @@
 import copy
 import os
+import pathlib
 import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.pyplot import figure
-
 from metadrive.component.static_object.traffic_object import TrafficCone, TrafficBarrier
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.traffic_participants.cyclist import Cyclist
@@ -25,7 +25,7 @@ MIN_LENGTH_RATIO = 0.8
 def draw_map(map_features, show=False):
     figure(figsize=(8, 6), dpi=500)
     for key, value in map_features.items():
-        if value.get("type", None) == MetaDriveType.LANE_SURFACE_STREET:
+        if MetaDriveType.is_lane(value.get("type", None)):
             plt.scatter([x[0] for x in value["polyline"]], [y[1] for y in value["polyline"]], s=0.1)
         elif value.get("type", None) == "road_edge":
             plt.scatter([x[0] for x in value["polyline"]], [y[1] for y in value["polyline"]], s=0.1, c=(0, 0, 0))
@@ -323,6 +323,14 @@ def convert_recorded_scenario_exported(record_episode, scenario_log_interval=0.1
 
 
 def read_scenario_data(file_path):
+    """Read a scenario pkl file and return the Scenario Description instance.
+
+    Args:
+        file_path: the path to a scenario file (usually ends with `.pkl`).
+
+    Returns:
+        The Scenario Description instance of that scenario.
+    """
     assert SD.is_scenario_file(file_path), "File: {} is not scenario file".format(file_path)
     with open(file_path, "rb") as f:
         # unpickler = CustomUnpickler(f)
@@ -333,14 +341,25 @@ def read_scenario_data(file_path):
 
 def read_dataset_summary(file_folder, check_file_existence=True):
     """
-    We now support two methods to load pickle files.
+    Read the `dataset_summary.pkl` and return the metadata of each scenario in this dataset.
 
-    The first is the old method where we store pickle files in 0.pkl, 1.pkl, ...
+    This function supports two methods to load pickle files. The first is the old method where we store pickle files in
+    0.pkl, 1.pkl, .... The second is the new method which use a summary file to record important metadata of
+    each scenario.
 
-    The second is the new method which use a summary file to record important metadata of each scenario.
+    Args:
+        file_folder: the path to the root folder of your dataset.
+        check_file_existence: check if all scenarios registered in the summary file exist.
+
+    Returns:
+        A tuple of three elements:
+        1) the summary dict mapping from scenario ID to its metadata,
+        2) the list of all scenarios IDs, and
+        3) a dict mapping from scenario IDs to the folder that hosts their files.
     """
-    summary_file = os.path.join(file_folder, SD.DATASET.SUMMARY_FILE)
-    mapping_file = os.path.join(file_folder, SD.DATASET.MAPPING_FILE)
+    file_folder = pathlib.Path(file_folder)
+    summary_file = file_folder / SD.DATASET.SUMMARY_FILE
+    mapping_file = file_folder / SD.DATASET.MAPPING_FILE
     if os.path.isfile(summary_file):
         with open(summary_file, "rb") as f:
             summary_dict = pickle.load(f)
@@ -358,10 +377,12 @@ def read_dataset_summary(file_folder, check_file_existence=True):
         files = [p for p in files]
         summary_dict = {f: read_scenario_data(os.path.join(file_folder, f))["metadata"] for f in files}
 
+    mapping = None
     if os.path.exists(mapping_file):
         with open(mapping_file, "rb") as f:
             mapping = pickle.load(f)
-    else:
+
+    if not mapping:
         # Create a fake one
         mapping = {k: "" for k in summary_dict}
 
@@ -369,7 +390,7 @@ def read_dataset_summary(file_folder, check_file_existence=True):
         for file in summary_dict:
             assert file in mapping, "FileName in mapping mismatch with summary"
             assert SD.is_scenario_file(file), "File:{} is not sd scenario file".format(file)
-            file_path = os.path.join(file_folder, mapping[file], file)
+            file_path = file_folder / mapping[file] / file
             assert os.path.exists(file_path), "Can not find file: {}".format(file_path)
 
     return summary_dict, list(summary_dict.keys()), mapping

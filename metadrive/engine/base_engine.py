@@ -1,9 +1,15 @@
-import logging
+from metadrive.engine.logger import get_logger, reset_logger
+
+from metadrive.version import VERSION, asset_version
+import os
+from metadrive.pull_asset import pull_asset
+from metadrive.constants import RENDER_MODE_NONE, RENDER_MODE_OFFSCREEN, RENDER_MODE_ONSCREEN
 import pickle
 import time
 from collections import OrderedDict
 from typing import Callable, Optional, Union, List, Dict, AnyStr
 
+from collections import deque
 import numpy as np
 from panda3d.core import NodePath, Vec3
 
@@ -14,7 +20,22 @@ from metadrive.manager.base_manager import BaseManager
 from metadrive.utils import concat_step_infos
 from metadrive.utils.utils import is_map_related_class
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
+
+
+def generate_distinct_rgb_values():
+    distinct_rgb_values = []
+    step = 256 // 32  # 8 intervals for each RGB component (0-31, 32-63, ..., 224-255)
+
+    for r in range(step, 256, step):
+        for g in range(0, 256, step):
+            for b in range(0, 256, step):
+                distinct_rgb_values.append((round(r / 255, 5), round(g / 255, 5), round(b / 255, 5)))
+
+    return distinct_rgb_values[:8192]  # Return the first 4096 values
+
+
+COLOR_SPACE = generate_distinct_rgb_values()
 
 
 class BaseEngine(EngineCore, Randomizable):
@@ -26,7 +47,14 @@ class BaseEngine(EngineCore, Randomizable):
     singleton = None
     global_random_seed = None
 
+    MAX_COLOR = len(COLOR_SPACE)
+    COLORS_OCCUPIED = set()
+    COLORS_FREE = set(COLOR_SPACE)
+
     def __init__(self, global_config):
+        self.c_id = dict()
+        self.id_c = dict()
+        self.try_pull_asset()
         EngineCore.__init__(self, global_config)
         Randomizable.__init__(self, self.global_random_seed)
         self.episode_step = 0
@@ -68,14 +96,10 @@ class BaseEngine(EngineCore, Randomizable):
         # warm up
         self.warmup()
 
-        # for multi-thread rendering
-        self.graphicsEngine.renderFrame()
-        self.graphicsEngine.renderFrame()
-
         # curriculum reset
         self._max_level = self.global_config.get("curriculum_level", 1)
         self._current_level = 0
-        self._num_scenarios_per_level = int(self.global_config.get("num_scenarios", 0) / self._max_level)
+        self._num_scenarios_per_level = int(self.global_config.get("num_scenarios", 1) / self._max_level)
 
     def add_policy(self, object_id, policy_class, *args, **kwargs):
         policy = policy_class(*args, **kwargs)
@@ -152,8 +176,63 @@ class BaseEngine(EngineCore, Randomizable):
         if self.global_config["record_episode"] and not self.replay_episode and record:
             self.record_manager.add_spawn_info(obj, object_class, kwargs)
         self._spawned_objects[obj.id] = obj
+        color = self.pick_color(obj.id)
+        if color == (-1, -1, -1):
+            print("FK!~")
+            exit()
+
         obj.attach_to_world(self.pbr_worldNP if pbr_model else self.worldNP, self.physics_world)
         return obj
+
+    def pick_color(self, id):
+        """
+        Return a color multiplier representing a unique color for an object if some colors are available.
+        Return -1,-1,-1 if no color available
+
+        SideEffect: COLOR_PTR will no longer point to the available color
+        SideEffect: COLORS_OCCUPIED[COLOR_PTR] will not be avilable
+        """
+        if len(BaseEngine.COLORS_OCCUPIED) == BaseEngine.MAX_COLOR:
+            return (-1, -1, -1)
+        assert (len(BaseEngine.COLORS_FREE) > 0)
+        my_color = BaseEngine.COLORS_FREE.pop()
+        BaseEngine.COLORS_OCCUPIED.add(my_color)
+        #print("After picking:", len(BaseEngine.COLORS_OCCUPIED), len(BaseEngine.COLORS_FREE))
+        self.id_c[id] = my_color
+        self.c_id[my_color] = id
+        return my_color
+
+    def clean_color(self, id):
+        """
+        Relinquish a color once the object is focibly destroyed
+        SideEffect:
+        BaseEngins.COLORS_OCCUPIED += 1
+        BaseEngine.COLOR_PTR now points to the idx just released
+        BaseEngine.COLORS_RECORED
+        Mapping Destroyed
+
+        """
+        if id in self.id_c.keys():
+            my_color = self.id_c[id]
+            BaseEngine.COLORS_OCCUPIED.remove(my_color)
+            BaseEngine.COLORS_FREE.add(my_color)
+            #print("After cleaning:,", len(BaseEngine.COLORS_OCCUPIED), len(BaseEngine.COLORS_FREE))
+            self.id_c.pop(id)
+            self.c_id.pop(my_color)
+
+    def id_to_color(self, id):
+        if id in self.id_c.keys():
+            return self.id_c[id]
+        else:
+            print("Invalid ID: ", id)
+            return -1, -1, -1
+
+    def color_to_id(self, color):
+        if color in self.c_id.keys():
+            return self.c_id[color]
+        else:
+            print("Invalid color:", color)
+            return "NA"
 
     def get_objects(self, filter: Optional[Union[Callable, List]] = None):
         """
@@ -193,6 +272,10 @@ class BaseEngine(EngineCore, Randomizable):
 
         filter: A list of object ids or a function returning a list of object id
         """
+        """
+        In addition, we need to remove a color mapping whenever an object is destructed.
+        
+        """
         force_destroy_this_obj = True if force_destroy or self.global_config["force_destroy"] else False
 
         if isinstance(filter, (list, tuple)):
@@ -212,6 +295,7 @@ class BaseEngine(EngineCore, Randomizable):
                 policy = self._object_policies.pop(id)
                 policy.destroy()
             if force_destroy_this_obj:
+                self.clean_color(obj.id)
                 obj.destroy()
             else:
                 obj.detach_from_world(self.physics_world)
@@ -226,6 +310,7 @@ class BaseEngine(EngineCore, Randomizable):
                 if len(self._dying_objects[obj.class_name]) < self.global_config["num_buffering_objects"]:
                     self._dying_objects[obj.class_name].append(obj)
                 else:
+                    self.clean_color(obj.id)
                     obj.destroy()
             if self.global_config["record_episode"] and not self.replay_episode and record:
                 self.record_manager.add_clear_info(obj)
@@ -241,6 +326,7 @@ class BaseEngine(EngineCore, Randomizable):
                 obj in self._dying_objects[obj.class_name]:
             self._dying_objects[obj.class_name].remove(obj)
             if hasattr(obj, "destroy"):
+                self.clean_color(obj.id)
                 obj.destroy()
         del obj
 
@@ -248,6 +334,9 @@ class BaseEngine(EngineCore, Randomizable):
         """
         Clear and generate the whole scene
         """
+        # reset logger
+        reset_logger()
+
         # initialize
         self._episode_start_time = time.time()
         self.episode_step = 0
@@ -272,6 +361,9 @@ class BaseEngine(EngineCore, Randomizable):
 
             cm = process_memory()
 
+        if self.lane_coordinates_debug_node is not None:
+            self.lane_coordinates_debug_node.removeNode()
+
         # reset manager
         for manager_name, manager in self._managers.items():
             # clean all manager
@@ -282,7 +374,7 @@ class BaseEngine(EngineCore, Randomizable):
                 if lm - cm != 0:
                     print("{}: Before Reset! Mem Change {:.3f}MB".format(manager_name, (lm - cm) / 1e6))
                 cm = lm
-
+        self.terrain.before_reset()
         self._object_clean_check()
 
         for manager_name, manager in self.managers.items():
@@ -325,10 +417,39 @@ class BaseEngine(EngineCore, Randomizable):
         # reset terrain
         center_p = self.current_map.get_center_point() if self.current_map else [0, 0]
         self.terrain.reset(center_p)
+
+        # init shadow if required
+        if hasattr(self, "pssm") and self.pssm.buffer is None and self.global_config["show_terrain"] \
+                and not self.global_config["debug_physics_world"]:
+            self.pssm.init()
+
+        # move skybox
         if self.sky_box is not None:
             self.sky_box.set_position(center_p)
 
         self.taskMgr.step()
+
+        # refresh graphics to support multi-thread rendering, avoiding bugs like shadow disappearance at first frame
+        for _ in range(5):
+            self.graphicsEngine.renderFrame()
+
+        #reset colors
+        BaseEngine.COLORS_FREE = set(COLOR_SPACE)
+        BaseEngine.COLORS_OCCUPIED = set()
+        new_i2c = {}
+        new_c2i = {}
+        #print("rest objects", len(self.get_objects()))
+        for object in self.get_objects().values():
+            if object.id in self.id_c.keys():
+                id = object.id
+                color = self.id_c[object.id]
+                BaseEngine.COLORS_OCCUPIED.add(color)
+                BaseEngine.COLORS_FREE.remove(color)
+                new_i2c[id] = color
+                new_c2i[color] = id
+        #print(len(BaseEngine.COLORS_FREE), len(BaseEngine.COLORS_OCCUPIED))
+        self.c_id = new_c2i
+        self.id_c = new_i2c
 
     def before_step(self, external_actions: Dict[AnyStr, np.array]):
         """
@@ -436,9 +557,11 @@ class BaseEngine(EngineCore, Randomizable):
                 self._object_policies.pop(id).destroy()
             if id in self._object_tasks:
                 self._object_tasks.pop(id).destroy()
+            self.clean_color(obj.id)
             obj.destroy()
         for cls, pending_obj in self._dying_objects.items():
             for obj in pending_obj:
+                self.clean_color(obj.id)
                 obj.destroy()
         if self.main_camera is not None:
             self.main_camera.destroy()
@@ -450,8 +573,11 @@ class BaseEngine(EngineCore, Randomizable):
             del self._top_down_renderer
             self._top_down_renderer = None
 
+        if self.lane_coordinates_debug_node is not None:
+            self.lane_coordinates_debug_node.removeNode()
+
     def __del__(self):
-        logging.debug("{} is destroyed".format(self.__class__.__name__))
+        logger.debug("{} is destroyed".format(self.__class__.__name__))
 
     def _stop_replay(self):
         raise DeprecationWarning
@@ -484,12 +610,15 @@ class BaseEngine(EngineCore, Randomizable):
     def gets_start_index(self):
         start_seed = self.global_config.get("start_seed", None)
         start_scenario_index = self.global_config.get("start_scenario_index", None)
-        if start_seed is None:
-            assert start_scenario_index is not None
+        assert start_seed is None or start_scenario_index is None, \
+            "It is not allowed to define `start_seed` and `start_scenario_index`"
+        if start_seed is not None:
+            return start_seed
+        elif start_scenario_index is not None:
             return start_scenario_index
         else:
-            assert start_seed is not None
-            return start_seed
+            logger.info("Can not find `start_seed` or `start_scenario_index`. Use 0 as `start_seed`")
+            return 0
 
     @property
     def max_level(self):
@@ -517,7 +646,7 @@ class BaseEngine(EngineCore, Randomizable):
             if hasattr(self, "map_manager"):
                 return self.map_manager.current_map
             else:
-                raise ValueError("No mapmanager in {}".format(self.managers))
+                return None
 
     @property
     def current_track_vehicle(self):
@@ -537,8 +666,8 @@ class BaseEngine(EngineCore, Randomizable):
 
     def setup_main_camera(self):
         from metadrive.engine.core.main_camera import MainCamera
-        # Not we should always enable main camera if image obs is required! Or RGBCamera will return incorrect result
-        if self.global_config["use_render"] or self.global_config["image_observation"]:
+        # Not we should always enable main camera RGBCamera will return incorrect result, as we are using PSSM!
+        if self.mode != RENDER_MODE_NONE:
             return MainCamera(self, self.global_config["camera_height"], self.global_config["camera_dist"])
         else:
             return None
@@ -552,18 +681,39 @@ class BaseEngine(EngineCore, Randomizable):
         return self.global_random_seed
 
     def _object_clean_check(self):
-        if self.global_config["debug"]:
-            from metadrive.component.vehicle.base_vehicle import BaseVehicle
-            from metadrive.component.static_object.traffic_object import TrafficObject
-            for manager in self._managers.values():
-                assert len(manager.spawned_objects) == 0
+        # objects check
+        from metadrive.component.vehicle.base_vehicle import BaseVehicle
+        from metadrive.component.static_object.traffic_object import TrafficObject
+        for manager in self._managers.values():
+            assert len(manager.spawned_objects) == 0
 
-            objs_need_to_release = self.get_objects(
-                filter=lambda obj: isinstance(obj, BaseVehicle) or isinstance(obj, TrafficObject)
-            )
-            assert len(
-                objs_need_to_release) == 0, "You should clear all generated objects by using engine.clear_objects " \
-                                            "in each manager.before_step()"
+        objs_need_to_release = self.get_objects(
+            filter=lambda obj: isinstance(obj, BaseVehicle) or isinstance(obj, TrafficObject)
+        )
+        assert len(
+            objs_need_to_release) == 0, "You should clear all generated objects by using engine.clear_objects " \
+                                        "in each manager.before_step()"
+
+        # rigid body check
+        bodies = []
+        for world in [self.physics_world.dynamic_world, self.physics_world.static_world]:
+            bodies += world.getRigidBodies()
+            bodies += world.getSoftBodies()
+            bodies += world.getGhosts()
+            bodies += world.getVehicles()
+            bodies += world.getCharacters()
+            bodies += world.getManifolds()
+
+        filtered = []
+        for body in bodies:
+            if body.getName() in ["detector_mask", "debug"]:
+                continue
+            filtered.append(body)
+        assert len(filtered) == 0, "Physics Bodies should be cleaned before manager.reset() is called. " \
+                                   "Uncleared bodies: {}".format(filtered)
+
+        children = self.pbr_worldNP.getChildren() + self.worldNP.getChildren()
+        assert len(children) == 0, "NodePath are not cleaned thoroughly. Remaining NodePath: {}".format(children)
 
     def update_manager(self, manager_name: str, manager: BaseManager, destroy_previous_manager=True):
         """
@@ -664,7 +814,7 @@ class BaseEngine(EngineCore, Randomizable):
         This function automatically initialize models/objects. It can prevent the lagging when creating some objects
         for the first time.
         """
-        if self.global_config["preload_models"]:
+        if self.global_config["preload_models"] and self.mode != RENDER_MODE_NONE:
             from metadrive.component.traffic_participants.pedestrian import Pedestrian
             from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
             from metadrive.component.static_object.traffic_object import TrafficBarrier
@@ -682,6 +832,23 @@ class BaseEngine(EngineCore, Randomizable):
             warm_up_light = None
             barrier = None
             cone = None
+
+    @staticmethod
+    def try_pull_asset():
+        from metadrive.engine.asset_loader import AssetLoader
+        msg = "Assets folder doesn't exist. Begin to download assets..."
+        if not os.path.exists(AssetLoader.asset_path):
+            AssetLoader.logger.warning(msg)
+            pull_asset(update=False)
+        else:
+            if AssetLoader.should_update_asset():
+                AssetLoader.logger.warning(
+                    "Assets outdated! Current: {}, Expected: {}. "
+                    "Updating the assets ...".format(asset_version(), VERSION)
+                )
+                pull_asset(update=True)
+            else:
+                AssetLoader.logger.info("Assets version: {}".format(VERSION))
 
 
 if __name__ == "__main__":

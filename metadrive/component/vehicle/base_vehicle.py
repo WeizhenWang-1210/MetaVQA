@@ -1,8 +1,9 @@
 import math
+from metadrive.engine.logger import get_logger
 import os
 from collections import deque
 from typing import Union, Optional
-
+from metadrive.constants import Semantics
 import numpy as np
 import seaborn as sns
 from panda3d._rplight import RPSpotLight
@@ -17,16 +18,10 @@ from metadrive.component.lane.point_lane import PointLane
 from metadrive.component.lane.straight_lane import StraightLane
 from metadrive.component.pg_space import VehicleParameterSpace, ParameterSpace
 from metadrive.component.road_network.node_road_network import NodeRoadNetwork
-from metadrive.component.vehicle_module.depth_camera import DepthCamera
-from metadrive.component.vehicle_module.distance_detector import SideDetector, LaneLineDetector
-from metadrive.component.vehicle_module.lidar import Lidar
-from metadrive.component.vehicle_module.mini_map import MiniMap
-from metadrive.component.vehicle_module.rgb_camera import RGBCamera
 from metadrive.component.vehicle_navigation_module.edge_network_navigation import EdgeNetworkNavigation
 from metadrive.component.vehicle_navigation_module.node_network_navigation import NodeNetworkNavigation
 from metadrive.constants import MetaDriveType, CollisionGroup
 from metadrive.engine.asset_loader import AssetLoader
-from metadrive.engine.core.image_buffer import ImageBuffer
 from metadrive.engine.engine_utils import get_engine, engine_initialized
 from metadrive.engine.physics_node import BaseRigidBodyNode
 from metadrive.utils import Config, safe_clip_for_small_array
@@ -34,6 +29,8 @@ from metadrive.utils.math import get_vertical_vector, norm, clip
 from metadrive.utils.math import wrap_to_pi
 from metadrive.utils.pg.utils import rect_region_detection
 from metadrive.utils.utils import get_object_from_node
+
+logger = get_logger()
 
 
 class BaseVehicleState:
@@ -80,6 +77,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
     MAX_LENGTH = 10
     MAX_WIDTH = 2.5
     MAX_STEERING = 60
+    SEMANTIC_LABEL = Semantics.CAR.label
 
     # LENGTH = None
     # WIDTH = None
@@ -101,7 +99,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
     SUSPENSION_STIFFNESS = 40
 
     # for random color choosing
-    MATERIAL_COLOR_COEFF = 2  # to resist other factors, since other setting may make color dark
+    MATERIAL_COLOR_COEFF = 1.6  # to resist other factors, since other setting may make color dark
     MATERIAL_METAL_COEFF = 0.1  # 0-1
     MATERIAL_ROUGHNESS = 0.8  # smaller to make it more smooth, and reflect more light
     MATERIAL_SHININESS = 128  # 0-128 smaller to make it more smooth, and reflect more light
@@ -136,6 +134,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         # self.engine = get_engine()
         BaseObject.__init__(self, name, random_seed, self.engine.global_config["vehicle_config"])
         BaseVehicleState.__init__(self)
+        self.set_metadrive_type(MetaDriveType.VEHICLE)
         self.update_config(vehicle_config)
         use_special_color = self.config["use_special_color"]
 
@@ -161,12 +160,8 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         self._use_special_color = use_special_color
         self._add_visualization()
 
-        # modules, get observation by using these modules
+        # navigation module
         self.navigation: Optional[NodeNetworkNavigation] = None
-        self.lidar: Optional[Lidar] = None  # detect surrounding vehicles
-        self.side_detector: Optional[SideDetector] = None  # detect road side
-        self.lane_line_detector: Optional[LaneLineDetector] = None  # detect nearest lane lines
-        self.image_sensors = {}
 
         # state info
         self.throttle_brake = 0.0
@@ -186,7 +181,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         self._init_step_info()
 
         # others
-        self._add_modules_for_vehicle()
+        self.add_navigation()
         self.takeover = False
         self.expert_takeover = False
         self.energy_consumption = 0
@@ -198,86 +193,6 @@ class BaseVehicle(BaseObject, BaseVehicleState):
 
         # if self.engine.current_map is not None:
         self.reset(position=position, heading=heading)
-
-    def _add_modules_for_vehicle(self, ):
-        """
-        This function is related to the self.update_config, which will create modules if needed for resetting a new
-        vehicle
-        """
-        config = self.config
-
-        # add routing module
-        self.add_navigation()  # default added
-
-        # add distance detector/lidar
-        self.side_detector = SideDetector(
-            config["side_detector"]["num_lasers"], config["side_detector"]["distance"],
-            self.engine.global_config["vehicle_config"]["show_side_detector"]
-        )
-
-        self.lane_line_detector = LaneLineDetector(
-            config["lane_line_detector"]["num_lasers"], config["lane_line_detector"]["distance"],
-            self.engine.global_config["vehicle_config"]["show_lane_line_detector"]
-        )
-
-        self.lidar = Lidar(
-            config["lidar"]["num_lasers"], config["lidar"]["distance"],
-            self.engine.global_config["vehicle_config"]["show_lidar"]
-        )
-
-        # vision modules
-        self.setup_sensors()
-
-    def _available_sensors(self):
-        def _main_cam():
-            assert self.engine.main_camera is not None, "Main camera doesn't exist"
-            return self.engine.main_camera
-
-        return {"rgb_camera": RGBCamera, "mini_map": MiniMap, "depth_camera": DepthCamera, "main_camera": _main_cam}
-
-    def setup_sensors(self):
-        if self.engine.global_config["image_observation"]:
-            sensors = self._available_sensors()
-            self.add_image_sensor(self.config["image_source"], sensors[self.config["image_source"]]())
-
-    def get_camera(self, camera_type_str):
-        sensors = self._available_sensors()
-        if camera_type_str not in sensors:
-            raise ValueError("Can not get {}, available type: {}".format(camera_type_str, sensors.keys()))
-        if camera_type_str not in self.image_sensors:
-            self.add_image_sensor(camera_type_str, sensors[camera_type_str]())
-        return self.image_sensors[camera_type_str]
-
-    def _add_modules_for_vehicle_when_reset(self):
-        config = self.config
-
-        # add routing module
-        if self.navigation is None:
-            self.add_navigation()  # default added
-
-        # add distance detector/lidar
-        if self.side_detector is None:
-            self.side_detector = SideDetector(
-                config["side_detector"]["num_lasers"], config["side_detector"]["distance"],
-                self.engine.global_config["vehicle_config"]["show_side_detector"]
-            )
-
-        if self.lane_line_detector is None:
-            self.lane_line_detector = LaneLineDetector(
-                config["lane_line_detector"]["num_lasers"], config["lane_line_detector"]["distance"],
-                self.engine.global_config["vehicle_config"]["show_lane_line_detector"]
-            )
-
-        if self.lidar is None:
-            self.lidar = Lidar(
-                config["lidar"]["num_lasers"], config["lidar"]["distance"],
-                self.engine.global_config["vehicle_config"]["show_lidar"]
-            )
-
-        # vision modules
-        # self.add_image_sensor("rgb_camera", RGBCamera())
-        # self.add_image_sensor("mini_map", MiniMap())
-        # self.add_image_sensor("depth_camera", DepthCamera())
 
     def _init_step_info(self):
         # done info will be initialized every frame
@@ -380,7 +295,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             self.update_config(vehicle_config)
 
         # Update some modules that might not be initialized before
-        self._add_modules_for_vehicle_when_reset()
+        self.add_navigation()
 
         self.set_pitch(0)
         self.set_roll(0)
@@ -390,10 +305,14 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         elif self.config["spawn_position_heading"] is None:
             # spawn_lane_index has second priority
             map = self.engine.current_map
-            assert map, "Map should not be None"
-            lane = map.road_network.get_lane(self.config["spawn_lane_index"])
-            position = lane.position(self.config["spawn_longitude"], self.config["spawn_lateral"])
-            heading = lane.heading_theta_at(self.config["spawn_longitude"])
+            if map is None:
+                logger.warning("No map is provided. Set vehicle to position (0, 0) with heading 0")
+                position = [0, 0]
+                heading = 0
+            else:
+                lane = map.road_network.get_lane(self.config["spawn_lane_index"])
+                position = lane.position(self.config["spawn_longitude"], self.config["spawn_lateral"])
+                heading = lane.heading_theta_at(self.config["spawn_longitude"])
         else:
             assert self.config["spawn_position_heading"] is not None, "At least setting one initialization method"
             position = self.config["spawn_position_heading"][0]
@@ -439,7 +358,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         self.front_vehicles = set()
         self.back_vehicles = set()
         self.expert_takeover = False
-        if self.config["need_navigation"]:
+        if self.config["need_navigation"] and self.engine.current_map is not None:
             assert self.navigation
 
         if self.config["spawn_velocity"] is not None:
@@ -488,7 +407,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             if self.use_render_pipeline:
                 self.light_name = "light_{}".format(self.id)
                 self.light = RPSpotLight()
-                self.light.set_color_from_temperature(3 * 1000.0)
+                self.light.setColorFromTemperature(3 * 1000.0)
                 self.light.setRadius(500)
                 self.light.setFov(100)
                 self.light.energy = 600
@@ -594,8 +513,8 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             "This API returns the direction of velocity which is approximately heading direction. "
             "Deprecate it and make things easy"
         )
-        direction = self.system.getForwardVector()
-        return np.asarray([direction[0], direction[1]])
+        # direction = self.system.getForwardVector()
+        # return np.asarray([direction[0], direction[1]])
 
     """---------------------------------------- some math tool ----------------------------------------------"""
 
@@ -692,7 +611,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
                     (
                         self.panda_color[0] * self.MATERIAL_COLOR_COEFF,
                         self.panda_color[1] * self.MATERIAL_COLOR_COEFF,
-                        self.panda_color[2] * self.MATERIAL_COLOR_COEFF, 0.2
+                        self.panda_color[2] * self.MATERIAL_COLOR_COEFF, 0.
                     )
                 )
                 material.setMetallic(self.MATERIAL_METAL_COEFF)
@@ -727,7 +646,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             wheel_model.setTwoSided(self.TIRE_TWO_SIDED)
             wheel_model.reparentTo(wheel_np)
             wheel_model.set_scale(1 * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_MODEL_CORRECT)
-        wheel = self.system.create_wheel()
+        wheel = self.system.createWheel()
         wheel.setNode(wheel_np.node())
         wheel.setChassisConnectionPointCs(pos)
         wheel.setFrontWheel(front)
@@ -744,13 +663,8 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         wheel.setRollInfluence(0.5)
         return wheel
 
-    def add_image_sensor(self, name: str, sensor: ImageBuffer):
-        self.image_sensors[name] = sensor
-        self.engine.graphicsEngine.render_frame()
-        self.engine.graphicsEngine.render_frame()
-
     def add_navigation(self):
-        if not self.config["need_navigation"]:
+        if self.navigation is not None or not self.config["need_navigation"] or self.engine.current_map is None:
             return
         navi = self.config["navigation_module"]
         if navi is None:
@@ -833,11 +747,22 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             self.LENGTH,
             self.WIDTH,
             CollisionGroup.Sidewalk,
-            in_static_world=True if not self.render else False
+            in_static_world=False  # Sidewalk will be hosted in the dynamic_world. So here we set to False.
         )
         if res.hasHit() and res.getNode().getName() == MetaDriveType.BOUNDARY_LINE:
             self.crash_sidewalk = True
             contacts.add(MetaDriveType.BOUNDARY_LINE)
+
+        elif res.hasHit() and res.getNode().getName() == MetaDriveType.BOUNDARY_SIDEWALK:
+            self.crash_sidewalk = True
+            contacts.add(MetaDriveType.BOUNDARY_SIDEWALK)
+
+        elif res.hasHit() and res.getNode().getName() == MetaDriveType.GUARDRAIL:
+            self.crash_sidewalk = True
+            contacts.add(MetaDriveType.GUARDRAIL)
+
+        # elif res.hasHit():
+        #     print("Unclassified collision: ", res.getNode().getName())
 
         # only for visualization detection
         if self.render:
@@ -850,8 +775,13 @@ class BaseVehicle(BaseObject, BaseVehicleState):
                 CollisionGroup.LaneSurface,
                 in_static_world=True if not self.engine.global_config["debug_static_world"] else False
             )
-            if not res.hasHit() or res.getNode().getName() != MetaDriveType.LANE_SURFACE_STREET:
+            if not res.hasHit():
                 contacts.add(MetaDriveType.GROUND)
+            else:
+                if MetaDriveType.is_lane(res.getNode().getName()):
+                    contacts.add(res.getNode().getName())
+                else:
+                    contacts.add(MetaDriveType.GROUND)
 
         self.contact_results.update(contacts)
 
@@ -861,20 +791,6 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             self.navigation.destroy()
         self.navigation = None
         self.wheels = None
-        if self.side_detector is not None:
-            self.side_detector.destroy()
-            self.side_detector = None
-        if self.lane_line_detector is not None:
-            self.lane_line_detector.destroy()
-            self.lane_line_detector = None
-        if self.lidar is not None:
-            self.lidar.destroy()
-            self.lidar = None
-        if len(self.image_sensors) != 0:
-            for sensor in self.image_sensors.values():
-                if sensor is not self.engine.main_camera:
-                    sensor.destroy()
-        self.image_sensors = {}
         if self.light is not None:
             self.remove_light()
 
@@ -949,7 +865,8 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         return ret
 
     def _update_overtake_stat(self):
-        if self.config["overtake_stat"] and self.lidar.available:
+        lidar_available = self.config["lidar"]["num_lasers"] > 0 and self.config["lidar"]["distance"] > 0
+        if self.config["overtake_stat"] and lidar_available:
             surrounding_vs = self.lidar.get_surrounding_vehicles()
             routing = self.navigation
             ckpt_idx = routing._target_checkpoints_index
@@ -971,9 +888,6 @@ class BaseVehicle(BaseObject, BaseVehicleState):
     def __del__(self):
         super(BaseVehicle, self).__del__()
         # self.engine = None
-        self.lidar = None
-        self.mini_map = None
-        self.rgb_camera = None
         self.navigation = None
         self.wheels = None
 
@@ -983,8 +897,8 @@ class BaseVehicle(BaseObject, BaseVehicleState):
 
     def set_wheel_friction(self, new_friction):
         raise ValueError()
-        for wheel in self.wheels:
-            wheel.setFrictionSlip(new_friction)
+        # for wheel in self.wheels:
+        #     wheel.setFrictionSlip(new_friction)
 
     @property
     def overspeed(self):
@@ -1009,23 +923,11 @@ class BaseVehicle(BaseObject, BaseVehicleState):
     def detach_from_world(self, physics_world):
         if self.navigation is not None:
             self.navigation.detach_from_world()
-        if self.lidar is not None:
-            self.lidar.detach_from_world()
-        if self.side_detector is not None:
-            self.side_detector.detach_from_world()
-        if self.lane_line_detector is not None:
-            self.lane_line_detector.detach_from_world()
         super(BaseVehicle, self).detach_from_world(physics_world)
 
     def attach_to_world(self, parent_node_path, physics_world):
-        if self.config["show_navi_mark"] and self.config["need_navigation"]:
+        if self.config["show_navi_mark"] and self.config["need_navigation"] and self.navigation is not None:
             self.navigation.attach_to_world(self.engine)
-        if self.lidar is not None and self.config["show_lidar"]:
-            self.lidar.attach_to_world(self.engine)
-        if self.side_detector is not None and self.config["show_side_detector"]:
-            self.side_detector.attach_to_world(self.engine)
-        if self.lane_line_detector is not None and self.config["show_lane_line_detector"]:
-            self.lane_line_detector.attach_to_world(self.engine)
         super(BaseVehicle, self).attach_to_world(parent_node_path, physics_world)
 
     def set_break_down(self, break_down=True):
@@ -1042,11 +944,11 @@ class BaseVehicle(BaseObject, BaseVehicleState):
 
     @property
     def top_down_length(self):
-        return self.LENGTH
+        return self.config["top_down_length"] if self.config["top_down_length"] else self.LENGTH
 
     @property
     def top_down_width(self):
-        return self.WIDTH
+        return self.config["top_down_width"] if self.config["top_down_width"] else self.WIDTH
 
     @property
     def lane(self):
@@ -1064,13 +966,9 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             rand_c = color[2]  # A pretty green
             c = rand_c
         return c
-    
-    @panda_color.setter
-    def panda_color(self,new_color):
-        self.set_color(new_color)
 
     def before_reset(self):
-        for obj in [self.navigation, self.lidar, self.side_detector, self.lane_line_detector]:
+        for obj in [self.navigation]:
             if obj is not None and hasattr(obj, "before_reset"):
                 obj.before_reset()
 
@@ -1130,3 +1028,15 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         y.reparentTo(self.coordinates_debug_np)
         z.reparentTo(self.coordinates_debug_np)
         self.coordinates_debug_np.reparentTo(self.origin)
+
+    @property
+    def lidar(self):
+        return self.engine.get_sensor("lidar")
+
+    @property
+    def side_detector(self):
+        return self.engine.get_sensor("side_detector")
+
+    @property
+    def lane_line_detector(self):
+        return self.engine.get_sensor("lane_line_detector")

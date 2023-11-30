@@ -1,5 +1,10 @@
+"""
+This file create a TestBlock class, which resembles the ``engine'' in normal code. By building this TestBlock,
+we can directly pop up a Panda3D window and visualize the content, e.g. the road blocks that are constructed via
+block.construct_block(test_block.render, test_block.world).
+"""
 from typing import Union, Tuple
-
+from metadrive.engine.asset_loader import close_asset_loader
 from direct.showbase import ShowBase
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletDebugNode
 from panda3d.core import Vec3, NodePath, LineSegs
@@ -13,8 +18,9 @@ from metadrive.engine.core.physics_world import PhysicsWorld
 
 class TestBlock(ShowBase.ShowBase):
     def __init__(self, debug=False, window_type="onscreen"):
-        self.debug = debug
+        self.debug = True
         super(TestBlock, self).__init__(windowType=window_type)
+        self.mode = "onscreen"
         self.setBackgroundColor(BKG_COLOR)
         if window_type != "none":
             self.setFrameRateMeter(True)
@@ -53,8 +59,6 @@ class TestBlock(ShowBase.ShowBase):
             self.debugNP = debugNP
         if self.debugNP.isHidden():
             self.debugNP.show()
-        else:
-            self.debugNP.hide()
 
     def vis_big(self, big):
         # self.cam.setPos(200, 700, 1000)
@@ -71,7 +75,7 @@ class TestBlock(ShowBase.ShowBase):
 
     def setup(self):
         self.worldNP = self.render.attachNewNode('World')
-        self.world = PhysicsWorld()
+        self.world = PhysicsWorld(debug=self.debug)
         self.physics_world = self.world
 
         # Ground (static)
@@ -81,6 +85,7 @@ class TestBlock(ShowBase.ShowBase):
         self.groundNP.setPos(0, 0, 0)
         self.groundNP.setCollideMask(CollisionGroup.AllOn)
         self.world.dynamic_world.attachRigidBody(self.groundNP.node())
+        self.toggleDebug()
 
     def update(self, task):
         dt = 1 / 60
@@ -114,7 +119,6 @@ class TestBlock(ShowBase.ShowBase):
         line_seg.setThickness(thickness)
         np = NodePath(line_seg.create(False))
         np.reparentTo(self.render)
-        # TODO(PZH): NodePath is not registered.
 
     def show_bounding_box(self, road_network):
         bound_box = road_network.get_bounding_box()
@@ -122,6 +126,29 @@ class TestBlock(ShowBase.ShowBase):
         for k, p in enumerate(points[:-1]):
             for p_ in points[k + 1:]:
                 self.draw_line_3d((*p, 2), (*p_, 2), (1, 0., 0., 1), 2)
+
+    def close(self):
+        """
+        Close the showbase
+        Returns: None
+
+        """
+        self.taskMgr.stop()
+        # It will report a warning said AsynTaskChain is created when taskMgr.destroy() is called but a new showbase is
+        # created.
+        self.taskMgr.destroy()
+        self.physics_world.dynamic_world.clearContactAddedCallback()
+        self.physics_world.destroy()
+        self.destroy()
+        close_asset_loader()
+
+        import sys
+        if sys.version_info >= (3, 0):
+            import builtins
+        else:
+            import __builtin__ as builtins
+        if hasattr(builtins, "base"):
+            del builtins.base
 
 
 if __name__ == "__main__":

@@ -2,7 +2,6 @@ import math
 import queue
 from collections import deque
 from typing import Tuple
-
 import numpy as np
 from direct.controls.InputState import InputState
 from panda3d.core import Vec3, Point3, PNMImage
@@ -22,11 +21,13 @@ try:
     from panda3d.core import GraphicsOutput, Texture, GraphicsStateGuardianBase, DisplayRegionDrawCallbackData
 except ImportError:
     _cuda_enable = False
+from metadrive.component.sensors.base_sensor import BaseSensor
 
 
-class MainCamera:
+class MainCamera(BaseSensor):
     """
-    Only chase vehicle now
+    It is a third-person perspective camera for chasing the vehicle. The view in this camera will be rendered into the
+    main image buffer (main window). It is also a sensor, so perceive() can be called to access the rendered image.
     """
 
     queue_length = 3
@@ -40,6 +41,8 @@ class MainCamera:
     MOUSE_MOVE_INTO_LATENCY = 2
     MOUSE_SPEED_MULTIPLIER = 1
 
+    num_channels = 3
+
     def __init__(self, engine, camera_height: float, camera_dist: float):
         self._origin_height = camera_height
         # self.engine = engine
@@ -51,7 +54,8 @@ class MainCamera:
         self.camera_pitch = -engine.global_config["camera_pitch"] if engine.global_config["camera_pitch"
                                                                                           ] is not None else None
         self.camera_smooth = engine.global_config["camera_smooth"]
-        self.direction_running_mean = deque(maxlen=20 if self.camera_smooth else 1)
+        self.camera_smooth_buffer_size = engine.global_config["camera_smooth_buffer_size"]
+        self.direction_running_mean = deque(maxlen=self.camera_smooth_buffer_size if self.camera_smooth else 1)
         self.world_light = engine.world_light  # light chases the chase camera, when not using global light
         self.inputs = InputState()
         self.current_track_vehicle = None
@@ -104,6 +108,7 @@ class MainCamera:
         self.enable_cuda = engine.global_config["image_on_cuda"] and need_cuda
 
         self.cuda_graphics_resource = None
+        self.engine.sensors["main_camera"] = self
         if self.enable_cuda:
             assert _cuda_enable, "Can not enable cuda rendering pipeline"
 
@@ -128,10 +133,9 @@ class MainCamera:
                     with self as array:
                         self.cuda_rendered_result = array
 
-            # Fill the buffer due to multi-thread
-            engine.graphicsEngine.renderFrame()
-            engine.graphicsEngine.renderFrame()
-            engine.graphicsEngine.renderFrame()
+            # Fill the buffer due to multi-thread (3 stage)
+            for _ in range(3):
+                engine.graphicsEngine.renderFrame()
             engine.cam.node().getDisplayRegion(0).setDrawCallback(_callback_func)
 
             self.gsg = GraphicsStateGuardianBase.getDefaultGsg()
@@ -226,7 +230,7 @@ class MainCamera:
             )
 
         if self.world_light is not None:
-            self.world_light.step(current_pos)
+            self.world_light.set_pos(current_pos)
 
         # Don't use reparentTo()
         # pos = vehicle.convert_to_world_coordinates([0.8, 0.], vehicle.position)
@@ -344,6 +348,8 @@ class MainCamera:
             self.camera_x += 1.0
 
         self.camera.setPos(self.camera_x, self.camera_y, self.top_down_camera_height)
+        if self.world_light is not None:
+            self.world_light.set_pos([self.camera_x, self.camera_y])
         if self.engine.global_config["show_coordinates"]:
             self.engine.set_coordinates_indicator_pos([self.camera_x, self.camera_y])
         self.camera.lookAt(self.camera_x, self.camera_y, 0)
@@ -409,11 +415,9 @@ class MainCamera:
     def mouse_into_window(self):
         return True if not self._last_frame_has_mouse and self.has_mouse else False
 
-    def get_pixels_array(self, vehicle, clip):
+    def perceive(self, vehicle, clip):
         engine = get_engine()
         assert engine.main_camera.current_track_vehicle is vehicle, "Tracked vehicle mismatch"
-        if engine.episode_step <= 1:
-            engine.graphicsEngine.renderFrame()
         if self.enable_cuda:
             assert self.cuda_rendered_result is not None
             img = self.cuda_rendered_result[..., :-1][..., ::-1][::-1]
@@ -422,10 +426,10 @@ class MainCamera:
             img = np.frombuffer(origin_img.getRamImage().getData(), dtype=np.uint8)
             img = img.reshape((origin_img.getYSize(), origin_img.getXSize(), 4))
             img = img[::-1]
-            img = img[..., :-1]
+            img = img[..., :self.num_channels]
 
         if not clip:
-            return img.astype(np.uint8)
+            return img.astype(np.uint8, copy=False, order="C")
         else:
             return img / 255
 
@@ -497,7 +501,6 @@ class MainCamera:
             raise RuntimeError("Cannot map an unregistered buffer.")
         if self.mapped:
             return self._cuda_buffer
-        # self.engine.graphicsEngine.renderFrame()
         check_cudart_err(cudart.cudaGraphicsMapResources(1, self.cuda_graphics_resource, stream))
         array = check_cudart_err(cudart.cudaGraphicsSubResourceGetMappedArray(self.graphics_resource, 0, 0))
         channelformat, cudaextent, flag = check_cudart_err(cudart.cudaArrayGetInfo(array))

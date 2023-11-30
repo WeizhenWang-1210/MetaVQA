@@ -1,6 +1,6 @@
 from metadrive.component.map.base_map import BaseMap
 from metadrive.component.map.pg_map import MapGenerateMethod
-from metadrive.component.vehicle_module.depth_camera import DepthCamera
+from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.utils import setup_logger
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
             "vehicle_config": dict(
                 mini_map=(168 * w_f * 6, 84 * h_f * 6, 270),  # buffer length, width
                 rgb_camera=(168 * w_f, 84 * h_f),  # buffer length, width
-                depth_camera=(168 * w_f, 84 * h_f, True),  # buffer length, width, view_ground
+                depth_camera=(168 * w_f, 84 * h_f),  # buffer length, width, view_ground
                 show_navi_mark=False,
                 increment_steering=False,
                 wheel_friction=0.6,
@@ -54,7 +54,6 @@ if __name__ == "__main__":
 
     # for sensor in env.vehicle.image_sensors.values():
     #     sensor.remove_display_region(env.engine)
-    # env.vehicle.vehicle_panel.remove_display_region(env.engine)
     # env.vehicle.contact_result_render.detachNode()
     # env.vehicle.navigation._right_arrow.detachNode()
 

@@ -16,7 +16,6 @@ We recommend to use the command following to install::
     cd metadrive
     pip install -e .
 
-
 To check whether MetaDrive is successfully installed, please run::
 
     python -m metadrive.examples.profile_metadrive
@@ -68,10 +67,12 @@ Installation:
 
 #. After cloning the repo, use ``pip install -e .[cuda]`` to install, or ``pip install -e metadrive-simulator[cuda]`` if you are using pip.
 #. Install Torch: ``conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge``
-#. Install CuPy: ``conda install -c conda-forge cupy``
+#. Install CuPy: ``pip install cupy-cuda11x``
 #. Install Cuda-Python: ``conda install -c nvidia cuda-python``
-#. For verifying your installation, cd ``metadrive/examples`` and run ``python verify_image_on_cuda.py``
+#. For verifying your installation, cd ``metadrive/examples`` and run ``python verify_image_observation.py --cuda``
 
 
-After running the script, if no error messages, then congratulations! It works. you can also use ``python verify_image_on_cuda.py --render`` to visualize the image observations.
-Besides, a ``--native`` flag can be added to benchmark the original image collection pipeline as a comparison.  
+After running the script, if no error messages, then congratulations! It works. you can also use ``python verify_image_observation.py --cuda --render`` to visualize the image observations.
+Besides, removing ``--cuda`` flag enables benchmarking the original image collection pipeline as a comparison.
+And ``--camera`` argument is for choosing sensors from [``rgb``, ``depth``, ``semantic``, ``main`` (default)].
+

@@ -8,6 +8,16 @@ from setuptools import setup, find_namespace_packages  # This should be place at
 ROOT_DIR = os.path.dirname(__file__)
 
 
+def get_version():
+    context = {}
+    with open('./metadrive/version.py', 'r') as file:
+        exec(file.read(), context)
+    return context['VERSION']
+
+
+VERSION = get_version()
+
+
 def is_mac():
     return sys.platform == "darwin"
 
@@ -26,10 +36,8 @@ packages = find_namespace_packages(
     exclude=("docs", "docs.*", "documentation", "documentation.*", "build.*"))
 print("We will install the following packages: ", packages)
 
-""" ===== Remember to modify the PG_EDITION at first ====="""
-version = "0.3.0.1"
-
 install_requires = [
+    "requests",
     "gymnasium>=0.28, <0.29",
     "numpy>=1.21.6, <=1.24.2",
     "matplotlib",
@@ -39,12 +47,12 @@ install_requires = [
     "yapf",
     "seaborn",
     "tqdm",
+    "progressbar",
     # "panda3d==1.10.8",
     "panda3d==1.10.13",
     "panda3d-gltf==0.13",  # 0.14 will bring some problems
     "panda3d-simplepbr",
     "pillow",
-    "protobuf==3.20.3",
     "pytest",
     "opencv-python",
     "lxml",
@@ -52,10 +60,7 @@ install_requires = [
     "psutil",
     "geopandas",
     "shapely",
-    "objaverse",
-    "trimesh",
-    "openai",
-    "pyglet<2"
+    "filelock"
 ]
 
 nuplan_requirement = [
@@ -68,7 +73,6 @@ nuplan_requirement = [
     "boto3",
     "aioboto3"
 ]
-
 
 # Or try:
 #   pip install git+https://github.com/waymo-research/waymo-open-dataset.git
@@ -85,13 +89,17 @@ cuda_requirement = [
 ]
 
 gym_requirement = [
-    "gym>=0.20.0, <=0.26.0"
+    "gym>=0.19.0, <=0.26.0"
+]
+
+ros_requirement = [
+    "zmq"
 ]
 
 setup(
     name="metadrive-simulator",
     python_requires='>=3.6, <3.12',  # do version check with assert
-    version=version,
+    version=VERSION,
     description="An open-ended driving simulator with infinite scenes",
     url="https://github.com/metadriverse/metadrive",
     author="MetaDrive Team",
@@ -103,6 +111,7 @@ setup(
         "nuplan": nuplan_requirement,
         "waymo": waymo_requirement,
         "gym": gym_requirement,
+        "ros": ros_requirement,
         "all": nuplan_requirement + cuda_requirement
     },
     include_package_data=True,
@@ -112,33 +121,43 @@ setup(
 )
 
 """
-How to publish to pypi?  Noted by Zhenghao in Dec 27, 2020.
+How to publish to pypi and Draft github Release?  Noted by Zhenghao and Quanyi in Dec 27, 2020.
 
-0. Rename version in metadrive/constants.py and setup.py
+0. Checkout a new branch from main called releases/x.y.z
 
-1. Remove old files and ext_modules from setup() to get a clean wheel for all platforms in py3-none-any.wheel
+1. Rename VERSION in metadrive/version.py to x.y.z
+
+2. Revise the version in metadrive/assets/version.txt, and compress the folder: zip -r assets.zip assets
+
+3. commit changes and push this branch to remote
+
+4. Draft a release on github with new version number and upload assets.zip 
+
+5. Remove old files and ext_modules from setup() to get a clean wheel for all platforms in py3-none-any.wheel
     rm -rf dist/ build/ documentation/build/ metadrive_simulator.egg-info/ docs/build/
 
-2. Rename current version to X.Y.Z.rcA, where A is arbitrary value represent "release candidate A". 
+6. Rename current version to X.Y.Z.rcA, where A is arbitrary value represent "release candidate A". 
    This is really important since pypi do not support renaming and re-uploading. 
-   Rename version in metadrive/constants.py and setup.py 
+   Rename version in metadrive/versions.py 
 
-3. Get wheel
+7. Get wheel
     python setup.py sdist bdist_wheel
 
-    WARNING: when create wheels on windows, modifying MANIFEST.in to include assets by using
-    recursive-include metadrive\\assets\\ *
-    recursive-include metadrive\\examples\\ *
-
-4. Upload to test channel
+8. Upload to test channel
     twine upload --repository testpypi dist/*
 
-5. Test as next line. If failed, change the version name and repeat 1, 2, 3, 4, 5.
+9. Test as next line. If failed, change the version name and repeat 1, 2, 3, 4, 5.
     pip install --index-url https://test.pypi.org/simple/ metadrive
 
-6. Rename current version to X.Y.Z in setup.py, rerun 1, 3 steps.
+10. Rename current version to X.Y.Z in setup.py, rerun 1, 3 steps.
 
-7. Upload to production channel 
+11. Upload to production channel 
     twine upload dist/*
+
+12. Upload the generated .whl file to release files
+
+13. merge this branch into main
+
+!!!!!!!!!!!!! NOTE: please make sure that unzip assets.zip will generate a folder called assets instead of files  
 
 """

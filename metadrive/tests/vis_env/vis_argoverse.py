@@ -3,6 +3,8 @@ from metadrive.envs.metadrive_env import MetaDriveEnv
 
 
 class ArgoverseEnv(MetaDriveEnv):
+    raise DeprecationWarning("This env is deprecated")
+
     def _post_process_config(self, config):
         config = super(ArgoverseEnv, self)._post_process_config(config)
         config["vehicle_config"]["spawn_lane_index"] = ("11713", "4250", 0)
@@ -30,7 +32,6 @@ if __name__ == "__main__":
             "traffic_density": 0.,
             # "debug_physics_world": True,
             "pstats": True,
-            "global_light": True,
             # "debug_static_world":True,
             "cull_scene": False,
             # "controller":"joystick",

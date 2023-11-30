@@ -1,6 +1,11 @@
-recursive-include metadrive/assets/ *
 recursive-include metadrive/examples/ *
-recursive-include metadrive\\assets\\ *
 recursive-include metadrive\\examples\\ *
-recursive-include metadrive\assets\ *
 recursive-include metadrive\examples\ *
+
+recursive-include metadrive/render_pipeline/ *
+recursive-include metadrive\\render_pipeline\\ *
+recursive-include metadrive\render_pipeline\ *
+
+recursive-include metadrive/shaders/ *
+recursive-include metadrive\\shaders\\ *
+recursive-include metadrive\shaders\ *
