@@ -29,10 +29,8 @@ if __name__ == "__main__":
         on_continuous_line_done=False,
         out_of_route_done=True,
         vehicle_config=dict(show_lidar=False, show_navi_mark=False),
-        debug=True,
-        debug_static_world=True,
-        #debug_physics_world = True,
-        multi_thread_render = False,
+        # debug=True,
+        # debug_static_world=True,
         map=4,  # seven block
         start_seed=10,
     )
