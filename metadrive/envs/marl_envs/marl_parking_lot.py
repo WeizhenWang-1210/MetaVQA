@@ -212,8 +212,8 @@ class MultiAgentParkingLotEnv(MultiAgentMetaDrive):
             ret.append(Road(ParkingLot.node(1, i, 5), ParkingLot.node(1, i, 6)))
         return ret
 
-    def _merge_extra_config(self, config) -> Config:
-        ret_config = super(MultiAgentParkingLotEnv, self)._merge_extra_config(config)
+    def _post_process_config(self, config):
+        ret_config = super(MultiAgentParkingLotEnv, self)._post_process_config(config)
         # add extra assert
         parking_space_num = ret_config["parking_space_num"]
         assert parking_space_num % 2 == 0, "number of parking spaces must be multiples of 2"
@@ -403,9 +403,8 @@ def _vis():
                 },
                 "show_lidar": False,
             },
-            "debug_static_world": True,
-            "debug_physics_world": True,
-            "global_light": True,
+            "debug_static_world": False,
+            "debug_physics_world": False,
             "use_render": True,
             "debug": True,
             "manual_control": True,
@@ -451,6 +450,7 @@ def _vis():
             render_text["current_road"] = v.navigation.current_road
 
         env.render(text=render_text)
+        d = tm
         for kkk, ddd in d.items():
             if ddd and kkk != "__all__":
                 print(
@@ -528,6 +528,7 @@ def _long_run():
         for step in range(10000):
             act = env.action_space.sample()
             o, r, tm, tc, i = env.step(act)
+            d = tm
             if step == 0:
                 assert not any(d.values())
 
@@ -569,5 +570,4 @@ if __name__ == "__main__":
     #     MultiAgentParkingLotEnv,
     #     False,
     #     other_traj="metasvodist_parking_best.json",
-    #     extra_config={"global_light": True}
     # )

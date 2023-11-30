@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-from metadrive.component.vehicle_module.vehicle_panel import VehiclePanel
+from metadrive.component.sensors.dashboard import DashBoard
 from metadrive.component.vehicle_navigation_module.trajectory_navigation import NuPlanTrajectoryNavigation
 from metadrive.constants import TerminationState
 from metadrive.envs.base_env import BaseEnv
@@ -79,7 +79,7 @@ NUPLAN_ENV_CONFIG = dict(
     crash_vehicle_done=True,
 
     # ===== others =====
-    interface_panel=[VehiclePanel],  # for boosting efficiency
+    interface_panel=["dashboard"],  # for boosting efficiency
 )
 
 
@@ -93,19 +93,11 @@ class NuPlanEnv(BaseEnv):
     def __init__(self, config=None):
         super(NuPlanEnv, self).__init__(config)
 
-    def _merge_extra_config(self, config):
-        # config = self.default_config().update(config, allow_add_new_key=True)
-        config = self.default_config().update(config, allow_add_new_key=False)
-        return config
-
-    def _get_observations(self):
-        return {self.DEFAULT_AGENT: self.get_single_observation(self.config["vehicle_config"])}
-
-    def get_single_observation(self, vehicle_config):
+    def get_single_observation(self):
         if self.config["use_nuplan_observation"]:
-            o = NuPlanObservation(vehicle_config)
+            o = NuPlanObservation(self.config)
         else:
-            o = LidarStateObservation(vehicle_config)
+            o = LidarStateObservation(self.config)
         return o
 
     def switch_to_top_down_view(self):
@@ -299,7 +291,6 @@ if __name__ == "__main__":
             "debug_static_world": False,
             "debug_physics_world": False,
             "load_city_map": True,
-            # "global_light": False,
             "window_size": (1200, 800),
             # "multi_thread_render_mode": "Cull/Draw",
             "start_scenario_index": 0,

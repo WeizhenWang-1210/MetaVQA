@@ -1,26 +1,30 @@
 import logging
 import math
-from typing import List, Dict
+from abc import ABC
+from typing import Dict
 
 from panda3d.bullet import BulletBoxShape, BulletGhostNode
-from panda3d.core import Vec3, LQuaternionf, Vec4, TextureStage, RigidBodyCombiner, \
-    SamplerState, NodePath, Texture, Material
+from panda3d.bullet import BulletTriangleMeshShape, BulletTriangleMesh
+from panda3d.core import Vec3, LQuaternionf, RigidBodyCombiner, \
+    SamplerState, NodePath, Texture
 
 from metadrive.base_class.base_object import BaseObject
-from metadrive.component.lane.abs_lane import AbstractLane
-from metadrive.component.lane.point_lane import PointLane
 from metadrive.component.road_network.node_road_network import NodeRoadNetwork
 from metadrive.component.road_network.road import Road
-from metadrive.constants import MetaDriveType, CamMask, PGLineType, PGLineColor, DrivableAreaProperty
+from metadrive.constants import CollisionGroup
+from metadrive.constants import MetaDriveType, CamMask, PGLineType, PGLineColor, PGDrivableAreaProperty
+from metadrive.constants import Semantics
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.core.physics_world import PhysicsWorld
+from metadrive.engine.physics_node import BulletRigidBodyNode
 from metadrive.utils.coordinates_shift import panda_vector, panda_heading
 from metadrive.utils.math import norm
+from metadrive.utils.vertex import make_polygon_model
 
 logger = logging.getLogger(__name__)
 
 
-class BaseBlock(BaseObject, DrivableAreaProperty):
+class BaseBlock(BaseObject, PGDrivableAreaProperty, ABC):
     """
     Block is a driving area consisting of several roads
     Note: overriding the _sample() function to fill block_network/respawn_roads in subclass
@@ -29,7 +33,11 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
     ID = "B"
 
     def __init__(
-        self, block_index: int, global_network: NodeRoadNetwork, random_seed, ignore_intersection_checking=False
+        self,
+        block_index: int,
+        global_network: NodeRoadNetwork,
+        random_seed,
+        ignore_intersection_checking=False,
     ):
         super(BaseBlock, self).__init__(str(block_index) + self.ID, random_seed, escape_random_seed_assertion=True)
         # block information
@@ -50,53 +58,26 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
         self._respawn_roads = []
         self._block_objects = None
 
+        # polygons representing crosswalk and sidewalk
+        self.crosswalks = {}
+        self.sidewalks = {}
+
         if self.render and not self.use_render_pipeline:
-            self.ts_color = TextureStage("color")
-            self.ts_normal = TextureStage("normal")
-            self.ts_normal.setMode(TextureStage.M_normal)
-
-            # Only maintain one copy of asset
-            self.road_texture = self.loader.loadTexture(AssetLoader.file_path("textures", "sci", "new_color.png"))
-            self.road_normal = self.loader.loadTexture(AssetLoader.file_path("textures", "sci", "normal.jpg"))
-            self.road_texture.set_format(Texture.F_srgb)
-            self.road_normal.set_format(Texture.F_srgb)
-            self.road_texture.setMinfilter(SamplerState.FT_linear_mipmap_linear)
-            self.road_texture.setAnisotropicDegree(8)
-
-            # # continuous line
-            # self.lane_line_model = self.loader.loadModel(AssetLoader.file_path("models", "box.bam"))
-            # self.lane_line_model.setPos(0, 0, -DrivableAreaProperty.LANE_LINE_GHOST_HEIGHT / 2)
-            self.lane_line_texture = self.loader.loadTexture(AssetLoader.file_path("textures", "sci", "floor.jpg"))
-            # self.lane_line_model.setScale(DrivableAreaProperty.STRIPE_LENGTH*4,
-            #                                    DrivableAreaProperty.LANE_LINE_WIDTH,
-            #                                    DrivableAreaProperty.LANE_LINE_THICKNESS)
-            # # self.lane_line_normal = self.loader.loadTexture(
-            # #     AssetLoader.file_path("textures", "sci", "floor_normal.jpg"))
-            # # self.lane_line_texture.set_format(Texture.F_srgb)
-            # # self.lane_line_normal.set_format(Texture.F_srgb)
-            # self.lane_line_model.setTexture(self.ts_color, self.lane_line_texture)
-            # # self.lane_line_model.setTexture(self.ts_normal, self.lane_line_normal)
-            #
-            # # # broken line
-            # self.broken_lane_line_model = self.loader.loadModel(AssetLoader.file_path("models", "box.bam"))
-            # self.broken_lane_line_model.setScale(DrivableAreaProperty.STRIPE_LENGTH,
-            #                                           DrivableAreaProperty.LANE_LINE_WIDTH,
-            #                                           DrivableAreaProperty.LANE_LINE_THICKNESS)
-            # self.broken_lane_line_model.setPos(0, 0, -DrivableAreaProperty.LANE_LINE_GHOST_HEIGHT / 2)
-            # self.broken_lane_line_model.setTexture(self.ts_color, self.lane_line_texture)
-
             # side
             self.side_texture = self.loader.loadTexture(AssetLoader.file_path("textures", "sidewalk", "color.png"))
-            self.side_texture.set_format(Texture.F_srgb)
+            # self.side_texture.set_format(Texture.F_srgb)
+            self.side_texture.setWrapU(Texture.WM_repeat)
+            self.side_texture.setWrapV(Texture.WM_repeat)
             self.side_texture.setMinfilter(SamplerState.FT_linear_mipmap_linear)
             self.side_texture.setAnisotropicDegree(8)
             self.side_normal = self.loader.loadTexture(AssetLoader.file_path("textures", "sidewalk", "normal.png"))
-            self.side_normal.set_format(Texture.F_srgb)
+            # self.side_normal.set_format(Texture.F_srgb)
+            self.side_normal.setWrapU(Texture.WM_repeat)
+            self.side_normal.setWrapV(Texture.WM_repeat)
+
             self.sidewalk = self.loader.loadModel(AssetLoader.file_path("models", "box.bam"))
             self.sidewalk.setTwoSided(False)
-            self.sidewalk.setTexture(self.ts_color, self.side_texture)
-            # self.sidewalk = self.loader.loadModel(AssetLoader.file_path("models", "output.egg"))
-            # self.sidewalk.setTexture(self.ts_normal, self.side_normal)
+            self.sidewalk.setTexture(self.side_texture)
 
     def _sample_topology(self) -> bool:
         """
@@ -153,6 +134,8 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
         for obj in self._block_objects:
             obj.destroy()
         self._block_objects = None
+        self.sidewalks = {}
+        self.crosswalks = {}
 
     def construct_from_config(self, config: Dict, root_render_np: NodePath, physics_world: PhysicsWorld):
         success = self.construct_block(root_render_np, physics_world, config)
@@ -201,6 +184,10 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
         self.lane_node_path = NodePath(RigidBodyCombiner(self.name + "_lane"))
         self.lane_vis_node_path = NodePath(RigidBodyCombiner(self.name + "_lane_vis"))
 
+        self.sidewalk_node_path.setTag("type", Semantics.SIDEWALK.label)
+        self.lane_vis_node_path.setTag("type", Semantics.ROAD.label)
+        self.lane_line_node_path.setTag("type", Semantics.LANE_LINE.label)
+
         if skip:  # for debug
             pass
         else:
@@ -211,7 +198,7 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
 
         self.sidewalk_node_path.flattenStrong()
         self.sidewalk_node_path.node().collect()
-        self.sidewalk_node_path.hide(CamMask.ScreenshotCam)
+        self.sidewalk_node_path.hide(CamMask.ScreenshotCam | CamMask.Shadow)
 
         # only bodies reparent to this node
         self.lane_node_path.flattenStrong()
@@ -219,14 +206,14 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
 
         self.lane_vis_node_path.flattenStrong()
         self.lane_vis_node_path.node().collect()
-        self.lane_vis_node_path.hide(CamMask.DepthCam | CamMask.ScreenshotCam)
+        self.lane_vis_node_path.hide(CamMask.DepthCam | CamMask.ScreenshotCam | CamMask.SemanticCam)
 
         self.origin.hide(CamMask.Shadow)
 
         self.sidewalk_node_path.reparentTo(self.origin)
         self.lane_line_node_path.reparentTo(self.origin)
         self.lane_node_path.reparentTo(self.origin)
-        self.lane_vis_node_path.reparentTo(self.origin)
+
         try:
             self._bounding_box = self.block_network.get_bounding_box()
         except:
@@ -264,24 +251,6 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
         """
         pass
 
-    def _add_lane_line(self, lane: AbstractLane, colors: List[Vec4], contruct_two_side=True):
-        raise DeprecationWarning("Leave for argoverse using")
-        if isinstance(lane, PointLane):
-            parent_np = self.lane_line_node_path
-            lane_width = lane.width_at(0)
-            for c, i in enumerate([-1, 1]):
-                line_color = colors[c]
-                acc_length = 0
-                if lane.line_types[c] == PGLineType.CONTINUOUS:
-                    for segment in lane.segment_property:
-                        lane_start = lane.position(acc_length, i * lane_width / 2)
-                        acc_length += segment["length"]
-                        lane_end = lane.position(acc_length, i * lane_width / 2)
-                        middle = (lane_start + lane_end) / 2
-                        self._add_lane_line2bullet(
-                            lane_start, lane_end, middle, parent_np, line_color, lane.line_types[c]
-                        )
-
     def _add_box_body(self, lane_start, lane_end, middle, parent_np: NodePath, line_type, line_color):
         raise DeprecationWarning("Useless, currently")
         length = norm(lane_end[0] - lane_start[0], lane_end[1] - lane_start[1])
@@ -298,14 +267,14 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
         self._node_path_list.append(body_np)
 
         shape = BulletBoxShape(
-            Vec3(length / 2, DrivableAreaProperty.LANE_LINE_WIDTH / 2, DrivableAreaProperty.LANE_LINE_GHOST_HEIGHT)
+            Vec3(length / 2, PGDrivableAreaProperty.LANE_LINE_WIDTH / 2, PGDrivableAreaProperty.LANE_LINE_GHOST_HEIGHT)
         )
         body_np.node().addShape(shape)
-        mask = DrivableAreaProperty.CONTINUOUS_COLLISION_MASK if line_type != PGLineType.BROKEN else DrivableAreaProperty.BROKEN_COLLISION_MASK
+        mask = PGDrivableAreaProperty.CONTINUOUS_COLLISION_MASK if line_type != PGLineType.BROKEN else PGDrivableAreaProperty.BROKEN_COLLISION_MASK
         body_np.node().setIntoCollideMask(mask)
         self.static_nodes.append(body_np.node())
 
-        body_np.setPos(panda_vector(middle, DrivableAreaProperty.LANE_LINE_GHOST_HEIGHT / 2))
+        body_np.setPos(panda_vector(middle, PGDrivableAreaProperty.LANE_LINE_GHOST_HEIGHT / 2))
         direction_v = lane_end - lane_start
         # theta = -numpy.arctan2(direction_v[1], direction_v[0])
         theta = panda_heading(math.atan2(direction_v[1], direction_v[0]))
@@ -330,13 +299,50 @@ class BaseBlock(BaseObject, DrivableAreaProperty):
         self.PART_IDX = 0
         self.ROAD_IDX = 0
         self._respawn_roads.clear()
+        self.crosswalks = {}
+        self.sidewalks = {}
         self._global_network = None
         super(BaseBlock, self).destroy()
 
-    def __del__(self):
-        self.destroy()
-        logger.debug("{} is being deleted.".format(type(self)))
+    # def __del__(self):
+    # self.destroy()
+    # logger.debug("{} is being deleted.".format(type(self)))
 
     @property
     def bounding_box(self):
         return self._bounding_box
+
+    def construct_sidewalk(self):
+        """
+        Construct the sidewalk with collision shape
+        """
+        if self.engine is None or (self.engine.global_config["show_sidewalk"] and not self.engine.use_render_pipeline):
+            for sidewalk in self.sidewalks.values():
+                polygon = sidewalk["polygon"]
+                height = sidewalk.get("height", None)
+                if height is None:
+                    height = PGDrivableAreaProperty.SIDEWALK_THICKNESS
+                z_pos = height / 2
+                np = make_polygon_model(polygon, height)
+                np.reparentTo(self.sidewalk_node_path)
+                np.setPos(0, 0, z_pos)
+                if self.render:
+                    np.setTexture(self.side_texture)
+                # np.setTexture(self.ts_normal, self.side_normal)
+
+                body_node = BulletRigidBodyNode(MetaDriveType.BOUNDARY_SIDEWALK)
+                body_node.setKinematic(False)
+                body_node.setStatic(True)
+                body_np = self.sidewalk_node_path.attachNewNode(body_node)
+                body_np.setPos(0, 0, z_pos)
+                self._node_path_list.append(body_np)
+
+                geom = np.node().getGeom(0)
+                mesh = BulletTriangleMesh()
+                mesh.addGeom(geom)
+                shape = BulletTriangleMeshShape(mesh, dynamic=False)
+
+                body_node.addShape(shape)
+                self.dynamic_nodes.append(body_node)
+                body_node.setIntoCollideMask(CollisionGroup.Sidewalk)
+                self._node_path_list.append(np)

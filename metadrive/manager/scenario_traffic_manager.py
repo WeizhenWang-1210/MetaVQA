@@ -1,11 +1,12 @@
 import copy
-import logging
+from metadrive.engine.logger import get_logger
 from metadrive.utils.math import norm
 import numpy as np
 
 from metadrive.component.static_object.traffic_object import TrafficCone, TrafficBarrier
 from metadrive.component.traffic_participants.cyclist import Cyclist
 from metadrive.component.traffic_participants.pedestrian import Pedestrian
+from metadrive.component.vehicle.base_vehicle import BaseVehicle
 from metadrive.component.vehicle.vehicle_type import get_vehicle_type, reset_vehicle_type_count
 from metadrive.constants import DEFAULT_AGENT
 from metadrive.manager.base_manager import BaseManager
@@ -17,7 +18,7 @@ from metadrive.scenario.scenario_description import ScenarioDescription as SD
 from metadrive.type import MetaDriveType
 from metadrive.utils.math import wrap_to_pi
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 
 class ScenarioTrafficManager(BaseManager):
@@ -162,6 +163,10 @@ class ScenarioTrafficManager(BaseManager):
     def current_scenario_length(self):
         return self.engine.data_manager.current_scenario_length
 
+    @property
+    def vehicles(self):
+        return list(self.engine.get_objects(filter=lambda o: isinstance(o, BaseVehicle)).values())
+
     def spawn_vehicle(self, v_id, track):
         state = parse_object_state(track, self.episode_step)
 
@@ -192,12 +197,17 @@ class ScenarioTrafficManager(BaseManager):
                 float(state["length"]), None if self.even_sample_v else self.np_random, self.need_default_vehicle
             )
         obj_name = v_id if self.engine.global_config["force_reuse_object_name"] else None
+        v_cfg = copy.copy(self._traffic_v_config)
+        if self.engine.global_config["top_down_show_real_size"]:
+            v_cfg["top_down_length"] = track["state"]["length"][self.episode_step]
+            v_cfg["top_down_width"] = track["state"]["width"][self.episode_step]
+            if v_cfg["top_down_length"] < 1 or v_cfg["top_down_width"] < 0.5:
+                logger.warning(
+                    "Scenario ID: {}. The top_down size of vehicle {} is weird: "
+                    "{}".format(self.engine.current_seed, v_id, [v_cfg["length"], v_cfg["width"]])
+                )
         v = self.spawn_object(
-            vehicle_class,
-            position=state["position"],
-            heading=state["heading"],
-            vehicle_config=self._traffic_v_config,
-            name=obj_name
+            vehicle_class, position=state["position"], heading=state["heading"], vehicle_config=v_cfg, name=obj_name
         )
         self._scenario_id_to_obj_id[v_id] = v.name
         self._obj_id_to_scenario_id[v.name] = v_id

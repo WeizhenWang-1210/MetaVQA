@@ -1,9 +1,9 @@
-import logging
+from metadrive.engine.logger import get_logger
 from direct.filter.FilterManager import FilterManager
 import panda3d.core as p3d
 from simplepbr import _load_shader_str
 from typing import Union, List
-
+from panda3d.core import FrameBufferProperties
 import numpy as np
 from panda3d.core import NodePath, Vec3, Vec4, Camera, PNMImage, Shader, RenderState, ShaderAttrib
 
@@ -11,6 +11,12 @@ from metadrive.constants import RENDER_MODE_ONSCREEN, BKG_COLOR, RENDER_MODE_NON
 
 
 class ImageBuffer:
+    """
+    This is a wrapper for FrameBuffer, associated with a camera. The camera scene in the camera view will be rendered
+    into the buffer. Thus, we can access the image in the buffer and can apply effect to the image to implement
+    DepthCamera, SemanticCamera and So on. It also allows opening a display region on the main window to show sensor
+    output.
+    """
     LINE_FRAME_COLOR = (0.8, 0.8, 0.8, 0)
     CAM_MASK = None
     BUFFER_W = 84  # left to right
@@ -19,8 +25,8 @@ class ImageBuffer:
     # display_bottom = 0.8
     # display_top = 1
     display_region = None
-    display_region_size = [1 / 3, 2 / 3, 0.8, 1.0]
     line_borders = []
+    num_channels = 3
 
     def __init__(
         self,
@@ -30,21 +36,20 @@ class ImageBuffer:
         bkg_color: Union[Vec4, Vec3],
         parent_node: NodePath = None,
         frame_buffer_property=None,
-        setup_pbr=False,
-        # engine=None
+        engine=None
     ):
-
+        self.logger = get_logger()
         self._node_path_list = []
 
         # from metadrive.engine.engine_utils import get_engine
-        # self.engine = engine or get_engine()
+        self.engine = engine
         try:
             assert self.engine.win is not None, "{} cannot be made without use_render or image_observation".format(
                 self.__class__.__name__
             )
             assert self.CAM_MASK is not None, "Define a camera mask for every image buffer"
         except AssertionError:
-            logging.debug("Cannot create {}".format(self.__class__.__name__))
+            self.logger.debug("Cannot create {}".format(self.__class__.__name__))
             self.buffer = None
             self.cam = NodePath(Camera("non-sense camera"))
             self._node_path_list.append(self.cam)
@@ -53,12 +58,7 @@ class ImageBuffer:
             return
 
         # self.texture = Texture()
-        if frame_buffer_property is None:
-            self.buffer = self.engine.win.makeTextureBuffer("camera", width, height)
-        else:
-            self.buffer = self.engine.win.makeTextureBuffer("camera", width, height, fbp=frame_buffer_property)
-            # now we have to setup a new scene graph to make this scene
-
+        self.buffer = self._create_buffer(width, height, frame_buffer_property)
         self.origin = NodePath("new render")
 
         # this takes care of setting up their camera properly
@@ -71,64 +71,39 @@ class ImageBuffer:
         self.cam.node().setCameraMask(self.CAM_MASK)
         if parent_node is not None:
             self.origin.reparentTo(parent_node)
-        self.scene_tex = None
-        if setup_pbr:
-            self.manager = FilterManager(self.buffer, self.cam)
-            fbprops = p3d.FrameBufferProperties()
-            fbprops.float_color = True
-            fbprops.set_rgba_bits(16, 16, 16, 16)
-            fbprops.set_depth_bits(24)
-            fbprops.set_multisamples(self.engine.pbrpipe.msaa_samples)
-            self.scene_tex = p3d.Texture()
-            self.scene_tex.set_format(p3d.Texture.F_rgba16)
-            self.scene_tex.set_component_type(p3d.Texture.T_float)
-            self.tonemap_quad = self.manager.render_scene_into(colortex=self.scene_tex, fbprops=fbprops)
-            #
-            defines = {}
-            #
-            post_vert_str = _load_shader_str('post.vert', defines)
-            post_frag_str = _load_shader_str('tonemap.frag', defines)
-            tonemap_shader = p3d.Shader.make(
-                p3d.Shader.SL_GLSL,
-                vertex=post_vert_str,
-                fragment=post_frag_str,
-            )
-            self.tonemap_quad.set_shader(tonemap_shader)
-            self.tonemap_quad.set_shader_input('tex', self.scene_tex)
-            self.tonemap_quad.set_shader_input('exposure', 1.0)
+        self._setup_effect()
+        self.logger.debug("Load Image Buffer: {}".format(self.__class__.__name__))
 
-        logging.debug("Load Image Buffer: {}".format(self.__class__.__name__))
-
-    @property
-    def engine(self):
-        from metadrive.engine.engine_utils import get_engine
-        return get_engine()
-
-    def get_image(self):
+    def _create_buffer(self, width, height, frame_buffer_property):
         """
-        Bugs here! when use offscreen mode, thus the front cam obs is not from front cam now
-        """
-        # self.engine.graphicsEngine.renderFrame()
-        img = PNMImage()
-        self.buffer.getDisplayRegions()[1].getScreenshot(img)
-        return img
+        The buffer is created without frame_buffer_property by default
+        Args:
+            width: Image width
+            height: Image height
+            frame_buffer_property: disabled in Semantic Camera
 
-    def save_image(self, name="debug.png"):
-        """
-        for debug use
-        """
-        img = self.get_image()
-        img.write(name)
+        Returns: Buffer object
 
-    def get_rgb_array(self):
-        if self.engine.episode_step <= 1:
-            self.engine.graphicsEngine.renderFrame()
+        """
+        if frame_buffer_property is not None:
+            return self.engine.win.makeTextureBuffer("camera", width, height, fbp=frame_buffer_property)
+        else:
+            return self.engine.win.makeTextureBuffer("camera", width, height)
+
+    def _setup_effect(self):
+        """
+        Apply effect to the render the scene. Usually setup shader here
+        Returns: None
+
+        """
+        pass
+
+    def get_rgb_array_cpu(self):
         origin_img = self.buffer.getDisplayRegion(1).getScreenshot()
         img = np.frombuffer(origin_img.getRamImage().getData(), dtype=np.uint8)
-        img = img.reshape((origin_img.getYSize(), origin_img.getXSize(), 4))
-        # img = np.swapaxes(img, 1, 0)
+        img = img.reshape((origin_img.getYSize(), origin_img.getXSize(), -1))
         img = img[::-1]
-        img = img[..., :-1]
+        img = img[..., :self.num_channels]
         return img
 
     @staticmethod
@@ -195,8 +170,4 @@ class ImageBuffer:
         clear_node_list(self._node_path_list)
 
     def __del__(self):
-        logging.debug("{} is destroyed".format(self.__class__.__name__))
-
-    @classmethod
-    def update_display_region_size(cls, display_region_size):
-        cls.display_region_size = display_region_size
+        self.logger.debug("{} is destroyed".format(self.__class__.__name__))

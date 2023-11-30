@@ -4,7 +4,7 @@ from typing import Tuple
 import numpy as np
 
 from metadrive.component.lane.pg_lane import PGLane
-from metadrive.constants import DrivableAreaProperty
+from metadrive.constants import MetaDriveType
 from metadrive.constants import PGLineType
 from metadrive.utils.math import wrap_to_pi, norm, Vector
 
@@ -22,30 +22,33 @@ class CircularLane(PGLane):
         line_types: Tuple[PGLineType, PGLineType] = (PGLineType.BROKEN, PGLineType.BROKEN),
         forbidden: bool = False,
         speed_limit: float = 1000,
-        priority: int = 0
+        priority: int = 0,
+        metadrive_type=MetaDriveType.LANE_SURFACE_STREET,
     ) -> None:
         assert angle > 0, "Angle should be greater than 0"
-        super().__init__()
+        super().__init__(metadrive_type)
         self.set_speed_limit(speed_limit)
         self.center = Vector(center)
         self.radius = radius
         self._clock_wise = clockwise
-        self.start_phase = start_phase
-        self.end_phase = self.start_phase + (-angle if self.is_clockwise() else angle)
+        self.start_phase = wrap_to_pi(start_phase)
         self.angle = angle
+        # TODO(pzh): Don't do the wrap_to_pi for self.end_phase because sometime we might want to use self.end_phase
+        #  - self.start_phase to get self.angle (or we probably should eliminate those use cases?)
+        self.end_phase = self.start_phase + (-self.angle if self.is_clockwise() else self.angle)
         self.direction = -1 if clockwise else 1
         self.width = width
         self.line_types = line_types
         self.forbidden = forbidden
         self.priority = priority
 
-        self.length = self.radius * (self.end_phase - self.start_phase) * self.direction
+        self.length = abs(self.radius * (self.end_phase - self.start_phase))
         assert self.length > 0, "end_phase should > (<) start_phase if anti-clockwise (clockwise)"
         self.start = self.position(0, 0)
         self.end = self.position(self.length, 0)
 
     def update_properties(self):
-        self.length = self.radius * (self.end_phase - self.start_phase) * self.direction
+        self.length = abs(self.radius * (self.end_phase - self.start_phase))
         assert self.length > 0, "end_phase should > (<) start_phase if anti-clockwise (clockwise)"
         self.start = self.position(0, 0)
         self.end = self.position(self.length, 0)
@@ -66,36 +69,56 @@ class CircularLane(PGLane):
         return self.width
 
     def local_coordinates(self, position: Tuple[float, float]) -> Tuple[float, float]:
+        """Compute the local coordinates (longitude, lateral) of the given position in this circular lane.
+
+        Args:
+            position: floats in 2D
+
+        Returns:
+            longtidue in float
+            lateral in float
+        """
         delta_x = position[0] - self.center[0]
         delta_y = position[1] - self.center[1]
-        phi = math.atan2(delta_y, delta_x)
-        phi = self.start_phase + wrap_to_pi(phi - self.start_phase)
-        r = norm(delta_x, delta_y)
-        longitudinal = self.direction * (phi - self.start_phase) * self.radius
-        # lateral = self.direction * (self.radius - r)
-        lateral = -self.direction * (self.radius - r)
+        abs_phase = math.atan2(delta_y, delta_x)
+        abs_phase = wrap_to_pi(abs_phase)
+
+        # Processing the relative phase (angle) is extremely complex.
+        start_phase = wrap_to_pi(self.start_phase)
+        end_phase = wrap_to_pi(self.end_phase)
+
+        diff_to_start_phase = abs(wrap_to_pi(abs_phase - start_phase))
+        diff_to_end_phase = abs(wrap_to_pi(abs_phase - end_phase))
+
+        if diff_to_start_phase > np.pi and diff_to_end_phase > np.pi:
+            raise ValueError(
+                f"Undetermined position. Relative phase of the given point to the start phase is"
+                f" {wrap_to_pi(abs_phase - start_phase)} while the phase to the end phase is "
+                f"{wrap_to_pi(abs_phase - end_phase)}. Both of them are > 180deg. "
+                f"We don't know how to compute the longitudinal in this case."
+            )
+
+        # If the point is closer to the end point
+        if diff_to_start_phase > diff_to_end_phase:
+            if self.is_clockwise():
+                diff = self.end_phase - abs_phase
+            else:
+                diff = abs_phase - self.end_phase
+            relative_phase = wrap_to_pi(diff)
+            longitudinal = relative_phase * self.radius + self.length
+        else:
+            if self.is_clockwise():
+                diff = self.start_phase - abs_phase
+            else:
+                diff = abs_phase - self.start_phase
+            relative_phase = wrap_to_pi(diff)
+            longitudinal = relative_phase * self.radius
+
+        # Compute the lateral
+        distance_to_center = norm(delta_x, delta_y)
+        lateral = self.direction * (distance_to_center - self.radius)
+
         return longitudinal, lateral
-
-    def construct_lane_in_block(self, block, lane_index):
-        if self.index is None:
-            self.index = lane_index
-        segment_num = int(self.length / DrivableAreaProperty.LANE_SEGMENT_LENGTH)
-        if segment_num == 0:
-            middle = self.position(self.length / 2, 0)
-            end = self.position(self.length, 0)
-            theta = self.heading_theta_at(self.length / 2)
-            width = self.width_at(0) + DrivableAreaProperty.SIDEWALK_LINE_DIST * 2
-            self.construct_lane_segment(block, middle, width, self.length, theta, lane_index)
-            return
-
-        for i in range(segment_num):
-            middle = self.position(self.length * (i + .5) / segment_num, 0)
-            theta = self.heading_theta_at(self.length * (i + .5) / segment_num)
-            width = self.width_at(0) + DrivableAreaProperty.SIDEWALK_LINE_DIST * 2
-            length = self.length
-            self._construct_lane_only_vis_segment(block, middle, width, length * 1.3 / segment_num, theta)
-
-        self._construct_lane_only_physics_polygon(block, self.polygon)
 
     @property
     def polygon(self):

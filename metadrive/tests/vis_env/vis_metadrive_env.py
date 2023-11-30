@@ -6,49 +6,53 @@ if __name__ == "__main__":
     env = MetaDriveEnv(
         {
             "num_scenarios": 10,
-            "traffic_density": 0.15,
-            "traffic_mode": "hybrid",
+            "traffic_density": 1,
             "start_seed": 74,
             # "_disable_detector_mask":True,
             # "debug_physics_world": True,
-            # "debug": True,
+            "debug": True,
             # "global_light": False,
             # "debug_static_world": True,
-            "show_interface": False,
+            "static_traffic_object": False,
+            "show_interface": True,
+            "random_agent_model": True,
             "cull_scene": False,
             "random_spawn_lane_index": False,
             "random_lane_width": False,
             # "image_observation": True,
             # "controller": "joystick",
             # "show_coordinates": True,
-            "random_agent_model": False,
+            # "random_agent_model": False,
+            "debug_static_world": True,
             "manual_control": True,
             "use_render": True,
-            "accident_prob": 1,
+            "use_mesh_terrain": False,
+            "accident_prob": 0,
             "decision_repeat": 5,
             "daytime": "19:00",
             "interface_panel": [],
             "need_inverse_traffic": False,
             "rgb_clip": True,
-            "map": "CX",
+            "map": "SSS",
             # "agent_policy": ExpertPolicy,
             "random_traffic": False,
             # "random_lane_width": True,
             "driving_reward": 1.0,
             # "pstats": True,
             "force_destroy": False,
+            # "show_terrain"
             # "show_skybox": False,
-            "show_fps": False,
-            "render_pipeline": True,
+            "show_fps": True,
+            # "render_pipeline": True,
             # "camera_dist": 8,
-            "window_size": (1600, 900),
-            "camera_dist": 9,
+            "window_size": (1200, 800),
+            "camera_dist": 13,
             # "camera_pitch": 30,
-            # "camera_height": 1,
+            "camera_height": 3,
             # "camera_smooth": False,
             # "camera_height": -1,
             "vehicle_config": {
-                "enable_reverse": False,
+                "enable_reverse": True,
                 # "vehicle_model": "xl",
                 # "rgb_camera": (1024, 1024),
                 # "spawn_velocity": [8.728615581032535, -0.24411703918728195],
@@ -97,13 +101,15 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    o, _ = env.reset()
+    o, _ = env.reset(seed=74)
+    env.engine.accept("~", env.engine.terrain.reload_terrain_shader)
     if env.config["render_pipeline"]:
         env.engine.accept("5", env.engine.render_pipeline.reload_shaders)
         env.engine.accept("7", acc_speed)
         env.engine.accept("8", de_speed)
         env.engine.accept("9", lift_terrain)
         env.engine.accept("0", lower_terrain)
+    env.engine.accept("`", env.engine.terrain.reload_terrain_shader)
     # env.main_camera.set_follow_lane(True)
     # env.vehicle.get_camera("rgb_camera").save_image(env.vehicle)
     # for line in env.engine.coordinate_line:
@@ -113,10 +119,10 @@ if __name__ == "__main__":
     for s in range(1, 100000):
         # env.vehicle.set_velocity([1, 0], in_local_frame=True)
         o, r, tm, tc, info = env.step([0, 0])
-        if tm:
-            s = time.time()
-            env.reset()
-            print(time.time() - s)
+        # if tm:
+        #     s = time.time()
+        #     env.reset()
+        #     print(time.time() - s)
 
         # env.vehicle.set_pitch(-np.pi/4)
         # [0.09231533, 0.491018, 0.47076905, 0.7691619, 0.5, 0.5, 1.0, 0.0, 0.48037243, 0.8904728, 0.81229943, 0.7317231, 1.0, 0.85320455, 0.9747932, 0.65675277, 0.0, 0.5, 0.5]

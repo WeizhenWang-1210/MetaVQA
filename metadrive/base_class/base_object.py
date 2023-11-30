@@ -1,13 +1,17 @@
 import copy
+from abc import ABC
+
+from metadrive.type import MetaDriveType
+
 import logging
 import math
 from typing import Dict
 
 import numpy as np
 import seaborn as sns
-from panda3d.bullet import BulletWorld, BulletBodyNode
+from panda3d.bullet import BulletWorld, BulletBodyNode, BulletVehicle
 from panda3d.core import LVector3, NodePath, PandaNode
-
+from metadrive.constants import Semantics
 from metadrive.base_class.base_runnable import BaseRunnable
 from metadrive.constants import ObjectState
 from metadrive.engine.asset_loader import AssetLoader
@@ -94,6 +98,8 @@ class PhysicsNodeList(list):
             return
         for node in self:
             bullet_world.remove(node)
+            if isinstance(node, BulletVehicle):
+                break
         self.attached = False
 
     def destroy_node_list(self, bullet_world: BulletWorld):
@@ -102,7 +108,7 @@ class PhysicsNodeList(list):
         self.clear()
 
 
-class BaseObject(BaseRunnable):
+class BaseObject(BaseRunnable, MetaDriveType, ABC):
     """
     BaseObject is something interacting with game engine. If something is expected to have a body in the world or have
     appearance in the world, it must be a subclass of BaseObject.
@@ -113,6 +119,7 @@ class BaseObject(BaseRunnable):
     """
     MASS = None  # if object has a body, the mass will be set automatically
     COLLISION_MASK = None
+    SEMANTIC_LABEL = Semantics.UNLABELED.label
 
     def __init__(self, name=None, random_seed=None, config=None, escape_random_seed_assertion=False):
         """
@@ -120,7 +127,8 @@ class BaseObject(BaseRunnable):
         There parameters doesn't change, such as length of straight road, max speed of one vehicle, etc.
         """
         config = copy.deepcopy(config)
-        super(BaseObject, self).__init__(name, random_seed, config)
+        BaseRunnable.__init__(self, name, random_seed, config)
+        MetaDriveType.__init__(self)
         if not escape_random_seed_assertion:
             assert random_seed is not None, "Please assign a random seed for {} class.".format(self.class_name)
 
@@ -129,6 +137,9 @@ class BaseObject(BaseRunnable):
 
         # each element has its node_path to render, physics node are child nodes of it
         self.origin = NodePath(self.name)
+
+        # semantic color
+        self.origin.setTag("type", self.SEMANTIC_LABEL)
 
         # Temporally store bullet nodes that have to place in bullet world (not NodePath)
         self.dynamic_nodes = PhysicsNodeList()
@@ -170,9 +181,6 @@ class BaseObject(BaseRunnable):
     def panda_color(self):
         return self._panda_color
 
-    def set_color(self, new_color):
-        self._panda_color = new_color
-
     def add_body(self, physics_body, add_to_static_world=False):
         if self._body is None:
             # add it to physics world, in which this object will interact with other object (like collision)
@@ -192,6 +200,7 @@ class BaseObject(BaseRunnable):
 
             self._node_path_list.append(self.origin)
             self.origin = new_origin
+            self.origin.setTag("type", self.SEMANTIC_LABEL)
             if add_to_static_world:
                 self.static_nodes.append(physics_body)
             else:
@@ -240,13 +249,13 @@ class BaseObject(BaseRunnable):
         """
         Fully delete this element and release the memory
         """
+        super(BaseObject, self).destroy()
         try:
             from metadrive.engine.engine_utils import get_engine
         except ImportError:
             pass
         else:
             engine = get_engine()
-
             if engine is not None:
                 self.detach_from_world(engine.physics_world)
                 if self._body is not None and hasattr(self.body, "object"):
@@ -271,6 +280,7 @@ class BaseObject(BaseRunnable):
         """
         Set this object to a place, the default value is the regular height for red car
         :param position: 2d array or list
+        :param height: give a fixed height
         """
         assert len(position) == 2 or len(position) == 3
         if len(position) == 3:
@@ -521,4 +531,9 @@ class BaseObject(BaseRunnable):
 
     @property
     def use_render_pipeline(self):
+        """
+        Return if we are using render_pipeline
+        Returns: Boolean
+
+        """
         return self.engine is not None and self.engine.use_render_pipeline

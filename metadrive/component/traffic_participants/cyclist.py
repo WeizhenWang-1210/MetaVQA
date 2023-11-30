@@ -4,7 +4,7 @@ from typing import Tuple
 from panda3d.bullet import BulletBoxShape
 from panda3d.bullet import BulletCylinderShape
 
-from metadrive.constants import MetaDriveType
+from metadrive.constants import MetaDriveType, Semantics
 from metadrive.constants import CollisionGroup
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.physics_node import BaseRigidBodyNode
@@ -14,14 +14,14 @@ class Cyclist(BaseTrafficParticipant):
     MASS = 80  # kg
     TYPE_NAME = MetaDriveType.CYCLIST
     COLLISION_MASK = CollisionGroup.TrafficParticipants
-
+    SEMANTIC_LABEL = Semantics.BIKE.label
     MODEL = None
 
     HEIGHT = 1.75
 
     def __init__(self, position, heading_theta, random_seed, name=None):
         super(Cyclist, self).__init__(position, heading_theta, random_seed, name=name)
-
+        self.set_metadrive_type(self.TYPE_NAME)
         n = BaseRigidBodyNode(self.name, self.TYPE_NAME)
         self.add_body(n)
 

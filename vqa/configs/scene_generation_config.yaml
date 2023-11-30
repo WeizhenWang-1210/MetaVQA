@@ -1,0 +1,17 @@
+---
+storage_path : "verification"
+map_setting:
+  PG: True
+  map_size: 5
+  map_sequence: ""
+  traffic_density: 0.2
+  inverse_traffic: True
+  structures_density: 0
+  accident_prob: 0
+  num_scenarios: 100
+  start_seed: 10
+sample_frequency: 20
+num_samples: 10
+max_iterations: 10000
+
+...

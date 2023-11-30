@@ -1,18 +1,16 @@
-import math
-
 import numpy as np
 
 from metadrive.component.block.base_block import BaseBlock
 from metadrive.component.lane.scenario_lane import ScenarioLane
 from metadrive.component.road_network.edge_road_network import EdgeRoadNetwork
-from metadrive.constants import DrivableAreaProperty
+from metadrive.constants import PGDrivableAreaProperty
 from metadrive.constants import PGLineType, PGLineColor
 from metadrive.engine.engine_utils import get_engine
 from metadrive.scenario.scenario_description import ScenarioDescription
 from metadrive.type import MetaDriveType
-from metadrive.utils.coordinates_shift import panda_heading
 from metadrive.utils.interpolating_line import InterpolatingLine
 from metadrive.utils.math import norm
+from metadrive.utils.vertex import make_polygon_model
 
 
 class ScenarioBlock(BaseBlock):
@@ -33,12 +31,22 @@ class ScenarioBlock(BaseBlock):
         return e.data_manager.get_scenario(self.map_index, should_copy=False)["map_features"]
 
     def _sample_topology(self) -> bool:
-        for lane_id, data in self.map_data.items():
+        for object_id, data in self.map_data.items():
             if MetaDriveType.is_lane(data.get("type", False)):
                 if len(data[ScenarioDescription.POLYLINE]) <= 1:
                     continue
-                lane = ScenarioLane(lane_id, self.map_data, self.need_lane_localization)
+                lane = ScenarioLane(object_id, self.map_data, self.need_lane_localization)
                 self.block_network.add_lane(lane)
+            elif MetaDriveType.is_sidewalk(data["type"]):
+                self.sidewalks[object_id] = {
+                    ScenarioDescription.TYPE: MetaDriveType.BOUNDARY_SIDEWALK,
+                    ScenarioDescription.POLYGON: data[ScenarioDescription.POLYGON]
+                }
+            elif MetaDriveType.is_crosswalk(data["type"]):
+                self.crosswalks[object_id] = {
+                    ScenarioDescription.TYPE: MetaDriveType.CROSSWALK,
+                    ScenarioDescription.POLYGON: data[ScenarioDescription.POLYGON]
+                }
         return True
 
     def create_in_world(self):
@@ -67,29 +75,15 @@ class ScenarioBlock(BaseBlock):
                         np.asarray(data[ScenarioDescription.POLYLINE]),
                         PGLineColor.YELLOW if MetaDriveType.is_yellow_line(type) else PGLineColor.GREY
                     )
-            # elif MetaDriveType.is_road_edge(type) and MetaDriveType.is_sidewalk(type):
-            #     self.construct_sidewalk(
-            #         convert_polyline_to_metadrive(
-            #             data[ScenarioDescription.POLYLINE], coordinate_transform=self.coordinate_transform
-            #         )
-            #     )
-            # elif MetaDriveType.is_road_edge(type) and not MetaDriveType.is_sidewalk(type):
-            #     self.construct_continuous_line(
-            #         convert_polyline_to_metadrive(
-            #             data[ScenarioDescription.POLYLINE], coordinate_transform=self.coordinate_transform
-            #         ), PGLineColor.GREY
-            #     )
-            # else:
-            #     raise ValueError("Can not build lane line type: {}".format(type))
-            # TODO LQY: DO we need sidewalk?
-            elif MetaDriveType.is_road_edge(type):
+            elif MetaDriveType.is_road_boundary_line(type):
                 self.construct_continuous_line(np.asarray(data[ScenarioDescription.POLYLINE]), color=PGLineColor.GREY)
+        self.construct_sidewalk()
 
     def construct_continuous_line(self, polyline, color):
         line = InterpolatingLine(polyline)
-        segment_num = int(line.length / DrivableAreaProperty.STRIPE_LENGTH)
+        segment_num = int(line.length / PGDrivableAreaProperty.STRIPE_LENGTH)
         for segment in range(segment_num):
-            start = line.get_point(DrivableAreaProperty.STRIPE_LENGTH * segment)
+            start = line.get_point(PGDrivableAreaProperty.STRIPE_LENGTH * segment)
             # trick for optimizing
             dist = norm(start[0] - self.sdc_start_point[0], start[1] - self.sdc_start_point[1])
             if dist > self.LINE_CULL_DIST:
@@ -98,56 +92,41 @@ class ScenarioBlock(BaseBlock):
             if segment == segment_num - 1:
                 end = line.get_point(line.length)
             else:
-                end = line.get_point((segment + 1) * DrivableAreaProperty.STRIPE_LENGTH)
+                end = line.get_point((segment + 1) * PGDrivableAreaProperty.STRIPE_LENGTH)
             node_path_list = ScenarioLane.construct_lane_line_segment(self, start, end, color, PGLineType.CONTINUOUS)
             self._node_path_list.extend(node_path_list)
 
     def construct_broken_line(self, polyline, color):
         line = InterpolatingLine(polyline)
-        segment_num = int(line.length / (2 * DrivableAreaProperty.STRIPE_LENGTH))
+        segment_num = int(line.length / (2 * PGDrivableAreaProperty.STRIPE_LENGTH))
         for segment in range(segment_num):
-            start = line.get_point(segment * DrivableAreaProperty.STRIPE_LENGTH * 2)
+            start = line.get_point(segment * PGDrivableAreaProperty.STRIPE_LENGTH * 2)
             # trick for optimizing
             dist = norm(start[0] - self.sdc_start_point[0], start[1] - self.sdc_start_point[1])
             if dist > self.LINE_CULL_DIST:
                 continue
-            end = line.get_point(segment * DrivableAreaProperty.STRIPE_LENGTH * 2 + DrivableAreaProperty.STRIPE_LENGTH)
+            end = line.get_point(
+                segment * PGDrivableAreaProperty.STRIPE_LENGTH * 2 + PGDrivableAreaProperty.STRIPE_LENGTH
+            )
             if segment == segment_num - 1:
-                end = line.get_point(line.length - DrivableAreaProperty.STRIPE_LENGTH)
+                end = line.get_point(line.length - PGDrivableAreaProperty.STRIPE_LENGTH)
             node_path_list = ScenarioLane.construct_lane_line_segment(self, start, end, color, PGLineType.BROKEN)
             self._node_path_list.extend(node_path_list)
 
-    def construct_sidewalk(self, polyline):
-        line = InterpolatingLine(polyline)
-        seg_len = DrivableAreaProperty.LANE_SEGMENT_LENGTH
-        segment_num = int(line.length / seg_len)
-        # last_theta = None
-        for segment in range(segment_num):
-            lane_start = line.get_point(segment * seg_len)
-            lane_end = line.get_point((segment + 1) * seg_len)
-            if segment == segment_num - 1:
-                lane_end = line.get_point(line.length)
-            direction_v = lane_end - lane_start
-            theta = panda_heading(math.atan2(direction_v[1], direction_v[0]))
-            # if segment == segment_num - 1:
-            #     factor = 1
-            # else:
-            #     factor = 1.25
-            #     if last_theta is not None:
-            #         diff = wrap_to_pi(theta) - wrap_to_pi(last_theta)
-            #         if diff > 0:
-            #             factor += math.sin(abs(diff) / 2) * DrivableAreaProperty.SIDEWALK_WIDTH / norm(
-            #                 lane_start[0] - lane_end[0], lane_start[1] - lane_end[1]
-            #             ) + 0.15
-            #         else:
-            #             factor -= math.sin(abs(diff) / 2) * DrivableAreaProperty.SIDEWALK_WIDTH / norm(
-            #                 lane_start[0] - lane_end[0], lane_start[1] - lane_end[1]
-            #             )
-            last_theta = theta
-            node_path_list = ScenarioLane.construct_sidewalk_segment(
-                self, lane_start, lane_end, length_multiply=1, extra_thrust=0, width=0.2
-            )
-            self._node_path_list.extend(node_path_list)
+    def construct_crosswalk(self):
+        """
+        Construct the crosswalk
+        """
+        raise DeprecationWarning("The Crosswalk is built on terrain now")
+        if self.engine.global_config["show_crosswalk"] and not self.engine.use_render_pipeline:
+            for sidewalk in self.crosswalks.values():
+                polygon = sidewalk["polygon"]
+                np = make_polygon_model(polygon, 0.0)
+                np.reparentTo(self.sidewalk_node_path)
+                np.setPos(0, 0, -0.05)
+                np.setTexture(self.side_texture)
+                # np.setTexture(self.ts_normal, self.side_normal)
+                self._node_path_list.append(np)
 
     @property
     def block_network_type(self):
@@ -157,7 +136,3 @@ class ScenarioBlock(BaseBlock):
         self.map_index = None
         # self.map_data = None
         super(ScenarioBlock, self).destroy()
-
-    def __del__(self):
-        self.destroy()
-        super(ScenarioBlock, self).__del__()

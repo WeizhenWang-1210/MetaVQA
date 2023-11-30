@@ -29,6 +29,8 @@ class ScenarioMap(BaseMap):
             map_index=self.map_index,
             need_lane_localization=self.need_lane_localization
         )
+        self.crosswalks = block.crosswalks
+        self.sidewalks = block.sidewalks
         block.construct_block(self.engine.worldNP, self.engine.physics_world, attach_to_world=True)
         self.blocks.append(block)
 
@@ -75,12 +77,12 @@ class ScenarioMap(BaseMap):
                         "type": MetaDriveType.LINE_SOLID_SINGLE_YELLOW
                         if MetaDriveType.is_yellow_line(type) else MetaDriveType.LINE_SOLID_SINGLE_WHITE
                     }
-            elif MetaDriveType.is_road_edge(type):
+            elif MetaDriveType.is_road_boundary_line(type):
                 line = np.asarray(data[ScenarioDescription.POLYLINE])[..., :2]
                 length = get_polyline_length(line)
                 resampled = resample_polyline(line, interval) if length > interval * 2 else line
                 ret[map_feat_id] = {"polyline": resampled, "type": MetaDriveType.BOUNDARY_LINE}
-            elif type == MetaDriveType.LANE_SURFACE_STREET:
+            elif MetaDriveType.is_lane(type):
                 continue
             # else:
             # # for debug
@@ -137,7 +139,7 @@ if __name__ == "__main__":
 
     # # touch these items so that pickle can work
 
-    # file_path = AssetLoader.file_path("waymo", "0.pkl", return_raw_style=False)
+    # file_path = AssetLoader.file_path("waymo", "0.pkl", unix_style=False)
     # # file_path = "/home/shady/Downloads/test_processed/60.pkl"
     # data = read_scenario_data(file_path)
 
@@ -145,8 +147,8 @@ if __name__ == "__main__":
     default_config["use_render"] = True
     default_config["debug"] = True
     default_config["debug_static_world"] = True
-    default_config["data_directory"] = AssetLoader.file_path("waymo", return_raw_style=False)
-    # default_config["data_directory"] = AssetLoader.file_path("nuscenes", return_raw_style=False)
+    default_config["data_directory"] = AssetLoader.file_path("waymo", unix_style=False)
+    # default_config["data_directory"] = AssetLoader.file_path("nuscenes", unix_style=False)
     # default_config["data_directory"] = "/home/shady/Downloads/test_processed"
     default_config["num_scenarios"] = 1
     engine = initialize_engine(default_config)
