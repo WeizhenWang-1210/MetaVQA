@@ -519,7 +519,7 @@ class TopDownRenderer:
                     (0, 0, 0, 128),
                 )
                 # img.set_alpha(None)
-                img = pygame.transform.flip(img,flip_x=True,flip_y=True)
+                img = pygame.transform.flip(img, flip_x=True, flip_y=True)
                 self.canvas.blit(
                     source=img,
                     dest=(new_position[0] - img.get_width() / 2, new_position[1] - img.get_height() / 2),
