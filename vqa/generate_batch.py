@@ -22,11 +22,17 @@ def powerset(iterable: Iterable):
 
 
 def choose_two(iterable: Iterable):
+    '''
+    choose_two
+    '''
     s = list(iterable)
     return list(combinations(s,2))
 
 
 def cartesianproduct(*space: Iterable):
+    '''
+    return cartesian product of all sets in space
+    '''
     result = []
     for i in product(*space):
         #print(i)
@@ -34,6 +40,9 @@ def cartesianproduct(*space: Iterable):
     return result
 
 def clean(pools, funcs):
+    '''
+    filter pools based on predicte list funcs
+    '''
     result = []
     for pool in pools:
         decide = True
@@ -44,6 +53,9 @@ def clean(pools, funcs):
     return result
 
 def construct_question(spec, format, end, graph):
+    '''
+    Create a QuestionSpecifier, the intermediate representation
+    '''
     #print(spec, format, end, graph)
     if format != "logical":
         color, type, pos = spec

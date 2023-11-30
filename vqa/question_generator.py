@@ -17,6 +17,9 @@ class SubQuery:
                  pos:Iterable[str] = None,
                  next = None,
                  prev = None) -> None:
+        '''
+        Initializer
+        '''
         self.color = color #The color we are looking for
         self.type = type   #The type we are looking for
         self.pos = pos     #The spatial relationship we are looking for
@@ -87,15 +90,28 @@ class Query:
         self.egos = None
 
     def set_reference(self, heading: tuple)->None:
+        '''
+        set reference heading
+        '''
         self.ref_heading = heading
     
     def set_searchspace(self, nodes: Iterable[ObjectNode])->None:
+        '''
+        set the allowed searchspace
+        '''
         self.candidates = nodes
 
     def set_egos(self, nodes: Iterable[ObjectNode]):
+        '''
+        set the center vehicles
+        '''
         self.egos = nodes
     
     def proceed(self):
+        '''
+        Go down the query, store partial answers in sub-query, store the final answer in query
+        
+        '''
         search_spaces = []
         for head in self.heads:
             traverser = head
@@ -110,6 +126,9 @@ class Query:
         return self.ans
     
     def __str__(self) -> str:
+        '''
+        get all answers
+        '''
         print(self.format,[node.id.split("-")[0] for node in self.ans])
      
 def color_wrapper(colors:Iterable[str])->Callable:
@@ -163,6 +182,9 @@ def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_head
 The following three functions are the stand-alone version of filter_constructors
 '''
 def target_color(colors:Iterable[str],candidates:Iterable[ObjectNode])->Iterable[ObjectNode]:
+    '''
+    stand-alone version of filter_color
+    '''
     results = []
     for candidate in candidates:
         if candidate.color in colors:
@@ -170,6 +192,9 @@ def target_color(colors:Iterable[str],candidates:Iterable[ObjectNode])->Iterable
     return results
 
 def target_type(candidates:Iterable[ObjectNode], types:Iterable[str])->Iterable[ObjectNode]:
+    '''
+    stand-alone version of filter_type
+    '''
     results = []
     for candidate in candidates:
         for type in types:
@@ -179,6 +204,9 @@ def target_type(candidates:Iterable[ObjectNode], types:Iterable[str])->Iterable[
     return results
 
 def target_pos(candidates: Iterable[ObjectNode], egos: Iterable[ObjectNode], ref_heading: tuple, spatial_retionships: Iterable[str])->Iterable[ObjectNode]:
+    '''
+    stand-alone version of filter_pos
+    '''
     results = []
     for candidate in candidates:
         for ego in egos:
@@ -187,6 +215,9 @@ def target_pos(candidates: Iterable[ObjectNode], egos: Iterable[ObjectNode], ref
     return results
 
 def subclass(class1:str, class2:str)->bool:
+    '''
+    determine if class1 is the subclass of class2
+    '''
     inheritance = get_inheritance() #inheritance is not a tree. But, it's a DAG from supertype to subtype(like your typing system in C++)
     if class1 == class2:
         return True
@@ -196,6 +227,9 @@ def subclass(class1:str, class2:str)->bool:
     return result
 
 def get_inheritance()->defaultdict:
+    '''
+    Return a lineage tree as a dictionary
+    '''
     inheritance = defaultdict(lambda:[])
     inheritance["Vehicle"] = ["SUV", "Sedan", "Truck", "Sportscar","Jeep","Pickup","Compact Sedan"]
     inheritance["Traffic Obstacle"] = ["Traffic Cone", "Warning sign", "Planar Barrier"]
@@ -219,6 +253,9 @@ class QueryAnswerer:
         self.log = []
 
     def ans(self, query: Query = None):
+        '''
+        Generate answer
+        '''
         answers = []
         if not query:
             for query in self.queries:
@@ -234,19 +271,38 @@ class QueryAnswerer:
         return answers
 
     def add_query(self, query: Query):
+        '''
+        add query to the prophet
+        '''
         self.queries.append(query)
 
     def display_queries(self):
+        '''
+        list all queries
+        '''
+
         for query in self.queries:
             print(query)
     
 def greater(A,B)->bool:
+    '''
+    checker
+    '''
     return A > B
 def equal(A,B)->bool:
+    '''
+    checker
+    '''
     return A==B
 def less(A,B)->bool:
+    '''
+    checker
+    '''
     return A<B
 def count(stuff: Iterable)->int:
+    '''
+    checker
+    '''
     return [len(s) for s in stuff]
     
 '''

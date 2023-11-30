@@ -12,6 +12,9 @@ class ObjectNode:
                  type,
                  height,
                  lane):
+        '''
+        Apparently I need more comments
+        '''
         #More properties could be defined.
         self.pos =  pos                 #(x,y) in world coordinate
         self.color = color              #as annotated

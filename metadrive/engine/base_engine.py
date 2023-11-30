@@ -32,7 +32,7 @@ def generate_distinct_rgb_values():
             for b in range(0, 256, step):
                 distinct_rgb_values.append((round(r / 255, 5), round(g / 255, 5), round(b / 255, 5)))
 
-    return distinct_rgb_values[:8192]  # Return the first 4096 values
+    return distinct_rgb_values[:4096]  # Return the first 4096 values
 
 
 COLOR_SPACE = generate_distinct_rgb_values()
