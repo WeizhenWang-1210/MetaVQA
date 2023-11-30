@@ -17,6 +17,9 @@ class SubQuery:
                  pos:Iterable[str] = None,
                  next = None,
                  prev = None) -> None:
+        '''
+        Initializer
+        '''
         self.color = color #The color we are looking for
         self.type = type   #The type we are looking for
         self.pos = pos     #The spatial relationship we are looking for

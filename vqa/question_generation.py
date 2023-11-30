@@ -81,8 +81,11 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         return result
     
     def translate_to_Q(self):
+        '''
+        Get the functional program
+        '''
         def hookup(subqueries):
-            #string the subqueries together
+            '''string the subqueries together'''
             prev = None
             for subquery in subqueries:
                 if prev:
@@ -90,7 +93,7 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
                 subquery.prev = prev
                 prev = subquery
         def select_end_filter(type):
-            #Given the stringfy type of questiosn, return the corresponding end filter
+            '''Given the stringfy type of questiosn, return the corresponding end filter'''
             if type == "count":
                 return count
             elif type == "Count Greater":
@@ -122,6 +125,9 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
 
 
 def localization_translator_generator():
+    '''
+    return a localization end
+    '''
     def func(query_string):
         result = "Locate the {}".format(query_string)
         return result
@@ -184,6 +190,9 @@ def decode_type(types):
     return types[0].lower() + " "
 
 def decode_predicate(type):
+    '''
+    Convert predicate functional programs to answers
+    '''
     if type == "Count Greater":
         return lambda x : "Are there more {}than {}?".format(x[0],x[1])
     elif type == "Count Equal":
@@ -197,6 +206,9 @@ def decode_predicate(type):
 
 
 def counting_translator_generator():
+    '''
+    Generate English format for counting problem
+    '''
     def func(query_string):
         result = "How many {}are visible and lidar detectable?".format(query_string)
         return result
