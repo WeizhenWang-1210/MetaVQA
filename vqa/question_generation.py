@@ -5,7 +5,8 @@ import argparse
 import glob
 from typing import Callable, Any, Iterable
 from collections import defaultdict
-from vqa.question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess, locate_wrapper
+from vqa.question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual,Describe, locate,CountLess, locate_wrapper
+from vqa.temporal_question_generator import TempSubQuery, TempQuery, TempQueryAnswerer
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import nodify
 
@@ -61,6 +62,12 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         format = self.config["format"]
         if format == "count":
             translator = counting_translator_generator()
+        elif format == "temporal":
+            def decode_predicate():
+                return lambda x: "What are the {} that we just {}?".format(x[0], x[1])
+
+            translator = decode_predicate()
+            return translator(self.TempQtoEn(self.config["paths"]))
         elif format == "logical":
             def decode_predicate(type):
                 '''
@@ -83,7 +90,14 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         elif format == "localize":
             translator = localization_translator_generator()
         return translator(self.QtoEn(self.config["paths"]))
-    
+    def TempQtoEn(self,paths):
+        """
+        Convert List[List[dict]] into English description of the objects referred.
+        """
+        assert len(paths) == 1
+        assert len(paths[0]) == 1
+        result = [paths[0][0]["obj"], paths[0][0]["action"]]
+        return result
     def QtoEn(self,paths):
         """
         Convert List[List[dict]] into English description of the objects referred. 
@@ -149,7 +163,50 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         color_string = decode_color(spec["color"])
         type_string = decode_type(spec["type"])
         return "{}{}{}".format(color_string, type_string, pos_string)
-    
+
+    def translate_temporal_to_Q(self):
+        '''
+        Get the functional program
+        '''
+
+        def hookup(subqueries):
+            '''string the subqueries together'''
+            prev = None
+            for subquery in subqueries:
+                if prev:
+                    prev.next = subquery
+                subquery.prev = prev
+                prev = subquery
+
+        def select_end_filter(type):
+            '''Given the stringfy type of questiosn, return the corresponding end filter'''
+            if type == "count":
+                return count
+            elif type == "Count Greater":
+                return CountGreater
+            elif type == "Count Equal":
+                return CountEqual
+            elif type == "Count Less":
+                return CountLess
+            elif type == "localize":
+                func = locate_wrapper(self.graph.get_ego_node())
+                return func
+            elif type == "Describe":
+                return Describe
+
+
+        paths = self.config["paths"]
+        subqueries = []
+        for path in paths:
+            partial = []
+            for sub in path:
+                partial.append(TempSubQuery(obj=sub['obj'], action=sub['action']))
+            hookup(partial)
+            subqueries.append(partial)
+        query = TempQuery([sub[0] for sub in subqueries], self.config["format"], select_end_filter(self.config["end"]),
+                      self.graph.get_ego_node().heading,
+                      self.graph.get_nodes())
+        return query
     def translate_to_Q(self):
         '''
         Get the functional program
@@ -181,7 +238,7 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         for path in paths:
             partial = []
             for sub in path:
-                partial.append(SubQuery(sub["color"], sub["type"], sub["pos"]))
+                partial.append(TempSubQuery(sub["color"], sub["type"], sub["pos"]))
             hookup(partial)
             subqueries.append(partial)
         query = Query([sub[0] for sub in subqueries],self.config["format"],select_end_filter(self.config["end"]),

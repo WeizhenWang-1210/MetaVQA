@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, List
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode,nodify,transform
 from vqa.dataset_utils import extend_bbox
@@ -28,7 +28,7 @@ class SubQuery:
         self.funcs = None  #The actual functions used to do filtering.
         self.ans = None    #recording the answer in previous call
     
-    def instantiate(self, egos: Iterable[ObjectNode], 
+    def instantiate(self, egos: Iterable[ObjectNode],
                     ref_heading:tuple):
         '''
         Initialize the functions for filtering
@@ -245,7 +245,7 @@ class QueryAnswerer:
     """
     def __init__(self, 
                  scene_graph:SceneGraph, 
-                 queries: list[Query],
+                 queries: List[Query],
                 ) -> None:
         self.graph:SceneGraph = scene_graph
         self.ego_id:str = scene_graph.ego_id
@@ -335,6 +335,27 @@ def CountLess(search_spaces)->bool:
     assert len(search_spaces) == 2, "CountGreater should have only two sets to work with"
     nums = count(search_spaces)#[count(search_space) for search_space in search_spaces]
     return less(nums[0],nums[1])
+def Describe(search_spaces)->str:
+    """
+    Return True if the first set in the search_spaces has greater smaller than the second set.
+    """
+    search_spaces = search_spaces[0]
+    if len(search_spaces) == 0:
+        return "No, there is not any item with specified action"
+    result = "Yes, there is "
+    result += search_spaces[0].color
+    result += " "
+    result += search_spaces[0].type
+    if len(search_spaces) == 1:
+        return result
+    else:
+        for node in search_spaces[1:]:
+            result += " and "
+            result += node.color
+            result += " "
+            result += node.type
+        result += '.'
+    return result
 
 def Identity(search_spaces):
     '''

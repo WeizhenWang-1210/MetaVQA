@@ -56,7 +56,7 @@ def logging(env, lidar, rgb, scene_dict,masks,identifier, instance_folder, log_m
         raise e
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_iterations:int, 
-                  observation_config:dict, IO_config: dict, seed:int):
+                  observation_config:dict, IO_config: dict, seed:int, temporal_generation: bool):
     '''
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
@@ -102,29 +102,52 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
                 filter = lambda r,g,b,c : not(r==1 and g==1 and b==1) and not(r==0 and g==0 and b==0) and (c > 32)
                 visible_ids, log_mapping = get_visible_object_ids(masks,mapping,filter)
                 #Record only if there are observable objects.
-                if len(visible_ids) > 0:
-                    identifier = "{}_{}".format(env.current_seed,env.episode_step)
+                if temporal_generation:
+                    identifier = "{}_{}".format(env.current_seed, env.episode_step)
                     instance_folder = os.path.join(folder, identifier)
-                    try: 
+                    try:
                         os.makedirs(instance_folder, exist_ok=True)
                     except Exception as e:
                         raise e
-                    #Retrieve all observable objeccts within 50 meter w.r.t. the ego
-                    visible_objects = engine.get_objects(lambda x: x.id in visible_ids and l2_distance(x, env.vehicle)<=50)
-                    #The next line is needed as the previous log_mapping dictionary contains mapping for objects with distance greater than 50m
-                    #away from ego.
-                    log_mapping = {id:log_mapping[id] for id in visible_objects.keys()}
-                    objects_annotations = generate_annotations(list(visible_objects.values()),env)
-                    ego_annotation = genearte_annotation(env.vehicle,env)
+                    valid_objects = engine.get_objects(lambda x: l2_distance(x, env.vehicle)<=50)
+                    log_mapping = {id: log_mapping[id] for id in visible_ids}
+                    visible_mask = [True if x in visible_ids else False for x in valid_objects.keys()]
+                    objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask)
+                    ego_annotation = genearte_annotation(env.vehicle, env)
                     scene_dict = dict(
-                        ego = ego_annotation,
-                        objects = objects_annotations
+                        ego=ego_annotation,
+                        objects=objects_annotations
                     )
-                    #send all observations/informations to logging function for the actual I/O part.
-                    return_code = logging(env, o, rgb, scene_dict,masks,identifier,instance_folder, log_mapping)
+                    # send all observations/informations to logging function for the actual I/O part.
+                    return_code = logging(env, o, rgb, scene_dict, masks, identifier, instance_folder, log_mapping)
                     if return_code == 0:
-                        print("Generated the %d th data point" %(counter))
+                        print("Generated the %d th data point" % (counter))
                         counter += 1
+                else:
+                    if len(visible_ids) > 0:
+                        identifier = "{}_{}".format(env.current_seed,env.episode_step)
+                        instance_folder = os.path.join(folder, identifier)
+                        try:
+                            os.makedirs(instance_folder, exist_ok=True)
+                        except Exception as e:
+                            raise e
+                        #Retrieve all observable objeccts within 50 meter w.r.t. the ego
+                        visible_objects = engine.get_objects(lambda x: x.id in visible_ids and l2_distance(x, env.vehicle)<=50)
+                        #The next line is needed as the previous log_mapping dictionary contains mapping for objects with distance greater than 50m
+                        #away from ego.
+                        log_mapping = {id:log_mapping[id] for id in visible_objects.keys()}
+                        visible_mask = [True for _ in len(visible_objects.keys())]
+                        objects_annotations = generate_annotations(list(visible_objects.values()),env)
+                        ego_annotation = genearte_annotation(env.vehicle,env)
+                        scene_dict = dict(
+                            ego = ego_annotation,
+                            objects = objects_annotations
+                        )
+                        #send all observations/informations to logging function for the actual I/O part.
+                        return_code = logging(env, o, rgb, scene_dict,masks,identifier,instance_folder, log_mapping)
+                        if return_code == 0:
+                            print("Generated the %d th data point" %(counter))
+                            counter += 1
             step += 1
     except Exception as e:
         raise e
@@ -134,7 +157,8 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
 def main():
     #Setup the config
     try:
-        with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
+        # with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
+        with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
@@ -158,7 +182,8 @@ def main():
     #Call the ACTUAL data recording questions
     generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
                   dict(resolution=(1920,1080)),
-                  dict(batch_folder = config["storage_path"], log = True),config["map_setting"]["start_seed"])
+                  dict(batch_folder = config["storage_path"], log = True),config["map_setting"]["start_seed"],
+                  temporal_generation=config["temporal_generation"])
 
 if __name__ == "__main__":
     main()

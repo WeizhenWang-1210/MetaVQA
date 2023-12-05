@@ -13,5 +13,6 @@ map_setting:
 sample_frequency: 20
 num_samples: 10
 max_iterations: 10000
+temporal_generation: True
 
 ...

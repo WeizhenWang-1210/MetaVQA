@@ -1,6 +1,6 @@
 import numpy as np
 from vqa.dataset_utils import dot
-from typing import Iterable
+from typing import Iterable, Tuple, List
 class ObjectNode:
     def __init__(self,
                  pos, 
@@ -11,7 +11,8 @@ class ObjectNode:
                  bbox,
                  type,
                  height,
-                 lane):
+                 lane,
+                 visible):
         '''
         Apparently I need more comments
         '''
@@ -26,6 +27,7 @@ class ObjectNode:
         self.height = height            #The height retrieved from the assert's convex hull.
         self.lane = lane                #The id (s,e,3).This indicate the lane starts from s and end on e and 
                                         #is on the 4th lane from the center of the road
+        self.visible = visible
 
     def compute_relation(self, node, ref_heading:Iterable[float])->dict:
         """
@@ -74,7 +76,8 @@ class ObjectNode:
             'speed' : self.speed,
             'heading' : self.heading,
             'type' : self.type,
-            "id" : self.id
+            "id" : self.id,
+            "visible": self.visible
         }
         return dictionary.__str__()
     
@@ -155,7 +158,7 @@ class ObjectNode:
     
 
 def find_extremities(ref_heading: Iterable[float], 
-                     bboxes: Iterable[Iterable], center: Iterable[float])->tuple(Iterable[float]):
+                     bboxes: Iterable[Iterable], center: Iterable[float])->Tuple[Iterable[float],...]:
     """
     Find the two vertice of bbox that are the extremeties along the provided positive axis.
     """
@@ -178,7 +181,7 @@ def find_extremities(ref_heading: Iterable[float],
     return left_bbox, right_bbox
 
 
-def nodify(scene_dict:dict)->tuple[str,list[ObjectNode]]:
+def nodify(scene_dict:dict)->Tuple[str,List[ObjectNode]]:
     """
     Read world JSON file into nodes. 
     Return <ego id, list of AgentNodes>
@@ -196,7 +199,8 @@ def nodify(scene_dict:dict)->tuple[str,list[ObjectNode]]:
                                         bbox = info['bbox'],
                                         height = info['height'],
                                         type = info['type'],
-                                        lane = info['lane']
+                                        lane = info['lane'],
+                                        visible = info['visible']
                                         )
                 )
     nodes.append(
@@ -209,7 +213,8 @@ def nodify(scene_dict:dict)->tuple[str,list[ObjectNode]]:
                             bbox = ego_dict['bbox'],
                             height = ego_dict['height'],
                             type = ego_dict['type'],
-                            lane = ego_dict['lane'])
+                            lane = ego_dict['lane'],
+                            visible = True)
             )
     return ego_id, nodes
 

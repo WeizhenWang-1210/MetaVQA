@@ -66,9 +66,9 @@ def get_visible_object_ids(imgs:np.array, mapping: dict(), filter: Callable)->It
     return [mapping[unique_color] for unique_color in unique_colors_processed], \
         {mapping[unique_colors_processed[i]]: unique_colors_filtered[i]  for i in range(len(unique_colors_processed))}
     
-def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv) -> Iterable[dict]:
+def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_mask: List[bool] = [True]) -> Iterable[dict]:
     result =  []
-    for obj in objects:
+    for idx, obj in enumerate(objects):
         g_min_point,g_max_point = obj.origin.getTightBounds()
         height = g_max_point[2]
         p4 = g_min_point[0],g_max_point[1]
@@ -90,13 +90,14 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv) -> Iterabl
             type = annotate_type(obj),
             height = height, 
             class_name = str(type(obj)),
-            lane = obj.lane_index
+            lane = obj.lane_index,
+            visible = visible_mask[idx]
         )
         result.append(annotation)
     return result
 
 def genearte_annotation(object: BaseObject, env: BaseEnv) -> dict:
-    return generate_annotations([object], env)[0]
+    return generate_annotations([object], env, [True])[0]
 
 def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, )-> np.array:
     """
