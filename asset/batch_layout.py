@@ -1,3 +1,14 @@
+"""
+This script try to layout all available static assets in a batch manner for visualization purpose.
+- `__init__`: Initializes the MetaDrive environment with specific configurations.
+- `init_static_adj_list`: Loads metadata information about static assets from JSON files in a specified directory.
+- `init_car_adj_list`: Loads metadata information about car assets from JSON files.
+- `spawn_static`: Spawns static objects within the environment based on the loaded metadata.
+- `step_env`: Steps through the environment indefinitely for simulation purposes.
+
+The primary class, 'batchLayoutStatic', manages the environment setup, object spawning,
+and progression of the environment simulation.
+"""
 import os
 import json
 from asset.read_config import configReader
@@ -5,6 +16,15 @@ from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
 class batchLayoutStatic():
     def __init__(self, adj_folder):
+        """
+        Initialize env, and metainfos of static or car assets.
+
+        Parameters:
+        adj_folder (str): Path to the folder containing annotated parameters for each asset.
+
+        The constructor initializes the MetaDrive environment with predefined settings,
+        resets the environment, and prepares lists for static and car asset metadata.
+        """
         self.env_config = {
             "num_scenarios": 1,
             "traffic_density": 0.,
@@ -35,6 +55,12 @@ class batchLayoutStatic():
         self.init_static_adj_list()
         # self.init_car_adj_list()
     def init_static_adj_list(self):
+        """
+        Initializes the list of static asset metadata from annotated JSON files.
+
+        Reads each JSON file in the specified adjustment folder that does not start with "car"
+        and appends its content to the static_asset_metainfos list.
+        """
         self.static_asset_metainfos = []  # List to store the file paths
         for root, dirs, files in os.walk(self.adj_folder):
             for file in files:
@@ -45,6 +71,12 @@ class batchLayoutStatic():
                         print(loaded_metainfo)
                         self.static_asset_metainfos.append(loaded_metainfo)
     def init_car_adj_list(self):
+        """
+        Initializes the list of car asset metadata from JSON files.
+
+        Reads each JSON file in the specified adjustment folder that starts with "car"
+        and appends its content to the car_asset_metainfos list.
+        """
         self.car_asset_metainfos = []  # List to store the file paths
         for root, dirs, files in os.walk(self.adj_folder):
             for file in files:
@@ -56,6 +88,17 @@ class batchLayoutStatic():
                         self.car_asset_metainfos.append(loaded_metainfo)
 
     def spawn_static(self, lower_bound, upper_bound, block_size, lower_bound_x):
+        """
+        Spawns static objects in the environment.
+
+        Parameters:
+        lower_bound (int): The lower bound of the y-axis for spawning objects.
+        upper_bound (int): The upper bound of the y-axis for spawning objects.
+        block_size (int): The size of each block in the grid.
+        lower_bound_x (int): The lower bound of the x-axis for spawning objects.
+
+        This method calculates positions for static objects based on a grid layout and spawns them in the environment.
+        """
         num_positions_y = (upper_bound - lower_bound) // block_size
         grid_x = 0
         grid_y = 0

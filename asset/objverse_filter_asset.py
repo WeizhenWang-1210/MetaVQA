@@ -1,6 +1,23 @@
-# Display the downloaded Objaverse Asset (using download_assets.py) and decide whether or not to use it later.
-# Save the asset you have checked and the asset you want to use in a json file for later reference.
-# You can also annotate for each asset you want to save (for example, assign tags like human, female, male, etc)
+"""
+This script is used to display and review Objaverse assets downloaded using download_assets.py.
+It provides functionality for deciding whether to use certain assets and for saving this selection,
+along with any annotations (like tags), for later reference.
+The script offers a graphical user interface (GUI) for this review and annotation process.
+
+Classes:
+- Objverse_filter_asset:
+  - __init__: Initializes the Objverse_filter_asset instance with configuration options.
+  - load_cached_uids: Loads UIDs of assets that have been downloaded and cached locally.
+  - load_processed_uids: Loads UIDs that have already been processed.
+  - save_processed_uid: Saves a UID to the list of processed UIDs.
+  - get_existing_tags: Retrieves list of annotated tags previously assigned to assets.
+  - get_user_input: Captures user input for asset selection and annotation.
+  - filter_uid_raw: Processes and filters UIDs based on user input, annotating them.
+  - saved_assets_to_json: Saves annotated assets to a JSON file.
+  - get_tags_selection: Captures annotation tag selections from the user through a GUI interface.
+  - get_uids_by_tags: Retrieves UIDs that match specific annotations.
+  - save_matched_uids_to_json: Saves UIDs with matched annotations to a JSON file.
+"""
 import time
 import objaverse
 import os
@@ -24,11 +41,16 @@ class Objverse_filter_asset:
         """
         Initialize the Objverse_filter_asset instance.
 
-        :param isTagList: If true, use a different JSON naming convention.
-        :param asset_folder_path: The base directory where assets and related JSON files (from download_assets.py) are stored.
-        :param tag: Save the resulting json file as xxx-tags.json.
+        Parameters:
+        - isTagList (bool): Determines if a different JSON naming convention is used (a single tag or tag list).
+        - asset_folder_path (str): Base directory where assets are stored.
+        - raw_asset_path_folder (str): Folder where object path json are stored.
+        - filter_asset_path_folder (str): Folder to save processed and saved UIDs.
+        - match_uid_path_folder (str): Folder to store matched UIDs.
+        - tag (str): Tag for saving resulting JSON files.
 
-        :return: None
+        Returns:
+        - None
         """
         # Base directory for assets
         self.asset_folder_path = asset_folder_path
@@ -81,6 +103,9 @@ class Objverse_filter_asset:
         """
         Load UIDs that have been processed from the saved json file.
 
+         Parameters:
+        - filename (str, optional): Filename of the JSON file containing processed UIDs.
+
         Returns:
         - list[str]: A list of processed UIDs.
         """
@@ -93,7 +118,11 @@ class Objverse_filter_asset:
 
     def save_processed_uid(self, uid, filename=None):
         """
-        Save a UID to the list of processed UIDs and saved as json file.
+        Saves a UID to the list of processed UIDs in a JSON file.
+
+        Parameters:
+        - uid (str): UID to save.
+        - filename (str, optional): Filename of the JSON file where processed UIDs are saved.
 
         Returns:
         - None
@@ -108,10 +137,13 @@ class Objverse_filter_asset:
 
     def get_existing_tags(self, filename=None):
         """
-        Get already assigned annotations from the saved json, for potential reuse.
+        Retrieves previously assigned tags from a saved JSON file.
+
+        Parameters:
+        - filename (str, optional): Filename of the JSON file containing saved tags.
 
         Returns:
-        - list[str]: A list of tags from saved json
+        - list[str]: List of tags from the saved JSON file.
         """
         if filename is None:
             filename = self.saved_uids_path
@@ -131,11 +163,11 @@ class Objverse_filter_asset:
 
     def get_user_input(self):
         """
-        Capture user input through a GUI interface.
+        Captures user input for asset selection and tagging through a GUI interface.
 
         Returns:
-        - str: The choice made by the user (y,n, or q for quit and save)
-        - list[str]: A list of tags specified or selected by the user.
+        - str: User's choice (y/n/q).
+        - list[str]: List of tags specified or selected by the user.
         """
         root = tk.Tk()
         root.title("Mesh Input")
@@ -207,10 +239,13 @@ class Objverse_filter_asset:
 
     def filter_uid_raw(self, uids):
         """
-        Process and filter and annotated UIDs based on user input.
+        Processes and filters UIDs based on user decision and annotating them with user's tags.
+
+        Parameters:
+        - uids (list[str]): List of UIDs to process.
 
         Returns:
-        - dict: A dictionary where keys are UIDs and values are lists of tags.
+        - dict: Dictionary with UIDs as keys and lists of tags as values.
         """
         objects = objaverse.load_objects(uids=uids)
         saved_assets = {}  # This will contain UID:tags key-value pairs
@@ -239,7 +274,11 @@ class Objverse_filter_asset:
 
     def saved_assets_to_json(self, saved_assets, filename=None):
         """
-        Save assets you want to save along with annotations you made to a JSON file.
+        Saves annotated assets to a JSON file.
+
+        Parameters:
+        - saved_assets (dict): Dictionary with UIDs as keys and lists of tags as values.
+        - filename (str, optional): Filename of the JSON file to save annotated assets.
 
         Returns:
         - None
@@ -264,10 +303,10 @@ class Objverse_filter_asset:
 
     def get_tags_selection(self):
         """
-        Capture annotation selections from the user through a GUI interface.
+        Captures tag selections from the user through a GUI interface.
 
         Returns:
-        - list[str]: A list of annotation selected by the user.
+        - list[str]: List of tags selected by the user.
         """
         root = tk.Tk()
         root.title("Select Tags")
@@ -292,10 +331,13 @@ class Objverse_filter_asset:
 
     def get_uids_by_tags(self, selected_tags):
         """
-        Get saved UIDs that match specific annotations.
+        Retrieves UIDs matching specific annotated tags.
+
+        Parameters:
+        - selected_tags (list[str]): List of tags to match.
 
         Returns:
-        - dict: A dictionary where keys are UIDs and values are file paths.
+        - dict: Dictionary with matched UIDs as keys and file paths as values.
         """
         # Load the saved UIDs with tags
         with open(self.saved_uids_path, "r") as file:
@@ -321,7 +363,11 @@ class Objverse_filter_asset:
 
     def save_matched_uids_to_json(self, matched_uids, filename="matched_uids.json"):
         """
-        Save UIDs with matched annotations to a JSON file.
+        Saves UIDs with matched annotations to a JSON file.
+
+        Parameters:
+        - matched_uids (dict): Dictionary with matched UIDs as keys and file paths as values.
+        - filename (str): Filename of the JSON file to save matched UIDs.
 
         Returns:
         - None

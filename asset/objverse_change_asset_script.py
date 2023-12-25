@@ -1,3 +1,25 @@
+"""
+This script is used for adjusting the asset information for car and static models.
+
+The script allows for both manual and automatic updates of asset information, depending on the type of model (car or static).
+It is designed to work in conjunction with other scripts "objverse_autochange_asset.py" and "objverse_autochange_asset_static.py",
+
+Functions:
+- load_json: Loads a JSON file and returns its content.
+- copy_file: Copies a source file to a destination folder and renames it using a unique identifier.
+- delete_file: Deletes a file at a specified filepath.
+- save_ignore_list: Saves a list of identifiers to be ignored in future processing to a file.
+- delete_folder: Deletes a folder and all its contents.
+- model_update: Updates model information for either car or static models, handling file operations and metadata updates.
+- folder_asset_update: Processes a folder of assets, updating each one based on predefined criteria.
+- gltf_updater: Handles the update process for GLTF models, managing file operations and metadata updates.
+
+The script utilizes several classes from the 'asset' package to perform these updates,
+including AssetMetaInfoUpdater, StaticAssetMetaInfoUpdater, AutoStaticAssetMetaInfoUpdater, and AutoAssetMetaInfoUpdater.
+
+Main Execution:
+The script's main execution block demonstrates its use in updating models based on configuration settings loaded from external files.
+"""
 import json
 import os
 import shutil
@@ -10,15 +32,30 @@ from asset.objverse_autochange_asset import AutoAssetMetaInfoUpdater
 from asset.read_config import configReader
 def load_json(file_path):
     """
-    Load json file
+    Loads a JSON file and returns its contents.
+
+    Parameters:
+    - file_path (str): Path to the JSON file to be loaded.
+
+    Returns:
+    - dict: Parsed JSON data as a dictionary.
     """
     with open(file_path, 'r') as file:
         data = json.load(file)
     return data
 def copy_file(uid, src_folder, src, dst_folder, tag):
     """
-    Copy the source file to the destination folder and rename it using the uid.
-    Returns the path to the copied file.
+    Copies a file from a source folder to a destination folder, renaming it using a provided UID.
+
+    Parameters:
+    - uid (str): Unique identifier to append to the file's name.
+    - src_folder (str): Source folder containing the file.
+    - src (str): Name of the source file.
+    - dst_folder (str): Destination folder to copy the file to.
+    - tag (str): Tag to prepend to the file's name.
+
+    Returns:
+    - str: Path to the copied file in the destination folder.
     """
     true_filename = os.path.basename(src)
     dst = f"{tag}-{uid}.glb"
@@ -29,7 +66,10 @@ def copy_file(uid, src_folder, src, dst_folder, tag):
     return return_path
 def delete_file(filepath):
     """
-    Delete a file given its filepath.
+    Deletes a file at the specified filepath.
+
+    Parameters:
+    - filepath (str): Path of the file to be deleted.
     """
     if os.path.exists(filepath):
         os.remove(filepath)
@@ -37,7 +77,13 @@ def delete_file(filepath):
         print(f"Error: {filepath} not found!")
 
 def save_ignore_list(file_path, ignore_list):
-    """Save the ignore list to a file."""
+    """
+    Saves a list of identifiers to be ignored in future processing to a specified file.
+
+    Parameters:
+    - file_path (str): Path of the file where the ignore list will be saved.
+    - ignore_list (list): List of identifiers to be saved.
+    """
     directory = os.path.dirname(file_path)
 
     if not os.path.exists(directory):
@@ -46,10 +92,10 @@ def save_ignore_list(file_path, ignore_list):
         json.dump(ignore_list, file)
 def delete_folder(folder_path):
     """
-    Delete a folder and all its contents.
+    Deletes a folder and all its contents.
 
-    :param folder_path: Path to the folder to be deleted.
-    :return: None
+    Parameters:
+    - folder_path (str): Path to the folder to be deleted.
     """
     # Check if the folder exists before attempting to delete
     if os.path.exists(folder_path):
@@ -58,6 +104,18 @@ def delete_folder(folder_path):
     else:
         print(f"Folder '{folder_path}' does not exist!")
 def model_update(is_auto, is_car_model, destination_folder, json_path, adj_parameter_folder, src_parent_folder, ignore_list_path):
+    """
+    Adjust model size and other infos for car or static models, handling file operations and metadata updates.
+
+    Parameters:
+    - is_auto (bool): Determines if the update should be automatic (use autochange or change script).
+    - is_car_model (bool): Flag to check if the model is a car model (use static or not).
+    - destination_folder (str): Folder path where updated models will be stored.
+    - json_path (str): Path to the JSON file containing model data.
+    - adj_parameter_folder (str): Folder path for saving adjusted parameters.
+    - src_parent_folder (str): Parent folder of the source models.
+    - ignore_list_path (str): Path to the file containing the ignore list.
+    """
     print(destination_folder)
     if os.path.exists(ignore_list_path):
         ignore_list = load_json(ignore_list_path)
@@ -90,6 +148,17 @@ def model_update(is_auto, is_car_model, destination_folder, json_path, adj_param
             print(ignore_list)
         save_ignore_list(ignore_list_path, ignore_list)
 def folder_asset_update(is_auto, is_car_model, destination_folder, adj_parameter_folder, raw_asset_src_folder, ignore_list_path):
+    """
+    Processes a folder of assets, updating each based on predefined criteria.
+
+    Parameters:
+    - is_auto (bool): Determines if the update should be automatic.
+    - is_car_model (bool): Flag to check if the model is a car model.
+    - destination_folder (str): Folder path where updated models will be stored.
+    - adj_parameter_folder (str): Folder path for saving adjusted parameters.
+    - raw_asset_src_folder (str): Source folder containing raw assets.
+    - ignore_list_path (str): Path to the file containing the ignore list.
+    """
     if os.path.exists(ignore_list_path):
         ignore_list = load_json(ignore_list_path)
     else:
@@ -122,6 +191,15 @@ def folder_asset_update(is_auto, is_car_model, destination_folder, adj_parameter
             print(ignore_list)
         save_ignore_list(ignore_list_path, ignore_list)
 def gltf_updater(destination_folder, adj_parameter_folder, src_parent_folder, ignore_list_path):
+    """
+    Handles the update process for GLTF models, managing file operations and metadata updates.
+
+    Parameters:
+    - destination_folder (str): Folder path where updated models will be stored.
+    - adj_parameter_folder (str): Folder path for saving adjusted parameters.
+    - src_parent_folder (str): Parent folder of the GLTF models.
+    - ignore_list_path (str): Path to the file containing the ignore list.
+    """
     if os.path.exists(ignore_list_path):
         ignore_list = load_json(ignore_list_path)
     else:

@@ -1,4 +1,19 @@
-# Download Asset with given Tag or Tag List from Objaverse
+"""
+This script allows users to search for assets by tag, either in a
+strict or loose manner, and supports operations on lists of tags. Additionally, it can save the paths of the retrieved
+assets in a structured JSON format.
+
+The primary class, 'Objverse_helper', encapsulates these functionalities and offers methods to manage and process
+the data efficiently.
+
+Classes:
+- Objverse_helper:
+  - __init__: Initializes the Objverse_helper class. This constructor sets up a new instance of the class.
+  - getAllTag: Retrieves all unique tags from the Objaverse up to a specified number of UIDs.
+  - getTagStrictly: Searches for annotations in the Objaverse that strictly or loosely match a specified target tag.
+  - getTagList: Searches for annotations in the Objaverse that match any tag in a provided list of target tags.
+  - saveTag: Saves the path information of specified objects in a JSON file, with options for including tag lists.
+"""
 import objaverse as objaverse
 #BASE_PATH = os.path.join("D:\\research\\dataset", ".objaverse")
 import json
@@ -121,12 +136,14 @@ if __name__ == "__main__":
     processes = 16
     objhelper = Objverse_helper()
     #======================================Get All Tags from Objverse===============
+    ## This is used to get all tags from the Objverse
     # _, tag = objhelper.getAllTag()
     # with open(path_config["all_tag_path"], "w+") as f:
     #     for each in tag:
     #         f.write("{}\n".format(each))
 
     # ======================================Get UIDS and objects for list of TAGs===============
+    ## Get target tag or taglist, and retrieve all uids of objects with that tag
     tag_config = config.loadTag()
     tag = tag_config["tag"]
     istaglist = tag_config["istaglist"]
@@ -142,6 +159,7 @@ if __name__ == "__main__":
         print(len(uid_list))
     #============================Note: This will download the asset and return, could be time consuming
     #============================Note: Objects is a dict with key as uid, and val as path
+    # Download objects given uids above and save metadata to JSON file
     objects = objaverse.load_objects(
         uids=uid_list[:100],
         download_processes=processes

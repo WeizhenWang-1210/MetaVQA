@@ -1,4 +1,24 @@
-# Manually place asset into a static scene
+"""
+This script is designed for manually placing assets into a static scene within the MetaDrive environment.
+It is intended to serve as demo purpose
+
+The primary class, 'AssetAdjuster', manages the loading of objects, user interaction for object placement, and saving
+of layout configurations.
+
+Methods:
+- __init__: Initializes the AssetAdjuster with environment configuration, folder paths, and save paths.
+- load_json_file: Static method to load a JSON file.
+- process_folder: Initiates the process of adjusting assets in a folder.
+- load_and_display_objects: Loads and displays objects using previously saved meta information.
+- add_same_asset: Adjusts parameters for the same asset, allowing placement of new instances of same object.
+- spawn_object: Spawns an object in the environment with specified parameters.
+- load_saved_values: Loads saved values for a specific asset.
+- onlyStep: Just step without place new object, might also capture screenshot
+- adjust_parameters: Adjusts location and orientation for a new placed object.
+- process_next: Processes the next asset in the list for adjustment.
+- go_to_next_asset: Skips to the next asset, discarding adjustments for the current one.
+- save_to_json: Saves the adjusted parameters to a JSON file.
+"""
 from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
@@ -27,6 +47,15 @@ class AssetAdjuster:
         self.current_index = 0
     @staticmethod
     def load_json_file(filepath):
+        """
+        Load a JSON file and return its content.
+
+        Parameters:
+        - filepath (str): The path to the JSON file to be loaded.
+
+        Returns:
+        - dict: A dictionary containing the data loaded from the JSON file.
+        """
         with open(filepath, 'r') as f:
             return json.load(f)
 
@@ -59,20 +88,21 @@ class AssetAdjuster:
 
     def add_same_asset(self, filepath):
         """
-        Adjust parameters for the same asset.
-        Same asset, but a new instance
+        Adjust parameters for adding a new instance of the same asset.
 
-        :param filepath: Path to the JSON file of the asset.
+        Parameters:
+        - filepath (str): The path to the JSON file of the asset.
         """
         self.adjust_parameters(filepath)
     def spawn_object(self, x, y, theta, asset_metainfo):
         """
-        Spawn an object in the environment.
+        Spawn an object in the environment with specified position and rotation.
 
-        :param x: X position of the object.
-        :param y: Y position of the object.
-        :param theta: Rotation angle of the object.
-        :param asset_metainfo: Metadata about the asset.
+        Parameters:
+        - x (float): X position of the object.
+        - y (float): Y position of the object.
+        - theta (float): Rotation angle of the object in radians.
+        - asset_metainfo (dict): Metadata about the asset, used for spawning.
         """
         if self.current_obj is not None:
             self.env.engine.clear_objects([self.current_obj.id], force_destroy=True)
@@ -87,11 +117,14 @@ class AssetAdjuster:
 
     def load_saved_values(self, filepath):
         """
-         Load saved values for a specific asset.
+        Load saved position and orientation values for a specific asset.
 
-         :param filepath: Path to the asset's JSON file.
-         :return: Dictionary with saved values.
-         """
+        Parameters:
+        - filepath (str): Path to the asset's JSON file.
+
+        Returns:
+        - dict: A dictionary containing the last saved values for the asset. If no values are saved, returns an empty dictionary.
+        """
         output_filename = self.save_path
         if os.path.exists(output_filename):
             with open(output_filename, 'r') as f:
@@ -101,10 +134,11 @@ class AssetAdjuster:
         return {}
     def onlyStep(self, capture=False, pic_name_id=1):
         """
-        Execute steps in the environment. Maybe save env screenshot.
+        Onle execute steps in the environment (without adjust additional object) and optionally capture screenshots.
 
-        :param capture: Whether to capture screenshots.
-        :param pic_name_id: Identifier to name the captured image.
+        Parameters:
+        - capture (bool): If True, captures screenshots of the environment.
+        - pic_name_id (int): Identifier used to name the captured image files.
         """
         step = 0
         while True:
@@ -114,9 +148,10 @@ class AssetAdjuster:
             step += 1
     def adjust_parameters(self, filepath):
         """
-        Adjust parameters of an asset using a GUI.
+        Adjust parameters of an asset using a GUI interface. Allows for manual positioning and rotation of the asset.
 
-        :param filepath: Path to the JSON file of the asset.
+        Parameters:
+        - filepath (str): Path to the JSON file of the asset.
         """
         asset_metainfo = self.load_json_file(filepath)
         saved_values = self.load_saved_values(filepath)
@@ -210,20 +245,25 @@ class AssetAdjuster:
 
     def process_next(self):
         """
-        Process the next asset in the list.
+        Process the next asset in the list for adjustment. This method moves sequentially through a list of assets,
+        allowing for their individual adjustment.
         """
         if self.current_index < len(self.files):
             print("================Dealing with: {}".format(self.files[self.current_index]))
             self.adjust_parameters(os.path.join(self.folder_path, self.files[self.current_index]))
 
     def process_folder(self):
-        # Now this is a dummy function that just initiates the process
+        """
+        Initiates the process of adjusting assets in a folder.
+        This method serves as the starting point for batch processing assets for adjustment.
+        """
         self.process_next()
     def go_to_next_asset(self, root):
         """
-        Move on to the next asset, skipping the current one.
+        Skip to the next asset in the list, bypassing the current one.
 
-        :param root: Tkinter root window.
+        Parameters:
+        - root (tk.Tk): The Tkinter root window, used for GUI interactions.
         """
         if self.current_obj is not None:
             self.env.engine.clear_objects([self.current_obj.id], force_destroy=True)
@@ -234,12 +274,13 @@ class AssetAdjuster:
 
     def save_to_json(self, x, y, theta, filepath):
         """
-        Save the adjusted parameters to a JSON file.
+        Save the adjusted position and orientation parameters of an asset to a JSON file.
 
-        :param x: X position of the object.
-        :param y: Y position of the object.
-        :param theta: Rotation angle of the object.
-        :param filepath: Path to the JSON file of the asset.
+        Parameters:
+        - x (float): Adjusted X position of the object.
+        - y (float): Adjusted Y position of the object.
+        - theta (float): Adjusted rotation angle of the object in radians.
+        - filepath (str): Path to the JSON file where the adjusted parameters will be saved.
         """
         output_filename = self.save_path
         if os.path.exists(output_filename):

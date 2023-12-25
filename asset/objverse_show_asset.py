@@ -1,3 +1,4 @@
+# Debug file, show specific file for debugging
 import time
 import objaverse
 import os

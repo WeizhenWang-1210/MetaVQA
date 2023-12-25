@@ -1,8 +1,36 @@
-# Script used to Add static model\GLTF model (not car model) and make sure it has proper size and proper tire position.
-# Please refer to "CustomizedCar" class in metadrive/component/vehicle/vehicle_type.py for how the car model class is defined
-# You don't need to understand how ttk works, just use it!
-# Use objverse_change_asset_script.py to call this updater for each newly added car asset.
-# Please refer to "objverse_change_asset.py" for detailed comments
+"""
+This script is used for adding and adjusting static models or GLTF models (excluding car models)
+to ensure proper size and positioning.
+The script interacts with the MetaDrive environment and provides a graphical user interface (GUI)
+for adjusting asset parameters.
+It's designed to be used with the objverse_change_asset_script.py for updating newly added static assets.
+
+The primary class, 'AutoStaticAssetMetaInfoUpdater', encapsulates functionalities for loading, displaying, adjusting,
+and saving metadata for static assets.
+
+Classes:
+- AutoStaticAssetMetaInfoUpdater:
+  - __init__: Initializes the class with configurations for the static asset.
+  - find_uid_file: Searches for a file matching a given UID in a specified folder.
+  - initTK: Initializes the Tkinter interface for the asset metadata updater.
+  - slider_command: Handles slider interactions, updating asset metadata.
+  - update_value: Updates the specified attribute in the asset metadata.
+  - environment_step: Steps through the environment with updated asset metadata.
+  - getCurrHW: Retrieves the current height and width of the spawned asset.
+  - on_general_type_selected: Callback function for general type selection in the GUI.
+  - on_update_scale: Updates the scale of the asset based on selected dimensions.
+  - on_detailed_type_selected: Callback function for detailed type selection in the GUI.
+  - save_width_height_to_yaml: Saves width and height of the asset to a YAML file.
+  - create_ui_component: Creates a UI component for a specified key.
+  - setup_ui: Sets up GUI elements for the asset meta info updater.
+  - make_center: Adjusts the asset's position to make it centered.
+  - save_metainfo_to_json: Saves the modified asset metadata to a JSON file.
+  - no_change_and_exit: Exits the application without saving changes.
+  - cancel_and_exit: Closes the application without saving any changes.
+  - run: Runs the main application loop.
+  - setInitValue: Sets initial values for asset metadata.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 from functools import partial

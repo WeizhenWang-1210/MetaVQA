@@ -1,3 +1,4 @@
+# Just to show mesh in a window
 import sys
 import trimesh
 import os

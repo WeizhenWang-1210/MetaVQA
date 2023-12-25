@@ -1,3 +1,4 @@
+# Warning: Deprecated! Please use objverse_autochange_asset.py instead.
 # Script used to Add new car model and make sure it has proper size and proper tire position.
 # Please refer to "CustomizedCar" class in metadrive/component/vehicle/vehicle_type.py for how the car model class is defined
 # You don't need to understand how ttk works, just use it!

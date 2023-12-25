@@ -1,6 +1,6 @@
-# Test Pedestrain manager that can generate static pedestrian on sidewalk
+# Test sidewalk manager that can spawn all types of object on, near, or outside sidewalk
 # Please refer to  metadrive.manager.sidewalk_manager for implementation detail
-# !!!!!!!!!!!!You need to change asset used in  metadrive.manager.sidewalk_manager
+#
 from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject

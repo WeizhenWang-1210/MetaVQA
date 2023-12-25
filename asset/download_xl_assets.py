@@ -1,4 +1,4 @@
-# Download Asset with given Tag or Tag List from Objaverse
+# TODO: Download Asset with given Tag or Tag List from Objaverse XL
 import objaverse.xl as objaverse
 #BASE_PATH = os.path.join("D:\\research\\dataset", ".objaverse")
 import json
