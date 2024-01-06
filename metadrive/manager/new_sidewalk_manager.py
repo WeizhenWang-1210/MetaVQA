@@ -61,7 +61,7 @@ class ObjectPlacer:
     def find_placement_position(self, obj):
         for i in range(len(self.grid)):
             for j in range(len(self.grid[i])):
-                if self.can_place(i, j, obj):
+                if self.can_place(i+1, j+1, obj):
                     return (i+1, j+1)  # Top-left position where the object can be placed
         return None
 
@@ -72,8 +72,8 @@ class ObjectPlacer:
         # Calculate the number of cells the object spans, rounding up
         span_length = math.ceil(obj['general']['length'] / cell_length) + 2
         span_width = math.ceil(obj['general']['width'] / cell_width) + 2
-        # span_length = math.ceil(obj['general']['width'] / cell_width)
-        # span_width = math.ceil(obj['general']['length'] / cell_length)
+        # span_length = math.ceil(obj['general']['width'] / cell_width) + 2
+        # span_width = math.ceil(obj['general']['length'] / cell_length) + 2
 
         # Check if the object fits within the grid bounds
         if start_i + span_length > len(self.grid) or start_j + span_width > len(self.grid[0]):
@@ -93,8 +93,8 @@ class ObjectPlacer:
         cell_width = 1  # Width of each cell in meters
 
         # Calculate the number of cells the object spans, rounding up
-        span_length = math.ceil(obj['general']['length'] / cell_length)
-        span_width = math.ceil(obj['general']['width'] / cell_length)
+        span_length = math.ceil(obj['general']['length'] / cell_length) + 2
+        span_width = math.ceil(obj['general']['width'] / cell_length) + 2
 
         # Mark the occupied cells
         for i in range(start_i, start_i + span_length):
@@ -128,7 +128,6 @@ class SidewalkManager(BaseManager):
         self.path_config = self.config.loadPath()
         self.init_static_adj_list()
         self.get_num_and_pos()
-        self.spawned_obj_positions = defaultdict(list)
 
 
     def init_static_adj_list(self):
@@ -155,30 +154,41 @@ class SidewalkManager(BaseManager):
     def load_json_file(filepath):
         with open(filepath, 'r') as f:
             return json.load(f)
-
+    def before_reset(self):
+        """
+        Update episode level config to this manager and clean element or detach element
+        """
+        items = self.clear_objects([object_id for object_id in self.spawned_objects.keys()])
+        self.spawned_objects = {}
     def reset(self):
+        super(SidewalkManager, self).reset()
+        self.count = 0
         engine = get_engine()
-
+        assert len(self.spawned_objects.keys()) == 0
         for block in engine.current_map.blocks:
             if isinstance(block, FirstPGBlock):
                 continue
 
             for lane in [block.positive_basic_lane, block.negative_basic_lane]:
+            # for lane in [block.positive_basic_lane]:
                 # Create grids for each region
                 sidewalk_grid = self.create_grid(lane, self.calculate_lateral_range("onsidewalk", lane))
                 outsidewalk_grid = self.create_grid(lane, self.calculate_lateral_range("outsidewalk", lane))
                 nearsidewalk_grid = self.create_grid(lane, self.calculate_lateral_range("nearsidewalk", lane))
-
+                print(self.calculate_lateral_range("outsidewalk", lane))
                 # Retrieve and place objects for each region
                 for region, grid in [('onsidewalk', sidewalk_grid), ('outsidewalk', outsidewalk_grid),
                                      ('nearsidewalk', nearsidewalk_grid)]:
                     object_placer = ObjectPlacer(grid)
                     self.retrieve_objects_for_region(region, object_placer)
                     print("======For region:{}=======".format(region))
-                    self.visualize_grid(grid)
+                    # self.visualize_grid(grid)
                     for obj_name, (grid_position, obj) in object_placer.placed_objects.items():
                         lane_position = self.convert_grid_to_lane_position(grid_position, lane,
                                                                            self.calculate_lateral_range(region, lane))
+                        if obj['general']['detail_type'] == "BusStop":
+                            print("!")
+                        self.count += 1
                         self.spawn_object(
                             TestObject,
                             force_spawn = True,
@@ -189,6 +199,8 @@ class SidewalkManager(BaseManager):
                                 'heading', 0),
                             asset_metainfo=obj
                         )
+
+        print("Spawned {} objects".format(self.count))
 
 
     def create_grid(self, lane, lateral_range):
@@ -265,8 +277,8 @@ class SidewalkManager(BaseManager):
             return (start_lat, start_lat + DrivableAreaProperty.SIDEWALK_WIDTH)
 
         elif region == 'outsidewalk':
-            return (lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH,
-                    lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 5 * lane.width)
+            return (lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 1,
+                    lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 1 + 5 * lane.width)
 
         elif region == 'nearsidewalk':
             return (lane.width_at(0) / 2 + 0.2 - lane.width,lane.width_at(0) / 2 + 0.2)
