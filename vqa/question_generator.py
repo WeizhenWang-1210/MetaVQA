@@ -131,6 +131,11 @@ class Query:
         '''
         print(self.format,[node.id.split("-")[0] for node in self.ans])
      
+"""
+Only return when candidates are visible by ego
+"""
+
+
 def color_wrapper(colors:Iterable[str])->Callable:
     '''
     Constructor for a function that return all nodes with color in colors
@@ -138,7 +143,7 @@ def color_wrapper(colors:Iterable[str])->Callable:
     def color(candidates:Iterable[ObjectNode]):
         results = []
         for candidate in candidates:
-            if candidate.color in colors:
+            if candidate.visible and candidate.color in colors:
                 results.append(candidate)
         return results
     return color
@@ -154,6 +159,8 @@ def type_wrapper(types:Iterable[str])->Callable:
             return []
         results = []
         for candidate in candidates:
+            if not candidate.visible:
+                continue
             #print(candidate)
             for t in types:
                 #print(candidate.type, t)
@@ -172,6 +179,8 @@ def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_head
     def pos(candidates: Iterable[ObjectNode]):
         results = []
         for candidate in candidates:
+            if not candidate.visible:
+                continue
             for ego in egos:
                 if ego.id != candidate.id and ego.compute_relation_string(candidate, ref_heading) in spatial_retionships:
                     results.append(candidate)
@@ -230,10 +239,24 @@ def get_inheritance()->defaultdict:
     '''
     Return a lineage tree as a dictionary
     '''
+    import yaml
+    with open("./asset_config.yaml","r") as stream:
+        tree = yaml.safe_load(stream)["type"]
+
     inheritance = defaultdict(lambda:[])
-    inheritance["Vehicle"] = ["SUV", "Sedan", "Truck", "Sportscar","Jeep","Pickup","Compact Sedan"]
-    inheritance["Traffic Obstacle"] = ["Traffic Cone", "Warning sign", "Planar Barrier"]
-    inheritance["Traffic Participant"] = ["Vehicle", "Pedestrian"]
+
+    def get_non_leaf_nodes(d, inheritance, parent_key='', ):
+        non_leaf_nodes = []
+        for key, value in d.items():
+            # Construct a full key path if you are in a nested dictionary
+            full_key = parent_key + '.' + key if parent_key else key
+            if isinstance(value, dict):
+                inheritance[parent_key].append(key)
+                non_leaf_nodes.append(full_key)
+                # Recursively search for non-leaf nodes
+                non_leaf_nodes.extend(get_non_leaf_nodes(value, inheritance, key))
+        return non_leaf_nodes
+    get_non_leaf_nodes(tree, inheritance)
     return inheritance
         
 class QueryAnswerer:
@@ -391,7 +414,7 @@ def locate_wrapper(origin: ObjectNode)->Callable:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default = "verification/10_180/world_10_180")
+    parser.add_argument("--step", type=str, default = "verification/10_40/world_10_40")
     args = parser.parse_args()
     try:
         print(args.step)
@@ -401,23 +424,21 @@ if __name__ == "__main__":
         raise e
     agent_id,nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id,nodes)     
-    q1 = SubQuery(["White"],["Truck"], ['lf'], None, None)
-    q3 = SubQuery(None, ["Truck"], ['r'], None, q1)
-    q1.next = q3
-    q2 = SubQuery(None,None,None,None,None)
+    q1 = SubQuery(None,["dog"], None, None, None)
+    #q3 = SubQuery(None, ["Truck"], ['r'], None, q1)
+    #q1.next = q3
+    #q2 = SubQuery(None,None,None,None,None)
     q = Query([q1],"counting",Identity)
     prophet = QueryAnswerer(graph,[q])
-    
     result = prophet.ans(q)
     ids = [node.id for node in q.ans if node.id != agent_id]
+    print(len(ids))
     from vqa.visualization import generate_highlighted
-    generate_highlighted(path_to_mask =  "verification/10_180/mask_10_180.png",
-                         path_to_mapping= "verification/10_180/metainformation_10_180.json",
-                         folder = "verification/10_180",
+    generate_highlighted(path_to_mask =  "verification/10_40/mask_10_40.png",
+                         path_to_mapping= "verification/10_40/metainformation_10_40.json",
+                         folder = "verification/10_40",
                          ids = ids,
                          colors = [(1,1,1)]*len(ids))
-
     print(result)
-
 
             

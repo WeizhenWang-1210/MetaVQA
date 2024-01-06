@@ -181,6 +181,7 @@ class SidewalkManager(BaseManager):
                                                                            self.calculate_lateral_range(region, lane))
                         self.spawn_object(
                             TestObject,
+                            force_spawn = True,
                             lane=lane,
                             position=lane_position,
                             static=self.engine.global_config["static_traffic_object"],

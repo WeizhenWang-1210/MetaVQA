@@ -5,12 +5,19 @@ from metadrive.envs.base_env import BaseEnv
 from metadrive.base_class.base_object import BaseObject
 from metadrive.component.vehicle.vehicle_type import SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle
 from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
+from metadrive.component.static_object.test_new_object import TestObject
 from vqa.dataset_utils import transform_to_world
 def annotate_type(object):
     """
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
     """
     #TODO extend the function to work on Chenda's imported assets.
+
+    if isinstance(object,TestObject):
+        #print(object.get_asset_metainfo())
+        return object.get_asset_metainfo()['general']["detail_type"]
+
+
     vehicle_type = {
         SVehicle: "Compact Sedan",
         MVehicle: "Sedan",
@@ -33,6 +40,8 @@ def annotate_color(object):
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
     """
     #TODO extend the function to work on Chenda's imported assets.
+    if isinstance(object, TestObject):
+        return object.get_asset_metainfo()['general']["color"]
     vehicle_type = {
         SVehicle: "Blue",
         MVehicle: "White",
@@ -107,6 +116,8 @@ def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict
     img = img / 255 #needed as the r,g,b values in the mapping is clipped.
     flattened = img.reshape(H*W, C)
     for id, high_light in zip(ids, colors):
+        if id not in mapping.keys():
+            continue
         color = mapping[id]
         masks = np.all(np.isclose(flattened, color), axis=1) #Robust against floating-point arithmetic
         flattened[masks] = high_light

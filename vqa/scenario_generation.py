@@ -1,5 +1,6 @@
 from metadrive.envs.base_env import BaseEnv
 from metadrive.envs.real_data_envs.waymo_env import WaymoEnv
+from metadrive.envs.test_pede_metadrive_env import TestPedeMetaDriveEnv
 from vqa.utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import argparse
 import random
@@ -137,7 +138,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
                         #away from ego.
                         log_mapping = {id:log_mapping[id] for id in visible_objects.keys()}
                         visible_mask = [True for _ in len(visible_objects.keys())]
-                        objects_annotations = generate_annotations(list(visible_objects.values()),env)
+                        objects_annotations = generate_annotations(list(visible_objects.values()),env, visible_mask)
                         ego_annotation = genearte_annotation(env.vehicle,env)
                         scene_dict = dict(
                             ego = ego_annotation,
@@ -157,8 +158,8 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
 def main():
     #Setup the config
     try:
-        # with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
-        with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
+        with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
+        #with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
@@ -178,7 +179,7 @@ def main():
         map=config["map_setting"]["map_size"] if config["map_setting"]["PG"] else config["map_setting"]["map_sequence"],  
         start_seed=config["map_setting"]["start_seed"]
     )
-    env = MetaDriveEnv(scene_config)
+    env = TestPedeMetaDriveEnv(scene_config)
     #Call the ACTUAL data recording questions
     generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
                   dict(resolution=(1920,1080)),

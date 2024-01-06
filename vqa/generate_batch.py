@@ -19,15 +19,12 @@ def powerset(iterable: Iterable):
     s = list(iterable)
     return list(chain.from_iterable(combinations(s, r) for r in range(len(s)+1)))
 
-
-
 def choose_two(iterable: Iterable):
     '''
     choose_two
     '''
     s = list(iterable)
     return list(combinations(s,2))
-
 
 def cartesianproduct(*space: Iterable):
     '''

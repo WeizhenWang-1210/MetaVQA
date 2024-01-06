@@ -238,7 +238,7 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         for path in paths:
             partial = []
             for sub in path:
-                partial.append(TempSubQuery(sub["color"], sub["type"], sub["pos"]))
+                partial.append(SubQuery(sub["color"], sub["type"], sub["pos"]))
             hookup(partial)
             subqueries.append(partial)
         query = Query([sub[0] for sub in subqueries],self.config["format"],select_end_filter(self.config["end"]),
@@ -316,8 +316,8 @@ counting_example = dict(
     paths =  [
         [
              dict(
-                type = ["SportCar"],
-                color = ["Gray"],
+                type = ["dog"],
+                color = None,
                 pos = None),
         ]
     ],
