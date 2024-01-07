@@ -10,11 +10,11 @@ def try_pedestrian(render=False):
     env = TestPedeMetaDriveEnv(
         {
             "num_scenarios": 1,
-            "traffic_density": 0.2,
+            "traffic_density": 0.3,
             "traffic_mode": "hybrid",
             "start_seed": 22,
             "debug": True,
-            "cull_scene": False,
+            "cull_scene": True,
             "manual_control": True,
             "use_render": render,
             "decision_repeat": 5,

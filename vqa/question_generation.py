@@ -31,7 +31,6 @@ User -> QuestionSpecifier -> Query         ------- Answer
 """
 format:= count | logical | localize
 end:= count | localize | Count Greater | Cout Less | Count Equal
-
 """
 
 
