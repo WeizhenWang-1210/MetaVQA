@@ -55,6 +55,8 @@ class AutoStaticAssetMetaInfoUpdater:
             with open(os.path.join(self.save_path_folder, self.save_path), 'r') as file:
                 loaded_metainfo = json.load(file)
                 self.asset_metainfo.update(loaded_metainfo)  # update the asset_metainfo with the values from the file
+                if "mass" not in self.asset_metainfo['general'].keys():
+                    self.asset_metainfo['general']['mass'] = 10000
 
         self.isGLTF = isGLTF
         self.entries = {}
@@ -82,6 +84,9 @@ class AutoStaticAssetMetaInfoUpdater:
         self.root.title("Asset MetaInfo Updater")
         self.general_type_var = tk.StringVar()
         self.detailed_type_var = tk.StringVar()
+        self.length_var = tk.StringVar(value=str(self.asset_metainfo.get('length', 2)))
+        self.width_var = tk.StringVar(value=str(self.asset_metainfo.get('width', 2)))
+        self.height_var = tk.StringVar(value=str(self.asset_metainfo.get('height', 2)))
         self.message_label = ttk.Label(self.root, text="")
         self.message_label.pack(pady=10)
     def slider_command(self, v, key, idx=None):
@@ -132,10 +137,12 @@ class AutoStaticAssetMetaInfoUpdater:
         p2 = amax_point[0], amin_point[1]
         p3 = amin_point[0], amin_point[1]
         p4 = amin_point[0], amax_point[1]
+        height = amax_point[2] - amin_point[2]
         bounding_box = [p1, p2, p3, p4]
         length, width = amax_point[0] - amin_point[0], amax_point[1] - amin_point[1]
         center = [(amax_point[0] + amin_point[0])/2, (amax_point[1] + amin_point[1]) / 2]
-        return length, width, bounding_box, center
+        print(length, width, height)
+        return length, width, bounding_box, center, height
     def on_general_type_selected(self, event):
         # Populate detailed types based on selected general type
         general_type = self.general_type_var.get()
@@ -148,7 +155,7 @@ class AutoStaticAssetMetaInfoUpdater:
             print("Warning: No Type for {}".format(general_type))
     def on_update_scale(self):
         computed_scale = (self.dimensions['length'] + self.dimensions['width']) / 2
-        length, width, boudingbox, center = self.getCurrHW()
+        length, width, boudingbox, center, height = self.getCurrHW()
         current_scale = (length + width) / 2
         # self.create_ui_component('scale')
         self.asset_metainfo['scale'] = computed_scale / current_scale
@@ -176,9 +183,10 @@ class AutoStaticAssetMetaInfoUpdater:
             save_button = ttk.Button(self.root, text="Save to YAML", command=self.save_width_height_to_yaml)
             save_button.pack(pady=10)
     def save_width_height_to_yaml(self):
-        length, width, bounding_box, center = self.getCurrHW()
+        length, width, bounding_box, center, height = self.getCurrHW()
         self.config.updateTypeInfo({self.detailed_type_var.get(): {"length":length,
                                                                    "width": width,
+                                                                   "height": height,
                                                                    "bounding_box":bounding_box,
                                                                    "center":center}})
 
@@ -191,17 +199,43 @@ class AutoStaticAssetMetaInfoUpdater:
         min_val, max_val = self.RANGE_SPECS.get(key, (0, 20))  # Adjust range if necessary
 
         ttk.Label(frame, text=key).pack(side=tk.LEFT)
-        slider_cmd = partial(self.slider_command, key=key)
+        if key == 'scale':
+            # For scale, use a special command
+            slider_cmd = lambda v: self.update_dimensions_on_scale_change(float(v))
+        else:
+            slider_cmd = partial(self.slider_command, key=key)
         slider = ttk.Scale(frame, from_=min_val, to=max_val, value=self.asset_metainfo.get(key, 1),
                            command=slider_cmd, length=700, orient=tk.HORIZONTAL)
         slider.pack(side=tk.RIGHT, fill=tk.X, expand=True)
 
-        entry_var = tk.StringVar()
-        entry_var.set(str(self.asset_metainfo.get(key, 1)))
+        if key in ['length', 'width', 'height']:
+            entry_var = getattr(self, f"{key}_var")
+        else:
+            entry_var = tk.StringVar()
+            entry_var.set(str(self.asset_metainfo.get(key, 1)))
+
         entry = ttk.Entry(frame, textvariable=entry_var, width=8)
         entry.pack(side=tk.RIGHT, padx=5)
         entry.bind('<Return>', partial(self.entry_command, key=key, entry_var=entry_var))
         self.entries[key] = entry_var
+
+    def update_dimensions_on_scale_change(self, new_scale):
+        # Calculate new dimensions based on the new scale
+        # Assuming original dimensions are stored in self.original_dimensions
+        new_length = self.original_dimensions['length'] * new_scale
+        new_width = self.original_dimensions['width'] * new_scale
+        new_height = self.original_dimensions['height'] * new_scale
+
+        # Update asset_metainfo with new dimensions
+        self.asset_metainfo['length'] = new_length
+        self.asset_metainfo['width'] = new_width
+        self.asset_metainfo['height'] = new_height
+        self.asset_metainfo['scale'] = new_scale
+
+        # Update the StringVars
+        self.length_var.set(str(new_length))
+        self.width_var.set(str(new_width))
+        self.height_var.set(str(new_height))
     def setup_ui(self):
         # Dropdown for general type
         ttk.Label(self.root, text="Select General Type:").pack(pady=10)
@@ -237,7 +271,7 @@ class AutoStaticAssetMetaInfoUpdater:
         cancel_button = ttk.Button(self.root, text="Cancel", command=self.cancel_and_exit)
         cancel_button.pack(side=tk.RIGHT, padx=5, pady=10)
     def make_center(self):
-        length, width, bounding_box, center = self.getCurrHW()
+        length, width, bounding_box, center, height = self.getCurrHW()
         self.asset_metainfo['pos0'] -= center[0]
         self.asset_metainfo['pos1'] -= center[1]
 
@@ -259,16 +293,20 @@ class AutoStaticAssetMetaInfoUpdater:
     def save_metainfo_to_json(self):
         """Save the modified MetaInfo to a JSON file."""
         self.save_width_height_to_yaml()
-        length, width, bounding_box, center = self.getCurrHW()
+        length, width, bounding_box, center, height = self.getCurrHW()
         general_info_dict = {
             "length": length,
             "width": width,
+            "height": height,
             "bounding_box": bounding_box,
             "center": center,
             "color": self.color_var.get(),
             "general_type": self.general_type_var.get(),
             "detail_type":self.detailed_type_var.get()
         }
+        for key, val in general_info_dict.items():
+            if key in self.asset_metainfo.keys():
+                self.asset_metainfo[key] = val
         self.asset_metainfo["general"] = general_info_dict
         if self.save_path is not None:
             with open(os.path.join(self.save_path_folder, self.save_path), 'w') as file:
@@ -292,6 +330,7 @@ class AutoStaticAssetMetaInfoUpdater:
             "length": 2,
             "width": 2,
             "height": 2,
+            "mass": 10000,
             "filename": file_name,
             "foldername": folder_name,
             "CLASS_NAME": file_name,
@@ -305,6 +344,7 @@ class AutoStaticAssetMetaInfoUpdater:
             "length": (0, 10),
             "width": (0, 10),
             "height": (0, 10),
+            "mass": (0, 10_000),
             "hshift": (-180, 180),
             "pos0": (-10, 10),
             "pos1": (-10, 10),
@@ -317,7 +357,7 @@ class AutoStaticAssetMetaInfoUpdater:
             "traffic_density": 0.,
             "traffic_mode": "hybrid",
             "start_seed": 22,
-            "debug": False,
+            "debug": True,
             "cull_scene": False,
             "manual_control": False,
             "use_render": True,

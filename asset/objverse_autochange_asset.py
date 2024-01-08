@@ -35,12 +35,15 @@ class AutoAssetMetaInfoUpdater:
                 self.asset_metainfo["MODEL_SCALE"] = tuple(self.asset_metainfo["MODEL_SCALE"])
                 self.asset_metainfo["MODEL_OFFSET"] = tuple(self.asset_metainfo["MODEL_OFFSET"])
                 self.asset_metainfo["MODEL_SCALE"] = tuple(self.asset_metainfo["MODEL_SCALE"])
+                if "mass" not in self.asset_metainfo['general'].keys():
+                    self.asset_metainfo['general']['mass'] = 10
         # Env config
         self.env_config = {
             "manual_control": True,
             "use_render": True,
             "window_size": (1600, 1100),
             "start_seed": 1000,
+            "debug": True,
             "test_asset_meta_info": self.asset_metainfo
         }
         self.env_config["test_asset_meta_info"]["MODEL_PATH"] = model_path
@@ -54,6 +57,9 @@ class AutoAssetMetaInfoUpdater:
         self.root = tk.Tk()
         self.root.title("Asset MetaInfo Updater")
         self.detailed_type_var = tk.StringVar()
+        self.length_var = tk.StringVar(value=str(self.asset_metainfo.get('length', 2)))
+        self.width_var = tk.StringVar(value=str(self.asset_metainfo.get('width', 2)))
+        self.height_var = tk.StringVar(value=str(self.asset_metainfo.get('height', 2)))
         self.entries = {}
         self.message_label = ttk.Label(self.root, text="")
         self.message_label.pack(pady=10)
@@ -167,10 +173,11 @@ class AutoAssetMetaInfoUpdater:
         p2 = amax_point[0], amin_point[1]
         p3 = amin_point[0], amin_point[1]
         p4 = amin_point[0], amax_point[1]
+        height = amax_point[2] - amin_point[2]
         bounding_box = [p1, p2, p3, p4]
         length, width = amax_point[0] - amin_point[0], amax_point[1] - amin_point[1]
         center = [(amax_point[0] + amin_point[0])/2, (amax_point[1] + amin_point[1]) / 2]
-        return length, width, bounding_box, center
+        return length, width, bounding_box, center, height
     def on_detailed_type_selected(self, event):
         """
         Callback for when the detailed type is selected in the dropdown menu.
@@ -201,18 +208,31 @@ class AutoAssetMetaInfoUpdater:
         Callback for when the scale updated is pressed in the UI. Use the saved dimensions to compute the scale.
         """
         computed_scale = (self.dimensions['length'] + self.dimensions['width']) / 2
-        length, width, boudingbox, center = self.getCurrHW()
+        length, width, boudingbox, center, height = self.getCurrHW()
         current_scale = (length + width) / 2
         # self.create_ui_component('scale')
+        # scale_factor = computed_scale / current_scale
+        #
+        # # Update dimensions based on scale factor
+        # self.asset_metainfo['length'] = self.original_dimensions['length'] * scale_factor
+        # self.asset_metainfo['width'] = self.original_dimensions['width'] * scale_factor
+        # self.asset_metainfo['height'] = self.original_dimensions['height'] * scale_factor
+        # self.asset_metainfo['scale'] = scale_factor
+        #
+        # # Update UI if necessary
+        # if 'length' in self.entries: self.entries['length'].set(self.asset_metainfo['length'])
+        # if 'width' in self.entries: self.entries['width'].set(self.asset_metainfo['width'])
+        # if 'height' in self.entries: self.entries['height'].set(self.asset_metainfo['height'])
         adjusted_scale =  computed_scale / current_scale
         self.asset_metainfo['MODEL_SCALE'] = (adjusted_scale, adjusted_scale, adjusted_scale)
     def save_width_height_to_yaml(self):
         """
         Callback for when the save to YAML button is pressed. Saves the current width and height to the YAML file.
         """
-        length, width, bounding_box, center = self.getCurrHW()
+        length, width, bounding_box, center, height = self.getCurrHW()
         self.config.updateTypeInfo({self.detailed_type_var.get(): {"length":length,
                                                                    "width": width,
+                                                                   "height": height,
                                                                    "bounding_box":bounding_box,
                                                                    "center":center}})
     def setup_ui(self):
@@ -238,7 +258,7 @@ class AutoAssetMetaInfoUpdater:
             frame = tk.Frame(self.root)
             frame.pack(fill=tk.X, padx=10, pady=5)
 
-            min_val, max_val = self.RANGE_SPECS.get(key, (0, value * 2 if not isinstance(value, tuple) else 2))
+            min_val, max_val = self.RANGE_SPECS.get(key, (0, value * 2 if not isinstance(value, tuple) and value is not None else 2))
 
             if isinstance(value, (int, float)):
                 ttk.Label(frame, text=key).pack(side=tk.LEFT)
@@ -320,7 +340,7 @@ class AutoAssetMetaInfoUpdater:
         """
         Adjust offset to make the cneter of model to be the origin
         """
-        length, width, bounding_box, center = self.getCurrHW()
+        length, width, bounding_box, center, height = self.getCurrHW()
         # print(bounding_box)
         print(center)
         print(self.asset_metainfo["MODEL_OFFSET"])
@@ -365,16 +385,23 @@ class AutoAssetMetaInfoUpdater:
         Also updates the width and height information in YAML.
         """
         self.save_width_height_to_yaml()
-        length, width, bounding_box, center = self.getCurrHW()
+        length, width, bounding_box, center, height = self.getCurrHW()
         general_info_dict = {
             "length": length,
             "width": width,
+            "height": height,
             "bounding_box": bounding_box,
             "center": center,
             "color": self.color_var.get(),
             "general_type": "vehicle",
             "detail_type":self.detailed_type_var.get()
         }
+        self.asset_metainfo['LENGTH'] = length
+        self.asset_metainfo['WIDTH'] = width
+        self.asset_metainfo['HEIGHT'] = height
+        for key, val in general_info_dict.items():
+            if key in self.asset_metainfo.keys():
+                self.asset_metainfo[key] = val
         self.asset_metainfo["general"] = general_info_dict
         if self.save_path is not None:
             with open(os.path.join(self.save_path_folder, self.save_path), 'w') as file:

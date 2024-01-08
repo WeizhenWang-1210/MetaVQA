@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 class TestObject(TrafficObject):
     """A barrier"""
 
-    HEIGHT = 2.0
-    MASS = 10
+    # HEIGHT = 2.0
+    # MASS = 10
     CLASS_NAME = "TestObject"
 
     def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
@@ -50,7 +50,8 @@ class TestObject(TrafficObject):
         n = self._create_obj_chassis()
         self.add_body(n)
 
-        self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
+        # self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
+        self.body.addShape(BulletBoxShape((self.LENGTH / 2, self.WIDTH / 2, self.height / 2)))
 
         # self.set_static(static)
         if self.render:
@@ -67,7 +68,7 @@ class TestObject(TrafficObject):
         chassis = BaseRigidBodyNode(self.name, self.asset_metainfo['CLASS_NAME'])
         self._node_path_list.append(chassis)
 
-        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, self.HEIGHT / 2))
+        chassis_shape = BulletBoxShape(Vec3(self.LENGTH / 2, self.WIDTH / 2, self.HEIGHT / 2))
         ts = TransformState.makePos(Vec3(0, 0, self.HEIGHT / 2))
         chassis.addShape(chassis_shape, ts)
         chassis.setDeactivationEnabled(False)
@@ -108,8 +109,8 @@ class TestObject(TrafficObject):
 class TestGLTFObject(TrafficObject):
     """A barrier"""
 
-    HEIGHT = 2.0
-    MASS = 10
+    # HEIGHT = 2.0
+    # MASS = 10
     CLASS_NAME = "TestObject"
 
     def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
@@ -128,7 +129,8 @@ class TestGLTFObject(TrafficObject):
         self.pos2 = asset_metainfo["pos2"]
         self.scale = asset_metainfo["scale"]
 
-        self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
+        # self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
+        self.body.addShape(BulletBoxShape((self.LENGTH / 2, self.WIDTH / 2, self.height / 2)))
         self.set_static(static)
         if self.render:
             # model_file_path1 = AssetLoader.file_path("models", "test", "stop sign-8be31e33b3df4d6db7c75730ff11dfd8.glb")

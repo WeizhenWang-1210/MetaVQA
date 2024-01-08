@@ -180,7 +180,9 @@ class TestAssetMetaDriveEnv(BaseEnv):
         return config
 
     def _get_observations(self):
-        return {DEFAULT_AGENT: self.get_single_observation(self.config["vehicle_config"]), "test_agent": self.get_single_observation(self.config["vehicle_config"])}
+        # return {DEFAULT_AGENT: self.get_single_observation(self.config["vehicle_config"]), "test_agent": self.get_single_observation(self.config["vehicle_config"])}
+        return {DEFAULT_AGENT: self.get_single_observation(),
+                "test_agent": self.get_single_observation()}
 
     def done_function(self, vehicle_id: str):
         vehicle = self.vehicles[vehicle_id]
