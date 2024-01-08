@@ -1,9 +1,13 @@
-from panda3d.core import VirtualFileSystem, Filename
+from panda3d.core import Filename
+from panda3d.bullet import BulletVehicle, BulletBoxShape, ZUp
+from panda3d.core import Material, Vec3, TransformState
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.component.pg_space import ParameterSpace, VehicleParameterSpace
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
 import platform
-from metadrive.constants import Semantics
+from metadrive.constants import Semantics, MetaDriveType
+from metadrive.engine.engine_utils import get_engine, engine_initialized
+from metadrive.engine.physics_node import BaseRigidBodyNode
 from metadrive.utils import Config
 from typing import Union, Optional
 
@@ -56,6 +60,28 @@ class CustomizedCar(BaseVehicle):
         cls.LENGTH = asset_metainfo["LENGTH"]
         cls.HEIGHT = asset_metainfo["HEIGHT"]
         cls.WIDTH = asset_metainfo["WIDTH"]
+    def _create_vehicle_chassis(self):
+        # self.LENGTH = type(self).LENGTH
+        # self.WIDTH = type(self).WIDTH
+        # self.HEIGHT = type(self).HEIGHT
+
+        # assert self.LENGTH < BaseVehicle.MAX_LENGTH, "Vehicle is too large!"
+        # assert self.WIDTH < BaseVehicle.MAX_WIDTH, "Vehicle is too large!"
+
+        chassis = BaseRigidBodyNode(self.name, MetaDriveType.VEHICLE)
+        self._node_path_list.append(chassis)
+
+        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, self.HEIGHT / 2))
+        ts = TransformState.makePos(Vec3(0, 0, 0))
+        chassis.addShape(chassis_shape, ts)
+        chassis.setDeactivationEnabled(False)
+        chassis.notifyCollisions(True)  # advance collision check, do callback in pg_collision_callback
+
+        physics_world = get_engine().physics_world
+        vehicle_chassis = BulletVehicle(physics_world.dynamic_world, chassis)
+        vehicle_chassis.setCoordinateSystem(ZUp)
+        self.dynamic_nodes.append(vehicle_chassis)
+        return vehicle_chassis
     @classmethod
     def LENGTH(cls):
         return cls.LENGTH
@@ -366,7 +392,8 @@ vehicle_type = {
     "xl": XLVehicle,
     "default": DefaultVehicle,
     "static_default": StaticDefaultVehicle,
-    "varying_dynamics": VaryingDynamicsVehicle
+    "varying_dynamics": VaryingDynamicsVehicle,
+    "test": CustomizedCar
 }
 
 VaryingShapeVehicle = VaryingDynamicsVehicle
