@@ -1,4 +1,3 @@
-
 {
     "generic":{
         "localization":{
@@ -15,7 +14,7 @@
         },
         "counting": {
             "text":[
-                "How many <o> are <a>?",
+                "How many <o> are <a>?", 
                 "Give me the number of <o> that are <a>"
             ],
             "params":[
@@ -26,7 +25,7 @@
         },
         "count_equal_binary":{
             "text":[
-                "Are there equal number of the following things:<o1>,<o2>?",
+                "Are there equal number of the following things: <o1>,<o2>?",
                 "Do we have the same number of <o1> and <o2>?"
             ],
             "params":[
@@ -140,3 +139,99 @@
     }
    
 }
+
+
+<o> car    [[type = car, color = None, pos = None]]
+<o> blue car [[type = car, color = blue, pos = None]]
+<o> blue car on the right of a green car [[type = car, color=  gree, pos = None], [type = car, color =blue, pos = right]]
+<o> parked blue car to the right or the green car that just passed by us
+
+<o> blue c arin front of us
+
+<a> 
+
+
+ #TODO
+dictionary 
+<sportscar> := []
+    ================
+    |             |
+  ego  --- v1     |
+     \       \    |
+      \       \   |
+       v2  ---- v3
+ 
+<o> := <t> | <P> <o> | <p> <o> <pos> <o>| <action> <o> <dest> | <o> that <action>
+<dest> := <dir> <o>
+
+
+<action> := park | accelerate | decelerate | 
+<t> : = t|car | pedestrian | policecar  | firefightertruct .....
+
+
+car <o>                        blue car <o>                                 blue car on the right of a gree car  <o>
+     |                                  / \                                                                      /\    \      \
+    <t>                             <p>    <o>                                                                  <p> <o> <pos> <o> ---------------|                          
+     |                               |       |                                                                  blue  |   to the right of       <p> <o>
+    car                              blue   <t>                                                                       <t>                       green car
+                                            |                                                                         car
+                                            car                                                          
+                                            
+                                               
+parked blue car to the right of the green car that just passed by us <o>
+                                                                    / | \
+                                                              <action> <o>  <dest>
+                                                                |    / \     |                  
+                                                               park <p><o>  
+                                                                     |  |    |   \
+                                                                   blue car <dir>  <o>
+                                                                             |       \       
+                                                                       to the right of  <p>
+
+
+
+the process is to generate a parse tree. 
+
+
+
+
+
+
+blue car that turned right?
+
+
+
+#TODO : Action injection + recording 
+#TODO : Dictionary mapping codename to natural English
+#TODO:  
+
+
+
+How to instantiate all possible questions:
+    go through the dictionary, extract all existing terminal symbols. When instantiating questions, only use terminal symbols that's 
+    present in the annotation,
+    Use some sort of caching mechanism, so that once it's determined that certain kinds of entities doesn't exist in the scenario,
+            key: paths to some entities
+            value: unsat.
+    Utilize the full potential of context-free-grammar to build trees, and arbitrarily instantiate the tree with terminal tokens. Pass
+    this tree to the querier to see if there're some entities that satisfy this description. If so, instantiate the question. If not, 
+    remember this cfg with unsat property. 
+
+
+
+
+
+equal number of blue car and red pedestrian 
+
+blue car---------->     equal ?  ------> True/False
+red pedestrian --------> 
+
+
+
+
+
+
+
+
+
+

@@ -177,9 +177,10 @@ def main():
         out_of_route_done=True,
         vehicle_config=dict(show_lidar=True, show_navi_mark=True),
         map=config["map_setting"]["map_size"] if config["map_setting"]["PG"] else config["map_setting"]["map_sequence"],  
-        start_seed=config["map_setting"]["start_seed"]
+        start_seed=config["map_setting"]["start_seed"],
+        debug = True
     )
-    env = TestPedeMetaDriveEnv(scene_config)
+    env = MetaDriveEnv(scene_config)
     #Call the ACTUAL data recording questions
     generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
                   dict(resolution=(1920,1080)),

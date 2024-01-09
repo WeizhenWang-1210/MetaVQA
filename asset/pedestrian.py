@@ -9,10 +9,10 @@ from metadrive.component.vehicle.vehicle_type import CustomizedCar
 def try_pedestrian(render=False):
     env = TestPedeMetaDriveEnv(
         {
-            "num_scenarios": 1,
-            "traffic_density": 0.3,
+            "num_scenarios": 5,
+            "traffic_density": 0.1,
             "traffic_mode": "hybrid",
-            "start_seed": 22,
+            "start_seed": 1,
             "debug": True,
             "cull_scene": True,
             "manual_control": True,
@@ -22,14 +22,14 @@ def try_pedestrian(render=False):
             "rgb_clip": True,
             "map": 8,
             # "agent_policy": IDMPolicy,
-            "random_traffic": False,
+            "random_traffic": True,
             "random_lane_width": True,
             # "random_agent_model": True,
             "driving_reward": 1.0,
             "force_destroy": False,
             "window_size": (2400, 1600),
             "vehicle_config": {
-                "enable_reverse": False,
+                "enable_reverse": True,
             },
         }
     )

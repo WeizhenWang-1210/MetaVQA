@@ -6,6 +6,13 @@ from collections import defaultdict
 import json
 import numpy as np
 import argparse
+import os
+pwd = os.getcwd()
+template_path = os.path.join(pwd, "vqa/question_templates.json")
+with open(template_path,"r") as f:
+    templates = json.load(f)
+print(templates)
+
 
 class SubQuery:
     """

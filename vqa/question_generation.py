@@ -9,6 +9,7 @@ from vqa.question_generator import Query,SubQuery,count, QueryAnswerer,CountGrea
 from vqa.temporal_question_generator import TempSubQuery, TempQuery, TempQueryAnswerer
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import nodify
+import os
 
 """
 Note that MetaDrive uses a right-handed coordinate system with x being the heading direction
@@ -33,7 +34,15 @@ format:= count | logical | localize
 end:= count | localize | Count Greater | Cout Less | Count Equal
 """
 
+pwd = os.getcwd()
+template_path = os.path.join(pwd, "vqa/question_templates.json")
+try:
+    with open(template_path,"r") as f:
+        templates = json.load(f)["generic"]
+except Exception as e:
+    print(e)
 
+templates = templates["general"]
 
 class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular query
     """
@@ -50,6 +59,7 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         addition, can only generate logical questions with two threads.
         """
         self.config= config
+        self.template = config["format"]
         self.graph = graph
 
     def translate_to_En(self):
@@ -59,6 +69,24 @@ class QuestionSpecifier: # 1-to-1 corresponding relationship with a particular q
         #TODO Add more templates to the same question for diversity
         #The translator is a kind of function that takes in an str and supply it to a predefined question template
         format = self.config["format"]
+
+
+        text_template = self.template['text']
+        params = {param:"" for param in self.template["params"]}
+        constraint = self.template["constraint"]
+        for param in params.keys():
+            if param[:2]=="<o":
+                params[param] = self.QtoEn(self.configs["entities"])
+            elif param[:2]=="<a":
+                params[param] = self.configs["actions"]
+            else:
+                par
+
+
+
+
+
+
         if format == "count":
             translator = counting_translator_generator()
         elif format == "temporal":
@@ -278,6 +306,23 @@ def counting_translator_generator():
         return result
     return func
 
+good_example = dict(
+    format = "counting",
+    entities = [
+        [
+            dict(
+                type = ["SportCar"],
+                color = ["Gray"],
+                pos = None),
+        ]
+    ]
+    actions = [
+        "present"
+    ]
+)
+
+
+
 
 
 
@@ -308,7 +353,6 @@ logic_example = dict(
 # Is there more grey sportscar that is in front of white vehicles than red vehicles
 # <end>  <subq2,q1>                           <subq1,q1>           <end> <q2>
 #                        <q1>
-
 
 counting_example = dict(
     format = "count",
