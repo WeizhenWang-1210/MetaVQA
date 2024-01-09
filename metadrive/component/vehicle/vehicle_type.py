@@ -71,8 +71,10 @@ class CustomizedCar(BaseVehicle):
         chassis = BaseRigidBodyNode(self.name, MetaDriveType.VEHICLE)
         self._node_path_list.append(chassis)
 
-        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, self.HEIGHT / 2))
-        ts = TransformState.makePos(Vec3(0, 0, 0))
+        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, (self.HEIGHT  - self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS) / 2))
+        # chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, self.HEIGHT / 2 - self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS))
+        # ts = TransformState.makePos(Vec3(0, 0, 0))
+        ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS + self.CHASSIS_TO_WHEEL_AXIS))
         chassis.addShape(chassis_shape, ts)
         chassis.setDeactivationEnabled(False)
         chassis.notifyCollisions(True)  # advance collision check, do callback in pg_collision_callback
