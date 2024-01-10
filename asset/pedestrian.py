@@ -10,7 +10,7 @@ def try_pedestrian(render=False):
     env = TestPedeMetaDriveEnv(
         {
             "num_scenarios": 5,
-            "traffic_density": 0.1,
+            "traffic_density": 0.5,
             "traffic_mode": "hybrid",
             "start_seed": 1,
             "debug": True,
@@ -18,15 +18,15 @@ def try_pedestrian(render=False):
             "manual_control": True,
             "use_render": render,
             "decision_repeat": 5,
-            "need_inverse_traffic": False,
+            "need_inverse_traffic": True,
             "rgb_clip": True,
-            "map": 8,
+            "map": 4,
             # "agent_policy": IDMPolicy,
             "random_traffic": True,
             "random_lane_width": True,
             # "random_agent_model": True,
             "driving_reward": 1.0,
-            "force_destroy": False,
+            "force_destroy": True,
             "window_size": (2400, 1600),
             "vehicle_config": {
                 "enable_reverse": True,
