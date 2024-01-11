@@ -16,10 +16,12 @@ CFG_GRAMMAR = {
         ["turn right"], ["turn left"]
     ],
     "<p>":[
-        ["nil"],["red"],["yellow"],["green"],["blue"],["black"],["orange"],["white"]
+        ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],
+        ["Cyan"],["Lime"],["Pink"],["Gold"],["Teal"],["Maroon"],["Navy"],["Olive"],["Silver"],["Violet"]
     ],
     "<t>":[
-        ["nil"], ["car"],["policecar"]
+        ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"]
     ],
     "<dir>":[
         ["nil"],["<tdir>", "<o>"]
