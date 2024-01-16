@@ -57,7 +57,7 @@ def logging(env, lidar, rgb, scene_dict,masks,identifier, instance_folder, log_m
         raise e
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_iterations:int, 
-                  observation_config:dict, IO_config: dict, seed:int, temporal_generation: bool):
+                  observation_config:dict, IO_config: dict, seed:int, temporal_generation: bool, episode_length:int):
     '''
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
@@ -180,12 +180,12 @@ def main():
         start_seed=config["map_setting"]["start_seed"],
         debug = True
     )
-    env = MetaDriveEnv(scene_config)
+    env = TestPedeMetaDriveEnv(scene_config)
     #Call the ACTUAL data recording questions
     generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
                   dict(resolution=(1920,1080)),
                   dict(batch_folder = config["storage_path"], log = True),config["map_setting"]["start_seed"],
-                  temporal_generation=config["temporal_generation"])
+                  temporal_generation=config["temporal_generation"],episode_length=10)
 
 if __name__ == "__main__":
     main()

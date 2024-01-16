@@ -3,7 +3,7 @@ import numpy as np
 from metadrive.engine.engine_utils import get_engine
 from metadrive.envs.base_env import BaseEnv
 from metadrive.base_class.base_object import BaseObject
-from metadrive.component.vehicle.vehicle_type import SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle
+from metadrive.component.vehicle.vehicle_type import BaseVehicle,SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle, CustomizedCar
 from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
 from metadrive.component.static_object.test_new_object import TestObject
 from vqa.dataset_utils import transform_to_world
@@ -13,7 +13,7 @@ def annotate_type(object):
     """
     #TODO extend the function to work on Chenda's imported assets.
 
-    if isinstance(object,TestObject):
+    if isinstance(object,TestObject) or isinstance(object, CustomizedCar):
         #print(object.get_asset_metainfo())
         return object.get_asset_metainfo()['general']["detail_type"]
 
@@ -40,7 +40,7 @@ def annotate_color(object):
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
     """
     #TODO extend the function to work on Chenda's imported assets.
-    if isinstance(object, TestObject):
+    if isinstance(object, TestObject) or isinstance(object, CustomizedCar):
         return object.get_asset_metainfo()['general']["color"]
     vehicle_type = {
         SVehicle: "Blue",
@@ -58,6 +58,14 @@ def annotate_color(object):
         if isinstance(object, c):
             return color
     return "f"
+
+def annotate_states(object):
+    states = dict()
+    if isinstance(object, CustomizedCar) or isinstance(object, BaseVehicle):
+        states["accleration"] = object.throttle_brake
+        states["steering"] = object.steering
+    return states
+
 
 def get_visible_object_ids(imgs:np.array, mapping: dict(), filter: Callable)->Iterable[str]:
     '''
@@ -100,7 +108,8 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
             height = height, 
             class_name = str(type(obj)),
             lane = obj.lane_index,
-            visible = visible_mask[idx]
+            visible = visible_mask[idx],
+            states = annotate_states(obj)
         )
         result.append(annotation)
     return result
