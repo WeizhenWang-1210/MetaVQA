@@ -56,8 +56,6 @@ class tree:
         self.root = tnode("<o>")
         self.root.populate(max_depth)
         self.depth = self.get_depth()
-
-
     def get_depth(self)->int:
         def depth(node):
             if not node:
@@ -66,14 +64,15 @@ class tree:
                 return 1
             return 1 + max([depth(child) for child in node.children])
         return depth(self.root)
-    def new_build_functional(self):
+    def new_build_functional(self,constraints):
+        unique_flag = "unique" in constraints
         results = dict()
         def recur_build_o(root_o, id):
             assert root_o.token == "<o>"
             if root_o.key:
                 results[id] = ["us"]
             else:
-                curr_cfg = dict()
+                curr_cfg = dict(unique = unique_flag)
                 offset = 1
                 for child in root_o.children:
                     if child.key:
@@ -92,112 +91,29 @@ class tree:
         recur_build_o(self.root, 0)
         return results
 
-    #
-    #
-    # def new_build_functional(self):
-    #     total_key = ["<s>", "<p>", "<t>", "<dir>", "<a>"]
-    #     todo_node = [(self.root, None)] # (node, parent), for example, (<o>, dir) means current code suppose to fill previous dir
-    #     pending_cfg = []
-    #     results = []
-    #     unique_identifier = 0
-    #     while len(todo_node) > 0:
-    #         cur_o, fill_target = todo_node.pop()
-    #         curr_cfg = dict()
-    #         if cur_o.token == "<o>" and not cur_o.key:
-    #             pending_flag = False
-    #             curr_cfg["id"] = unique_identifier
-    #             unique_identifier += 1
-    #             for child in cur_o.children:
-    #                 if child.key:
-    #                     curr_cfg[child.token] = child.children[0].token
-    #                 else:
-    #                     pending_flag = True
-    #                     for child_child in child.children:
-    #                         todo_node.append((child_child, child.token))
-    #             if pending_flag:
-    #                 for key in total_key:
-    #                     if key not in curr_cfg:
-    #                         curr_cfg[key] = None
-    #                         curr_cfg[key + "_pointer"] = None
-    #                 pending_cfg.append(curr_cfg)
-    #             else:
-    #                 results.append(curr_cfg)
-    #                 while self.check_pending_full(pending_cfg, fill_target):
-    #                     update_cfg = pending_cfg.pop()
-    #                     update_cfg["{}_pointer".format(fill_target)] = curr_cfg['id']
-    #                     curr_cfg = update_cfg
-    #                     results.append(curr_cfg)
-    #         elif cur_o.token == "<o>" and cur_o.key:
-    #             curr_cfg["id"] = unique_identifier
-    #             unique_identifier += 1
-    #         else:
-    #             update_cfg = pending_cfg.pop()
-    #             update_cfg[cur_o.token] = cur_o.children[0].token
-    #             pending_cfg.append(update_cfg)
-    #
-    # def check_pending_full(self, pending_cfg, fill_target):
-    #     top = pending_cfg[-1]
-    #     for key, val in top.items():
-    #         if val == None and key == "{}_pointer".format(fill_target):
-    #             continue
-    #         else:
-    #             return False
-    #     return True
+
+    def computation_graph(self, configs):
+        def haschild(config):
+            result = []
+            if not isinstance(config,dict):
+                return result
+            for key, value in config.items():
+                if key == "<o>'s id":
+                    result.append(value)
+                elif isinstance(value, dict):
+                    result += haschild(value)
+            return result
+        result = []
+        for key,value in configs.items():
+            ret = haschild(value)
+            result += [(key, child) for child in ret]
+        return result
+    
+    def build_program(self, configs, dependency):
+        pass
 
     
-    def build_functional(self):
-        results = []
-        cur_level = [self.root]
-        cur_config = None
-        while len(cur_level) > 0:
-            next_level = []
-            for node in cur_level:
-                if not node.children:
-                    continue
-                next_level+=node.children
-                if node.token == "<o>" and not node.key:
-                    cur_config = self.attempt_fill_config(node.children)
-                    results.append(cur_config)
-            cur_level = next_level
-        return results
-    def attempt_fill_config(self, nodes):
-        cur_config = dict(
-                        type = "",
-                        color = "",
-                        action = "",
-                        state = "",
-                        pos = ""
-                    )
-        for node in nodes:
-            if node.key:
-                if node.token == "<dir>":
-                    cur_config["pos"] = None
-                elif node.token == "<s>":
-                    cur_config["state"] = node.children[0].token
-                elif node.token == "<p>":
-                    cur_config["color"] = node.children[0].token
-                elif node.token == "<t>":
-                    cur_config["type"] = node.children[0].token
-                elif node.token == "<a>":
-                    cur_config["action"] = node.children[0].token
-                else:
-                    exit("Incorrect built tree built")
-        return cur_config
-
-
-                
-            
-    
-    
-    
-
         
-                
-        
-
-
-    
-              
 def better_visualize_tree(node, prefix=""):
     """Visualizes the tree structure."""
     if node is None:
@@ -225,23 +141,24 @@ def translate(object_dict):
         if len(object_dict[obj_id]) == 1:
             return object_dict[obj_id][0]
         else:
-            s = object_dict[obj_id]['<s>'] if object_dict[obj_id]['<s>'] != 'nil' else ''
-            p = object_dict[obj_id]['<p>'] if object_dict[obj_id]['<p>'] != 'nil' else ''
-            t = object_dict[obj_id]['<t>'] if object_dict[obj_id]['<t>'] != 'nil' else ''
+            form = "singular" if object_dict[obj_id]["unique"] else "plural"
+            s = state_token_string_converter(object_dict[obj_id]['<s>'])
+            p = color_token_string_converter(object_dict[obj_id]['<p>']) 
+            t = type_token_string_converter(object_dict[obj_id]['<t>'],form)
             dir = ''
             if isinstance(object_dict[obj_id]['<dir>'], str):
-                dir = object_dict[obj_id]['<a>'] if object_dict[obj_id]['<a>'] != 'nil' else ''
+                dir = object_dict[obj_id]['<dir>'] if object_dict[obj_id]['<dir>'] != 'nil' else ''
             elif isinstance(object_dict[obj_id]['<dir>'], dict):
                 tdir = object_dict[obj_id]['<dir>']['<tdir>']
                 tdir_mapping = {
-                    "left": "on the left of",
-                    "right": "on the right of",
+                    "left": "to the left of",
+                    "right": "to the right of",
                     "front": "in front of",
                     "back": "behind",
-                    "left and front": "on the left and in front of",
-                    "right and front": "on the right and in front of",
-                    "left and back": "on the left and behind",
-                    "right and back": "on the right and behind"
+                    "left and front": "to the left and in front of",
+                    "right and front": "to the right and in front of",
+                    "left and back": "to the left and behind",
+                    "right and back": "to the right and behind"
                 }
                 new_o = recur_translate(object_dict[obj_id]['<dir>']["<o>'s id"])
                 dir = tdir_mapping[tdir] + ' ' + new_o
@@ -249,17 +166,19 @@ def translate(object_dict):
                 print("warning!")
             a = ''
             if isinstance(object_dict[obj_id]['<a>'], str):
-                a = object_dict[obj_id]['<a>'] if object_dict[obj_id]['<a>'] != 'nil' else ''
+                a = action_token_string_converter(object_dict[obj_id]['<a>'],form)
             elif isinstance(object_dict[obj_id]['<a>'], dict):
                 if '<deed_with_o>' in object_dict[obj_id]['<a>'].keys():
-                    deed_with_o = object_dict[obj_id]['<a>']['<deed_with_o>']
+                    deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_with_o>'],form)
                     new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
                     a = deed_with_o + ' ' + new_o
                 else:
-                    a = object_dict[obj_id]['<a>']['<deed_without_o>']
+                    a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'],form)
             else:
                 print("warning!")
             result = ""
+            if form == "singular":
+                result = "the "
             if s != '':
                 result += s + ' '
             if p != '':
@@ -270,16 +189,58 @@ def translate(object_dict):
                 result += dir + ' '
             if a != '':
                 result += 'that ' + a
+            result = " ".join(result.split())
             return result
     return recur_translate(0)
 
 
+def color_token_string_converter(token):
+    if token != "nil":
+        return token.lower()
+    else:
+        return ""
+
+def type_token_string_converter(token,form):
+    mapping = dict(
+        nil = dict(singular = "thing", plural = "things"),
+        Bus = dict(singular = "bus", plural = "buses"),
+        Caravan = dict(singular = "caravan", plural = "caravans"),
+        Coupe = dict(singular = "coupe", plural = "coupes"),
+        FireTruck = dict(singular = "fire engine", plural = "fire engines"),
+        Jeep = dict(singular = "jeep", plural = "jeeps"),
+        Pickup = dict(singular = "pickup", plural = "pickups"),
+        Policecar = dict(singular = "police car", plural = "policecars"),
+        SUV = dict(singular = "SUV", plural = "SUVs"),
+        SchoolBus = dict(singular = "school bus", plural = "school buses"),
+        Sedan = dict(singular = "sedan", plural = "sedans"),
+        SportCar = dict(singular = "sports car", plural = "sports cars"),
+        Truck = dict(singular = "truck", plural = "trucks"),
+        Hatchback = dict(singular = "hatchback", plural = "hatchbacks")
+    )
+    return mapping[token][form]
+
+def state_token_string_converter(token):
+    if token == "visible" or token == "nil":
+        return ""
+    return token
+
+def action_token_string_converter(token, form):
+    map = {
+        "follow" : dict(singular = "follows", plural = "follow"),
+        "pass by": dict(singular = "passes by", plural = "pass by"),
+        "collide with": dict(singular = "collides with", plural = "collide with"),
+        "head toward":dict(singular = "heads toward", plural = "head toward"),
+        "drive alongside": dict(singular = "drives alongside", plural = "drive alongside"),
+        "nil": dict(singular = "", plural = ""),
+        "turn left" : dict(singular = "turns left", plural = "turn left"),
+        "turn right": dict(singular = "turns right", plural = "turn right"),
+
+    }
+    return map[token][form]
 mytree = tree(4)
-#print(mytree.depth)
-print(mytree.root.visualize())
-print(mytree.depth)
-print(mytree.root.key)
-print(mytree.build_functional())
+
 better_visualize_tree(mytree.root)
-print(mytree.new_build_functional())
-print(translate(mytree.new_build_functional()))
+FUNCTIONALS = mytree.new_build_functional([])
+print(FUNCTIONALS)
+print(translate(FUNCTIONALS))
+print(mytree.computation_graph(FUNCTIONALS))

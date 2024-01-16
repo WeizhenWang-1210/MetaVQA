@@ -22,11 +22,15 @@ class SubQuery:
     def __init__(self, color:Iterable[str] = None, 
                  type:Iterable[str] = None,
                  pos:Iterable[str] = None,
+                 state = None,
+                 action = None,
                  next = None,
                  prev = None) -> None:
         '''
         Initializer
         '''
+        self.state = state
+        self.action = action
         self.color = color #The color we are looking for
         self.type = type   #The type we are looking for
         self.pos = pos     #The spatial relationship we are looking for
@@ -42,11 +46,15 @@ class SubQuery:
         '''
         color_func = color_wrapper(self.color) if self.color else None
         type_func = type_wrapper(self.type) if self.type else None
+        state_func = state_wrapper(self.action) if self.action else None
         if not self.prev:
             pos_func = pos_wrapper(egos, self.pos, ref_heading) if self.pos else None
         else:
             #print(self.prev.ans)
-            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None        
+            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None    
+        
+
+
         self.funcs = color_func, type_func, pos_func
     
     def __call__(self, 
@@ -177,6 +185,31 @@ def type_wrapper(types:Iterable[str])->Callable:
                     break
         return results
     return type
+
+def state_wrapper(states:Iterable[str])->Callable:
+    '''
+    Constructor for a function that return all nodes with type in types or is a subtype of type in types
+    '''
+    #print(types)
+    def state(candidates:Iterable[ObjectNode]):
+        #print(candidates)
+        if not candidates:
+            return []
+        results = []
+        for candidate in candidates:
+            if not candidate.visible:
+                continue
+            #print(candidate)
+            for s in states:
+                #print(candidate.type, t)
+                if s in candidate.state:
+                    #print(candidate.id)
+                    results.append(candidate)
+                    break
+        return results
+    return state
+
+
 
 def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
     '''

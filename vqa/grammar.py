@@ -10,7 +10,7 @@ CFG_GRAMMAR = {
         ["nil"], ["<deed_with_o>","<o>"],["<deed_without_o>"]
     ],
     "<deed_with_o>":[
-        ["follow"],["pass by"],["collide"],["head toward"],["drive alongside"]
+        ["follow"],["pass by"],["collide with"],["head toward"],["drive alongside"]
     ],
     "<deed_without_o>":[
         ["turn right"], ["turn left"]
