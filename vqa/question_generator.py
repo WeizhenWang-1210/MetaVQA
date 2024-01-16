@@ -21,16 +21,17 @@ class SubQuery:
     """
     def __init__(self, color:Iterable[str] = None, 
                  type:Iterable[str] = None,
-                 pos:Iterable[str] = None,
-                 state = None,
-                 action = None,
+                 pos: Iterable[str] = None,
+                 state: Iterable[str] = None,
+                 action: Iterable[str] = None,
                  next = None,
-                 prev = None) -> None:
+                 prev = {}) -> None:
         '''
         Initializer
         '''
-        self.state = state
-        self.action = action
+        self.us = False
+        self.state = state #The state we are looking for
+        self.action = action #The action we are looking for, with or without respect to some objects
         self.color = color #The color we are looking for
         self.type = type   #The type we are looking for
         self.pos = pos     #The spatial relationship we are looking for
@@ -44,18 +45,30 @@ class SubQuery:
         '''
         Initialize the functions for filtering
         '''
-        color_func = color_wrapper(self.color) if self.color else None
-        type_func = type_wrapper(self.type) if self.type else None
-        state_func = state_wrapper(self.action) if self.action else None
-        if not self.prev:
+        if self.us:
+            #If the query is "us", just return the ego node. No actual search needs to be performed.
+            self.funcs = [lambda x: egos]
+        else: 
+            #If this is, indeed, a valid subquery, then create the proper functions to narrow down the search space
+            color_func = color_wrapper(self.color) if self.color else None
+            type_func = type_wrapper(self.type) if self.type else None
+            state_func = state_wrapper(self.state) if self.state else None
+            pos_func = pos_wrapper(self.prev["pos"].ans, self.pos, ref_heading) if self.pos else None
+            action_func = action_wrapper(self.prev["action"].ans, self.action, ref_heading) if self.action else None
+            self.funcs = [color_func, type_func, pos_func, state_func, action_func]
+
+
+
+
+        """if not self.prev:
             pos_func = pos_wrapper(egos, self.pos, ref_heading) if self.pos else None
         else:
             #print(self.prev.ans)
-            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None    
+            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None   """ 
         
 
 
-        self.funcs = color_func, type_func, pos_func
+       
     
     def __call__(self, 
                  candidates:Iterable[ObjectNode],
@@ -66,16 +79,20 @@ class SubQuery:
         Use subQuery as an actual function.
         """
         ans = candidates
-        color_func, type_func,pos_func = self.funcs
+        if self.us:
+            self.ans = self.funcs[0](ans)
+            return self.ans
         """
         The tricky part here is that when we keep the entire node space in mind when we do the filtering based on the spatial relationships,
         and consecutive filterings on types and colors are selected from all such nodes.
         """
+        color_func, type_func,pos_func,state_func, action_func = self.funcs
         ans = pos_func(all_nodes) if pos_func else ans
         ans = type_func(ans) if type_func else ans
         ans = color_func(ans) if color_func else ans
+        ans = state_func(ans) if state_func else ans
+        ans = action_func(ans) if action_func else ans
         self.ans = ans
-        
         return self.ans
 
 class Query:
@@ -127,7 +144,32 @@ class Query:
         Go down the query, store partial answers in sub-query, store the final answer in query
         
         '''
+
+        def intersection(l1,l2):
+            result = [item for item in l1 if item in l2]
+            return result
+
+
+        def postorder_traversal(subquery,egos, ref_heading, all_nodes):
+            prev_results = {}
+            for relation, child_subquery in subquery.prev.items():
+                prev_results[relation] = postorder_traversal(child_subquery, egos, ref_heading)
+            if not subquery.funcs:
+                subquery.instantiate(egos, ref_heading)
+
+            result = all_nodes
+            for relation, search_space in prev_results.items():
+                result = intersection(subquery(search_space, all_nodes), result)
+                if len(result) == 0:
+                    return result
+            return result
+        
         search_spaces = []
+        for root in self.heads:
+            search_spaces.append(postorder_traversal(root,self.egos,self.ref_headings,self.candidates))
+        self.ans = self.final(search_spaces)
+
+        """ search_spaces = []
         for head in self.heads:
             traverser = head
             search_space = self.candidates
@@ -137,7 +179,7 @@ class Query:
                 search_space = traverser(search_space, self.candidates)
                 traverser = traverser.next
             search_spaces.append(search_space)
-        self.ans = self.final(search_spaces)
+        self.ans = self.final(search_spaces)"""
         return self.ans
     
     def __str__(self) -> str:

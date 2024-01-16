@@ -27,6 +27,6 @@ CFG_GRAMMAR = {
         ["nil"],["<tdir>", "<o>"]
     ],
     "<tdir>":[
-        ["left"], ["right"], ["front"], ["back"], ["left and front"],["right and front"],["left and back"], ["right and back"],
+        ["l"], ["r"], ["f"], ["b"], ["lf"],["rf"],["lb"], ["rb"],
     ]
 }

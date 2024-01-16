@@ -2,6 +2,7 @@ import json
 import random
 from itertools import product
 from vqa.grammar import CFG_GRAMMAR
+from vqa.question_generator import SubQuery
 from pprint import pprint
 
 def is_terminal(token)->bool:
@@ -109,8 +110,44 @@ class tree:
             result += [(key, child) for child in ret]
         return result
     
-    def build_program(self, configs, dependency):
-        pass
+    def build_program(self, configs):
+        def converter(subquery, config, subqueries):
+            if isinstance(config, list):
+                subquery.us = True
+                return
+            subquery.color = [config["<p>"]],
+            subquery.type = [config["<t>"]],
+            subquery.state = [config["<s>"]],             
+            #Create the action requirements according to the grammar tree specification
+            if isinstance(config["<a>"],dict):
+                if "<deed_without_o>" in config["<a>"].keys():
+                    subquery.action = [config["<a>"]["<deed_without_o>"]]
+                else:
+                    subquery.action =  [config["<a>"]["<deed_with_o>"]]
+                    subquery.prev["action"] = subqueries[config["<a>"]["<o>'s id"]]
+                    subqueries[config["<a>"]["<o>'s id"]].next = subquery
+            else:
+                subquery.action = None
+            #Create the positional requirements according to the grammar tree specification
+            if isinstance(config["<dir>"],dict):
+                subquery.pos = [config["<dir>"]["<tdir>"]] 
+                subquery.prev["pos"] = subqueries[config["<dir>"]["<o>'s id"]]
+                subqueries[config["<dir>"]["<o>'s id"]].next = subquery
+            else:
+                subquery.pos = None
+        subqueries = {id: SubQuery() for id in configs.keys()}
+        for id, subquery in subqueries.items():
+            converter(subquery, configs[id], subqueries)
+        root = None
+        for subquery in subqueries.values():
+            if not subquery.next:
+                root = subquery
+        return root
+    
+    """def build_Query(self, ref_heading, end_filter)"""
+        
+            
+
 
     
         
@@ -151,14 +188,14 @@ def translate(object_dict):
             elif isinstance(object_dict[obj_id]['<dir>'], dict):
                 tdir = object_dict[obj_id]['<dir>']['<tdir>']
                 tdir_mapping = {
-                    "left": "to the left of",
-                    "right": "to the right of",
-                    "front": "in front of",
-                    "back": "behind",
-                    "left and front": "to the left and in front of",
-                    "right and front": "to the right and in front of",
-                    "left and back": "to the left and behind",
-                    "right and back": "to the right and behind"
+                    "l": "to the left of",
+                    "r": "to the right of",
+                    "f": "in front of",
+                    "b": "behind",
+                    "lf": "to the left and in front of",
+                    "rf": "to the right and in front of",
+                    "lb": "to the left and behind",
+                    "rb": "to the right and behind"
                 }
                 new_o = recur_translate(object_dict[obj_id]['<dir>']["<o>'s id"])
                 dir = tdir_mapping[tdir] + ' ' + new_o
@@ -244,3 +281,5 @@ FUNCTIONALS = mytree.new_build_functional([])
 print(FUNCTIONALS)
 print(translate(FUNCTIONALS))
 print(mytree.computation_graph(FUNCTIONALS))
+root = mytree.build_program(FUNCTIONALS)
+print(root.prev)
