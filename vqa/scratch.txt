@@ -12,20 +12,20 @@
         INPUT1: A cfg Tree
         Ouput: The English equivalent description of this cfg Tree, with proper grammar
 
-4. Modify annotations:
+4. Modify annotations #Half-done:
         Need to record the state of the object
 
-5. Config-Program Translator:
+5. Config-Program Translator #Need Testing, Done:
         INPUT1: Configuration File
         Output: A Query Object that encapsulates the configuration and can be used to generate an answer.
 
 
-6. Functional Programs:
+6. Functional Programs #In Progress:
         Filter functions that check for specified conditions:
             egs: acclerating_filter_func: lambda x: return x.speed_later > x.speed_current
             egs: heading_toward_fun: lambda x, y: return x will collide with y if x.heading remain the same
             etc...
-7. End_filter functions:
+7. End_filter functions #In Progress:
         A collection of functions such that:
             INPUT: A set of nodes
             Output: Desired answer
@@ -41,6 +41,17 @@
     key: A tuple of functional program config and the associated graph
     value: The answer node set
 
+
+
+
+
+
+
+
+1/16 TODO
+1. Annotate Collision event   
+2. Fill-in the dynamic_filter.py   
+3. 
 
 
 
