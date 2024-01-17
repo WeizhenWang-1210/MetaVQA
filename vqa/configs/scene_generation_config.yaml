@@ -10,9 +10,10 @@ map_setting:
   accident_prob: 0
   num_scenarios: 100
   start_seed: 10
-sample_frequency: 20
-num_samples: 10
+sample_frequency: 1
+num_samples: 100
 max_iterations: 10000
 temporal_generation: True
-
+episode_length: 10
+skip_length: 20
 ...

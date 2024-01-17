@@ -57,7 +57,7 @@ def logging(env, lidar, rgb, scene_dict,masks,identifier, instance_folder, log_m
         raise e
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_iterations:int, 
-                  observation_config:dict, IO_config: dict, seed:int, temporal_generation: bool, episode_length:int):
+                  observation_config:dict, IO_config: dict, seed:int, temporal_generation: bool, episode_length:int, skip_length:int):
     '''
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
@@ -93,7 +93,12 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
                     "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
                 }
             )
-            if IO_config["log"] and step % sample_frequency == 0:
+            # Skip steps logic: Skip the specified number of steps at the beginning of each episode
+            if step % (skip_length + episode_length) < skip_length:
+                step += 1
+                continue
+            if IO_config["log"] and \
+                step % sample_frequency == 0 and (step % (skip_length + episode_length) - skip_length) < episode_length:
                 #Retrieve rgb observations and instance segmentation mask
                 masks = instance_camera.perceive(env.vehicle)
                 rgb = camera.perceive(env.vehicle)
@@ -159,7 +164,7 @@ def main():
     #Setup the config
     try:
         with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
-        #with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
+        # with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
@@ -185,7 +190,7 @@ def main():
     generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
                   dict(resolution=(1920,1080)),
                   dict(batch_folder = config["storage_path"], log = True),config["map_setting"]["start_seed"],
-                  temporal_generation=config["temporal_generation"],episode_length=10)
+                  temporal_generation=config["temporal_generation"],episode_length=config["episode_length"],skip_length=config["skip_length"])
 
 if __name__ == "__main__":
     main()
