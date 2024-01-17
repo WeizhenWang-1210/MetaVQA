@@ -21,7 +21,7 @@ def head_toward(obj1,obj2):
     #obj2 head toward obj1 if d2-d1 dot d2.heading is negative
     pass
 
-def drive_alongside():
+def drive_alongside(obj1,obj2):
     #obj2 drive alongside obj1 if obj2 remains about directly to the right(left) of obj1 for the entirety of the 
     #observation episode.
     pass

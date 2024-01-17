@@ -3,6 +3,7 @@ from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode,nodify,transform
 from vqa.dataset_utils import extend_bbox
 from collections import defaultdict
+from vqa.dynamic_filter import follow, pass_by, collide_with, head_toward, drive_alongside
 import json
 import numpy as np
 import argparse
@@ -11,7 +12,7 @@ pwd = os.getcwd()
 template_path = os.path.join(pwd, "vqa/question_templates.json")
 with open(template_path,"r") as f:
     templates = json.load(f)
-print(templates)
+
 
 
 class SubQuery:
@@ -25,7 +26,7 @@ class SubQuery:
                  state: Iterable[str] = None,
                  action: Iterable[str] = None,
                  next = None,
-                 prev = {}) -> None:
+                 prev = None) -> None:
         '''
         Initializer
         '''
@@ -54,22 +55,9 @@ class SubQuery:
             type_func = type_wrapper(self.type) if self.type else None
             state_func = state_wrapper(self.state) if self.state else None
             pos_func = pos_wrapper(self.prev["pos"].ans, self.pos, ref_heading) if self.pos else None
-            action_func = action_wrapper(self.prev["action"].ans, self.action, ref_heading) if self.action else None
+            action_func = action_wrapper(self.prev["action"].ans, self.action) if self.action else None
             self.funcs = [color_func, type_func, pos_func, state_func, action_func]
-
-
-
-
-        """if not self.prev:
-            pos_func = pos_wrapper(egos, self.pos, ref_heading) if self.pos else None
-        else:
-            #print(self.prev.ans)
-            pos_func = pos_wrapper(self.prev.ans, self.pos, ref_heading) if self.pos else None   """ 
         
-
-
-       
-    
     def __call__(self, 
                  candidates:Iterable[ObjectNode],
                  all_nodes: Iterable[ObjectNode]) -> Any:
@@ -145,28 +133,23 @@ class Query:
         
         '''
 
-        def intersection(l1,l2):
-            result = [item for item in l1 if item in l2]
-            return result
-
-
         def postorder_traversal(subquery,egos, ref_heading, all_nodes):
-            prev_results = {}
-            for relation, child_subquery in subquery.prev.items():
-                prev_results[relation] = postorder_traversal(child_subquery, egos, ref_heading)
+            """
+            Return: A list of nodes being the answer of the previous question.
+            """
+            
+            if subquery.prev:
+                for child_subquery in subquery.prev.values():
+                    postorder_traversal(child_subquery, egos, ref_heading, all_nodes)
             if not subquery.funcs:
                 subquery.instantiate(egos, ref_heading)
-
             result = all_nodes
-            for relation, search_space in prev_results.items():
-                result = intersection(subquery(search_space, all_nodes), result)
-                if len(result) == 0:
-                    return result
-            return result
+            result = subquery(result,all_nodes)
         
         search_spaces = []
         for root in self.heads:
-            search_spaces.append(postorder_traversal(root,self.egos,self.ref_headings,self.candidates))
+            postorder_traversal(root,self.egos,self.ref_heading,self.candidates)
+            search_spaces.append(root.ans)
         self.ans = self.final(search_spaces)
 
         """ search_spaces = []
@@ -230,7 +213,7 @@ def type_wrapper(types:Iterable[str])->Callable:
 
 def state_wrapper(states:Iterable[str])->Callable:
     '''
-    Constructor for a function that return all nodes with type in types or is a subtype of type in types
+    Constructor for a function that return all nodes with one state in states
     '''
     #print(types)
     def state(candidates:Iterable[ObjectNode]):
@@ -251,7 +234,25 @@ def state_wrapper(states:Iterable[str])->Callable:
         return results
     return state
 
-
+def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
+    def act(candidates: Iterable[ObjectNode]):
+        mapping = {
+            "follow": follow,
+            "pass by": pass_by,
+            "collide with":collide_with,
+            "head toward": head_toward,
+            "drive alongside": drive_alongside
+        }
+        results = []
+        for candidate in candidates:
+            if not candidate.visible:
+                continue
+            for ego in egos:
+               for action in actions:
+                   if ego.id != candidate.id and mapping[action](ego, candidate):
+                       results.append(candidate)
+        return results
+    return act
 
 def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
     '''
@@ -269,41 +270,6 @@ def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_head
         return results
     return pos
 
-'''
-The following three functions are the stand-alone version of filter_constructors
-'''
-def target_color(colors:Iterable[str],candidates:Iterable[ObjectNode])->Iterable[ObjectNode]:
-    '''
-    stand-alone version of filter_color
-    '''
-    results = []
-    for candidate in candidates:
-        if candidate.color in colors:
-            results.append(candidate)
-    return results
-
-def target_type(candidates:Iterable[ObjectNode], types:Iterable[str])->Iterable[ObjectNode]:
-    '''
-    stand-alone version of filter_type
-    '''
-    results = []
-    for candidate in candidates:
-        for type in types:
-            if candidate.type == type  or subclass(candidate.type, type):
-                results.append(candidate)
-                break
-    return results
-
-def target_pos(candidates: Iterable[ObjectNode], egos: Iterable[ObjectNode], ref_heading: tuple, spatial_retionships: Iterable[str])->Iterable[ObjectNode]:
-    '''
-    stand-alone version of filter_pos
-    '''
-    results = []
-    for candidate in candidates:
-        for ego in egos:
-            if ego.compute_relation(candidate, ref_heading) in spatial_retionships:
-                results.append((ego,candidate))
-    return results
 
 def subclass(class1:str, class2:str)->bool:
     '''
@@ -388,7 +354,9 @@ class QueryAnswerer:
 
         for query in self.queries:
             print(query)
-    
+
+
+
 def greater(A,B)->bool:
     '''
     checker
@@ -440,6 +408,7 @@ def CountLess(search_spaces)->bool:
     assert len(search_spaces) == 2, "CountGreater should have only two sets to work with"
     nums = count(search_spaces)#[count(search_space) for search_space in search_spaces]
     return less(nums[0],nums[1])
+
 def Describe(search_spaces)->str:
     """
     Return True if the first set in the search_spaces has greater smaller than the second set.
@@ -505,14 +474,38 @@ if __name__ == "__main__":
     except Exception as e:
         raise e
     agent_id,nodes = nodify(scene_dict)
-    graph = SceneGraph(agent_id,nodes)     
-    q1 = SubQuery(None,["dog"], None, None, None)
+    graph = SceneGraph(agent_id,nodes)    
+
+    q1 = SubQuery(
+        color= None,
+        type = ["Bike"], 
+        pos= ['rb'], 
+        state= None, 
+        action= None,
+        next = None,
+        prev = {})
+    q2 = SubQuery(
+        color= None,
+        type = ["Caravan"], 
+        pos= None, 
+        state= None, 
+        action= None,
+        next = None,
+        prev = {})
+    
+    q3 = SubQuery()
+    q3.us = True
+    q2.prev["pos"] = q3
+    q1.prev["pos"] = q2
+
     #q3 = SubQuery(None, ["Truck"], ['r'], None, q1)
     #q1.next = q3
     #q2 = SubQuery(None,None,None,None,None)
     q = Query([q1],"counting",Identity)
     prophet = QueryAnswerer(graph,[q])
     result = prophet.ans(q)
+    print(result[0].id)
+    
     ids = [node.id for node in q.ans if node.id != agent_id]
     print(len(ids))
     from vqa.visualization import generate_highlighted
