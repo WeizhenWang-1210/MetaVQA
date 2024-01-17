@@ -121,6 +121,26 @@ class BaseCamera(ImageBuffer, BaseSensor):
         else:
             return ret / 255
 
+    def offset_perceive(self,base_object,clip=True,offset = 0):
+        self.sync_light(base_object)
+        self.track(base_object)
+        self.origin.setH(offset)
+        if self.enable_cuda:
+            assert self.cuda_rendered_result is not None
+            ret = self.cuda_rendered_result[..., :-1][..., ::-1][::-1][..., :self.num_channels]
+        else:
+            ret = self.get_rgb_array_cpu()
+        if self.engine.global_config["rgb_to_grayscale"]:
+            ret = np.dot(ret[..., :3], [0.299, 0.587, 0.114])
+        if not clip:
+            return ret.astype(np.uint8, copy=False, order="C")
+        else:
+            return ret / 255
+
+        
+        
+        
+        
     def destroy(self):
         if self.registered:
             self.unregister()
