@@ -3,13 +3,18 @@ from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode,nodify,transform
 from vqa.dataset_utils import extend_bbox
 from collections import defaultdict
-from vqa.dynamic_filter import follow, pass_by, collide_with, head_toward, drive_alongside
+# from vqa.dynamic_filter import follow, pass_by, collide_with, head_toward, drive_alongside
+from vqa.dynamic_filter import DynamicFilter
 import json
 import numpy as np
 import argparse
 import os
-pwd = os.getcwd()
-template_path = os.path.join(pwd, "vqa/question_templates.json")
+# pwd = os.getcwd()
+# absolute_file_path = os.path.abspath(__file__)
+# template_path = os.path.join(pwd, "vqa/question_templates.json")
+current_directory = os.path.dirname(os.path.abspath(__file__))
+# Construct the path to the other file
+template_path = os.path.join(current_directory, "question_templates.json")
 with open(template_path,"r") as f:
     templates = json.load(f)
 
@@ -235,13 +240,16 @@ def state_wrapper(states:Iterable[str])->Callable:
     return state
 
 def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
+    scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
+    filter = DynamicFilter(scene_folder)
+    filter.process_episodes(sample_frequency=1, episode_length=10, skip_length=10)
     def act(candidates: Iterable[ObjectNode]):
         mapping = {
-            "follow": follow,
-            "pass by": pass_by,
-            "collide with":collide_with,
-            "head toward": head_toward,
-            "drive alongside": drive_alongside
+            "follow": filter.follow,
+            "pass by": filter.pass_by,
+            "collide with":filter.collide_with,
+            "head toward": filter.head_toward,
+            "drive alongside": filter.drive_alongside
         }
         results = []
         for candidate in candidates:
@@ -253,6 +261,25 @@ def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tupl
                        results.append(candidate)
         return results
     return act
+# def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
+#     def act(candidates: Iterable[ObjectNode]):
+#         mapping = {
+#             "follow": follow,
+#             "pass by": pass_by,
+#             "collide with":collide_with,
+#             "head toward": head_toward,
+#             "drive alongside": drive_alongside
+#         }
+#         results = []
+#         for candidate in candidates:
+#             if not candidate.visible:
+#                 continue
+#             for ego in egos:
+#                for action in actions:
+#                    if ego.id != candidate.id and mapping[action](ego, candidate):
+#                        results.append(candidate)
+#         return results
+#     return act
 
 def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
     '''

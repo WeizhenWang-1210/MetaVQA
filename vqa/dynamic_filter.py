@@ -59,7 +59,7 @@ class DynamicFilter:
 
 
 
-    def follow(self, obj1:str, obj2:str, distance_threshold:float)->list:
+    def follow(self, obj1:str, obj2:str, distance_threshold = 10)->list:
         '''
         Return a list of episodes where obj1 is followed by obj2
         obj1 is followed by obj2 if:
@@ -197,7 +197,7 @@ class DynamicFilter:
                 match_episode.append(episode)
         return match_episode
 
-    def drive_alongside(self, obj1:str, obj2:str, distance_threshold:float, heading_threshold)->list:
+    def drive_alongside(self, obj1:str, obj2:str, distance_threshold=10, heading_threshold=0.7)->list:
         '''
         Return a list of episodes where obj2 drive alongside obj1
         obj2 drive alongside obj1 if:

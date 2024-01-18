@@ -124,18 +124,28 @@ class tree:
                     subquery.action = [config["<a>"]["<deed_without_o>"]]
                 else:
                     subquery.action =  [config["<a>"]["<deed_with_o>"]]
-                    subquery.prev["action"] = subqueries[config["<a>"]["<o>'s id"]]
+                    if subquery.prev == None:
+                        subquery.prev = {"action": subqueries[config["<a>"]["<o>'s id"]]}
+                    else:
+                        subquery.prev.action = subqueries[config["<a>"]["<o>'s id"]]
                     subqueries[config["<a>"]["<o>'s id"]].next = subquery
             else:
                 subquery.action = None
             #Create the positional requirements according to the grammar tree specification
             if isinstance(config["<dir>"],dict):
-                subquery.pos = [config["<dir>"]["<tdir>"]] 
-                subquery.prev["pos"] = subqueries[config["<dir>"]["<o>'s id"]]
+                subquery.pos = [config["<dir>"]["<tdir>"]]
+                if subquery.prev == None:
+                    subquery.prev = {"pos": subqueries[config["<dir>"]["<o>'s id"]]}
+                else:
+                    subquery.prev.pos = subqueries[config["<dir>"]["<o>'s id"]]
                 subqueries[config["<dir>"]["<o>'s id"]].next = subquery
             else:
                 subquery.pos = None
         subqueries = {id: SubQuery() for id in configs.keys()}
+        prev = None
+        for id, item in subqueries.items():
+            item.prev = prev
+            prev = item
         for id, subquery in subqueries.items():
             converter(subquery, configs[id], subqueries)
         root = None
