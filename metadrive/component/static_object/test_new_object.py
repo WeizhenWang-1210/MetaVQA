@@ -65,7 +65,7 @@ class TestObject(TrafficObject):
 
     def _create_obj_chassis(self):
 
-        chassis = BaseRigidBodyNode(self.name, self.asset_metainfo['CLASS_NAME'])
+        chassis = BaseRigidBodyNode(self.name, MetaDriveType.TRAFFIC_OBJECT)
         self._node_path_list.append(chassis)
 
         chassis_shape = BulletBoxShape(Vec3(self.LENGTH / 2, self.WIDTH / 2, self.HEIGHT / 2))
@@ -116,7 +116,8 @@ class TestGLTFObject(TrafficObject):
     def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
         super(TestGLTFObject, self).__init__(position, heading_theta, lane, random_seed, name)
         self.asset_metainfo = asset_metainfo
-        n = BaseRigidBodyNode(self.name, self.asset_metainfo['CLASS_NAME'])
+        self.set_metadrive_type(MetaDriveType.TRAFFIC_OBJECT)
+        n = BaseRigidBodyNode(self.name, MetaDriveType.TRAFFIC_OBJECT)
         self.add_body(n)
         self._length = asset_metainfo["length"]
         self._width = asset_metainfo["width"]

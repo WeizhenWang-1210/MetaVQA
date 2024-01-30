@@ -280,7 +280,6 @@ def action_token_string_converter(token, form):
 if __name__ == "__main__":
     
     mytree = tree(4)
-
     better_visualize_tree(mytree.root)
     FUNCTIONALS = mytree.new_build_functional([])
     print(FUNCTIONALS)

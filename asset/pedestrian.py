@@ -50,12 +50,13 @@ def try_pedestrian(render=False):
         # obj_1 = env.engine.spawn_object(TestObject, position=[30, -5], heading_theta=0, random_seed=1, force_spawn=True, asset_metainfo = asset_metainfo)
         for s in range(1, 100000000):
             o, r, tm, tc, info = env.step([0, 0])
-            print('1')
             # for obj_id,obj in env.engine.get_objects().items():
             #     if isinstance(obj,CustomizedCar) or isinstance(obj, TestObject):
             #         print(obj.get_asset_metainfo())
             #     else:
             #         print(type(obj))
+            ego = env.vehicle
+            print(ego.crashed_objects)
 
             if (tm or tc) and info["arrive_dest"]:
                 env.reset()

@@ -58,6 +58,7 @@ class BaseVehicleState:
         self.on_broken_line = False
 
         # contact results, a set containing objects type name for rendering
+        self.crashed_objects = set()
         self.contact_results = set()
 
 
@@ -190,6 +191,8 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         # overtake_stat
         self.front_vehicles = set()
         self.back_vehicles = set()
+
+
 
         # if self.engine.current_map is not None:
         self.reset(position=position, heading=heading)
@@ -738,6 +741,7 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             else:
                 # didn't add
                 continue
+            
             contacts.add(name)
         # side walk detect
         res = rect_region_detection(
@@ -782,7 +786,6 @@ class BaseVehicle(BaseObject, BaseVehicleState):
                     contacts.add(res.getNode().getName())
                 else:
                     contacts.add(MetaDriveType.GROUND)
-
         self.contact_results.update(contacts)
 
     def destroy(self):
