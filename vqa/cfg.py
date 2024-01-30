@@ -110,6 +110,7 @@ class tree:
             result += [(key, child) for child in ret]
         return result
     
+    
     def build_program(self, configs):
         def converter(subquery, config, subqueries):
             if isinstance(config, list):
@@ -124,28 +125,18 @@ class tree:
                     subquery.action = [config["<a>"]["<deed_without_o>"]]
                 else:
                     subquery.action =  [config["<a>"]["<deed_with_o>"]]
-                    if subquery.prev == None:
-                        subquery.prev = {"action": subqueries[config["<a>"]["<o>'s id"]]}
-                    else:
-                        subquery.prev.action = subqueries[config["<a>"]["<o>'s id"]]
+                    subquery.prev["action"] = subqueries[config["<a>"]["<o>'s id"]]
                     subqueries[config["<a>"]["<o>'s id"]].next = subquery
             else:
                 subquery.action = None
             #Create the positional requirements according to the grammar tree specification
             if isinstance(config["<dir>"],dict):
-                subquery.pos = [config["<dir>"]["<tdir>"]]
-                if subquery.prev == None:
-                    subquery.prev = {"pos": subqueries[config["<dir>"]["<o>'s id"]]}
-                else:
-                    subquery.prev.pos = subqueries[config["<dir>"]["<o>'s id"]]
+                subquery.pos = [config["<dir>"]["<tdir>"]] 
+                subquery.prev["pos"] = subqueries[config["<dir>"]["<o>'s id"]]
                 subqueries[config["<dir>"]["<o>'s id"]].next = subquery
             else:
                 subquery.pos = None
         subqueries = {id: SubQuery() for id in configs.keys()}
-        prev = None
-        for id, item in subqueries.items():
-            item.prev = prev
-            prev = item
         for id, subquery in subqueries.items():
             converter(subquery, configs[id], subqueries)
         root = None
@@ -284,12 +275,15 @@ def action_token_string_converter(token, form):
 
     }
     return map[token][form]
-mytree = tree(4)
 
-better_visualize_tree(mytree.root)
-FUNCTIONALS = mytree.new_build_functional([])
-print(FUNCTIONALS)
-print(translate(FUNCTIONALS))
-print(mytree.computation_graph(FUNCTIONALS))
-root = mytree.build_program(FUNCTIONALS)
-print(root.prev)
+
+if __name__ == "__main__":
+    
+    mytree = tree(4)
+
+    better_visualize_tree(mytree.root)
+    FUNCTIONALS = mytree.new_build_functional([])
+    print(FUNCTIONALS)
+    print(translate(FUNCTIONALS))
+    root = mytree.build_program(FUNCTIONALS)
+    print(root.prev)

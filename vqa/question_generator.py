@@ -42,7 +42,7 @@ class SubQuery:
         self.type = type   #The type we are looking for
         self.pos = pos     #The spatial relationship we are looking for
         self.next = next   #The previous subquery. It's used to retrieve the search space for the candidate
-        self.prev = prev   #The next subquery
+        self.prev = prev if prev else {}   #The next subquery
         self.funcs = None  #The actual functions used to do filtering.
         self.ans = None    #recording the answer in previous call
     
