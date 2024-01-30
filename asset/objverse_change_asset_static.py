@@ -76,8 +76,8 @@ class StaticAssetMetaInfoUpdater:
         self.save_path = save_path
         self.run_result = None
         self.current_obj = None
-        self.env.engine.spawn_object(TrafficWarning, position=[10, -5], heading_theta=0,
-                                     random_seed=1)
+        # self.env.engine.spawn_object(TrafficWarning, position=[10, -5], heading_theta=0,
+        #                              random_seed=1)
 
     def slider_command(self, v, key, idx=None):
         self.update_value(key, v, idx)

@@ -51,8 +51,8 @@ class AutoAssetMetaInfoUpdater:
         self.env = TestAssetMetaDriveEnv(config=self.env_config)
         o, _ = self.env.reset()
         self.initTK()
-        self.env.engine.spawn_object(TrafficWarning, position=[0, 0], heading_theta=0,
-                                     random_seed=1)
+        # self.env.engine.spawn_object(TrafficWarning, position=[0, 0], heading_theta=0,
+        #                              random_seed=1)
     def initTK(self):
         self.root = tk.Tk()
         self.root.title("Asset MetaInfo Updater")
@@ -444,6 +444,9 @@ class AutoAssetMetaInfoUpdater:
             "LATERAL_TIRE_TO_CENTER": 0.815,
             "FRONT_WHEELBASE": 1.05234,
             "REAR_WHEELBASE": 1.4166,
+            "CHASSIS_TO_WHEEL_AXIS": 0.2,
+            "TIRE_SCALE": 1,
+            "TIRE_OFFSET": 0,
             "MODEL_PATH": 'test/vehicle.glb',
             "MODEL_SCALE": (1, 1, 1),
             "MODEL_OFFSET": (0, 0, 0),
@@ -456,6 +459,8 @@ class AutoAssetMetaInfoUpdater:
         self.RANGE_SPECS = {
             "TIRE_RADIUS": (0.01, 1),
             "TIRE_WIDTH": (0.01, 1),
+            "CHASSIS_TO_WHEEL_AXIS": (0, 4),
+            "TIRE_SCALE": (0.1, 3),
             "LATERAL_TIRE_TO_CENTER": (-5, 5),
             "FRONT_WHEELBASE": (-5, 5),
             "REAR_WHEELBASE": (-5, 5),
