@@ -10,6 +10,7 @@ from metadrive.engine.engine_utils import get_engine, engine_initialized
 from metadrive.engine.physics_node import BaseRigidBodyNode
 from metadrive.utils import Config
 from typing import Union, Optional
+import os
 
 def convert_path(pth):
     return Filename.from_os_specific(pth).get_fullpath()
@@ -17,6 +18,7 @@ def convert_path(pth):
 class CustomizedCar(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
     TIRE_RADIUS = 0.3305#0.313
+    CHASSIS_TO_WHEEL_AXIS = 0.2
     TIRE_WIDTH = 0.255#0.25
     MASS = 1595#1100
     LATERAL_TIRE_TO_CENTER = 1#0.815
@@ -60,6 +62,16 @@ class CustomizedCar(BaseVehicle):
         cls.LENGTH = asset_metainfo["LENGTH"]
         cls.HEIGHT = asset_metainfo["HEIGHT"]
         cls.WIDTH = asset_metainfo["WIDTH"]
+        # print(asset_metainfo)
+        if "CHASSIS_TO_WHEEL_AXIS" not in asset_metainfo:
+            asset_metainfo["CHASSIS_TO_WHEEL_AXIS"] = 0.2
+        if "TIRE_SCALE" not in asset_metainfo:
+            asset_metainfo["TIRE_SCALE"] = 1
+        if "TIRE_OFFSET" not in asset_metainfo:
+            asset_metainfo["TIRE_OFFSET"] = 0
+        cls.CHASSIS_TO_WHEEL_AXIS = asset_metainfo["CHASSIS_TO_WHEEL_AXIS"]
+        cls.TIRE_SCALE = asset_metainfo["TIRE_SCALE"]
+        cls.TIRE_OFFSET = asset_metainfo["TIRE_OFFSET"]
     def _create_vehicle_chassis(self):
         # self.LENGTH = type(self).LENGTH
         # self.WIDTH = type(self).WIDTH
@@ -71,10 +83,9 @@ class CustomizedCar(BaseVehicle):
         chassis = BaseRigidBodyNode(self.name, MetaDriveType.VEHICLE)
         self._node_path_list.append(chassis)
 
-        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, (self.HEIGHT  - self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS) / 2))
-        # chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, self.HEIGHT / 2 - self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS))
-        # ts = TransformState.makePos(Vec3(0, 0, 0))
+        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, (self.HEIGHT-self.TIRE_RADIUS-self.CHASSIS_TO_WHEEL_AXIS) / 2))
         ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS + self.CHASSIS_TO_WHEEL_AXIS))
+        # ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS))
         chassis.addShape(chassis_shape, ts)
         chassis.setDeactivationEnabled(False)
         chassis.notifyCollisions(True)  # advance collision check, do callback in pg_collision_callback
@@ -103,7 +114,7 @@ class CustomizedCar(BaseVehicle):
             # model default, face to y
             car_model.setHpr(*HPR)
             car_model.setPos(offset[0], offset[1], offset[-1])
-            car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + offset[-1])
+            # car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + offset[-1])
             car_model.instanceTo(self.origin)
             if self.config["random_color"]:
                 material = Material()
@@ -121,6 +132,45 @@ class CustomizedCar(BaseVehicle):
                 material.setShininess(self.MATERIAL_SHININESS)
                 material.setTwoside(False)
                 self.origin.setMaterial(material, True)
+    def _create_wheel(self):
+        f_l = self.FRONT_WHEELBASE
+        r_l = -self.REAR_WHEELBASE
+        lateral = self.LATERAL_TIRE_TO_CENTER
+        axis_height = self.TIRE_OFFSET
+        radius = self.TIRE_RADIUS
+        wheels = []
+        for k, pos in enumerate([Vec3(lateral, f_l, axis_height), Vec3(-lateral, f_l, axis_height),
+                                 Vec3(lateral, r_l, axis_height), Vec3(-lateral, r_l, axis_height)]):
+            wheel = self._add_wheel(pos, radius, True if k < 2 else False, True if k == 0 or k == 2 else False)
+            wheels.append(wheel)
+        return wheels
+    def _add_wheel(self, pos: Vec3, radius: float, front: bool, left):
+        wheel_np = self.origin.attachNewNode("wheel")
+        self._node_path_list.append(wheel_np)
+
+        if self.render:
+            model = 'right_tire_front.gltf' if front else 'right_tire_back.gltf'
+            model_path = AssetLoader.file_path("models", os.path.dirname(self.path[0]), model)
+            wheel_model = self.loader.loadModel(model_path)
+            wheel_model.setTwoSided(self.TIRE_TWO_SIDED)
+            wheel_model.reparentTo(wheel_np)
+            wheel_model.set_scale(1 * self.TIRE_SCALE * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_SCALE *self.TIRE_MODEL_CORRECT)
+        wheel = self.system.createWheel()
+        wheel.setNode(wheel_np.node())
+        wheel.setChassisConnectionPointCs(pos)
+        wheel.setFrontWheel(front)
+        wheel.setWheelDirectionCs(Vec3(0, 0, -1))
+        wheel.setWheelAxleCs(Vec3(1, 0, 0))
+
+        wheel.setWheelRadius(radius)
+        wheel.setMaxSuspensionTravelCm(self.SUSPENSION_LENGTH)
+        wheel.setSuspensionStiffness(self.SUSPENSION_STIFFNESS)
+        wheel.setWheelsDampingRelaxation(4.8)
+        wheel.setWheelsDampingCompression(1.2)
+        wheel_friction = self.config["wheel_friction"] if not self.config["no_wheel_friction"] else 0
+        wheel.setFrictionSlip(wheel_friction)
+        wheel.setRollInfluence(0.5)
+        return wheel
 
 class DefaultVehicle(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.DEFAULT_VEHICLE)
