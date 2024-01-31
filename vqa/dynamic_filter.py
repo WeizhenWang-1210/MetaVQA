@@ -2,9 +2,9 @@ import json
 import os
 from vqa.dataset_utils import dot,get_distance, l2_distance, find_overlap_episodes, position_frontback_relative_to_obj1, position_left_right_relative_to_obj1
 class DynamicFilter:
-    def __init__(self, scene_folder):
+    def __init__(self, scene_folder, sample_frequency:int, episode_length:int, skip_length:int):
         self.scene_folder = scene_folder
-        self.scene_info = self.load_scene()
+        self.scene_info = self.process_episodes(sample_frequency, episode_length, skip_length)
 
     def process_episodes(self, sample_frequency:int, episode_length:int, skip_length:int)->dict:
         '''
@@ -27,6 +27,8 @@ class DynamicFilter:
         # Iterate over each subfolder in the main folder
         for subfolder in os.listdir(self.scene_folder):
             if os.path.isdir(os.path.join(self.scene_folder, subfolder)):
+                if subfolder == "dynamic":
+                    continue
                 step = int(subfolder.split('_')[-1])
 
                 # Check if the step should be skipped or processed
@@ -74,8 +76,8 @@ class DynamicFilter:
         '''
         def follow_onestep(episode, step_id):
             # check if single step satisfy the follow condition
-            obj1_pos = self.scene_info[obj1][episode][step_id]["position"]
-            obj2_pos = self.scene_info[obj2][episode][step_id]["position"]
+            obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
+            obj2_pos = self.scene_info[obj2][episode][step_id]["pos"]
             obj1_heading = self.scene_info[obj1][episode][step_id]["heading"]
             obj2_bbox = self.scene_info[obj2][episode][step_id]["bbox"]
             distance_checker = get_distance(obj1_pos, obj2_pos) < distance_threshold
@@ -113,8 +115,8 @@ class DynamicFilter:
         '''
         def sign_onestep(episode, step_id):
             # get the sign of obj2-obj1 dot obj1.heading for single step
-            obj1_pos = self.scene_info[obj1][episode][step_id]["position"]
-            obj2_pos = self.scene_info[obj2][episode][step_id]["position"]
+            obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
+            obj2_pos = self.scene_info[obj2][episode][step_id]["pos"]
             obj1_heading = self.scene_info[obj1][episode][step_id]["heading"]
             obj2_obj1 = [obj2_pos[0]-obj1_pos[0], obj2_pos[1]-obj1_pos[1]]
             prod = dot(obj1_heading,obj2_obj1)
@@ -136,6 +138,8 @@ class DynamicFilter:
                 if prev_sign is not None and  curr_sign != prev_sign:
                     signature.append(prev_sign)
                 prev_sign = curr_sign
+            if not signature:
+                continue
             if curr_sign != signature[-1]:
                 signature.append(curr_sign)
             if len(signature)==2:
@@ -182,8 +186,8 @@ class DynamicFilter:
         '''
         def head_toward_onestep(episode, step_id):
             # check if single step satisfy the follow condition
-            obj1_pos = self.scene_info[obj1][episode][step_id]["position"]
-            obj2_pos = self.scene_info[obj2][episode][step_id]["position"]
+            obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
+            obj2_pos = self.scene_info[obj2][episode][step_id]["pos"]
             obj2_heading = self.scene_info[obj2][episode][step_id]["heading"]
             obj2_obj1 = [obj2_pos[0]-obj1_pos[0], obj2_pos[1]-obj1_pos[1]]
             heading_checker = dot(obj2_heading, obj2_obj1)< 0
@@ -215,12 +219,12 @@ class DynamicFilter:
         #observation episode.
         def alongside_onestep(episode, step_id):
             # check if single step satisfy the follow condition
-            obj1_pos = self.scene_info[obj1][episode][step_id]["position"]
-            obj2_pos = self.scene_info[obj2][episode][step_id]["position"]
+            obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
+            obj2_pos = self.scene_info[obj2][episode][step_id]["pos"]
             obj1_heading = self.scene_info[obj1][episode][step_id]["heading"]
             obj2_heading = self.scene_info[obj2][episode][step_id]["heading"]
             obj2_bbox = self.scene_info[obj2][episode][step_id]["bbox"]
-            distance_checker = l2_distance(obj1_pos, obj2_pos) < distance_threshold
+            distance_checker = get_distance(obj1_pos, obj2_pos) < distance_threshold
             heading_checker = dot(obj1_heading, obj2_heading) > heading_threshold
             frontback_checker = position_frontback_relative_to_obj1(obj1_heading, obj1_pos, obj2_bbox) == "overlap"
             rightleft_checker = position_left_right_relative_to_obj1(obj1_heading, obj1_pos, obj2_bbox) != "overlap"
