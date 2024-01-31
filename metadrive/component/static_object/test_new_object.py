@@ -46,12 +46,17 @@ class TestObject(TrafficObject):
         self.pos1 = asset_metainfo["pos1"]
         self.pos2 = asset_metainfo["pos2"]
         self.scale = asset_metainfo["scale"]
-
-        n = self._create_obj_chassis()
+        if "is_building" not in asset_metainfo.keys():
+            asset_metainfo["is_building"] = False
+        self.is_building = asset_metainfo["is_building"]
+        if not self.is_building:
+            n = self._create_obj_chassis()
+        else:
+            n = self._create_building_chassis()
         self.add_body(n)
 
         # self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
-        self.body.addShape(BulletBoxShape((self.LENGTH / 2, self.WIDTH / 2, self.height / 2)))
+
 
         # self.set_static(static)
         if self.render:
@@ -62,12 +67,18 @@ class TestObject(TrafficObject):
             model.setPos(self.pos0, self.pos1, self.pos2)
             model.setScale(self.scale)
             model.reparentTo(self.origin)
-
+    def _create_building_chassis(self):
+        shape = BulletBoxShape(Vec3(self.LENGTH / 2, self.WIDTH / 2, self.HEIGHT / 2))
+        body_node = BaseRigidBodyNode(self.id, MetaDriveType.BUILDING)
+        body_node.setActive(False)
+        body_node.setKinematic(False)
+        body_node.setStatic(True)
+        body_node.addShape(shape)
+        body_node.setIntoCollideMask(CollisionGroup.InvisibleWall)
+        return body_node
     def _create_obj_chassis(self):
-
         chassis = BaseRigidBodyNode(self.name, MetaDriveType.TRAFFIC_OBJECT)
         self._node_path_list.append(chassis)
-
         chassis_shape = BulletBoxShape(Vec3(self.LENGTH / 2, self.WIDTH / 2, self.HEIGHT / 2))
         ts = TransformState.makePos(Vec3(0, 0, self.HEIGHT / 2))
         chassis.addShape(chassis_shape, ts)
