@@ -115,6 +115,77 @@ def analyze_and_save_car_interactions(scene_folder, output_folder, sample_freque
 
     # Save the aggregated results into JSON files
     save_results_to_json(action_results, output_folder)
+
+import cv2
+import os
+import re
+
+def create_videos_for_episodes(base_folder, output_folder, sample_frequency, episode_length, skip_length):
+    """
+    Combines images from each `{seed}_{step}` subfolder into MP4 videos based on episode ranges and
+    saves them in the corresponding episode folders within the output folder.
+
+    :param base_folder: The path to the base folder containing the `{seed}_{step}` subfolders with images.
+    :param output_folder: The path to the output folder where episode folders will be created.
+    :param sample_frequency: The frequency of sampling the world json file.
+    :param episode_length: The length of each episode.
+    :param skip_length: The length of each skip.
+    """
+    # Create a dictionary to map episodes to their subfolders
+    episode_to_subfolders = {}
+
+    for subfolder in os.listdir(base_folder):
+        subfolder_path = os.path.join(base_folder, subfolder)
+        if os.path.isdir(subfolder_path) and re.match(r"\d+_\d+", subfolder):
+            step = int(subfolder.split('_')[-1])
+
+            if step % (skip_length + episode_length) < skip_length:
+                continue  # Skip this step
+            if step % sample_frequency != 0 or (step % (skip_length + episode_length) - skip_length) >= episode_length:
+                continue  # Skip non-processed steps
+
+            # Determine the episode range
+            episode_start = step - (step % (skip_length + episode_length)) + skip_length + 1
+            episode_end = episode_start + episode_length - 1
+            episode = f"{episode_start}-{episode_end}"
+
+            if episode not in episode_to_subfolders:
+                episode_to_subfolders[episode] = []
+            episode_to_subfolders[episode].append(subfolder_path)
+
+    # Create videos for each episode and save them in the output folder
+    for episode, subfolders in episode_to_subfolders.items():
+        episode_folder = os.path.join(output_folder, episode)
+        if not os.path.exists(episode_folder):
+            os.makedirs(episode_folder)
+
+        for view in ['front', 'top_down']:
+            image_files = []
+            for subfolder_path in subfolders:
+                image_files.extend([os.path.join(subfolder_path, f) for f in os.listdir(subfolder_path)
+                                    if f.startswith(view) and f.endswith('.png')])
+
+            if not image_files:
+                continue  # Skip if no images found
+
+            image_files = sorted(image_files, key=lambda x: int(re.findall(r"(\d+).png$", x)[0]))
+
+            # Assume all images have the same dimensions
+            sample_image = cv2.imread(image_files[0])
+            height, width, layers = sample_image.shape
+            video_name = f"{view}_{episode}.mp4"
+            video_path = os.path.join(episode_folder, video_name)
+
+            video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), 10, (width, height))
+
+            for img_path in image_files:
+                img = cv2.imread(img_path)
+                video.write(img)
+
+            video.release()
+        print(f"Videos for episode {episode} saved in {episode_folder}")
+
+
 if __name__ == "__main__":
     try:
         # with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
@@ -124,6 +195,8 @@ if __name__ == "__main__":
         raise e
     scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
     output_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification\\dynamic"
-    analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+    # analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+    #                                   episode_length=config["episode_length"],skip_length=config["skip_length"])
+    create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
                                       episode_length=config["episode_length"],skip_length=config["skip_length"])
     # print("hello world
