@@ -159,7 +159,7 @@ def create_videos_for_episodes(base_folder, output_folder, sample_frequency, epi
         if not os.path.exists(episode_folder):
             os.makedirs(episode_folder)
 
-        for view in ['front', 'top_down']:
+        for view in ['rgb', 'top_down']:
             image_files = []
             for subfolder_path in subfolders:
                 image_files.extend([os.path.join(subfolder_path, f) for f in os.listdir(subfolder_path)
@@ -195,8 +195,8 @@ if __name__ == "__main__":
         raise e
     scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
     output_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification\\dynamic"
-    # analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
-    #                                   episode_length=config["episode_length"],skip_length=config["skip_length"])
-    create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+    analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
                                       episode_length=config["episode_length"],skip_length=config["skip_length"])
+    # create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+    #                                   episode_length=config["episode_length"],skip_length=config["skip_length"])
     # print("hello world
