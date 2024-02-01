@@ -492,7 +492,7 @@ def locate_wrapper(origin: ObjectNode)->Callable:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default = "verification/10_40/world_10_40")
+    parser.add_argument("--step", type=str, default = "verification/10_50/world_10_50")
     args = parser.parse_args()
     try:
         print(args.step)
@@ -503,7 +503,7 @@ if __name__ == "__main__":
     agent_id,nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id,nodes)    
 
-    q1 = SubQuery(
+    """ q1 = SubQuery(
         color= None,
         type = ["Bike"], 
         pos= ['rb'], 
@@ -523,24 +523,35 @@ if __name__ == "__main__":
     q3 = SubQuery()
     q3.us = True
     q2.prev["pos"] = q3
-    q1.prev["pos"] = q2
+    q1.prev["pos"] = q2"""
 
     #q3 = SubQuery(None, ["Truck"], ['r'], None, q1)
     #q1.next = q3
     #q2 = SubQuery(None,None,None,None,None)
-    q = Query([q1],"counting",Identity)
+    #q = Query([q1],"counting",Identity)
+
+  
+    mytree = tree(4)
+    #better_visualize_tree(mytree.root)
+    FUNCTIONALS = mytree.new_build_functional([])
+    print(FUNCTIONALS)
+    print(translate(FUNCTIONALS))
+    q = mytree.build_program(FUNCTIONALS)
+
+
+
     prophet = QueryAnswerer(graph,[q])
     result = prophet.ans(q)
     print(result[0].id)
     
     ids = [node.id for node in q.ans if node.id != agent_id]
     print(len(ids))
-    from vqa.visualization import generate_highlighted
+    """from vqa.visualization import generate_highlighted
     generate_highlighted(path_to_mask =  "verification/10_40/mask_10_40.png",
                          path_to_mapping= "verification/10_40/metainformation_10_40.json",
                          folder = "verification/10_40",
                          ids = ids,
                          colors = [(1,1,1)]*len(ids))
-    print(result)
+    print(result)"""
 
             

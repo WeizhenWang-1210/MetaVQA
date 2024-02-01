@@ -2,8 +2,11 @@ import json
 import random
 from itertools import product
 from vqa.grammar import CFG_GRAMMAR
-from vqa.question_generator import SubQuery
+from vqa.question_generator import SubQuery, QueryAnswerer, Query, Identity
 from pprint import pprint
+from vqa.scene_graph import SceneGraph
+from vqa.object_node import ObjectNode,nodify,transform
+import argparse
 
 def is_terminal(token)->bool:
     return token not in CFG_GRAMMAR.keys()
@@ -278,11 +281,29 @@ def action_token_string_converter(token, form):
 
 
 if __name__ == "__main__":
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--step", type=str, default = "verification/10_50/world_10_50")
+    args = parser.parse_args()
+    try:
+        print(args.step)
+        with open('{}.json'.format(args.step),'r') as scene_file:
+                scene_dict = json.load(scene_file)
+    except Exception as e:
+        raise e
+    """Loading a scenario"""
+    agent_id,nodes = nodify(scene_dict)
+    graph = SceneGraph(agent_id,nodes)  
+
+    """Sample a grammar tree"""  
     mytree = tree(4)
-    better_visualize_tree(mytree.root)
     FUNCTIONALS = mytree.new_build_functional([])
     print(FUNCTIONALS)
     print(translate(FUNCTIONALS))
-    root = mytree.build_program(FUNCTIONALS)
-    print(root.prev)
+    q = mytree.build_program(FUNCTIONALS) #compile the grammar tree to a Subquery that's already in tree structure.
+    q = Query([q], "counting",Identity) #abstract the subquery into a query by giving it a type and an end filter
+    prophet = QueryAnswerer(graph,[q]) #instantiate the question-answerer
+    result = prophet.ans(q) #have the question_answerer answer the question.
+    """ print(result[0].id)
+    
+    ids = [node.id for node in q.ans if node.id != agent_id]
+    print(len(ids))"""
