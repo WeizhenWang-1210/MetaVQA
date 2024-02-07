@@ -4,7 +4,7 @@ import shutil
 from typing import List
 from vqa.question_generation import *
 from vqa.object_node import ObjectNode
-from vqa.temporal_question_generator import TempQueryAnswerer, TemporalTracker
+from vqa.miscellaneous.temporal_question_generator import TempQueryAnswerer, TemporalTracker
 
 temporal_example = dict(
     format = "temporal",

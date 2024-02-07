@@ -3,10 +3,10 @@ from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode,nodify,transform
 from vqa.dataset_utils import extend_bbox
 from collections import defaultdict
-# from vqa.dynamic_filter import follow, pass_by, collide_with, head_toward, drive_alongside
+from vqa.grammar import CFG_GRAMMAR
+import random
 from vqa.dynamic_filter import DynamicFilter
 import json
-import numpy as np
 import argparse
 import os
 # pwd = os.getcwd()
@@ -17,6 +17,260 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(current_directory, "question_templates.json")
 with open(template_path,"r") as f:
     templates = json.load(f)
+
+
+
+
+
+def is_terminal(token)->bool:
+    return token not in CFG_GRAMMAR.keys()
+
+
+class tnode:
+    def __init__(self,token) -> None:
+        #print("called {}".format(token))
+        self.token = token
+        self.parent = None
+        self.key = False
+        self.children = None
+    
+    def populate(self, depth):
+        if is_terminal(self.token) or depth <= 0:
+            return
+        rules = CFG_GRAMMAR[self.token]
+        rule = random.choice(rules)
+        if depth == 1:
+            while not all(token not in CFG_GRAMMAR.keys() for token in rule):
+                rule = random.choice(rules)
+        children = []
+        flag = True
+        for token in rule:
+            new_node = tnode(token)
+            new_node.parent = self
+            flag = flag and is_terminal(token)
+            new_node.populate(depth - 1)
+            children.append(new_node)
+        self.key = flag
+        self.children = children
+    
+    def __str__(self) -> str:
+        return self.token
+
+    def visualize(self):
+        result = []
+        if self.children == None:
+            return self.token
+        for child in self.children:
+            result.append(child.visualize())
+        stuff = ",".join(result)
+        return "({}_{} : [{}])".format(self.token, self.key,stuff)
+
+class tree:
+    def __init__(self, root, max_depth) -> None:
+        self.root = tnode(root)
+        self.root.populate(max_depth)
+        self.depth = self.get_depth()
+    def get_depth(self)->int:
+        def depth(node):
+            if not node:
+                return 0
+            if not node.children:
+                return 1
+            return 1 + max([depth(child) for child in node.children])
+        return depth(self.root)
+    def build_functional(self,constraints):
+        unique_flag = "unique" in constraints
+        results = dict()
+        def recur_build_o(root_o, id):
+            assert root_o.token == "<o>"
+            if root_o.key:
+                results[id] = ["us"]
+            else:
+                curr_cfg = dict(unique = unique_flag)
+                offset = 1
+                for child in root_o.children:
+                    if child.key:
+                        curr_cfg[child.token] = child.children[0].token
+                    else:
+                        expand = dict()
+                        for child_child in child.children:
+                            if child_child.token == "<o>":
+                                expand["<o>'s id"] = recur_build_o(child_child, id + offset)
+                                offset += 1
+                            else:
+                                expand[child_child.token] = child_child.children[0].token
+                        curr_cfg[child.token] = expand
+                results[id] = curr_cfg
+            return id
+        recur_build_o(self.root, 0)
+        return results
+    def computation_graph(self, configs):
+        def haschild(config):
+            result = []
+            if not isinstance(config,dict):
+                return result
+            for key, value in config.items():
+                if key == "<o>'s id":
+                    result.append(value)
+                elif isinstance(value, dict):
+                    result += haschild(value)
+            return result
+        result = []
+        for key,value in configs.items():
+            ret = haschild(value)
+            result += [(key, child) for child in ret]
+        return result
+    def build_program(self, configs):
+        def converter(subquery, config, subqueries):
+            if isinstance(config, list):
+                subquery.us = True
+                return
+            subquery.color = config["<p>"],
+            subquery.type = config["<t>"],
+            subquery.state = config["<s>"],             
+            #Create the action requirements according to the grammar tree specification
+            if isinstance(config["<a>"],dict):
+                if "<deed_without_o>" in config["<a>"].keys():
+                    subquery.action = [config["<a>"]["<deed_without_o>"]]
+                else:
+                    subquery.action =  [config["<a>"]["<deed_with_o>"]]
+                    subquery.prev["action"] = subqueries[config["<a>"]["<o>'s id"]]
+                    subqueries[config["<a>"]["<o>'s id"]].next = subquery
+            else:
+                subquery.action = None
+            #Create the positional requirements according to the grammar tree specification
+            if isinstance(config["<dir>"],dict):
+                subquery.pos = [config["<dir>"]["<tdir>"]] 
+                subquery.prev["pos"] = subqueries[config["<dir>"]["<o>'s id"]]
+                subqueries[config["<dir>"]["<o>'s id"]].next = subquery
+            else:
+                subquery.pos = None
+        subqueries = {id: SubQuery() for id in configs.keys()}
+        for id, subquery in subqueries.items():
+            converter(subquery, configs[id], subqueries)
+        root = None
+        for subquery in subqueries.values():
+            if not subquery.next:
+                root = subquery
+        return root
+    def visualize(self):
+        def better_visualize_tree(node, prefix=""):
+            """Visualizes the tree structure."""
+            if node is None:
+                return
+            # Check if the current node is the last child of its parent
+            is_last = not node.parent or (node.parent.children and node == node.parent.children[-1])
+            # Prepare the prefix for the current level
+            current_prefix = prefix + ("└── " if is_last else "├── ")
+            # Print the current node
+            print(f"{current_prefix}{node.token} (Key: {node.key})")
+            # Prepare the prefix for the next level
+            next_prefix = prefix + ("    " if is_last else "│   ")
+            # Recursively call for each child
+            if node.children:
+                for child in node.children:
+                    better_visualize_tree(child, next_prefix)
+        node = self.root
+        better_visualize_tree(node)
+    def translate(self, object_id)
+
+        
+def translate(object_dict):
+    def color_token_string_converter(token):
+        if token != "nil":
+            return token.lower()
+        else:
+            return ""
+    def type_token_string_converter(token,form):
+        mapping = dict(
+            nil = dict(singular = "thing", plural = "things"),
+            Bus = dict(singular = "bus", plural = "buses"),
+            Caravan = dict(singular = "caravan", plural = "caravans"),
+            Coupe = dict(singular = "coupe", plural = "coupes"),
+            FireTruck = dict(singular = "fire engine", plural = "fire engines"),
+            Jeep = dict(singular = "jeep", plural = "jeeps"),
+            Pickup = dict(singular = "pickup", plural = "pickups"),
+            Policecar = dict(singular = "police car", plural = "policecars"),
+            SUV = dict(singular = "SUV", plural = "SUVs"),
+            SchoolBus = dict(singular = "school bus", plural = "school buses"),
+            Sedan = dict(singular = "sedan", plural = "sedans"),
+            SportCar = dict(singular = "sports car", plural = "sports cars"),
+            Truck = dict(singular = "truck", plural = "trucks"),
+            Hatchback = dict(singular = "hatchback", plural = "hatchbacks")
+        )
+        return mapping[token][form]
+    def state_token_string_converter(token):
+        if token == "visible" or token == "nil":
+            return ""
+        return token
+    def action_token_string_converter(token, form):
+        map = {
+            "follow" : dict(singular = "follows", plural = "follow"),
+            "pass by": dict(singular = "passes by", plural = "pass by"),
+            "collide with": dict(singular = "collides with", plural = "collide with"),
+            "head toward":dict(singular = "heads toward", plural = "head toward"),
+            "drive alongside": dict(singular = "drives alongside", plural = "drive alongside"),
+            "nil": dict(singular = "", plural = ""),
+            "turn left" : dict(singular = "turns left", plural = "turn left"),
+            "turn right": dict(singular = "turns right", plural = "turn right"),
+
+        }
+        return map[token][form]
+    def recur_translate(obj_id):
+        if len(object_dict[obj_id]) == 1:
+            return object_dict[obj_id][0]
+        else:
+            form = "singular" if object_dict[obj_id]["unique"] else "plural"
+            s = state_token_string_converter(object_dict[obj_id]['<s>'])
+            p = color_token_string_converter(object_dict[obj_id]['<p>']) 
+            t = type_token_string_converter(object_dict[obj_id]['<t>'],form)
+            dir = ''
+            if isinstance(object_dict[obj_id]['<dir>'], str):
+                dir = object_dict[obj_id]['<dir>'] if object_dict[obj_id]['<dir>'] != 'nil' else ''
+            elif isinstance(object_dict[obj_id]['<dir>'], dict):
+                tdir = object_dict[obj_id]['<dir>']['<tdir>']
+                tdir_mapping = {
+                    "l": "to the left of",
+                    "r": "to the right of",
+                    "f": "in front of",
+                    "b": "behind",
+                    "lf": "to the left and in front of",
+                    "rf": "to the right and in front of",
+                    "lb": "to the left and behind",
+                    "rb": "to the right and behind"
+                }
+                new_o = recur_translate(object_dict[obj_id]['<dir>']["<o>'s id"])
+                dir = tdir_mapping[tdir] + ' ' + new_o
+            else:
+                print("warning!")
+            a = ''
+            if isinstance(object_dict[obj_id]['<a>'], str):
+                a = action_token_string_converter(object_dict[obj_id]['<a>'],form)
+            elif isinstance(object_dict[obj_id]['<a>'], dict):
+                if '<deed_with_o>' in object_dict[obj_id]['<a>'].keys():
+                    deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_with_o>'],form)
+                    new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
+                    a = deed_with_o + ' ' + new_o
+                else:
+                    a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'],form)
+            else:
+                print("warning!")
+            result = ""
+            if form == "singular":
+                result = "the "
+            if s != '':
+                result += s + ' '
+            if p != '':
+                result += p + ' '
+            if t != '':
+                result += t + ' '
+            if dir != '':
+                result += dir + ' '
+            if a != '':
+                result += 'that ' + a
+            result = " ".join(result.split())
+            return result
+    return recur_translate(0)
 
 
 
@@ -88,6 +342,11 @@ class SubQuery:
         self.ans = ans
         return self.ans
 
+
+
+
+     
+
 class Query:
     """
     A query is a functional implentation of an English question. It can have a single-thread of subqueries(counting/referral),
@@ -156,29 +415,81 @@ class Query:
             postorder_traversal(root,self.egos,self.ref_heading,self.candidates)
             search_spaces.append(root.ans)
         self.ans = self.final(search_spaces)
-
-        """ search_spaces = []
-        for head in self.heads:
-            traverser = head
-            search_space = self.candidates
-            while traverser:
-                if not traverser.funcs:
-                    traverser.instantiate(self.egos,self.ref_heading)
-                search_space = traverser(search_space, self.candidates)
-                traverser = traverser.next
-            search_spaces.append(search_space)
-        self.ans = self.final(search_spaces)"""
         return self.ans
     
     def __str__(self) -> str:
         '''
         get all answers
         '''
-        print(self.format,[node.id.split("-")[0] for node in self.ans])
+        #print(self.format,[node.id.split("-")[0] for node in self.ans])
+        print(self.ans)
      
 """
 Only return when candidates are visible by ego
 """
+
+class QuerySpecifier:
+    def __init__(self,template:dict, parameters:dict, graph:SceneGraph) -> None:
+        self.template = template
+        if parameters is not None:
+            self.parameters = parameters
+        else:
+            self.parameters = self.instantiate()
+        self.graph = graph
+        
+    def instantiate(self):
+        parameters = {}
+        for param in self.template["params"]:
+            local = dict(
+                en = None,
+                prog = None,
+                ans = None
+            )
+            if param[1]=="o":
+                start_symbol = "<o>"
+                param_tree = tree(start_symbol,4)
+                
+                while(param_tree.depth<=2):
+                    param_tree = tree(start_symbol,4)
+            else:
+                start_symbol = param
+                param_tree = tree(start_symbol,4)
+            functional = param_tree.build_functional(self.template["constraint"])
+            local["en"] = translate(functional)
+            program = Query([param_tree.build_program(functional)],"stuff",Identity)
+            local["prog"] = program
+            parameters[param] = local
+        return parameters
+
+    def translate(self):
+        variant = random.choice(self.template["text"])
+        for param, info in self.parameters.items():
+            variant = variant.replace(param,info["en"])
+        return variant
+    
+    def find_end_filter(self, string):
+        mapping = dict(
+            count = count,
+            locate = locate,
+            count_equal = CountEqual,
+            count_more = CountGreater,
+        )
+        return mapping[string]
+
+    def answer(self):
+        param_answers = []
+        for param,info in self.parameters.items():
+            query = info["prog"]
+            query.set_reference(self.graph.get_ego_node().heading)
+            query.set_searchspace(self.graph.get_nodes())
+            query.set_egos([self.graph.get_ego_node()])
+            answers = query.proceed()
+            self.parameters[param]["answer"] = answers
+            param_answers.append(answers)
+        end_filter = self.find_end_filter(self.template["end_filter"])
+        return end_filter(param_answers)
+
+           
 
 
 def color_wrapper(colors:Iterable[str])->Callable:
@@ -208,9 +519,7 @@ def type_wrapper(types:Iterable[str])->Callable:
                 continue
             #print(candidate)
             for t in types:
-                #print(candidate.type, t)
                 if candidate.type == t  or subclass(candidate.type, t):
-                    #print(candidate.id)
                     results.append(candidate)
                     break
         return results
@@ -240,8 +549,8 @@ def state_wrapper(states:Iterable[str])->Callable:
     return state
 
 def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
-    scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
-    filter = DynamicFilter(scene_folder)
+    scene_folder = "E:/bolei/metavqa/verification"
+    filter = DynamicFilter(scene_folder,sample_frequency=1, episode_length=10, skip_length=10)
     filter.process_episodes(sample_frequency=1, episode_length=10, skip_length=10)
     def act(candidates: Iterable[ObjectNode]):
         mapping = {
@@ -261,25 +570,7 @@ def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tupl
                        results.append(candidate)
         return results
     return act
-# def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
-#     def act(candidates: Iterable[ObjectNode]):
-#         mapping = {
-#             "follow": follow,
-#             "pass by": pass_by,
-#             "collide with":collide_with,
-#             "head toward": head_toward,
-#             "drive alongside": drive_alongside
-#         }
-#         results = []
-#         for candidate in candidates:
-#             if not candidate.visible:
-#                 continue
-#             for ego in egos:
-#                for action in actions:
-#                    if ego.id != candidate.id and mapping[action](ego, candidate):
-#                        results.append(candidate)
-#         return results
-#     return act
+
 
 def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
     '''
@@ -296,7 +587,6 @@ def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_head
                     results.append(candidate)
         return results
     return pos
-
 
 def subclass(class1:str, class2:str)->bool:
     '''
@@ -334,54 +624,6 @@ def get_inheritance()->defaultdict:
     get_non_leaf_nodes(tree, inheritance)
     return inheritance
         
-class QueryAnswerer:
-    """
-    A queryanswerer is a "prophet". It has knowledge about a particular scene_graph, and it contains a list of queries
-    to be answered. 
-
-    self.ans() returns List[List[AgentNode]|None]
-    """
-    def __init__(self, 
-                 scene_graph:SceneGraph, 
-                 queries: List[Query],
-                ) -> None:
-        self.graph:SceneGraph = scene_graph
-        self.ego_id:str = scene_graph.ego_id
-        self.queries: list[Query] = queries
-        self.log = []
-
-    def ans(self, query: Query = None):
-        '''
-        Generate answer
-        '''
-        answers = []
-        if not query:
-            for query in self.queries:
-                query.set_reference(self.graph.get_ego_node().heading)
-                query.set_searchspace(self.graph.get_nodes())
-                query.set_egos([self.graph.get_ego_node()])
-                answers.append(query.proceed())
-        else:
-            query.set_reference(self.graph.get_ego_node().heading)
-            query.set_searchspace(self.graph.get_nodes())
-            query.set_egos([self.graph.get_ego_node()])
-            return query.proceed()
-        return answers
-
-    def add_query(self, query: Query):
-        '''
-        add query to the prophet
-        '''
-        self.queries.append(query)
-
-    def display_queries(self):
-        '''
-        list all queries
-        '''
-
-        for query in self.queries:
-            print(query)
-
 
 
 def greater(A,B)->bool:
@@ -492,10 +734,10 @@ def locate_wrapper(origin: ObjectNode)->Callable:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default = "verification/10_50/world_10_50")
+    parser.add_argument("--step", type=str, default = "verification/10_299/world_10_299")
     args = parser.parse_args()
     try:
-        print(args.step)
+        #print(args.step)
         with open('{}.json'.format(args.step),'r') as scene_file:
                 scene_dict = json.load(scene_file)
     except Exception as e:
@@ -503,55 +745,87 @@ if __name__ == "__main__":
     agent_id,nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id,nodes)    
 
-    """ q1 = SubQuery(
+    q1 = SubQuery(
         color= None,
-        type = ["Bike"], 
-        pos= ['rb'], 
+        type = ["dog"], 
+        pos= ['rf'], 
         state= None, 
         action= None,
         next = None,
-        prev = {})
-    q2 = SubQuery(
+        prev = {})    
+    q2 = SubQuery()
+    q2.us = True
+    q1.prev["pos"] = q2
+    q2.next = q1
+    parameters = {
+        "<o>":{
+            "en": "dog to the right and in front of us",
+            "prog": Query([q1],"counting",Identity),
+            "ans":None
+        }
+    }
+
+    q3 = SubQuery(
         color= None,
-        type = ["Caravan"], 
+        type = ["vehicle"], 
+        pos= ["lf"], 
+        state= None, 
+        action= None,
+        next = None,
+        prev = {})    
+    q4 = SubQuery()
+    q4.us = True
+    q3.prev["pos"] = q4
+    q4.next = q3
+
+    q5 = SubQuery(
+        color= ["White"],
+        type = ["vehicle"], 
         pos= None, 
         state= None, 
         action= None,
         next = None,
         prev = {})
+
+    parameters_1 = {
+        "<o>":{
+            "en": "dog to the right and in front of us",
+            "prog": Query([q1],"counting",Identity),
+            "ans":None
+        }
+    }
+    parameters_2 = {
+        "<o>":{
+            "en": "vehicles to the left and in front of us",
+            "prog": Query([q3],"counting",Identity),
+            "ans":None
+        }
+    }
+
+    parameters_3 = {
+        "<o>":{
+            "en": "white vehicle",
+            "prog": Query([q5],"counting",Identity),
+            "ans":None
+        }
+    }
+
+    q = QuerySpecifier(template=templates["generic"]["counting"], parameters = parameters_3,graph = graph)
+    print(q.translate())
+    print(q.answer())
     
-    q3 = SubQuery()
-    q3.us = True
-    q2.prev["pos"] = q3
-    q1.prev["pos"] = q2"""
-
-    #q3 = SubQuery(None, ["Truck"], ['r'], None, q1)
-    #q1.next = q3
-    #q2 = SubQuery(None,None,None,None,None)
-    #q = Query([q1],"counting",Identity)
-
-  
-    mytree = tree(4)
-    #better_visualize_tree(mytree.root)
-    FUNCTIONALS = mytree.new_build_functional([])
-    print(FUNCTIONALS)
-    print(translate(FUNCTIONALS))
-    q = mytree.build_program(FUNCTIONALS)
-
-
-
+    """
     prophet = QueryAnswerer(graph,[q])
     result = prophet.ans(q)
     print(result[0].id)
-    
-    ids = [node.id for node in q.ans if node.id != agent_id]
+    """
+    ids = [node.id for node in  q.parameters["<o>"]["answer"] if node.id != agent_id]
     print(len(ids))
-    """from vqa.visualization import generate_highlighted
-    generate_highlighted(path_to_mask =  "verification/10_40/mask_10_40.png",
-                         path_to_mapping= "verification/10_40/metainformation_10_40.json",
-                         folder = "verification/10_40",
+    from vqa.visualization import generate_highlighted
+    generate_highlighted(path_to_mask =  "verification/10_299/mask_10_299.png",
+                         path_to_mapping= "verification/10_299/metainformation_10_299.json",
+                         folder = "verification/10_299",
                          ids = ids,
                          colors = [(1,1,1)]*len(ids))
-    print(result)"""
 
             

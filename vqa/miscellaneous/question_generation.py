@@ -6,7 +6,7 @@ import glob
 from typing import Callable, Any, Iterable
 from collections import defaultdict
 from vqa.question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual,Describe, locate,CountLess, locate_wrapper
-from vqa.temporal_question_generator import TempSubQuery, TempQuery, TempQueryAnswerer
+from vqa.miscellaneous.temporal_question_generator import TempSubQuery, TempQuery, TempQueryAnswerer
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import nodify
 import os

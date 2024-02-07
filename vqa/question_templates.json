@@ -14,11 +14,11 @@
         },
         "counting": {
             "text":[
-                "How many <o> are <a>?", 
-                "Give me the number of <o> that are <a>"
+                "How many <o> are persent?", 
+                "Give me the number of <o>."
             ],
             "params":[
-                "<o>","<a>"
+                "<o>"
             ],
             "end_filter":"count",
             "constraint":[]
