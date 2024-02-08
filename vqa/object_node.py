@@ -12,7 +12,9 @@ class ObjectNode:
                  type,
                  height,
                  lane,
-                 visible):
+                 visible,
+                 states,
+                 collisions):
         '''
         Apparently I need more comments
         '''
@@ -28,6 +30,9 @@ class ObjectNode:
         self.lane = lane                #The id (s,e,3).This indicate the lane starts from s and end on e and 
                                         #is on the 4th lane from the center of the road
         self.visible = visible
+        self.states = states
+        self.collision = collisions
+        self.actions = {}
 
     def compute_relation(self, node, ref_heading:Iterable[float])->dict:
         """
@@ -200,7 +205,10 @@ def nodify(scene_dict:dict)->Tuple[str,List[ObjectNode]]:
                                         height = info['height'],
                                         type = info['type'],
                                         lane = info['lane'],
-                                        visible = info['visible']
+                                        visible = info['visible'],
+                                        states = info["states"],
+                                        collisions = info["collisions"]
+                                        
                                         )
                 )
     nodes.append(
@@ -214,7 +222,9 @@ def nodify(scene_dict:dict)->Tuple[str,List[ObjectNode]]:
                             height = ego_dict['height'],
                             type = ego_dict['type'],
                             lane = ego_dict['lane'],
-                            visible = True)
+                            visible = True,
+                            states = ego_dict["states"],
+                            collisions = ego_dict["collisions"])
             )
     return ego_id, nodes
 

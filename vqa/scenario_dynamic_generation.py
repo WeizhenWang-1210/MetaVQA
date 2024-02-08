@@ -295,6 +295,7 @@ def create_videos_for_episodes(episodes_folder):
                 video.write(img)
             video.release()
         print(f"Videos for episode {episode_folder} saved in {episode_path}")
+        
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 from typing import Iterable
 from collections import defaultdict
-from vqa.object_node import ObjectNode
+from vqa.object_node import ObjectNode, nodify
+import os
+import json
 class RoadGraph:
     def __init__(self,ids:Iterable) -> None:
         graph = defaultdict(lambda:"")
@@ -20,6 +22,7 @@ class SceneGraph:
     def __init__(self, 
                  ego_id:str,
                  nodes:list = [],
+                 folder: str = "./"
                  ):
         self.nodes:dict[str,ObjectNode] = {}
         for node in nodes:
@@ -27,6 +30,7 @@ class SceneGraph:
         self.ego_id:str = ego_id
         self.spatial_graph:dict = self.compute_spatial_graph()
         self.road_graph:RoadGraph = RoadGraph([node.lane for node in nodes])
+        self.folder = folder
 
     def refocus(self,new_ego_id:str) -> None:
         """
@@ -112,10 +116,67 @@ class SceneGraph:
     
 class EpisodicGraph:
     def __init__(self) -> None:
-        self.frames = None
+        self.frames = {}
         self.final_frame = None
     
-    
-    
-    def load(self, episode_path):
+    def load(self, root_folder, frame_names, interaction_path):
+        def find_collision_pairs(scene_dict):
+            results = []
+            results += [tuple(sorted([scene_dict["ego"], other])) for other in scene_dict["ego"]["collisions"]]
+            for node in scene_dict["objects"]:
+                results += [tuple(sorted([node.id, other])) for other in node["collisions"]]
+            return results
+        index = 0
+        frame_paths = sorted(frame_names)
+        collision_pairs = []
+        for frame_name in frame_paths:
+            if os.path.isdir(os.path.join(root_folder, frame_name)):
+                frame_path = os.path.join(root_folder, frame_name)
+                json_path = os.path.join(frame_path,"world_{}.json".format(frame_name))
+                try:
+                    with open(json_path, "r") as file:
+                        scene_dict = json.load(file)
+                except Exception as e:
+                    raise e
+                ego_id, nodes = nodify(scene_dict)
+                collision_pairs+=find_collision_pairs(scene_dict)
+                frame_graph = SceneGraph(ego_id, nodes, json_path)
+                self.frames[index] = frame_graph
+                index += 1
+                
+            
+        self.final_frame = self.frames[index-1]
+        try:
+            with open(interaction_path,"r") as file:
+                interaction = json.load(file)
+        except Exception as e:
+            raise e
+        for action, pairs in interaction.items():
+            #l is being affected by r
+            for l, r in pairs:
+                self.final_frame.nodes[r].actions[action] = l
+        collision_pairs = set(collision_pairs)
+        #record all collision event in the last frame
+        for l,r in collision_pairs:
+            self.final_frame.nodes[l].collision.append(r)
+            self.final_frame.node[r].collision.append(l)
+        
+        
+            
+        
+if __name__ == "__main__":
+    test_graph = EpisodicGraph()
+    test_graph.load(root_folder="C:/school/Bolei/metavqa/verification/10_50_99",
+                       frame_names= os.listdir("C:/school/Bolei/metavqa/verification/10_50_99"),
+                       interaction_path= "C:/school/Bolei/metavqa/verification/10_50_99/interaction.json"
+                       )
+        
+                
+                
+                
+            
+            
+        
+        
+        
         

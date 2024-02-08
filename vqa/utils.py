@@ -39,7 +39,6 @@ def annotate_color(object):
     """
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
     """
-    #TODO extend the function to work on Chenda's imported assets.
     if isinstance(object, TestObject) or isinstance(object, CustomizedCar):
         return object.get_asset_metainfo()['general']["color"]
     vehicle_type = {
