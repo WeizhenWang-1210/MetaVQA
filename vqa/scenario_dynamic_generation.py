@@ -187,16 +187,19 @@ def create_videos_for_episodes(base_folder, output_folder, sample_frequency, epi
 
 
 if __name__ == "__main__":
+    cwd = os.getcwd()
+    config_path = os.path.join(cwd,"vqa","configs","scene_generation_config.yaml")
     try:
-        # with open('vqa/configs/scene_generation_config.yaml', 'r') as f:
-        with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
+        with open(config_path, 'r') as f:
+        #with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
-    scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
-    output_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification\\dynamic"
-    analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
-                                      episode_length=config["episode_length"],skip_length=config["skip_length"])
-    # create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
-    #                                   episode_length=config["episode_length"],skip_length=config["skip_length"])
-    # print("hello world
+    scene_folder = os.path.join(cwd,"verification")
+    output_folder = os.path.join(cwd,"verification","dynamic")
+    """scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
+    output_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification\\dynamic"""
+    #analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+    #                                  episode_length=config["episode_length"],skip_length=config["skip_length"])
+    create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+                                       episode_length=config["episode_length"],skip_length=config["skip_length"])

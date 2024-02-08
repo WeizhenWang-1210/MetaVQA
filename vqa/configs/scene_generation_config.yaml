@@ -4,7 +4,7 @@ map_setting:
   PG: True
   map_size: 5
   map_sequence: ""
-  traffic_density: 0.2
+  traffic_density: 0.1
   inverse_traffic: True
   structures_density: 0
   accident_prob: 0
@@ -14,6 +14,6 @@ sample_frequency: 1
 num_samples: 100
 max_iterations: 10000
 temporal_generation: True
-episode_length: 10
-skip_length: 20
+episode_length: 30
+skip_length: 50
 ...

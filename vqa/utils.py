@@ -109,10 +109,18 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
             class_name = str(type(obj)),
             lane = obj.lane_index,
             visible = visible_mask[idx],
-            states = annotate_states(obj)
+            states = annotate_states(obj),
+            collisions = annotate_collision(obj)
         )
         result.append(annotation)
     return result
+
+def annotate_collision(obj):
+    result = []
+    if isinstance(obj, BaseVehicle):
+        result = list(obj.crashed_objects)
+    return result
+        
 
 def genearte_annotation(object: BaseObject, env: BaseEnv) -> dict:
     return generate_annotations([object], env, [True])[0]

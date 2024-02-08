@@ -108,3 +108,14 @@ class SceneGraph:
     
     def get_node(self, id:str)->ObjectNode:
         return self.nodes[id]
+    
+    
+class EpisodicGraph:
+    def __init__(self) -> None:
+        self.frames = None
+        self.final_frame = None
+    
+    
+    
+    def load(self, episode_path):
+        
