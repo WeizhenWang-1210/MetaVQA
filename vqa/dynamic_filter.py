@@ -108,15 +108,6 @@ class DynamicFilter:
                         raise e
         return objects_info
 
-
-
-
-
-
-
-
-
-
     def follow(self, obj1:str, obj2:str, distance_threshold:int = 10,strickness:float = 0.8)->list:
         '''
         Return a list of episodes where obj1 is followed by obj2

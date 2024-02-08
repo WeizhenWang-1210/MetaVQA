@@ -14,6 +14,6 @@ sample_frequency: 1
 num_samples: 100
 max_iterations: 10000
 temporal_generation: True
-episode_length: 30
+episode_length: 50
 skip_length: 50
 ...

@@ -228,6 +228,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
             step += step_ran
             counter += len(records)
             ret_code = episode_logging(records, folder, IO)
+            records.clear() #recycling memory
             if ret_code == 0:
                 print("Successfully created episode {}".format(episode_counter))
                 episode_counter+=1

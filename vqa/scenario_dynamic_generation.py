@@ -170,10 +170,6 @@ def save_results_to_episodes(action_results,episodes_folder):
 
 
 
-
-
-
-
 def analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency:int, episode_length:int, skip_length:int):
     action_results = analyze_car_interactions(scene_folder, sample_frequency, episode_length, skip_length)
 
@@ -259,6 +255,46 @@ def create_videos_for_episodes(base_folder, output_folder, sample_frequency, epi
 
 
 def create_videos_for_episodes(episodes_folder):
+    """
+    Combines images from each `{seed}_{step}` subfolder into MP4 videos based on episode ranges and
+    saves them in the corresponding episode folders within the output folder.
+
+    :param base_folder: The path to the base folder containing the `{seed}_{step}` subfolders with images.
+    :param output_folder: The path to the output folder where episode folders will be created.
+    :param sample_frequency: The frequency of sampling the world json file.
+    :param episode_length: The length of each episode.
+    :param skip_length: The length of each skip.
+    """
+    # Create videos for each episode and save them in the output folder
+    for episode_folder in os.listdir(episodes_folder):
+        episode_path = os.path.join(episodes_folder,episode_folder)
+        views = ["rgb", "top_down"]
+        image_files = {
+            v:[] for v in views            
+        }
+        for item in os.listdir(episode_path):
+            item_path = os.path.join(episode_path,item)
+            if os.path.isdir(item_path):
+                for view in views:
+                    image_files[view].extend([os.path.join(episode_path, item, f) for f in os.listdir(item_path)
+                                            if f.startswith(view) and f.endswith('.png')])
+        for view, images in image_files.items():
+            if not images:
+                continue  # Skip if no images found
+
+            images = sorted(images, key=lambda x: int(re.findall(r"(\d+).png$", x)[0]))
+
+            # Assume all images have the same dimensions
+            sample_image = cv2.imread(images[0])
+            height, width, layers = sample_image.shape
+            video_name = f"{view}_{episode_folder}.mp4"
+            video_path = os.path.join(episode_path, video_name)
+            video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), 10, (width, height))
+            for img_path in images:
+                img = cv2.imread(img_path)
+                video.write(img)
+            video.release()
+        print(f"Videos for episode {episode_folder} saved in {episode_path}")
 
 
 if __name__ == "__main__":
@@ -280,3 +316,4 @@ if __name__ == "__main__":
     
     """create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
                                        episode_length=config["episode_length"],skip_length=config["skip_length"])"""
+    create_videos_for_episodes(scene_folder)
