@@ -23,13 +23,13 @@ def logging(env, lidar, rgb, scene_dict,masks,identifier, instance_folder, log_m
         #Save the world annotation in world{}.json
         file_path = os.path.join(instance_folder, "world_{}.json".format(identifier))
         with open(file_path, 'w') as f:
-            json.dump(scene_dict,f)
+            json.dump(scene_dict,f, indent=4)
         #Save the lidar observation in lidar{}.json
         file_path = os.path.join(instance_folder,"lidar_{}.json".format(identifier))
         with open(file_path, 'w') as f:
             observation = {}
             observation['lidar'] = lidar.tolist()
-            json.dump(observation,f)
+            json.dump(observation,f, indent=4)
         #Save the rgb observation in rgb{}.json
         file_path = os.path.join(instance_folder, "rgb_{}.png".format(identifier))
         rgb = rgb * 255 #Needed as cv2 expect 0-255 for rgb value, but the original observations are clipped
@@ -51,7 +51,7 @@ def logging(env, lidar, rgb, scene_dict,masks,identifier, instance_folder, log_m
         file_path = os.path.join(instance_folder, "metainformation_{}.json".format(identifier))
         with open(file_path, 'w') as f:
             # write the dictionary to the file in JSON format 
-            json.dump(log_mapping,f)
+            json.dump(log_mapping,f, indent=4)
         return 0
     except Exception as e:
         raise e
@@ -79,7 +79,7 @@ def saving(env, lidar, rgb, scene_dict,masks,log_mapping, debug=False):
 
 def episode_logging(buffer, root, IO):
     env_seed, env_start, env_end = IO
-    episode_folder = os.path.join(root,"{}_{}_{}".format(env_seed, env_start, env_end))
+    episode_folder = os.path.join(root,"{}_{}_{}".format(env_seed, env_start+1, env_end))
     #create the episode folder, which will contain each frame folder
     try:
         os.makedirs(episode_folder, exist_ok=True)
@@ -90,13 +90,13 @@ def episode_logging(buffer, root, IO):
             #Save the world annotation in world{}.json
             file_path = os.path.join(instance_folder, "world_{}.json".format(identifier))
             with open(file_path, 'w') as f:
-                json.dump(data["world"],f)
+                json.dump(data["world"],f, indent=4)
             #Save the lidar observation in lidar{}.json
             file_path = os.path.join(instance_folder,"lidar_{}.json".format(identifier))
             with open(file_path, 'w') as f:
                 observation = {}
                 observation['lidar'] = data["lidar"]
-                json.dump(observation,f)
+                json.dump(observation,f, indent=4)
             #Save the rgb observation in rgb{}.json
             file_path = os.path.join(instance_folder, "rgb_{}.png".format(identifier))
             cv2.imwrite(file_path,data["rgb"])
@@ -115,7 +115,7 @@ def episode_logging(buffer, root, IO):
             file_path = os.path.join(instance_folder, "metainformation_{}.json".format(identifier))
             with open(file_path, 'w') as f:
                 # write the dictionary to the file in JSON format 
-                json.dump(data["log_mapping"],f)
+                json.dump(data["log_mapping"],f, indent=4)
             return 0
         except Exception as e:
             raise e
@@ -170,7 +170,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                                         scene_dict = scene_dict,
                                         masks = masks,
                                         log_mapping = log_mapping,
-                                        debug = False)
+                                        debug = True)
         total_steps += 1
         if (tm or tc) and info["arrive_dest"]:
             env.reset(env.current_seed + 1)
@@ -231,76 +231,6 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_itera
             if ret_code == 0:
                 print("Successfully created episode {}".format(episode_counter))
                 episode_counter+=1
-                
-            if episode_counter == 3:
-                break
-            """
-            if IO_config["log"] and \
-                step % sample_frequency == 0 and (step % (skip_length + episode_length) - skip_length) < episode_length:
-                #Retrieve rgb observations and instance segmentation mask
-                masks = instance_camera.perceive(env.vehicle)
-                rgb = camera.perceive(env.vehicle)
-                #Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
-                #is reserved for special purpose, and no objects will take this color.
-                mapping = engine.c_id
-                #to be consider observable, the object must not be black/white(reserved) and must have at least 32 pixels observable
-                filter = lambda r,g,b,c : not(r==1 and g==1 and b==1) and not(r==0 and g==0 and b==0) and (c > 32)
-                visible_ids, log_mapping = get_visible_object_ids(masks,mapping,filter)
-                #Record only if there are observable objects.
-                
-                if temporal_generation:
-                    identifier = "{}_{}".format(env.current_seed, env.episode_step)
-                    instance_folder = os.path.join(folder, identifier)
-                    try:
-                        os.makedirs(instance_folder, exist_ok=True)
-                    except Exception as e:
-                        raise e
-                    valid_objects = engine.get_objects(lambda x: l2_distance(x, env.vehicle)<=50) #get all objectes within 50m of the ego
-                    log_mapping = {id: log_mapping[id] for id in visible_ids}
-                    visible_mask = [True if x in visible_ids else False for x in valid_objects.keys()]
-                    objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask)
-                    ego_annotation = genearte_annotation(env.vehicle, env)
-                    scene_dict = dict(
-                        ego=ego_annotation,
-                        objects=objects_annotations
-                    )
-                   
-                    # send all observations/informations to logging function for the actual I/O part.
-                    buffer[identifier] = saving(env, o, rgb, scene_dict, masks, identifier,)
-                    #return_code = logging(env, o, rgb, scene_dict, masks, identifier, instance_folder, log_mapping)
-                    if return_code == 0:
-                        print("Generated the %d th data point" % (counter))
-                        counter += 1
-                else:
-                    if len(visible_ids) > 0:
-                        identifier = "{}_{}".format(env.current_seed,env.episode_step)
-                        instance_folder = os.path.join(folder, identifier)
-                        try:
-                            os.makedirs(instance_folder, exist_ok=True)
-                        except Exception as e:
-                            raise e
-                        #Retrieve all observable objeccts within 50 meter w.r.t. the ego
-                        visible_objects = engine.get_objects(lambda x: x.id in visible_ids and l2_distance(x, env.vehicle)<=50)
-                        #The next line is needed as the previous log_mapping dictionary contains mapping for objects with distance greater than 50m
-                        #away from ego.
-                        log_mapping = {id:log_mapping[id] for id in visible_objects.keys()}
-                        visible_mask = [True for _ in len(visible_objects.keys())]
-                        objects_annotations = generate_annotations(list(visible_objects.values()),env, visible_mask)
-                        ego_annotation = genearte_annotation(env.vehicle,env)
-                        scene_dict = dict(
-                            ego = ego_annotation,
-                            objects = objects_annotations
-                        )
-                        #send all observations/informations to logging function for the actual I/O part.
-                        return_code = logging(env, o, rgb, scene_dict,masks,identifier,instance_folder, log_mapping)
-                        if return_code == 0:
-                            print("Generated the %d th data point" %(counter))
-                            counter += 1
-            elif IO_config["log"] and \
-                step % sample_frequency == 0 and (step % (skip_length + episode_length) - skip_length) >= episode_length:
-                    if temporal_generation:
-                        episode_logging(buffer)"""
-            
     except Exception as e:
         raise e
     finally:
@@ -336,7 +266,7 @@ def main():
     env = MetaDriveEnv(scene_config)
     #Call the ACTUAL data recording questions
     generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
-                  dict(resolution=(1920,1080)),
+                  dict(resolution=(960,540)),
                   dict(batch_folder = config["storage_path"], log = True),config["map_setting"]["start_seed"],
                   temporal_generation=config["temporal_generation"],episode_length=config["episode_length"],skip_length=config["skip_length"])
 

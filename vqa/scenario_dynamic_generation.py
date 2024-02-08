@@ -86,6 +86,48 @@ def analyze_car_interactions(scene_folder, sample_frequency:int, episode_length:
     return action_results
 
 
+def analyze_car_interactions(episodes_folder):
+    """
+    Analyzes car interactions within a scene folder by identifying valid car pairs and applying dynamic action detection
+    methods to them.
+
+    :param scene_folder: Path to the folder containing scene data.
+    :return: A dictionary where keys are episode identifiers and values are lists of interactions detected in the episode.
+             Each interaction is represented as a dictionary containing 'pair' (a tuple of car IDs) and 'action' (the
+             name of the detected action).
+    """
+    dynamic_filter = DynamicFilter(episodes_folder=episodes_folder)
+    action_results = {}
+    scene_info = dynamic_filter.scene_info
+    valid_pairs = find_valid_car_pairs(scene_info)
+    total_pairs = len(valid_pairs)
+    pair_count = 0
+
+    # Define the dynamic action methods to apply
+    action_methods = [
+        dynamic_filter.follow,
+        dynamic_filter.pass_by,
+        # dynamic_filter.collide_with,
+        dynamic_filter.head_toward,
+        dynamic_filter.drive_alongside
+    ]
+    print(f"Starting analysis of {total_pairs} car pairs.")
+    # Iterate over each valid pair and analyze actions
+    for car1, car2 in valid_pairs:
+        pair_results = analyze_actions_for_pair(car1, car2, action_methods)
+        # Merge results
+        for episode, actions in pair_results.items():
+            if episode not in action_results:
+                action_results[episode] = []
+            action_results[episode].extend(actions)
+        pair_count += 1
+        if pair_count % 10 == 0:  # Update after every 10 pairs processed
+            print(f"Processed {pair_count} out of {total_pairs} pairs.")
+    print("Analysis complete.")
+    return action_results
+
+
+
 def save_results_to_json(action_results, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -109,12 +151,42 @@ def save_results_to_json(action_results, output_folder):
 
     print(f"Results saved to {output_folder}")
 
+def save_results_to_episodes(action_results,episodes_folder):
+    total_episodes = len(action_results)
+    print(f"Saving results for {total_episodes} episodes.")
+    for episode_folder, actions in action_results.items():
+        episode_results = {}
+        for action in actions:
+            if action['action'] not in episode_results:
+                episode_results[action['action']] = []
+            episode_results[action['action']].append(action['pair'])
+        file_path = os.path.join(episodes_folder,episode_folder, f"interaction.json")
+        try:
+            with open(file_path, 'w') as json_file:
+                json.dump(episode_results, json_file, indent=4)
+        except Exception as e:
+            raise e
+    print(f"Results saved to {episodes_folder}")
+
+
+
+
+
+
 
 def analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency:int, episode_length:int, skip_length:int):
     action_results = analyze_car_interactions(scene_folder, sample_frequency, episode_length, skip_length)
 
     # Save the aggregated results into JSON files
     save_results_to_json(action_results, output_folder)
+
+
+def analyze_and_save_car_interactions(episodes_folder):
+    action_results = analyze_car_interactions(episodes_folder)
+    save_results_to_episodes(action_results, episodes_folder)
+
+
+
 
 import cv2
 import os
@@ -186,6 +258,9 @@ def create_videos_for_episodes(base_folder, output_folder, sample_frequency, epi
         print(f"Videos for episode {episode} saved in {episode_folder}")
 
 
+def create_videos_for_episodes(episodes_folder):
+
+
 if __name__ == "__main__":
     cwd = os.getcwd()
     config_path = os.path.join(cwd,"vqa","configs","scene_generation_config.yaml")
@@ -196,10 +271,12 @@ if __name__ == "__main__":
     except Exception as e:
         raise e
     scene_folder = os.path.join(cwd,"verification")
-    output_folder = os.path.join(cwd,"verification","dynamic")
+    output_folder = os.path.join(cwd,"verification","episodes")
     """scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
     output_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification\\dynamic"""
     #analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
     #                                  episode_length=config["episode_length"],skip_length=config["skip_length"])
-    create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
-                                       episode_length=config["episode_length"],skip_length=config["skip_length"])
+    analyze_and_save_car_interactions(scene_folder)
+    
+    """create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
+                                       episode_length=config["episode_length"],skip_length=config["skip_length"])"""

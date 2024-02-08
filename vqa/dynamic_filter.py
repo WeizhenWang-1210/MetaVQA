@@ -6,6 +6,10 @@ class DynamicFilter:
         self.scene_folder = scene_folder
         self.scene_info = self.process_episodes(sample_frequency, episode_length, skip_length)
 
+    def __init__(self, episodes_folder):
+        self.scene_folder = episodes_folder
+        self.scene_info = self.process_episodes()
+
     def process_episodes(self, sample_frequency:int, episode_length:int, skip_length:int)->dict:
         '''
         Read the world json file for specified episodes, and return a dictionary of object information.
@@ -56,8 +60,62 @@ class DynamicFilter:
                                 objects_info[obj_id][episode] = {}
 
                             objects_info[obj_id][episode][step] = obj
+                    for ego in data["ego"]:
+                        ego_id = ego["id"]
+                        if ego_id not in objects_info:
+                             objects_info[ego_id] = {}
+                        episode_start = step - (step % (skip_length + episode_length)) + skip_length + 1
+                        episode_end = episode_start + episode_length - 1
+                        episode = f"{episode_start}-{episode_end}"
+                        if episode not in objects_info[ego_id]:
+                            objects_info[ego_id][episode] = {}
+                        objects_info[ego_id][episode][step] = obj
+                        
+
 
         return objects_info
+
+    def process_episodes(self)->dict:
+        objects_info = {}
+        for episode_folder in os.listdir(self.scene_folder):
+            #splitted = episode_folder.split("_")
+            #episode_start, episode_end = splitted[1], splitted[2]
+            full_path = os.path.join(self.scene_folder, episode_folder)
+            for frame_folder in os.listdir(full_path):
+                if os.path.isdir(os.path.join(full_path, frame_folder)):
+                    step = int(frame_folder.split("_")[-1])
+                    json_file_path = os.path.join(self.scene_folder, episode_folder, frame_folder, f"world_{frame_folder}.json")
+                    try:
+                        with open(json_file_path,"r") as file:
+                            data = json.load(file)
+                        for obj in data.get("objects", []):
+                            obj_id = obj.get("id")
+                            if obj_id is not None:
+                                if obj_id not in objects_info:
+                                    objects_info[obj_id] = {}
+                                episode = episode_folder#f"{episode_start}-{episode_end}"
+                                if episode not in objects_info[obj_id]:
+                                    objects_info[obj_id][episode] = {}
+                                objects_info[obj_id][episode][step] = obj
+                        ego = data.get("ego")
+                        ego_id = ego["id"]
+                        if ego_id not in objects_info:
+                            objects_info[ego_id] = {}
+                        if episode not in objects_info[ego_id]:
+                            objects_info[ego_id][episode] = {}
+                        objects_info[ego_id][episode][step] = obj
+                    except Exception as e:
+                        raise e
+        return objects_info
+
+
+
+
+
+
+
+
+
 
     def follow(self, obj1:str, obj2:str, distance_threshold:int = 10,strickness:float = 0.8)->list:
         '''
