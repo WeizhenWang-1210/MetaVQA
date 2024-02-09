@@ -1,22 +1,14 @@
 from typing import Any, Callable, Iterable, List
-from vqa.scene_graph import SceneGraph
+from vqa.scene_graph import SceneGraph, EpisodicGraph
 from vqa.object_node import ObjectNode,nodify,transform
 from vqa.dataset_utils import extend_bbox
 from collections import defaultdict
 from vqa.grammar import CFG_GRAMMAR
 import random
-from vqa.dynamic_filter import DynamicFilter
 import json
 import argparse
 import os
-# pwd = os.getcwd()
-# absolute_file_path = os.path.abspath(__file__)
-# template_path = os.path.join(pwd, "vqa/question_templates.json")
-current_directory = os.path.dirname(os.path.abspath(__file__))
-# Construct the path to the other file
-template_path = os.path.join(current_directory, "question_templates.json")
-with open(template_path,"r") as f:
-    templates = json.load(f)
+
 
 
 
@@ -26,7 +18,7 @@ def is_terminal(token)->bool:
     return token not in CFG_GRAMMAR.keys()
 
 
-class tnode:
+class Tnode:
     def __init__(self,token) -> None:
         #print("called {}".format(token))
         self.token = token
@@ -45,7 +37,7 @@ class tnode:
         children = []
         flag = True
         for token in rule:
-            new_node = tnode(token)
+            new_node = Tnode(token)
             new_node.parent = self
             flag = flag and is_terminal(token)
             new_node.populate(depth - 1)
@@ -65,11 +57,14 @@ class tnode:
         stuff = ",".join(result)
         return "({}_{} : [{}])".format(self.token, self.key,stuff)
 
-class tree:
+class Tree:
     def __init__(self, root, max_depth) -> None:
-        self.root = tnode(root)
+        self.root = Tnode(root)
         self.root.populate(max_depth)
         self.depth = self.get_depth()
+        self.functional = None
+        
+        
     def get_depth(self)->int:
         def depth(node):
             if not node:
@@ -103,6 +98,7 @@ class tree:
                 results[id] = curr_cfg
             return id
         recur_build_o(self.root, 0)
+        self.functional = results
         return results
     def computation_graph(self, configs):
         def haschild(config):
@@ -172,106 +168,111 @@ class tree:
                     better_visualize_tree(child, next_prefix)
         node = self.root
         better_visualize_tree(node)
-    def translate(self, object_id)
+    def translate(self, object_dict=None):
+        if not object_dict:
+            if self.functional:
+                object_dict = self.functional
+            else:
+                print('Give me the functional')
+                exit()
+        def color_token_string_converter(token):
+            if token != "nil":
+                return token.lower()
+            else:
+                return ""
+        def type_token_string_converter(token,form):
+            mapping = dict(
+                nil = dict(singular = "thing", plural = "things"),
+                Bus = dict(singular = "bus", plural = "buses"),
+                Caravan = dict(singular = "caravan", plural = "caravans"),
+                Coupe = dict(singular = "coupe", plural = "coupes"),
+                FireTruck = dict(singular = "fire engine", plural = "fire engines"),
+                Jeep = dict(singular = "jeep", plural = "jeeps"),
+                Pickup = dict(singular = "pickup", plural = "pickups"),
+                Policecar = dict(singular = "police car", plural = "policecars"),
+                SUV = dict(singular = "SUV", plural = "SUVs"),
+                SchoolBus = dict(singular = "school bus", plural = "school buses"),
+                Sedan = dict(singular = "sedan", plural = "sedans"),
+                SportCar = dict(singular = "sports car", plural = "sports cars"),
+                Truck = dict(singular = "truck", plural = "trucks"),
+                Hatchback = dict(singular = "hatchback", plural = "hatchbacks")
+            )
+            return mapping[token][form]
+        def state_token_string_converter(token):
+            if token == "visible" or token == "nil":
+                return ""
+            return token
+        def action_token_string_converter(token, form):
+            map = {
+                "follow" : dict(singular = "follows", plural = "follow"),
+                "pass by": dict(singular = "passes by", plural = "pass by"),
+                "collide with": dict(singular = "collides with", plural = "collide with"),
+                "head toward":dict(singular = "heads toward", plural = "head toward"),
+                "drive alongside": dict(singular = "drives alongside", plural = "drive alongside"),
+                "nil": dict(singular = "", plural = ""),
+                "turn left" : dict(singular = "turns left", plural = "turn left"),
+                "turn right": dict(singular = "turns right", plural = "turn right"),
+
+            }
+            return map[token][form]
+        def recur_translate(obj_id):
+            if len(object_dict[obj_id]) == 1:
+                return object_dict[obj_id][0]
+            else:
+                form = "singular" if object_dict[obj_id]["unique"] else "plural"
+                s = state_token_string_converter(object_dict[obj_id]['<s>'])
+                p = color_token_string_converter(object_dict[obj_id]['<p>']) 
+                t = type_token_string_converter(object_dict[obj_id]['<t>'],form)
+                dir = ''
+                if isinstance(object_dict[obj_id]['<dir>'], str):
+                    dir = object_dict[obj_id]['<dir>'] if object_dict[obj_id]['<dir>'] != 'nil' else ''
+                elif isinstance(object_dict[obj_id]['<dir>'], dict):
+                    tdir = object_dict[obj_id]['<dir>']['<tdir>']
+                    tdir_mapping = {
+                        "l": "to the left of",
+                        "r": "to the right of",
+                        "f": "in front of",
+                        "b": "behind",
+                        "lf": "to the left and in front of",
+                        "rf": "to the right and in front of",
+                        "lb": "to the left and behind",
+                        "rb": "to the right and behind"
+                    }
+                    new_o = recur_translate(object_dict[obj_id]['<dir>']["<o>'s id"])
+                    dir = tdir_mapping[tdir] + ' ' + new_o
+                else:
+                    print("warning!")
+                a = ''
+                if isinstance(object_dict[obj_id]['<a>'], str):
+                    a = action_token_string_converter(object_dict[obj_id]['<a>'],form)
+                elif isinstance(object_dict[obj_id]['<a>'], dict):
+                    if '<deed_with_o>' in object_dict[obj_id]['<a>'].keys():
+                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_with_o>'],form)
+                        new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
+                        a = deed_with_o + ' ' + new_o
+                    else:
+                        a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'],form)
+                else:
+                    print("warning!")
+                result = ""
+                if form == "singular":
+                    result = "the "
+                if s != '':
+                    result += s + ' '
+                if p != '':
+                    result += p + ' '
+                if t != '':
+                    result += t + ' '
+                if dir != '':
+                    result += dir + ' '
+                if a != '':
+                    result += 'that ' + a
+                result = " ".join(result.split())
+                return result
+        return recur_translate(0)
+
 
         
-def translate(object_dict):
-    def color_token_string_converter(token):
-        if token != "nil":
-            return token.lower()
-        else:
-            return ""
-    def type_token_string_converter(token,form):
-        mapping = dict(
-            nil = dict(singular = "thing", plural = "things"),
-            Bus = dict(singular = "bus", plural = "buses"),
-            Caravan = dict(singular = "caravan", plural = "caravans"),
-            Coupe = dict(singular = "coupe", plural = "coupes"),
-            FireTruck = dict(singular = "fire engine", plural = "fire engines"),
-            Jeep = dict(singular = "jeep", plural = "jeeps"),
-            Pickup = dict(singular = "pickup", plural = "pickups"),
-            Policecar = dict(singular = "police car", plural = "policecars"),
-            SUV = dict(singular = "SUV", plural = "SUVs"),
-            SchoolBus = dict(singular = "school bus", plural = "school buses"),
-            Sedan = dict(singular = "sedan", plural = "sedans"),
-            SportCar = dict(singular = "sports car", plural = "sports cars"),
-            Truck = dict(singular = "truck", plural = "trucks"),
-            Hatchback = dict(singular = "hatchback", plural = "hatchbacks")
-        )
-        return mapping[token][form]
-    def state_token_string_converter(token):
-        if token == "visible" or token == "nil":
-            return ""
-        return token
-    def action_token_string_converter(token, form):
-        map = {
-            "follow" : dict(singular = "follows", plural = "follow"),
-            "pass by": dict(singular = "passes by", plural = "pass by"),
-            "collide with": dict(singular = "collides with", plural = "collide with"),
-            "head toward":dict(singular = "heads toward", plural = "head toward"),
-            "drive alongside": dict(singular = "drives alongside", plural = "drive alongside"),
-            "nil": dict(singular = "", plural = ""),
-            "turn left" : dict(singular = "turns left", plural = "turn left"),
-            "turn right": dict(singular = "turns right", plural = "turn right"),
-
-        }
-        return map[token][form]
-    def recur_translate(obj_id):
-        if len(object_dict[obj_id]) == 1:
-            return object_dict[obj_id][0]
-        else:
-            form = "singular" if object_dict[obj_id]["unique"] else "plural"
-            s = state_token_string_converter(object_dict[obj_id]['<s>'])
-            p = color_token_string_converter(object_dict[obj_id]['<p>']) 
-            t = type_token_string_converter(object_dict[obj_id]['<t>'],form)
-            dir = ''
-            if isinstance(object_dict[obj_id]['<dir>'], str):
-                dir = object_dict[obj_id]['<dir>'] if object_dict[obj_id]['<dir>'] != 'nil' else ''
-            elif isinstance(object_dict[obj_id]['<dir>'], dict):
-                tdir = object_dict[obj_id]['<dir>']['<tdir>']
-                tdir_mapping = {
-                    "l": "to the left of",
-                    "r": "to the right of",
-                    "f": "in front of",
-                    "b": "behind",
-                    "lf": "to the left and in front of",
-                    "rf": "to the right and in front of",
-                    "lb": "to the left and behind",
-                    "rb": "to the right and behind"
-                }
-                new_o = recur_translate(object_dict[obj_id]['<dir>']["<o>'s id"])
-                dir = tdir_mapping[tdir] + ' ' + new_o
-            else:
-                print("warning!")
-            a = ''
-            if isinstance(object_dict[obj_id]['<a>'], str):
-                a = action_token_string_converter(object_dict[obj_id]['<a>'],form)
-            elif isinstance(object_dict[obj_id]['<a>'], dict):
-                if '<deed_with_o>' in object_dict[obj_id]['<a>'].keys():
-                    deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_with_o>'],form)
-                    new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
-                    a = deed_with_o + ' ' + new_o
-                else:
-                    a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'],form)
-            else:
-                print("warning!")
-            result = ""
-            if form == "singular":
-                result = "the "
-            if s != '':
-                result += s + ' '
-            if p != '':
-                result += p + ' '
-            if t != '':
-                result += t + ' '
-            if dir != '':
-                result += dir + ' '
-            if a != '':
-                result += 'that ' + a
-            result = " ".join(result.split())
-            return result
-    return recur_translate(0)
-
 
 
 class SubQuery:
@@ -291,7 +292,23 @@ class SubQuery:
         '''
         self.us = False
         self.state = state #The state we are looking for
-        self.action = action #The action we are looking for, with or without respect to some objects
+        
+        
+        
+        map = {
+            "follow" : "follow",
+            "pass by": "pass_by",
+            "collide with": "collides",
+            "head toward":"head_toward",
+            "drive alongside": "drive_alongside",
+            "nil": None,
+            "turn left" : "turn_left",
+            "turn right": "turn_right",
+
+        }
+        self.action = action
+        if action:
+            self.action = [map[a] for a in action] #The action we are looking for, with or without respect to some objects
         self.color = color #The color we are looking for
         self.type = type   #The type we are looking for
         self.pos = pos     #The spatial relationship we are looking for
@@ -314,7 +331,13 @@ class SubQuery:
             type_func = type_wrapper(self.type) if self.type else None
             state_func = state_wrapper(self.state) if self.state else None
             pos_func = pos_wrapper(self.prev["pos"].ans, self.pos, ref_heading) if self.pos else None
-            action_func = action_wrapper(self.prev["action"].ans, self.action) if self.action else None
+            if self.action:
+                if "action" not in self.prev.keys():
+                    action_func = action_wrapper(egos, self.action)
+                else:
+                    action_func = action_wrapper(self.prev["action"].ans, self.action)
+            else:
+                action_func = None
             self.funcs = [color_func, type_func, pos_func, state_func, action_func]
         
     def __call__(self, 
@@ -447,15 +470,16 @@ class QuerySpecifier:
             )
             if param[1]=="o":
                 start_symbol = "<o>"
-                param_tree = tree(start_symbol,4)
+                param_tree = Tree(start_symbol,4)
                 
                 while(param_tree.depth<=2):
-                    param_tree = tree(start_symbol,4)
+                    param_tree = Tree(start_symbol,4)
             else:
                 start_symbol = param
-                param_tree = tree(start_symbol,4)
+                param_tree = Tree(start_symbol,4)
             functional = param_tree.build_functional(self.template["constraint"])
-            local["en"] = translate(functional)
+            param_tree.visualize()
+            local["en"] = param_tree.translate()
             program = Query([param_tree.build_program(functional)],"stuff",Identity)
             local["prog"] = program
             parameters[param] = local
@@ -531,6 +555,15 @@ def state_wrapper(states:Iterable[str])->Callable:
     '''
     #print(types)
     def state(candidates:Iterable[ObjectNode]):
+        map = dict(
+            nil = lambda x: True,
+            visible = lambda x: x.visible,
+            parked =  lambda x: x.speed == 0,
+            moving = lambda x: x.speed > 0,
+            ccelerating = lambda x: x.states and x.states["accleration"]>0.1,
+            decelerating = lambda x: x.states and x.states["accleration"]<-0.1,
+            turning = lambda x : x.states and x.states["steering"] != 0,       
+        )
         #print(candidates)
         if not candidates:
             return []
@@ -541,33 +574,32 @@ def state_wrapper(states:Iterable[str])->Callable:
             #print(candidate)
             for s in states:
                 #print(candidate.type, t)
-                if s in candidate.state:
-                    #print(candidate.id)
+                if map[s](candidate):
                     results.append(candidate)
-                    break
         return results
     return state
 
 def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
-    scene_folder = "E:/bolei/metavqa/verification"
-    filter = DynamicFilter(scene_folder,sample_frequency=1, episode_length=10, skip_length=10)
-    filter.process_episodes(sample_frequency=1, episode_length=10, skip_length=10)
     def act(candidates: Iterable[ObjectNode]):
-        mapping = {
-            "follow": filter.follow,
-            "pass by": filter.pass_by,
-            "collide with":filter.collide_with,
-            "head toward": filter.head_toward,
-            "drive alongside": filter.drive_alongside
-        }
         results = []
         for candidate in candidates:
             if not candidate.visible:
                 continue
             for ego in egos:
                for action in actions:
-                   if ego.id != candidate.id and mapping[action](ego, candidate):
-                       results.append(candidate)
+                   #if candidate performed action against one ego
+                    if action == "collides":
+                        if ego in candidate.collision:
+                            results.append(candidate)
+                    elif action == "turn_left":
+                        if candidate.states.steering < 0.1:
+                            results.append(candidate)
+                    elif action == "turn_right":
+                        if candidate.states.steering > 0.1:
+                            results.append(candidate)
+                    else:
+                        if action in candidate.actions.keys() and ego in candidate.actions[action]:
+                            results.append(candidate)
         return results
     return act
 
@@ -733,18 +765,38 @@ def locate_wrapper(origin: ObjectNode)->Callable:
 
 
 if __name__ == "__main__":
+    
+    
+    # pwd = os.getcwd()
+    # absolute_file_path = os.path.abspath(__file__)
+    # template_path = os.path.join(pwd, "vqa/question_templates.json")
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    # Construct the path to the other file
+    template_path = os.path.join(current_directory, "question_templates.json")
+    with open(template_path,"r") as f:
+        templates = json.load(f)
+    
+    
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--step", type=str, default = "verification/10_299/world_10_299")
+    parser.add_argument("--episode", type = str, default = "verification/10_50_99")
     args = parser.parse_args()
+    """
     try:
         #print(args.step)
         with open('{}.json'.format(args.step),'r') as scene_file:
                 scene_dict = json.load(scene_file)
     except Exception as e:
-        raise e
-    agent_id,nodes = nodify(scene_dict)
-    graph = SceneGraph(agent_id,nodes)    
-
+        raise e"""
+    #agent_id,nodes = nodify(scene_dict)
+    #graph = SceneGraph(agent_id,nodes)
+    episode_graph = EpisodicGraph()
+    frames = [f for f in os.listdir(args.episode) if not("." in f)]
+    interaction_path = os.path.join(args.episode, "interaction.json")
+    episode_graph.load(args.episode, frames, interaction_path)
+    graph = episode_graph.final_frame
+    """
     q1 = SubQuery(
         color= None,
         type = ["dog"], 
@@ -814,11 +866,11 @@ if __name__ == "__main__":
     print(q.translate())
     print(q.answer())
     
-    """
+    
     prophet = QueryAnswerer(graph,[q])
     result = prophet.ans(q)
     print(result[0].id)
-    """
+    
     ids = [node.id for node in  q.parameters["<o>"]["answer"] if node.id != agent_id]
     print(len(ids))
     from vqa.visualization import generate_highlighted
@@ -826,6 +878,12 @@ if __name__ == "__main__":
                          path_to_mapping= "verification/10_299/metainformation_10_299.json",
                          folder = "verification/10_299",
                          ids = ids,
-                         colors = [(1,1,1)]*len(ids))
-
-            
+                         colors = [(1,1,1)]*len(ids))"""
+    q = QuerySpecifier(
+        template = templates["generic"]["counting"],
+        parameters= None,
+        graph = graph
+    )
+    print(q.translate())
+    print(q.answer())
+    
