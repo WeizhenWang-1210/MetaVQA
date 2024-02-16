@@ -1,4 +1,5 @@
 import copy
+from metadrive.component.algorithm.blocks_prob_dist import PGBlockDistConfig
 from metadrive.type import MetaDriveType
 from metadrive.constants import PGLineType, PGLineColor
 from typing import List
@@ -63,29 +64,29 @@ class PGMap(BaseMap):
 
     def _big_generate(self, parent_node_path: NodePath, physics_world: PhysicsWorld):
         big_map = BIG(
-            self._config[self.LANE_NUM],
-            self._config[self.LANE_WIDTH],
+            self._config.get(self.LANE_NUM, 2),
+            self._config.get(self.LANE_WIDTH, 3.5),
             self.road_network,
             parent_node_path,
             physics_world,
             # self._config["block_type_version"],
-            exit_length=self._config["exit_length"],
+            exit_length=self._config.get("exit_length", 50),
             random_seed=self.engine.global_random_seed,
-            block_dist_config=self.engine.global_config["block_dist_config"]
+            block_dist_config=self.engine.global_config.get("block_dist_config", PGBlockDistConfig)
         )
         big_map.generate(self._config[self.GENERATE_TYPE], self._config[self.GENERATE_CONFIG])
         self.blocks = big_map.blocks
-        del big_map
+        big_map.destroy()
 
     def _config_generate(self, blocks_config: List, parent_node_path: NodePath, physics_world: PhysicsWorld):
         assert len(self.road_network.graph) == 0, "These Map is not empty, please create a new map to read config"
         last_block = FirstPGBlock(
             global_network=self.road_network,
-            lane_width=self._config[self.LANE_WIDTH],
-            lane_num=self._config[self.LANE_NUM],
+            lane_width=self._config.get(self.LANE_WIDTH, 3.5),
+            lane_num=self._config.get(self.LANE_NUM, 2),
             render_root_np=parent_node_path,
             physics_world=physics_world,
-            length=self._config["exit_length"],
+            length=self._config.get("exit_length", 50),
             ignore_intersection_checking=True
         )
         self.blocks.append(last_block)
@@ -125,7 +126,7 @@ class PGMap(BaseMap):
         for to_ in self.road_network.graph.values():
             for lanes_to_add in to_.values():
                 lanes += lanes_to_add
-        self.engine.show_lane_coordinates(lanes)
+        self._show_coordinates(lanes)
 
     def get_boundary_line_vector(self, interval):
         map = self

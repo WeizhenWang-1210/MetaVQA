@@ -10,23 +10,19 @@ if __name__ == "__main__":
             "traffic_density": 0,
             "traffic_mode": "trigger",
             "start_seed": 22,
-            # "_disable_detector_mask":True,
             # "debug_physics_world": True,
             # "debug_static_world":True,
-            "cull_scene": False,
             # "image_observation": True,
-            # "controller": "joystick",
             # "manual_control": True,
             "use_render": False,
             "decision_repeat": 5,
             "need_inverse_traffic": True,
-            "rgb_clip": True,
+            "norm_pixel": True,
             "debug": False,
             "map": "TXO",
             # "agent_policy": IDMPolicy,
             "random_traffic": False,
             "random_lane_width": True,
-            # "random_agent_model": True,
             "driving_reward": 1.0,
             "force_destroy": False,
             "vehicle_config": {
@@ -49,18 +45,18 @@ if __name__ == "__main__":
     # [9.95036221 0.99503618]
     start = time.time()
     o, _ = env.reset()
-    # env.vehicle.set_velocity([1, 0.1], 10)
-    # print(env.vehicle.speed)
+    # env.agent.set_velocity([1, 0.1], 10)
+    # print(env.agent.speed)
 
     for s in range(1, 10000):
         o, r, tm, tc, info = env.step([0, 0.])
-        # print("heading: {} forward_direction: {}".format(env.vehicle.heading, env.vehicle.velocity_direction))
+        # print("heading: {} forward_direction: {}".format(env.agent.heading, env.agent.velocity_direction))
 
-        # env.vehicle.set_velocity([1, 10], 10)
-        # # print(env.vehicle.velocity)
+        # env.agent.set_velocity([1, 10], 10)
+        # # print(env.agent.velocity)
 
         # if s % 100 == 0:
         #     env.close()
         #     env.reset()
-        # info["fuel"] = env.vehicle.energy_consumption
+        # info["fuel"] = env.agent.energy_consumption
         env.render(track_target_vehicle=True, mode="top_down", semantic_map=True)

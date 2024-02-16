@@ -1,9 +1,10 @@
 from metadrive.envs.base_env import BaseEnv
-from metadrive.envs.real_data_envs.waymo_env import WaymoEnv
-from metadrive.envs.test_pede_metadrive_env import TestPedeMetaDriveEnv
+#rom metadrive.envs.real_data_envs.waymo_env import WaymoEnv
+#from metadrive.envs.test_pede_metadrive_env import TestPedeMetaDriveEnv
 from vqa.utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import argparse
 import random
+import numpy as np
 from vqa.dataset_utils import l2_distance
 from metadrive import MetaDriveEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
@@ -35,12 +36,12 @@ def logging(env, lidar, rgb, scene_dict,masks,identifier, instance_folder, log_m
         rgb = rgb * 255 #Needed as cv2 expect 0-255 for rgb value, but the original observations are clipped
         cv2.imwrite(file_path,rgb)
         #Save the top-down view in top_down{}.json
-        top_down = env.render(mode = 'top_down', film_size=(6000, 6000), screen_size=(3000,3000),show_agent_name=True)
-        top_down = pygame.transform.flip(top_down, flip_x = True, flip_y = True) #flipped since(for whatever reason) the text for id are mirrored w.r.t. y-axis
+        top_down = env.render(mode = 'top_down', film_size=(6000, 6000), screen_size=(3000,3000),show_agent_name=True, window = False)
+        top_down = np.fliplr(np.flipud(top_down)) #flipped since(for whatever reason) the text for id are mirrored w.r.t. y-axis
         file_path = os.path.join(instance_folder, "top_down_{}.png".format(identifier))
-        pygame.image.save(top_down, file_path)
+        cv2.imwrite(file_path,top_down)
         #Save the rendering in front_{}.png
-        main = env.render(mode = 'rgb_array',screen_size=(1600, 900), film_size=(6000, 6000))
+        main = env.main_camera_perceive(env.agent)
         file_path = os.path.join(instance_folder, "front_{}.png".format(identifier))
         cv2.imwrite(file_path,cv2.cvtColor(main, cv2.COLOR_BGR2RGB))
         #Save the instance segmentation mask in mask.{}.png
@@ -67,11 +68,9 @@ def saving(env, lidar, rgb, scene_dict,masks,log_mapping, debug=False):
     result["lidar"] = lidar.tolist()
     result["rgb"] = rgb * 255
     if debug:
-        top_down = env.render(mode = 'top_down', film_size=(6000, 6000), screen_size=(3000,3000),show_agent_name=True)
-        top_down = pygame.transform.flip(top_down, flip_x = True, flip_y = True)
-        result["top_down"] = top_down
-        main = env.render(mode = 'rgb_array',screen_size=(1600, 900), film_size=(6000, 6000))
-        result["front"] = cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
+        top_down = env.render(mode = 'top_down', film_size=(6000,6000), screen_size=(1920,1080), window = False, draw_contour = True, screen_record = False, show_agent_name = True)
+        result["top_down"] = np.fliplr(np.flipud(top_down))
+        result["front"] = env.main_camera.perceive(env.agent) #cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
     result["mask"] = masks * 255
     result["log_mapping"] = log_mapping
     return result
@@ -103,7 +102,7 @@ def episode_logging(buffer, root, IO):
             if "top_down" in data.keys():
                 #Save the top-down view in top_down{}.json
                 file_path = os.path.join(instance_folder, "top_down_{}.png".format(identifier))
-                pygame.image.save(data["top_down"], file_path)
+                cv2.imwrite(file_path,data["top_down"])
             if "front" in data.keys():
                 #Save the rendering in front_{}.png
                 file_path = os.path.join(instance_folder, "front_{}.png".format(identifier))
@@ -140,7 +139,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
         o, r, tm, tc, info = env.step([0, 0])
         env.render(
             text={
-                "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
+                "Auto-Drive (Switch mode: T)": "on" if env.current_track_agent.expert_takeover else "off",
             }
         )
         if total_steps % sample_frequency == 0:
@@ -179,8 +178,6 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
     env_end = env.episode_step
     print("exist episode")
     return total_steps, buffer, (env_id, env_start, env_end)
-
-
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency:int, max_iterations:int, 
                   observation_config:dict, IO_config: dict, seed:int, temporal_generation: bool, episode_length:int, skip_length:int):

@@ -18,7 +18,7 @@ from metadrive.constants import HELP_MESSAGE
 
 if __name__ == "__main__":
     config = dict(
-        # controller="joystick",
+        # controller="steering_wheel",
         use_render=True,
         manual_control=True,
         traffic_density=0.1,
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         random_lane_num=True,
         on_continuous_line_done=False,
         out_of_route_done=True,
-        vehicle_config=dict(show_lidar=False, show_navi_mark=False),
+        vehicle_config=dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
         # debug=True,
         # debug_static_world=True,
         map=4,  # seven block
@@ -41,17 +41,15 @@ if __name__ == "__main__":
         config.update(
             dict(
                 image_observation=True,
-                sensors=dict(rgb_camera=(RGBCamera, 512, 256)),
+                sensors=dict(rgb_camera=(RGBCamera, 400, 300)),
                 interface_panel=["rgb_camera", "dashboard"]
             )
         )
-    else:
-        config["vehicle_config"]["show_lidar"] = True
     env = MetaDriveEnv(config)
     try:
         o, _ = env.reset(seed=21)
         print(HELP_MESSAGE)
-        env.vehicle.expert_takeover = True
+        env.agent.expert_takeover = True
         if args.observation == "rgb_camera":
             assert isinstance(o, dict)
             print("The observation is a dict with numpy arrays as values: ", {k: v.shape for k, v in o.items()})
@@ -62,7 +60,7 @@ if __name__ == "__main__":
             o, r, tm, tc, info = env.step([0, 0])
             env.render(
                 text={
-                    "Auto-Drive (Switch mode: T)": "on" if env.current_track_vehicle.expert_takeover else "off",
+                    "Auto-Drive (Switch mode: T)": "on" if env.current_track_agent.expert_takeover else "off",
                     "Current Observation": args.observation,
                     "Keyboard Control": "W,A,S,D",
                 }
@@ -73,8 +71,6 @@ if __name__ == "__main__":
                 cv2.waitKey(1)
             if (tm or tc) and info["arrive_dest"]:
                 env.reset(env.current_seed + 1)
-                env.current_track_vehicle.expert_takeover = True
-    except Exception as e:
-        raise e
+                env.current_track_agent.expert_takeover = True
     finally:
         env.close()

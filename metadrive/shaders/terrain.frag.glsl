@@ -59,7 +59,7 @@ uniform sampler2D PSSMShadowAtlas;
 uniform mat4 pssm_mvps[split_count];
 uniform vec2 pssm_nearfar[split_count];
 uniform float border_bias;
-uniform float fixed_bias;
+const float fixed_bias=0;
 uniform bool use_pssm;
 uniform bool fog;
 
@@ -83,11 +83,17 @@ vec3 get_normal(vec3 diffuse, sampler2D normal_tex, sampler2D rough_tex, float t
 }
 
 void main() {
-  float road_tex_ratio = 32.0 * elevation_texture_ratio;
-  float grass_tex_ratio = grass_tex_ratio * elevation_texture_ratio;
+  float road_tex_ratio = 128;
+  float grass_tex_ratio = grass_tex_ratio * 4;
   float r_min = (1-1/elevation_texture_ratio)/2;
   float r_max = (1-1/elevation_texture_ratio)/2+1/elevation_texture_ratio;
-  vec4 attri = texture(attribute_tex, terrain_uv*elevation_texture_ratio+0.5);
+  vec4 attri;
+  if (abs(elevation_texture_ratio - 1) < 0.001) {
+    attri = texture(attribute_tex, terrain_uv);
+  }
+  else {
+    attri = texture(attribute_tex, terrain_uv*elevation_texture_ratio+0.5);
+  }
 
   // terrain normal
   vec3 pixel_size = vec3(1.0, -1.0, 0) / textureSize(ShaderTerrainMesh.heightfield, 0).xxx;
@@ -123,7 +129,7 @@ void main() {
   // get the color and terrain normal in world space
   vec3 diffuse;
   vec3 tex_normal_world;
-  if ((attri.r > 0.01) && terrain_uv.x>r_min && terrain_uv.y > r_min && terrain_uv.x<r_max && terrain_uv.y<r_max){
+  if ((attri.r > 0.01) && (terrain_uv.x>=r_min) && (terrain_uv.y >= r_min) && (terrain_uv.x<=r_max) && (terrain_uv.y<=r_max)){
     float value = attri.r; // Assuming it's a red channel texture
     if (value < 0.11) {
         // yellow
@@ -160,9 +166,10 @@ void main() {
   shading += vec3(0.07, 0.07, 0.1);
 
 //   dynamic shadow
+  int split = 99;
   if (use_pssm) {
     // Find in which split the current point is present.
-    int split = 99;
+
     float border_bias = 0.5 - (0.5 / (1.0 + border_bias));
 
     // Find the first matching split
@@ -189,9 +196,16 @@ void main() {
         float ref_depth = projected.z - fixed_bias * 0.001 * (1 + 1.5 * split);
 
         // Check if the pixel is shadowed or not
-        float depth_sample = textureLod(PSSMShadowAtlas, projected_coord, 0).x;
-        float shadow_factor = step(ref_depth, depth_sample);
-
+        float shadow_factor=0.0;
+        float samples = 9.0; // Number of samples
+        float radius = 0.001; // Sample radius
+        for(int x = -1; x <= 1; x++) {
+            for(int y = -1; y <= 1; y++) {
+                float depth_sample = texture2D(PSSMShadowAtlas, projected_coord.xy + vec2(x, y) * radius).r;
+                shadow_factor += step(ref_depth, depth_sample);
+        }
+        }
+        shadow_factor /= samples;
         shading *= shadow_factor;
     }
     }
@@ -206,5 +220,17 @@ void main() {
     float fog_factor = smoothstep(0, 1, dist / 8000.0);
     shading = mix(shading, vec3(0.7, 0.7, 0.8), fog_factor);
   }
+//   if (split==0){
+//     shading = vec3(1, 0, 0);
+//   }
+//   else if (split==1) {
+//     shading = vec3(0, 1, 0);
+//   }
+//   else if (split==2) {
+//     shading = vec3(0, 0, 1);
+//   }
+//   else{
+//     shading = vec3(0, 1, 1);
+//   }
   color = vec4(shading, 1.0);
 }

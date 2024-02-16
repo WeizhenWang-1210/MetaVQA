@@ -8,14 +8,14 @@ from metadrive.envs.safe_metadrive_env import SafeMetaDriveEnv
 if __name__ == "__main__":
 
     def get_image(env):
-        depth_cam = env.vehicle.get_camera(env.vehicle.config["image_source"])
-        rgb_cam = env.vehicle.get_camera("rgb_camera")
+        depth_cam = env.agent.get_camera(env.agent.config["image_source"])
+        rgb_cam = env.agent.get_camera("rgb_camera")
         for h in range(-180, 180, 20):
             env.engine.graphicsEngine.renderFrame()
             depth_cam.get_cam().setH(h)
             rgb_cam.get_cam().setH(h)
-            depth_cam.save_image(env.vehicle, "depth_{}.jpg".format(h))
-            rgb_cam.save_image(env.vehicle, "rgb_{}.jpg".format(h))
+            depth_cam.save_image(env.agent, "depth_{}.jpg".format(h))
+            rgb_cam.save_image(env.agent, "rgb_{}.jpg".format(h))
         # env.engine.screenshot()
 
     env = SafeMetaDriveEnv(
@@ -28,7 +28,7 @@ if __name__ == "__main__":
             "manual_control": True,
             "use_render": True,
             "image_observation": True,
-            "rgb_clip": True,
+            "norm_pixel": True,
             "interface_panel": ["depth_camera"],
             "sensors": dict(depth_camera=(RGBDepthCamera, 800, 600)),
             "vehicle_config": dict(image_source="depth_camera"),

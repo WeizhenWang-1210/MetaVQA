@@ -16,7 +16,7 @@ default_policy/value_out/bias (1,)
 """
 
 import os.path as osp
-
+from metadrive.engine.logger import get_logger
 import numpy as np
 
 from metadrive.engine.engine_utils import get_global_config
@@ -25,6 +25,8 @@ from metadrive.obs.state_obs import LidarStateObservation
 ckpt_path = osp.join(osp.dirname(__file__), "expert_weights.npz")
 _expert_weights = None
 _expert_observation = None
+
+logger = get_logger()
 
 
 def obs_correction(obs):
@@ -37,18 +39,26 @@ def obs_correction(obs):
 def expert(vehicle, deterministic=False, need_obs=False):
     global _expert_weights
     global _expert_observation
+    expert_obs_cfg = dict(
+        lidar=dict(num_lasers=240, distance=50, num_others=4, gaussian_noise=0.0, dropout_prob=0.0),
+        random_agent_model=False
+    )
+    origin_obs_cfg = dict(
+        lidar=dict(num_lasers=240, distance=50, num_others=0, gaussian_noise=0.0, dropout_prob=0.0),
+        random_agent_model=False
+    )
+
     if _expert_weights is None:
         _expert_weights = np.load(ckpt_path)
         config = get_global_config().copy()
-        config["vehicle_config"].update(
-            dict(
-                lidar=dict(num_lasers=240, distance=50, num_others=4, gaussian_noise=0.0, dropout_prob=0.0),
-                random_agent_model=False
-            )
-        )
+        config["vehicle_config"].update(expert_obs_cfg)
         _expert_observation = LidarStateObservation(config)
         assert _expert_observation.observation_space.shape[0] == 275, "Observation not match"
+        logger.info("Torch is not available. Use numpy PPO expert.")
+
+    vehicle.config.update(expert_obs_cfg)
     obs = _expert_observation.observe(vehicle)
+    vehicle.config.update(origin_obs_cfg)
     obs = obs_correction(obs)
     weights = _expert_weights
     obs = obs.reshape(1, -1)

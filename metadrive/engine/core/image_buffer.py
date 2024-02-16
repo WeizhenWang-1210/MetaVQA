@@ -1,13 +1,10 @@
-from metadrive.engine.logger import get_logger
-from direct.filter.FilterManager import FilterManager
-import panda3d.core as p3d
-from simplepbr import _load_shader_str
 from typing import Union, List
-from panda3d.core import FrameBufferProperties
+
 import numpy as np
-from panda3d.core import NodePath, Vec3, Vec4, Camera, PNMImage, Shader, RenderState, ShaderAttrib
+from panda3d.core import NodePath, Vec3, Vec4, Camera
 
 from metadrive.constants import RENDER_MODE_ONSCREEN, BKG_COLOR, RENDER_MODE_NONE
+from metadrive.engine.logger import get_logger
 
 
 class ImageBuffer:
@@ -32,7 +29,6 @@ class ImageBuffer:
         self,
         width: float,
         height: float,
-        pos: Vec3,
         bkg_color: Union[Vec4, Vec3],
         parent_node: NodePath = None,
         frame_buffer_property=None,
@@ -58,21 +54,22 @@ class ImageBuffer:
             return
 
         # self.texture = Texture()
-        self.buffer = self._create_buffer(width, height, frame_buffer_property)
-        self.origin = NodePath("new render")
+        self._create_buffer(width, height, frame_buffer_property)
+        self._create_camera(parent_node, bkg_color)
 
-        # this takes care of setting up their camera properly
-        self.cam = self.engine.makeCamera(self.buffer, clearColor=bkg_color)
-        self.cam.setPos(pos)
-        # should put extrinsic parameters here
-        self.cam.reparentTo(self.origin)
-        # self.cam.setH(-90)  # face to x
-        self.lens = self.cam.node().getLens()
-        self.cam.node().setCameraMask(self.CAM_MASK)
-        if parent_node is not None:
-            self.origin.reparentTo(parent_node)
         self._setup_effect()
         self.logger.debug("Load Image Buffer: {}".format(self.__class__.__name__))
+
+    def _create_camera(self, parent_node, bkg_color):
+        """
+        Create camera for the buffer
+        """
+        self.cam = cam = self.engine.makeCamera(self.buffer, clearColor=bkg_color)
+        cam.node().setCameraMask(self.CAM_MASK)
+        if parent_node:
+            self.cam.reparentTo(parent_node)
+        self.lens = self.cam.node().getLens()
+        self.lens.setFov(60)
 
     def _create_buffer(self, width, height, frame_buffer_property):
         """
@@ -86,9 +83,11 @@ class ImageBuffer:
 
         """
         if frame_buffer_property is not None:
-            return self.engine.win.makeTextureBuffer("camera", width, height, fbp=frame_buffer_property)
+            self.buffer = self.engine.win.makeTextureBuffer(
+                self.__class__.__name__, width, height, fbp=frame_buffer_property
+            )
         else:
-            return self.engine.win.makeTextureBuffer("camera", width, height)
+            self.buffer = self.engine.win.makeTextureBuffer(self.__class__.__name__, width, height)
 
     def _setup_effect(self):
         """
@@ -99,11 +98,14 @@ class ImageBuffer:
         pass
 
     def get_rgb_array_cpu(self):
+        """
+        Get the rgb array on CPU, which suffers from the latency of moving data from graphics card to memory
+        """
         origin_img = self.buffer.getDisplayRegion(1).getScreenshot()
         img = np.frombuffer(origin_img.getRamImage().getData(), dtype=np.uint8)
         img = img.reshape((origin_img.getYSize(), origin_img.getXSize(), -1))
-        img = img[::-1]
         img = img[..., :self.num_channels]
+        img = img[::-1]
         return img
 
     @staticmethod
@@ -119,9 +121,17 @@ class ImageBuffer:
             numpy_array = np.array([[img.getGray(i, j) for j in range(img.getYSize())] for i in range(img.getXSize())])
             return np.clip(numpy_array, 0, 1)
 
-    def add_display_region(self, display_region: List[float]):
+    def add_display_region(self, display_region: List[float], keep_height=True):
+        """
+        Make a display region for this image buffer and show in on main window
+        """
+        # only show them when onscreen
         if self.engine.mode != RENDER_MODE_NONE and self.display_region is None:
-            # only show them when onscreen
+            if keep_height:
+                ratio = self.BUFFER_H / self.BUFFER_W
+                h = 0.333 * ratio
+                display_region[-2] = 1 - h
+
             self.display_region = self.engine.win.makeDisplayRegion(*display_region)
             self.display_region.setCamera(self.buffer.getDisplayRegions()[1].camera)
             self.draw_border(display_region)

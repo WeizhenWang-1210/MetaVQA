@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 
 import numpy as np
 from gymnasium.spaces import Box, Dict
@@ -7,11 +8,12 @@ from metadrive.envs.marl_envs.marl_intersection import MultiAgentIntersectionEnv
 from metadrive.utils import distance_greater, norm
 
 from metadrive.envs.marl_envs.multi_agent_metadrive import MULTI_AGENT_METADRIVE_DEFAULT_CONFIG
+
 MULTI_AGENT_METADRIVE_DEFAULT_CONFIG["force_seed_spawn_manager"] = True
 
 
 def _check_spaces_before_reset(env):
-    a = set(env.config["target_vehicle_configs"].keys())
+    a = set(env.config["agent_configs"].keys())
     b = set(env.observation_space.spaces.keys())
     c = set(env.action_space.spaces.keys())
     assert a == b == c
@@ -19,7 +21,7 @@ def _check_spaces_before_reset(env):
 
 
 def _check_spaces_after_reset(env, obs=None):
-    a = set(env.config["target_vehicle_configs"].keys())
+    a = set(env.config["agent_configs"].keys())
     b = set(env.observation_space.spaces.keys())
     assert a == b
     _check_shape(env)
@@ -32,7 +34,7 @@ def _check_spaces_after_reset(env, obs=None):
 def _check_shape(env):
     b = set(env.observation_space.spaces.keys())
     c = set(env.action_space.spaces.keys())
-    d = set(env.vehicles.keys())
+    d = set(env.agents.keys())
     e = set(env.engine.agents.keys())
     f = set([k for k in env.observation_space.spaces.keys() if not env.dones[k]])
     assert d == e == f, (b, c, d, e, f)
@@ -62,7 +64,7 @@ def _act(env, action):
     obs, reward, terminated, truncated, info = env.step(action)
     _check_shape(env)
     if not terminated["__all__"]:
-        assert len(env.vehicles) > 0
+        assert len(env.agents) > 0
     if not (set(obs.keys()) == set(reward.keys()) == set(env.observation_space.spaces.keys())):
         raise ValueError
     assert env.observation_space.contains(obs)
@@ -90,7 +92,7 @@ def test_ma_intersection_env():
             _check_spaces_after_reset(env, obs)
             assert env.observation_space.contains(obs)
             for step in range(100):
-                act = {k: [1, 1] for k in env.vehicles.keys()}
+                act = {k: [1, 1] for k in env.agents.keys()}
                 o, r, tm, tc, i = _act(env, act)
                 if step == 0:
                     assert not any(tm.values())
@@ -121,11 +123,11 @@ def test_ma_intersection_horizon():
             obs, _ = env.reset()
             _check_spaces_after_reset(env, obs)
             assert env.observation_space.contains(obs)
-            last_keys = set(env.vehicles.keys())
+            last_keys = set(env.agents.keys())
             for step in range(1, 1000):
-                act = {k: [1, 1] for k in env.vehicles.keys()}
+                act = {k: [1, 1] for k in env.agents.keys()}
                 o, r, tm, tc, i = _act(env, act)
-                new_keys = set(env.vehicles.keys())
+                new_keys = set(env.agents.keys())
                 if step == 0:
                     assert not any(tm.values())
                 if any(tm.values()):
@@ -156,6 +158,53 @@ def test_ma_intersection_horizon():
             env.close()
 
 
+def test_ma_horizon_termination():
+    # test horizon
+    for _ in range(10):  # This function is really easy to break, repeat multiple times!
+        env = MultiAgentIntersectionEnv(
+            {
+                "horizon": 100,
+                "num_agents": 40,
+                "vehicle_config": {
+                    "lidar": {
+                        "num_others": 2
+                    }
+                },
+                "out_of_road_penalty": 777,
+                "out_of_road_cost": 778,
+                "crash_done": False,
+                "use_render": False,
+            }
+        )
+        try:
+            ep_len = defaultdict(int)
+            _check_spaces_before_reset(env)
+            obs, _ = env.reset()
+            _check_spaces_after_reset(env, obs)
+            assert env.observation_space.contains(obs)
+            max_agent = set()
+            for step in range(1, 1000):
+                act = {k: [1, 1] if k[-1] in ["0", "1", "2"] else [0, 0] for k in env.agents.keys()}
+                for k in act.keys():
+                    ep_len[k] += 1
+                o, r, tm, tc, i = _act(env, act)
+                env.render(text={"step": env.episode_step})
+                for kkk, rrr in tm.items():
+                    if rrr and kkk != "__all__":
+                        if i[kkk]["max_step"]:
+                            assert ep_len[kkk] == 100
+                            assert kkk not in max_agent
+                            max_agent.add(kkk)
+
+                if tm["__all__"]:
+                    break
+            max_agent_ep_len = [ep_len[v] for v in max_agent]
+            assert all(max_agent_ep_len), max_agent_ep_len
+            assert 30 < len(max_agent_ep_len) < 40
+        finally:
+            env.close()
+
+
 def test_ma_intersection_reset():
     env = MultiAgentIntersectionEnv({"horizon": 50, "num_agents": 4})
     try:
@@ -164,7 +213,7 @@ def test_ma_intersection_reset():
         _check_spaces_after_reset(env, obs)
         assert env.observation_space.contains(obs)
         for step in range(1000):
-            act = {k: [1, 1] for k in env.vehicles.keys()}
+            act = {k: [1, 1] for k in env.agents.keys()}
             o, r, tm, tc, i = _act(env, act)
             if step == 0:
                 assert not any(tm.values())
@@ -175,7 +224,7 @@ def test_ma_intersection_reset():
                 _check_spaces_after_reset(env, obs)
                 assert set(env.observation_space.spaces.keys()) == set(env.action_space.spaces.keys()) == \
                        set(env.observations.keys()) == set(obs.keys()) == \
-                       set(env.config["target_vehicle_configs"].keys())
+                       set(env.config["agent_configs"].keys())
 
                 break
     finally:
@@ -195,11 +244,11 @@ def test_ma_intersection_reset():
             for step in range(1000):
 
                 # for _ in range(2):
-                #     act = {k: [1, 1] for k in env.vehicles.keys()}
+                #     act = {k: [1, 1] for k in env.agents.keys()}
                 #     o, r, tm, tc, i = _act(env, act)
 
                 # Force vehicle to success!
-                for v_id, v in env.vehicles.items():
+                for v_id, v in env.agents.items():
                     loc = v.navigation.final_lane.end
                     # vehicle will stack together to explode!
                     v.set_position(loc, height=int(v_id[5:]) * 2)
@@ -217,10 +266,10 @@ def test_ma_intersection_reset():
                     # print('sss')
                     assert env._is_arrive_destination(v)
 
-                act = {k: [0, 0] for k in env.vehicles.keys()}
+                act = {k: [0, 0] for k in env.agents.keys()}
                 o, r, tm, tc, i = _act(env, act)
 
-                for v in env.vehicles.values():
+                for v in env.agents.values():
                     assert len(v.navigation.checkpoints) > 2
 
                 for kkk, iii in i.items():
@@ -274,9 +323,9 @@ def test_ma_intersection_close_spawn():
             obs, _ = env.reset()
             _check_spaces_after_reset(env)
             for _ in range(10):
-                o, r, tm, tc, i = env.step({k: [0, 0] for k in env.vehicles.keys()})
+                o, r, tm, tc, i = env.step({k: [0, 0] for k in env.agents.keys()})
                 assert not (any(tm.values()) or any(tc.values()))
-            _no_close_spawn(env.vehicles)
+            _no_close_spawn(env.agents)
             # print('Finish {} resets.'.format(num_r))
     finally:
         env.close()
@@ -293,7 +342,7 @@ def _test_ma_intersection_reward_done_alignment():
         assert env.observation_space.contains(obs)
         for action in [-1, 1]:
             for step in range(5000):
-                act = {k: [action, 1] for k in env.vehicles.keys()}
+                act = {k: [action, 1] for k in env.agents.keys()}
                 o, r, tm, tc, i = _act(env, act)
                 for kkk, ddd in tm.items():
                     if ddd and kkk != "__all__":
@@ -333,11 +382,11 @@ def _test_ma_intersection_reward_done_alignment():
         obs, _ = env.reset()
         _check_spaces_after_reset(env, obs)
         for step in range(5):
-            act = {k: [0, 0] for k in env.vehicles.keys()}
+            act = {k: [0, 0] for k in env.agents.keys()}
             o, r, tm, tc, i = _act(env, act)
-        env.vehicles["agent0"].set_position(env.vehicles["agent1"].position, height=1.2)
+        env.agents["agent0"].set_position(env.agents["agent1"].position, height=1.2)
         for step in range(5000):
-            act = {k: [0, 0] for k in env.vehicles.keys()}
+            act = {k: [0, 0] for k in env.agents.keys()}
             o, r, tm, tc, i = _act(env, act)
 
             if not any(tm.values()):
@@ -353,7 +402,7 @@ def _test_ma_intersection_reward_done_alignment():
                 # for kkk, ddd in d.items():
                 ddd = tm[kkk]
                 if ddd and kkk != "__all__":
-                    #assert r[kkk] == -1.7777
+                    # assert r[kkk] == -1.7777
                     assert i[kkk]["crash_vehicle"]
                     assert i[kkk]["crash"]
                     # # print('{} done passed!'.format(kkk))
@@ -393,15 +442,15 @@ def _test_ma_intersection_reward_done_alignment():
         obs, _ = env.reset()
         _check_spaces_after_reset(env, obs)
         for step in range(1):
-            act = {k: [0, 0] for k in env.vehicles.keys()}
+            act = {k: [0, 0] for k in env.agents.keys()}
             o, r, tm, tc, i = _act(env, act)
 
-        for v_id, v in env.vehicles.items():
+        for v_id, v in env.agents.items():
             if v_id != "agent0":
                 v.set_static(True)
 
         for step in range(5000):
-            act = {k: [0, 1] for k in env.vehicles.keys()}
+            act = {k: [0, 1] for k in env.agents.keys()}
             o, r, tm, tc, i = _act(env, act)
             for kkk, iii in i.items():
                 if iii["crash"]:
@@ -440,20 +489,20 @@ def _test_ma_intersection_reward_done_alignment():
         _check_spaces_before_reset(env)
         obs, _ = env.reset()
         _check_spaces_after_reset(env)
-        env.vehicles["agent0"].set_position(env.vehicles["agent0"].navigation.final_lane.end)
+        env.agents["agent0"].set_position(env.agents["agent0"].navigation.final_lane.end)
         assert env.observation_space.contains(obs)
         for step in range(5000):
-            act = {k: [0, 0] for k in env.vehicles.keys()}
+            act = {k: [0, 0] for k in env.agents.keys()}
             o, r, tm, tc, i = _act(env, act)
             if tm["__all__"]:
                 break
             kkk = "agent0"
-            #assert r[kkk] == 999
+            # assert r[kkk] == 999
             assert i[kkk]["arrive_dest"]
             assert tm[kkk]
 
             kkk = "agent1"
-            #assert r[kkk] != 999
+            # assert r[kkk] != 999
             assert not i[kkk]["arrive_dest"]
             assert not tm[kkk]
             break
@@ -485,7 +534,7 @@ def test_ma_intersection_reward_sign():
         _check_spaces_after_reset(env)
         ep_reward = 0.0
         for step in range(1000):
-            act = {k: [0, 1] for k in env.vehicles.keys()}
+            act = {k: [0, 1] for k in env.agents.keys()}
             o, r, tm, tc, i = env.step(act)
             ep_reward += next(iter(r.values()))
             if any(tm.values()):
@@ -548,7 +597,7 @@ def test_ma_intersection_no_short_episode():
         tm = {"__all__": False}
         for step in range(2000):
             # act = {k: actions[np.random.choice(len(actions))] for k in o.keys()}
-            act = {k: actions[np.random.choice(len(actions))] for k in env.vehicles.keys()}
+            act = {k: actions[np.random.choice(len(actions))] for k in env.agents.keys()}
             o_keys = set(o.keys()).union({"__all__"})
             a_keys = set(env.action_space.spaces.keys()).union(set(tm.keys()))
             assert o_keys == a_keys
@@ -585,13 +634,13 @@ def test_ma_intersection_horizon_termination():
             should_respawn = set()
             special_agents = set(["agent0", "agent7"])
             for step in range(1, 10000):
-                act = {k: [0, 0] for k in env.vehicles.keys()}
+                act = {k: [0, 0] for k in env.agents.keys()}
                 for v_id in act.keys():
                     if v_id in special_agents:
                         act[v_id] = [1, 1]  # Add some randomness
                     else:
-                        if v_id in env.vehicles:
-                            env.vehicles[v_id].set_static(True)
+                        if v_id in env.agents:
+                            env.agents[v_id].set_static(True)
                 obs, r, tm, tc, i = _act(env, act)
                 if step == 0 or step == 1:
                     assert not any(tm.values())
@@ -645,12 +694,12 @@ def test_ma_intersection_40_agent_reset_after_respawn():
         assert env.observation_space.contains(obs)
         for step in range(50):
             env.reset()
-            check_pos(list(env.vehicles.values()))
-            for v_id in list(env.vehicles.keys())[:20]:
-                env.agent_manager.finish(v_id)
-            env.step({k: [1, 1] for k in env.vehicles.keys()})
-            env.step({k: [1, 1] for k in env.vehicles.keys()})
-            env.step({k: [1, 1] for k in env.vehicles.keys()})
+            check_pos(list(env.agents.values()))
+            for v_id in list(env.agents.keys())[:20]:
+                env.agent_manager._finish(v_id)
+            env.step({k: [1, 1] for k in env.agents.keys()})
+            env.step({k: [1, 1] for k in env.agents.keys()})
+            env.step({k: [1, 1] for k in env.agents.keys()})
     finally:
         env.close()
 
@@ -678,8 +727,8 @@ def test_ma_no_reset_error():
         _check_spaces_after_reset(env, obs)
         assert env.observation_space.contains(obs)
         for step in range(50):
-            check_pos(list(env.vehicles.values()))
-            o, r, tm, tc, i = env.step({k: [0, 1] for k in env.vehicles.keys()})
+            check_pos(list(env.agents.values()))
+            o, r, tm, tc, i = env.step({k: [0, 1] for k in env.agents.keys()})
             env.reset()
             if tm["__all__"]:
                 break
@@ -693,11 +742,11 @@ def test_randomize_spawn_place():
     try:
         obs, _ = env.reset()
         for step in range(100):
-            act = {k: [1, 1] for k in env.vehicles.keys()}
-            last_pos = {kkk: v.position for kkk, v in env.vehicles.items()}
+            act = {k: [1, 1] for k in env.agents.keys()}
+            last_pos = {kkk: v.position for kkk, v in env.agents.items()}
             o, r, tm, tc, i = env.step(act)
             obs, _ = env.reset()
-            new_pos = {kkk: v.position for kkk, v in env.vehicles.items()}
+            new_pos = {kkk: v.position for kkk, v in env.agents.items()}
             for kkk, new_p in new_pos.items():
                 assert not np.all(new_p == last_pos[kkk]), (new_p, last_pos[kkk], kkk)
     finally:
@@ -705,7 +754,8 @@ def test_randomize_spawn_place():
 
 
 if __name__ == '__main__':
-    test_ma_intersection_env()
+    # test_ma_intersection_env()
+    test_ma_horizon_termination()
     # test_ma_intersection_horizon()
     # test_ma_intersection_reset()
     # test_ma_intersection_reward_done_alignment()

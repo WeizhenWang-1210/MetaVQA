@@ -1,11 +1,12 @@
 import os
-import pickle
+import pathlib
 import shutil
 
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from metadrive.envs.real_data_envs.waymo_env import WaymoEnv
+from metadrive.envs.scenario_env import ScenarioEnv, AssetLoader
 from metadrive.policy.idm_policy import IDMPolicy
-from metadrive.policy.replay_policy import WaymoReplayEgoCarPolicy
+from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+from metadrive.scenario.utils import save_dataset
 
 
 def test_export_metadrive_scenario(render_export_env=False, render_load_env=False):
@@ -14,20 +15,23 @@ def test_export_metadrive_scenario(render_export_env=False, render_load_env=Fals
         dict(start_seed=0, use_render=render_export_env, num_scenarios=num_scenarios, agent_policy=IDMPolicy)
     )
     policy = lambda x: [0, 1]
-    dir = None
+    dataset_dir = None
     try:
         scenarios, done_info = env.export_scenarios(policy, scenario_index=[i for i in range(num_scenarios)])
-        dir = os.path.join(os.path.dirname(__file__), "../test_component/test_export")
-        os.makedirs(dir, exist_ok=True)
-        for i, data in scenarios.items():
-            with open(os.path.join(dir, "{}.pkl".format(i)), "wb+") as file:
-                pickle.dump(data, file)
+
+        dataset_dir = pathlib.Path(os.path.dirname(__file__)) / "../test_component/test_export"
+        save_dataset(
+            scenario_list=list(scenarios.values()),
+            dataset_name="reconstructed_waymo",
+            dataset_version="v0",
+            dataset_dir=dataset_dir
+        )
         env.close()
 
-        env = WaymoEnv(
+        env = ScenarioEnv(
             dict(
-                agent_policy=WaymoReplayEgoCarPolicy,
-                data_directory=dir,
+                agent_policy=ReplayEgoCarPolicy,
+                data_directory=dataset_dir,
                 use_render=render_load_env,
                 num_scenarios=num_scenarios
             )
@@ -40,37 +44,40 @@ def test_export_metadrive_scenario(render_export_env=False, render_load_env=Fals
                 done = tm or tc
     finally:
         env.close()
-        if dir is not None:
-            shutil.rmtree(dir)
+        if dataset_dir is not None:
+            shutil.rmtree(dataset_dir)
 
 
 def test_export_waymo_scenario(num_scenarios=3, render_export_env=False, render_load_env=False):
-    env = WaymoEnv(
+    env = ScenarioEnv(
         dict(
-            agent_policy=WaymoReplayEgoCarPolicy,
+            agent_policy=ReplayEgoCarPolicy,
             use_render=render_export_env,
+            data_directory=AssetLoader.file_path("waymo", unix_style=False),
             start_scenario_index=0,
             num_scenarios=num_scenarios
         )
     )
     policy = lambda x: [0, 1]
-    dir = None
+    dataset_dir = None
     try:
         scenarios, done_info = env.export_scenarios(
             policy, scenario_index=[i for i in range(num_scenarios)], verbose=True
         )
-        dir = os.path.join(os.path.dirname(__file__), "../test_component/test_export")
-        os.makedirs(dir, exist_ok=True)
-        for i, data in scenarios.items():
-            with open(os.path.join(dir, "{}.pkl".format(i)), "wb+") as file:
-                pickle.dump(data, file)
+        dataset_dir = pathlib.Path(os.path.dirname(__file__)) / "../test_component/test_export"
+        save_dataset(
+            scenario_list=list(scenarios.values()),
+            dataset_name="reconstructed_waymo",
+            dataset_version="v0",
+            dataset_dir=dataset_dir
+        )
         env.close()
 
         print("===== Start restoring =====")
-        env = WaymoEnv(
+        env = ScenarioEnv(
             dict(
-                agent_policy=WaymoReplayEgoCarPolicy,
-                data_directory=dir,
+                agent_policy=ReplayEgoCarPolicy,
+                data_directory=dataset_dir,
                 use_render=render_load_env,
                 num_scenarios=num_scenarios
             )
@@ -87,10 +94,10 @@ def test_export_waymo_scenario(num_scenarios=3, render_export_env=False, render_
             print("Finish replaying scenario {} with step {}".format(index, count))
     finally:
         env.close()
-        if dir is not None:
-            shutil.rmtree(dir)
+        if dataset_dir is not None:
+            shutil.rmtree(dataset_dir)
 
 
 if __name__ == "__main__":
-    # test_export_metadrive_scenario(render_export_env=False, render_load_env=False)
-    test_export_waymo_scenario(num_scenarios=3, render_export_env=False, render_load_env=False)
+    test_export_metadrive_scenario(render_export_env=False, render_load_env=False)
+    # test_export_waymo_scenario(num_scenarios=3, render_export_env=False, render_load_env=False)

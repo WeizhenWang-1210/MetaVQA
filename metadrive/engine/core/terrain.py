@@ -1,15 +1,19 @@
 # import numpyf
 import math
+
+import os
 import pathlib
 import sys
 
 #
 #
+from abc import ABC
+from metadrive.constants import TerrainProperty, CameraTagStateKey
 import cv2
 import numpy as np
 from panda3d.bullet import BulletRigidBodyNode, BulletPlaneShape
 from panda3d.bullet import ZUp, BulletHeightfieldShape
-from panda3d.core import SamplerState, PNMImage, CardMaker, LQuaternionf
+from panda3d.core import SamplerState, PNMImage, CardMaker, LQuaternionf, NodePath
 from panda3d.core import Vec3, ShaderTerrainMesh, Texture, TextureStage, Shader, Filename
 
 from metadrive.base_class.base_object import BaseObject
@@ -23,7 +27,10 @@ from metadrive.utils.utils import is_win
 logger = get_logger()
 
 
-class Terrain(BaseObject):
+class Terrain(BaseObject, ABC):
+    """
+    Terrain and map
+    """
     COLLISION_MASK = CollisionGroup.Terrain
     HEIGHT = 0.0
     PROBE_HEIGHT = 600
@@ -33,9 +40,7 @@ class Terrain(BaseObject):
 
     def __init__(self, show_terrain, engine):
         super(Terrain, self).__init__(random_seed=0)
-        self.origin.hide(
-            CamMask.MiniMap | CamMask.Shadow | CamMask.DepthCam | CamMask.ScreenshotCam | CamMask.SemanticCam
-        )
+        self.origin.hide(CamMask.MiniMap | CamMask.Shadow)
         # use plane terrain or mesh terrain， True by default.
         self.use_mesh_terrain = engine.global_config["use_mesh_terrain"]
         self.full_size_mesh = engine.global_config["full_size_mesh"]
@@ -45,16 +50,17 @@ class Terrain(BaseObject):
         self.mesh_collision_terrain = None  # a 3d mesh, Not available yet!
 
         # visualization mesh feature
-        self._terrain_size = 2048  # [m]
+        self._terrain_size = TerrainProperty.terrain_size  # [m]
         self._height_scale = engine.global_config["height_scale"]  # [m]
         self._drivable_area_extension = engine.global_config["drivable_area_extension"]  # [m] road marin
-        self._heightmap_size = self._semantic_map_size = 512  # [m] it should include the whole map. Otherwise, road will have no texture!
+        # it should include the whole map. Otherwise, road will have no texture!
+        self._heightmap_size = self._semantic_map_size = TerrainProperty.map_region_size  # [m]
         self._heightfield_start = int((self._terrain_size - self._heightmap_size) / 2)
-        self._semantic_map_pixel_per_meter = 22  # [m] how many pixels per meter
+        self._semantic_map_pixel_per_meter = TerrainProperty.get_semantic_map_pixel_per_meter()  # [m]  pixels per meter
         self._terrain_offset = 2055  # 1023/65536 * self._height_scale [m] warning: make it power 2 -1!
         # pre calculate some variables
         self._elevation_texture_ratio = self._terrain_size / self._semantic_map_size  # for shader
-        self.origin.setZ(-(self._terrain_offset + 1) / 65536 * self._height_scale * 2 - 0.05)
+        self.origin.setZ(-(self._terrain_offset + 1) / 65536 * self._height_scale * 2)
 
         self._mesh_terrain = None
         self._mesh_terrain_height = None
@@ -84,10 +90,11 @@ class Terrain(BaseObject):
         """
         # detach current map
         assert self.engine is not None, "Can not call this without initializing engine"
-        self.detach_from_world(self.engine.physics_world)
+        if self.is_attached():
+            self.detach_from_world(self.engine.physics_world)
 
     # @time_me
-    def reset(self, center_position):
+    def reset(self, center_point):
         """
         Update terrain according to current map
         """
@@ -97,22 +104,31 @@ class Terrain(BaseObject):
 
         if self.render or self.use_mesh_terrain:
             # modify default height image
-            drivable_region = self.get_drivable_region()
+            drivable_region = self.get_drivable_region(center_point)
 
             # embed to the original height image
             start = self._heightfield_start
             end = self._heightfield_start + self._heightmap_size
             heightfield_base = np.copy(self.heightfield_img)
-            drivable_area_height_mean = np.mean(
-                self.heightfield_img[start:end, start:end, ...][np.where(drivable_region)]
-            ).astype(np.uint16)
-            heightfield_base = np.where(
-                heightfield_base > (drivable_area_height_mean - self._terrain_offset),
-                heightfield_base - (drivable_area_height_mean - self._terrain_offset), 0
-            )
-            heightfield_to_modify = heightfield_base[start:end, start:end, ...]
-            heightfield_base[start:end, start:end,
-                             ...] = np.where(drivable_region, self._terrain_offset, heightfield_to_modify)
+
+            if abs(np.mean(drivable_region) - 0.0) < 1e-3:
+                heightfield_to_modify = heightfield_base[start:end, start:end, ...]
+                logger.warning(
+                    "No map is found in map region, "
+                    "size: [{}, {}], "
+                    "center: {}".format(self._semantic_map_size, self._semantic_map_size, center_point)
+                )
+            else:
+                drivable_area_height_mean = np.mean(
+                    self.heightfield_img[start:end, start:end, ...][np.where(drivable_region)]
+                )
+                heightfield_base = np.where(
+                    heightfield_base > (drivable_area_height_mean - self._terrain_offset),
+                    heightfield_base - (drivable_area_height_mean - self._terrain_offset), 0
+                ).astype(np.uint16)
+                heightfield_to_modify = heightfield_base[start:end, start:end, ...]
+                heightfield_base[start:end, start:end,
+                                 ...] = np.where(drivable_region, self._terrain_offset, heightfield_to_modify)
 
             # generate collision mesh
             if self.use_mesh_terrain:
@@ -122,7 +138,7 @@ class Terrain(BaseObject):
 
             if self.render:
                 # Make semantics for shader terrain
-                semantics = self.get_terrain_semantics()
+                semantics = self.get_terrain_semantics(center_point)
                 semantic_tex = Texture()
                 semantic_tex.setup2dTexture(*semantics.shape[:2], Texture.TFloat, Texture.F_red)
                 semantic_tex.setRamImage(semantics)
@@ -135,7 +151,7 @@ class Terrain(BaseObject):
                 # generate terrain visualization
                 self._generate_mesh_vis_terrain(self._terrain_size, heightfield_tex, semantic_tex)
         # reset position
-        self.set_position(center_position)
+        self.set_position(center_point)
         self.attach_to_world(self.engine.render, self.engine.physics_world)
 
     def generate_plane_collision_terrain(self):
@@ -146,7 +162,7 @@ class Terrain(BaseObject):
         """
         # Create once for lazy-reset
         # If no render pipeline, we can only have 2d terrain. It will only be generated for once.
-        shape = BulletPlaneShape(Vec3(0, 0, 1), -0.05)
+        shape = BulletPlaneShape(Vec3(0, 0, 1), 0)
         node = BulletRigidBodyNode(MetaDriveType.GROUND)
         node.setFriction(.9)
         node.addShape(shape)
@@ -170,7 +186,7 @@ class Terrain(BaseObject):
         Given a height field map to generate terrain and an attribute_tex to texture terrain, so we can get road/grass
         pixels_per_meter is determined by heightfield.size/size
         lane line and so on.
-        :param size: [m] this terrain of the generate terrain
+        :param size: [m] this terrain of the generated terrain
         :param heightfield: terrain heightfield. It should be a 16-bit png and have a quadratic size of a power of two.
         :param attribute_tex: doing texture splatting. r,g,b,a represent: grass/road/lane_line ratio respectively
         :param target_triangle_width: For a value of 10.0 for example, the terrain will attempt to make every triangle 10 pixels wide on screen.
@@ -196,6 +212,10 @@ class Terrain(BaseObject):
         # Generate the terrain
         self._mesh_terrain_node.generate()
         self._mesh_terrain = self.origin.attach_new_node(self._mesh_terrain_node)
+        # shader is determined by tag state, enabling multi-pass rendering
+        self._mesh_terrain.setTag(CameraTagStateKey.Semantic, self.SEMANTIC_LABEL)
+        self._mesh_terrain.setTag(CameraTagStateKey.RGB, self.SEMANTIC_LABEL)
+        self._mesh_terrain.setTag(CameraTagStateKey.Depth, self.SEMANTIC_LABEL)
         self._set_terrain_shader(engine, attribute_tex)
 
         # Attach the terrain to the main scene and set its scale. With no scale
@@ -216,11 +236,7 @@ class Terrain(BaseObject):
                 engine.render_pipeline.reload_shaders()
                 terrain_effect = AssetLoader.file_path("../shaders", "terrain_effect.yaml")
                 engine.render_pipeline.set_effect(self._mesh_terrain, terrain_effect, {}, 100)
-            else:
-                vert = AssetLoader.file_path("../shaders", "terrain.vert.glsl")
-                frag = AssetLoader.file_path("../shaders", "terrain.frag.glsl")
-                terrain_shader = Shader.load(Shader.SL_GLSL, vert, frag)
-                self._mesh_terrain.set_shader(terrain_shader)
+
             # # height
             self._mesh_terrain.set_shader_input("camera", self.engine.camera)
             self._mesh_terrain.set_shader_input("height_scale", self._height_scale)
@@ -239,6 +255,7 @@ class Terrain(BaseObject):
             self._mesh_terrain.set_shader_input("rock_tex", self.rock_tex)
             self._mesh_terrain.set_shader_input("rock_normal", self.rock_normal)
             self._mesh_terrain.set_shader_input("rock_rough", self.rock_rough)
+            self._mesh_terrain.set_shader_input("rock_tex_ratio", self.rock_tex_ratio)
 
             self._mesh_terrain.set_shader_input("road_tex", self.road_texture)
             self._mesh_terrain.set_shader_input("yellow_tex", self.yellow_lane_line)
@@ -250,6 +267,17 @@ class Terrain(BaseObject):
             # crosswalk
             self._mesh_terrain.set_shader_input("crosswalk_tex", self.crosswalk_tex)
             self._terrain_shader_set = True
+
+            # semantic color input
+            def to_float(color):
+                return Vec3(*[i / 255 for i in color])
+
+            self._mesh_terrain.set_shader_inputs(
+                crosswalk_semantics=to_float(Semantics.CROSSWALK.color),
+                lane_line_semantics=to_float(Semantics.LANE_LINE.color),
+                road_semantics=to_float(Semantics.ROAD.color),
+                ground_semantics=to_float(Semantics.TERRAIN.color)
+            )
         self._mesh_terrain.set_shader_input("attribute_tex", attribute_tex)
 
     def reload_terrain_shader(self):
@@ -274,18 +302,16 @@ class Terrain(BaseObject):
         Returns:
 
         """
-        # TODO we can do some optimization here, only update some regions
         # clear previous mesh
         self.dynamic_nodes.clear()
         mesh = heightfield_img
         mesh = np.flipud(mesh)
         mesh = cv2.resize(mesh, (mesh.shape[0] + 1, mesh.shape[1] + 1))
-        path_to_store = self.PATH.joinpath("run_time_map_mesh.png")
+        path_to_store = self.PATH.joinpath("run_time_map_mesh_{}.png".format(self.engine.pid))
         cv2.imencode('.png', mesh)[1].tofile(path_to_store)
         # cv2.imwrite(str(path_to_store), mesh)
-        if sys.platform.startswith("win"):
-            path_to_store = AssetLoader.windows_style2unix_style(path_to_store)
-        p = PNMImage(Filename(str(path_to_store)))
+        p = PNMImage(Filename(str(AssetLoader.windows_style2unix_style(path_to_store) if is_win() else path_to_store)))
+        os.remove(path_to_store)  # remove after using
 
         shape = BulletHeightfieldShape(p, height_scale * 2, ZUp)
         shape.setUseDiamondSubdivision(True)
@@ -323,6 +349,7 @@ class Terrain(BaseObject):
         Returns:
 
         """
+        raise DeprecationWarning
         self.origin.hide(
             CamMask.MiniMap | CamMask.Shadow | CamMask.DepthCam | CamMask.ScreenshotCam | CamMask.SemanticCam
         )
@@ -374,29 +401,29 @@ class Terrain(BaseObject):
         self.ts_normal.setMode(TextureStage.M_normal)
 
         # grass
-        if engine.use_render_pipeline:
-            # grass
-            self.grass_tex = self.loader.loadTexture(
-                AssetLoader.file_path("textures", "grass2", "grass_path_2_diff_1k.png")
-            )
-            self.grass_normal = self.loader.loadTexture(
-                AssetLoader.file_path("textures", "grass2", "grass_path_2_nor_gl_1k.png")
-            )
-            self.grass_rough = self.loader.loadTexture(
-                AssetLoader.file_path("textures", "grass2", "grass_path_2_rough_1k.png")
-            )
-            self.grass_tex_ratio = 128.0
-        else:
-            self.grass_tex = self.loader.loadTexture(
-                AssetLoader.file_path("textures", "grass1", "GroundGrassGreen002_COL_1K.jpg")
-            )
-            self.grass_normal = self.loader.loadTexture(
-                AssetLoader.file_path("textures", "grass1", "GroundGrassGreen002_NRM_1K.jpg")
-            )
-            self.grass_rough = self.loader.loadTexture(
-                AssetLoader.file_path("textures", "grass1", "GroundGrassGreen002_BUMP_1K.jpg")
-            )
-            self.grass_tex_ratio = 64.0
+        # if engine.use_render_pipeline:
+        #     # grass
+        #     self.grass_tex = self.loader.loadTexture(
+        #         AssetLoader.file_path("textures", "grass2", "grass_path_2_diff_1k.png")
+        #     )
+        #     self.grass_normal = self.loader.loadTexture(
+        #         AssetLoader.file_path("textures", "grass2", "grass_path_2_nor_gl_1k.png")
+        #     )
+        #     self.grass_rough = self.loader.loadTexture(
+        #         AssetLoader.file_path("textures", "grass2", "grass_path_2_rough_1k.png")
+        #     )
+        #     self.grass_tex_ratio = 128.0
+        # else:
+        self.grass_tex = self.loader.loadTexture(
+            AssetLoader.file_path("textures", "grass1", "GroundGrassGreen002_COL_1K.jpg")
+        )
+        self.grass_normal = self.loader.loadTexture(
+            AssetLoader.file_path("textures", "grass1", "GroundGrassGreen002_NRM_1K.jpg")
+        )
+        self.grass_rough = self.loader.loadTexture(
+            AssetLoader.file_path("textures", "grass2", "grass_path_2_rough_1k.png")
+        )
+        self.grass_tex_ratio = 64
 
         v_wrap = Texture.WMRepeat
         u_warp = Texture.WMMirror
@@ -418,6 +445,7 @@ class Terrain(BaseObject):
         self.rock_rough = self.loader.loadTexture(
             AssetLoader.file_path("textures", "rock", "brown_mud_leaves_01_rough_1k.png")
         )
+        self.rock_tex_ratio = 128
 
         v_wrap = Texture.WMRepeat
         u_warp = Texture.WMMirror
@@ -536,7 +564,7 @@ class Terrain(BaseObject):
         """
         return self._mesh_terrain
 
-    def get_drivable_region(self):
+    def get_drivable_region(self, center_point):
         """
         Get drivable area, consisting of all roads in map
         Returns: drivable area
@@ -544,13 +572,13 @@ class Terrain(BaseObject):
         """
         if self.engine.current_map:
             drivable_region = self.engine.current_map.get_height_map(
-                self._heightmap_size, 1, self._drivable_area_extension
+                center_point, self._heightmap_size, 1, self._drivable_area_extension
             )
         else:
             drivable_region = np.ones((self._heightmap_size, self._heightmap_size, 1))
         return drivable_region
 
-    def get_terrain_semantics(self):
+    def get_terrain_semantics(self, center_point):
         """
         Return semantic maps indicating the property of the terrain for specific region
         Returns:
@@ -561,9 +589,11 @@ class Terrain(BaseObject):
             layer.append("crosswalk")
         if self.engine.current_map:
             semantics = self.engine.current_map.get_semantic_map(
+                center_point,
                 size=self._semantic_map_size,
                 pixels_per_meter=self._semantic_map_pixel_per_meter,
-                polyline_thickness=int(1024 / self._semantic_map_size),
+                polyline_thickness=int(self._semantic_map_pixel_per_meter / 11),
+                # 1 when map_region_size == 2048, 2 for others
                 layer=layer
             )
         else:
@@ -571,6 +601,26 @@ class Terrain(BaseObject):
             size = self._semantic_map_size * self._semantic_map_pixel_per_meter
             semantics = np.ones((size, size, 1), dtype=np.float32) * 0.2
         return semantics
+
+    @staticmethod
+    def make_render_state(engine, vert, frag):
+        """
+        Make a render state for specific camera
+        Args:
+            engine: BaseEngine
+            vert: vert shader file name in shaders
+            frag: frag shader file name in shaders
+
+        Returns: RenderState
+
+        """
+        vert = AssetLoader.file_path("../shaders", vert)
+        frag = AssetLoader.file_path("../shaders", frag)
+        terrain_shader = Shader.load(Shader.SL_GLSL, vert, frag)
+
+        dummy_np = NodePath("Dummy")
+        dummy_np.setShader(terrain_shader)
+        return dummy_np.getState()
 
 
 # Some useful threads

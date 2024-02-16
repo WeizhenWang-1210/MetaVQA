@@ -1,4 +1,5 @@
 from typing import Sequence, Tuple
+from metadrive.constants import CamMask
 from metadrive.type import MetaDriveType
 
 from panda3d.core import NodePath
@@ -30,9 +31,11 @@ class BaseStaticObject(BaseObject):
             return
         height = self.HEIGHT
         self.coordinates_debug_np = NodePath("debug coordinate")
-        x = self.engine.draw_line_3d([0, 0, height], [2, 0, height], [1, 0, 0, 1], 1)
-        y = self.engine.draw_line_3d([0, 0, height], [0, 1, height], [1, 0, 0, 1], 1)
-        z = self.engine.draw_line_3d([0, 0, height], [0, 0, height + 0.5], [0, 0, 1, 1], 2)
+        self.coordinates_debug_np.hide(CamMask.AllOn)
+        self.coordinates_debug_np.show(CamMask.MainCam)
+        x = self.engine._draw_line_3d([0, 0, height], [2, 0, height], [1, 0, 0, 1], 3)
+        y = self.engine._draw_line_3d([0, 0, height], [0, 1, height], [0, 1, 0, 1], 3)
+        z = self.engine._draw_line_3d([0, 0, height], [0, 0, height + 0.5], [0, 0, 1, 1], 3)
         x.reparentTo(self.coordinates_debug_np)
         y.reparentTo(self.coordinates_debug_np)
         z.reparentTo(self.coordinates_debug_np)
@@ -41,6 +44,8 @@ class BaseStaticObject(BaseObject):
     def reset(self, position, heading_theta, lane=None, random_seed=None, name=None, *args, **kwargs):
         self.seed(random_seed)
         self.rename(name)
+        self.set_pitch(0)
+        self.set_roll(0)
         self.set_position(position, self.HEIGHT / 2 if hasattr(self, "HEIGHT") else 0)
         self.set_heading_theta(heading_theta)
         self.lane = lane

@@ -16,7 +16,7 @@ if __name__ == "__main__":
             "use_render": True,
             "image_observation": False,
             "decision_repeat": 5,
-            "rgb_clip": True,
+            "norm_pixel": True,
             "map_config": {
                 BaseMap.GENERATE_TYPE: MapGenerateMethod.BIG_BLOCK_NUM,
                 BaseMap.GENERATE_CONFIG: 12,
@@ -29,5 +29,5 @@ if __name__ == "__main__":
     env.reset()
     for i in range(1, 100000):
         o, r, tm, tc, info = env.step([0, 1])
-        env.render(text={"Frame": i, "Speed": env.vehicle.speed_km_h})
+        env.render(text={"Frame": i, "Speed": env.agent.speed_km_h})
     env.close()

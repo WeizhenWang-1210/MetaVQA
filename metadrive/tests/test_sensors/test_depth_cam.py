@@ -4,14 +4,16 @@ from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.envs.metadrive_env import MetaDriveEnv
 
 blackbox_test_configs = dict(
-    # standard=dict(stack_size=3, width=256, height=128, rgb_clip=True),
-    small=dict(stack_size=1, width=64, height=32, rgb_clip=False),
+    # standard=dict(stack_size=3, width=256, height=128, norm_pixel=True),
+    small=dict(stack_size=1, width=64, height=32, norm_pixel=False),
 )
 
 
 @pytest.mark.parametrize("config", list(blackbox_test_configs.values()), ids=list(blackbox_test_configs.keys()))
-def test_depth_cam(config, render=False):
+def _test_depth_cam(config, render=False):
     """
+    Temporally disable it, as Github CI can not support compute shader
+    
     Test the output shape of Depth camera. This can not make sure the correctness of rendered image but only for
     checking the shape of image output and image retrieve pipeline
     Args:
@@ -35,11 +37,11 @@ def test_depth_cam(config, render=False):
             },
             "interface_panel": ["dashboard", "camera"],
             "image_observation": True,  # it is a switch telling metadrive to use rgb as observation
-            "rgb_clip": config["rgb_clip"],  # clip rgb to range(0,1) instead of (0, 255)
+            "norm_pixel": config["norm_pixel"],  # clip rgb to range(0,1) instead of (0, 255)
         }
     )
-    env.reset()
     try:
+        env.reset()
         import cv2
         import time
         start = time.time()

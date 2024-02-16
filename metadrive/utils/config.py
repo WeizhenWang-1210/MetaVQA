@@ -1,4 +1,5 @@
 import copy
+import pathlib
 from typing import Union, Any
 
 import numpy as np
@@ -86,7 +87,27 @@ class Config:
         self._unchangeable = unchangeable
 
     def clear(self):
-        self._config.clear()
+        """
+        Clear and destroy config
+        """
+        self.clear_nested_dict(self._config)
+        self._config = None
+
+    @staticmethod
+    def clear_nested_dict(d):
+        """
+        Clear nested dict
+        """
+        if d is None:
+            return
+        for key, value in d.items():
+            if isinstance(value, dict) or isinstance(value, Config):
+                Config.clear_nested_dict(value)
+        if isinstance(d, dict):
+            d.clear()
+        elif isinstance(d, Config):
+            d._config.clear()
+            d._config = None
 
     def register_type(self, key, *types):
         """
@@ -216,6 +237,8 @@ class Config:
                 value = float(value)
             if isinstance(value, (np.int32, np.int64, np.uint)):
                 value = int(value)
+        if isinstance(value, pathlib.Path):
+            value = str(value)
         if self._unchangeable:
             raise ValueError("This config is not changeable!")
         if (not allow_overwrite) and (self._config[key] is not None and value is not None):
@@ -290,6 +313,17 @@ class Config:
         self._unchangeable = False
         self[key] = value
         self._unchangeable = True
+
+    def set_unchangeable(self, unchangeable):
+        """
+        Lock the config, it is not allowed to be modified if it is set to True
+        Args:
+            unchangeable: boolean
+
+        Returns: None
+
+        """
+        self._unchangeable = unchangeable
 
 
 def _is_identical(k1, v1, k2, v2):

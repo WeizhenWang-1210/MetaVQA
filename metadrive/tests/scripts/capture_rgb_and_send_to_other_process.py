@@ -17,7 +17,6 @@ W, H = 1920, 1200
 
 def main_thread():
     config = dict(
-        # controller="joystick",
         use_render=True,
         image_observation=True,
         manual_control=True,  # set false for external subscriber control
@@ -35,7 +34,7 @@ def main_thread():
     try:
         o, _ = env.reset()
         # print(HELP_MESSAGE)
-        env.vehicle.expert_takeover = False
+        env.agent.expert_takeover = False
         context = zmq.Context()
         socket = context.socket(zmq.PUSH)
         socket.bind("tcp://127.0.0.1:5555")

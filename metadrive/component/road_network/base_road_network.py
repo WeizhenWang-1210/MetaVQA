@@ -19,9 +19,19 @@ class BaseRoadNetwork:
         self.graph.clear()
 
     def get_bounding_box(self):
+        """
+        Get bounding box of this road network
+        """
         if self.bounding_box is None:
             self.bounding_box = self._get_bounding_box()
         return self.bounding_box
+
+    def get_center_point(self):
+        """
+        Get the center point of this roadnetwork
+        """
+        x_min, x_max, y_min, y_max = self.get_bounding_box()
+        return (x_max + x_min) / 2, (y_max + y_min) / 2
 
     def _get_bounding_box(self):
         raise NotImplementedError
@@ -74,7 +84,7 @@ class BaseRoadNetwork:
         points = [(x, y) for x in bound_box[:2] for y in bound_box[2:]]
         for k, p in enumerate(points[:-1]):
             for p_ in points[k + 1:]:
-                line = engine.draw_line_3d((*p, 2), (*p_, 2), color, 2)
+                line = engine._draw_line_3d((*p, 2), (*p_, 2), color, 3)
                 line.reparentTo(engine.render)
                 self._lines_np.append(line)
 

@@ -16,13 +16,12 @@ if __name__ == "__main__":
             "traffic_mode": "hybrid",
             "start_seed": 22,
             "debug": True,
-            "cull_scene": False,
             "manual_control": True,
             "use_render": True,
             "decision_repeat": 5,
             "interface_panel": [MiniMap, DashBoard, RGBCamera],
             "need_inverse_traffic": False,
-            "rgb_clip": True,
+            "norm_pixel": True,
             "map": "SSS",
             # "agent_policy": IDMPolicy,
             "random_traffic": False,
@@ -42,7 +41,7 @@ if __name__ == "__main__":
     o, _ = env.reset()
 
     def get_v_path():
-        return BaseVehicle.model_collection[env.vehicle.path[0]]
+        return BaseVehicle.model_collection[env.agent.path[0]]
 
     def add_x():
         model = get_v_path()
@@ -73,9 +72,9 @@ if __name__ == "__main__":
         o, r, tm, tc, i = env.step([0, 0])
         env.render(
             text={
-                "heading_diff": env.vehicle.heading_diff(env.vehicle.lane),
-                "lane_width": env.vehicle.lane.width,
-                "lateral": env.vehicle.lane.local_coordinates(env.vehicle.position),
+                "heading_diff": env.agent.heading_diff(env.agent.lane),
+                "lane_width": env.agent.lane.width,
+                "lateral": env.agent.lane.local_coordinates(env.agent.position),
                 "current_seed": env.current_seed
             }
         )

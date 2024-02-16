@@ -1,10 +1,8 @@
 import copy
-import logging
 from typing import Dict, Any
 
 from metadrive.component.pgblock.first_block import FirstPGBlock
 from metadrive.component.road_network import Road
-from metadrive.component.sensors.distance_detector import LaneLineDetector, SideDetector
 from metadrive.component.sensors.lidar import Lidar
 from metadrive.constants import TerminationState
 from metadrive.envs.metadrive_env import MetaDriveEnv
@@ -31,9 +29,7 @@ MULTI_AGENT_METADRIVE_DEFAULT_CONFIG = dict(
     # that, the episode won't terminate until all existing vehicles reach their horizon or done. The vehicle specified
     # horizon is also this value.
     horizon=1000,
-    max_step_per_agent=1000,  # Per agent maximum episode steps
-    # Use to determine what neighborhood means
-    neighbours_distance=10,
+
     # ===== Vehicle Setting =====
     vehicle_config=dict(
         lidar=dict(num_lasers=72, distance=40, num_others=0),
@@ -47,8 +43,9 @@ MULTI_AGENT_METADRIVE_DEFAULT_CONFIG = dict(
         # for more information
         vehicle_model="static_default",
     ),
-    sensors=dict(lidar=(Lidar, 40)),
-    target_vehicle_configs=dict(),
+    sensors=dict(lidar=(Lidar, )),
+    agent_configs=dict(),  # will be filled automatically
+
     # ===== New Reward Setting =====
     out_of_road_penalty=10,
     crash_vehicle_penalty=10,
@@ -56,11 +53,12 @@ MULTI_AGENT_METADRIVE_DEFAULT_CONFIG = dict(
     crash_vehicle_cost=1,
     crash_object_cost=1,
     out_of_road_cost=0,  # Do not count out of road into cost!
+
     # ===== Environmental Setting =====
     traffic_density=0.0,
     camera_height=4,
-    map_file_path="",
     interface_panel=["dashboard"],
+    truncate_as_terminate=True,
 )
 
 
@@ -84,7 +82,7 @@ class MultiAgentMetaDrive(MetaDriveEnv):
         config = super(MultiAgentMetaDrive, self)._post_process_config(config)
         ret_config = config
         # merge basic vehicle config into target vehicle config
-        target_vehicle_configs = dict()
+        agent_configs = dict()
         num_agents = (
             ret_config["num_agents"] if ret_config["num_agents"] != -1 else SpawnManager.max_capacity(
                 config["spawn_roads"],
@@ -95,40 +93,35 @@ class MultiAgentMetaDrive(MetaDriveEnv):
         for id in range(num_agents):
             agent_id = "agent{}".format(id)
             config = copy.deepcopy(ret_config["vehicle_config"])
-            if agent_id in ret_config["target_vehicle_configs"]:
+            if agent_id in ret_config["agent_configs"]:
                 config["_specified_spawn_lane"] = (
-                    True if "spawn_lane_index" in ret_config["target_vehicle_configs"][agent_id] else False
+                    True if "spawn_lane_index" in ret_config["agent_configs"][agent_id] else False
                 )
                 config["_specified_destination"] = (
-                    True if "destination" in ret_config["target_vehicle_configs"][agent_id] else False
+                    True if "destination" in ret_config["agent_configs"][agent_id] else False
                 )
-                config.update(ret_config["target_vehicle_configs"][agent_id])
-            target_vehicle_configs[agent_id] = config
-        ret_config["target_vehicle_configs"] = target_vehicle_configs
-        if ret_config["use_render"] and ret_config["disable_model_compression"]:
-            logging.warning("Turn disable_model_compression=True can decrease the loading time!")
+                config.update(ret_config["agent_configs"][agent_id])
+            agent_configs[agent_id] = config
+        ret_config["agent_configs"] = agent_configs
+        # if ret_config["use_render"] and ret_config["disable_model_compression"]:
+        #     logging.warning("Turn disable_model_compression=True can decrease the loading time!")
 
         if "prefer_track_agent" in config and config["prefer_track_agent"]:
-            ret_config["target_vehicle_configs"][config["prefer_track_agent"]]["use_special_color"] = True
+            ret_config["agent_configs"][config["prefer_track_agent"]]["use_special_color"] = True
         ret_config["vehicle_config"]["random_agent_model"] = ret_config["random_agent_model"]
         return ret_config
 
     def done_function(self, vehicle_id):
         done, done_info = super(MultiAgentMetaDrive, self).done_function(vehicle_id)
+        if done_info["max_step"]:
+            return done, done_info
+
         if done_info[TerminationState.CRASH] and (not self.config["crash_done"]):
-            assert (
-                done_info[TerminationState.CRASH_VEHICLE] or done_info[TerminationState.SUCCESS]
-                or done_info[TerminationState.OUT_OF_ROAD]
-            )
             if not (done_info[TerminationState.SUCCESS] or done_info[TerminationState.OUT_OF_ROAD]):
                 # Does not revert done if high-priority termination happens!
                 done = False
 
         if done_info[TerminationState.OUT_OF_ROAD] and (not self.config["out_of_road_done"]):
-            assert (
-                done_info[TerminationState.CRASH_VEHICLE] or done_info[TerminationState.SUCCESS]
-                or done_info[TerminationState.OUT_OF_ROAD]
-            )
             if not done_info[TerminationState.SUCCESS]:
                 done = False
 
@@ -139,7 +132,7 @@ class MultiAgentMetaDrive(MetaDriveEnv):
         o, r, tm, tc, i = self._after_vehicle_done(o, r, tm, tc, i)
 
         # Update respawn manager
-        if self.episode_step >= self.config["horizon"]:
+        if self.config["horizon"] and self.episode_step >= self.config["horizon"]:
             self.agent_manager.set_allow_respawn(False)
         new_obs_dict, new_info_dict = self._respawn_vehicles(randomize_position=self.config["random_traffic"])
         if new_obs_dict:
@@ -150,18 +143,10 @@ class MultiAgentMetaDrive(MetaDriveEnv):
                 tm[new_id] = False
                 tc[new_id] = False
 
-        # Update __all__
-        d_all = False
-        if (self.config["horizon"] is not None):  # No agent alive or a too long episode happens
-            if (self.episode_step >= self.config["horizon"] and (all(tc.values()) or all(tm.values()))
-                    or (self.episode_step >= 5 * self.config["horizon"])):
-                d_all = True
-        if len(self.vehicles) == 0:  # No agent alive
-            d_all = True
-        tm["__all__"] = d_all
-        if tm["__all__"]:
-            for k in tm.keys():
-                tm[k] = True
+        # Update __all__ for truncated
+        tc["__all__"] = all(tc.values())
+        # update __all__ for terminated
+        tm["__all__"] = all(tm.values())
 
         return o, r, tm, tc, i
 
@@ -169,15 +154,10 @@ class MultiAgentMetaDrive(MetaDriveEnv):
         self, obs: Dict[str, Any], reward: Dict[str, float], terminated: Dict[str, bool], truncated: Dict[str, bool],
         info: Dict[str, Any]
     ):
-        for v_id, v_info in info.items():
-            if v_info.get("episode_length", 0) >= self.config["horizon"]:
-                if terminated[v_id] is not None:
-                    info[v_id][TerminationState.MAX_STEP] = True
-                    terminated[v_id] = True
-                    self.dones[v_id] = True
         for dead_vehicle_id, termed in terminated.items():
-            if termed:
-                self.agent_manager.finish(
+            if termed or truncated[dead_vehicle_id]:
+                # finish all terminated and truncated vehicles
+                self.agent_manager._finish(
                     dead_vehicle_id,
                     ignore_delay_done=info[dead_vehicle_id].get(TerminationState.SUCCESS, False),
                 )
@@ -186,12 +166,12 @@ class MultiAgentMetaDrive(MetaDriveEnv):
 
     def _update_camera_after_finish(self):
         if (self.main_camera is not None
-                and self.current_track_vehicle.id not in self.engine.agent_manager._active_objects
+                and self.current_track_agent.id not in self.engine.agent_manager._active_objects
                 and self.engine.task_manager.hasTaskNamed(self.main_camera.CHASE_TASK_NAME)):
             self.switch_to_third_person_view()
 
     def _get_observations(self):
-        return {name: self.get_single_observation() for name in self.config["target_vehicle_configs"].keys()}
+        return {name: self.get_single_observation() for name in self.config["agent_configs"].keys()}
 
     def _respawn_vehicles(self, randomize_position=False):
         new_obs_dict = {}
@@ -223,7 +203,7 @@ class MultiAgentMetaDrive(MetaDriveEnv):
         new_spawn_place_config = new_spawn_place["config"]
         new_spawn_place_config = self.engine.spawn_manager.update_destination_for(new_agent_id, new_spawn_place_config)
         vehicle.config.update(new_spawn_place_config)
-        vehicle.reset()
+        vehicle.reset(vehicle.config.copy())
         after_step_info = vehicle.after_step()
         step_info.update(after_step_info)
         self.dones[new_agent_id] = False  # Put it in the internal dead-tracking dict.
@@ -251,7 +231,7 @@ def _test():
     total_r = 0
     for i in range(1, 100000):
         # o, r, tm, tc, info = env.step(env.action_space.sample())
-        o, r, tm, tc, info = env.step({v_id: [0, 1] for v_id in env.vehicles.keys()})
+        o, r, tm, tc, info = env.step({v_id: [0, 1] for v_id in env.agents.keys()})
         for r_ in r.values():
             total_r += r_
         # o, r, tm, tc, info = env.step([0,1])
@@ -259,7 +239,7 @@ def _test():
         # d.update({"total_r": total_r})
         # env.render(text=d)
         env.render(mode="top_down")
-        if len(env.vehicles) == 0:
+        if len(env.agents) == 0:
             total_r = 0
             print("Reset")
             env.reset()
@@ -278,7 +258,7 @@ def _vis():
             "vehicle_config": {
                 "vehicle_model": "s"
             },
-            "target_vehicle_configs": {
+            "agent_configs": {
                 "agent0": {
                     "vehicle_model": "static_default"
                 },
@@ -297,14 +277,14 @@ def _vis():
     total_r = 0
     for i in range(1, 100000):
         # o, r, tm, tc, info = env.step(env.action_space.sample())
-        o, r, tm, tc, info = env.step({v_id: [0.0, 0.0] for v_id in env.vehicles.keys()})
+        o, r, tm, tc, info = env.step({v_id: [0.0, 0.0] for v_id in env.agents.keys()})
         for r_ in r.values():
             total_r += r_
         # o, r, tm, tc, info = env.step([0,1])
         # tm.update({"total_r": total_r})
         env.render(mode="top_down")
         # env.reset()
-        if len(env.vehicles) == 0:
+        if len(env.agents) == 0:
             total_r = 0
             print("Reset")
             env.reset()
@@ -337,7 +317,7 @@ def pygame_replay(
         env.render(mode="top_down", num_stack=50, film_size=film_size, history_smooth=0)
         if save:
             pygame.image.save(
-                env._top_down_renderer._runtime_canvas,
+                env.top_down_renderer._frame_canvas,
                 "{}_{}.png".format(name, frame_count),
             )
         frame_count += 1
@@ -363,7 +343,7 @@ def panda_replay(name, env_class, save=False, other_traj=None, extra_config={}):
         env.engine.force_fps.toggle()
         if save:
             pygame.image.save(
-                env._top_down_renderer._runtime_canvas,
+                env.top_down_renderer._frame_canvas,
                 "{}_{}.png".format(name, frame_count),
             )
         frame_count += 1

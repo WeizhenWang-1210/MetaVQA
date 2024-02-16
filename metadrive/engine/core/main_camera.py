@@ -1,13 +1,14 @@
 import math
 import queue
 from collections import deque
-from typing import Tuple
+from typing import Tuple, Union
+
 import numpy as np
 from direct.controls.InputState import InputState
-from panda3d.core import Vec3, Point3, PNMImage
+from panda3d.core import Vec3, Point3, PNMImage, NodePath
 from panda3d.core import WindowProperties
 
-from metadrive.constants import CollisionGroup
+from metadrive.constants import CollisionGroup, CameraTagStateKey, Semantics
 from metadrive.engine.engine_utils import get_engine
 from metadrive.utils.coordinates_shift import panda_heading, panda_vector
 from metadrive.utils.cuda import check_cudart_err
@@ -45,10 +46,21 @@ class MainCamera(BaseSensor):
 
     def __init__(self, engine, camera_height: float, camera_dist: float):
         self._origin_height = camera_height
+        self.run_task = True
         # self.engine = engine
 
         # vehicle chase camera
         self.camera = engine.camera
+        # lens property
+        lens = engine.cam.node().getLens()
+        lens.setFov(engine.global_config["camera_fov"])
+
+        from metadrive.engine.core.terrain import Terrain
+        engine.cam.node().setTagStateKey(CameraTagStateKey.RGB)
+        engine.cam.node().setTagState(
+            Semantics.TERRAIN.label, Terrain.make_render_state(engine, "terrain.vert.glsl", "terrain.frag.glsl")
+        )
+
         self.camera_queue = None
         self.camera_dist = camera_dist
         self.camera_pitch = -engine.global_config["camera_pitch"] if engine.global_config["camera_pitch"
@@ -58,7 +70,7 @@ class MainCamera(BaseSensor):
         self.direction_running_mean = deque(maxlen=self.camera_smooth_buffer_size if self.camera_smooth else 1)
         self.world_light = engine.world_light  # light chases the chase camera, when not using global light
         self.inputs = InputState()
-        self.current_track_vehicle = None
+        self.current_track_agent = None
 
         # height control
         self.chase_camera_height = camera_height
@@ -87,8 +99,8 @@ class MainCamera(BaseSensor):
         self.top_down_camera_height = engine.global_config["top_down_camera_initial_z"]
         self.camera_x = engine.global_config["top_down_camera_initial_x"]
         self.camera_y = engine.global_config["top_down_camera_initial_y"]
-        self.camera_rotate = 0
-        engine.interface.stop_track()
+        self.camera_hpr = [0, 0, 0]
+        engine.interface.undisplay()
         engine.task_manager.add(self._top_down_task, self.TOP_DOWN_TASK_NAME, extraArgs=[], appendTask=True)
 
         # TPP rotate
@@ -104,11 +116,12 @@ class MainCamera(BaseSensor):
         self._in_recover = False
         self._last_frame_has_mouse = False
 
-        need_cuda = engine.global_config["vehicle_config"]["image_source"] == "main_camera"
+        need_cuda = "main_camera" in engine.global_config["sensors"]
         self.enable_cuda = engine.global_config["image_on_cuda"] and need_cuda
 
         self.cuda_graphics_resource = None
-        self.engine.sensors["main_camera"] = self
+        if "main_camera" in engine.global_config["sensors"]:
+            self.engine.sensors["main_camera"] = self
         if self.enable_cuda:
             assert _cuda_enable, "Can not enable cuda rendering pipeline"
 
@@ -145,11 +158,31 @@ class MainCamera(BaseSensor):
             self.cuda_rendered_result = None
 
     def set_bird_view_pos(self, position):
+        """
+        Set the x,y position for the main camera
+        Args:
+            position:
+
+        Returns:
+
+        """
+        self.set_bird_view_pos_hpr(position)
+
+    def set_bird_view_pos_hpr(self, position, hpr=None):
+        """
+        Set the x,y position and heading, pitch, roll  for the main camera
+        Args:
+            position:
+            hpr:
+
+        Returns:
+
+        """
         if self.engine.task_manager.hasTaskNamed(self.TOP_DOWN_TASK_NAME):
             # adjust hpr
-            p_pos = panda_vector(position)
-            self.camera_x, self.camera_y = p_pos[0], p_pos[1]
-            self.camera_rotate = 0
+            p_pos = panda_vector(position, self.engine.global_config["top_down_camera_initial_z"])
+            self.camera_x, self.camera_y, self.top_down_camera_height = p_pos[0], p_pos[1], p_pos[2]
+            self.camera_hpr = hpr or [0, 0, 0]
             self.engine.task_manager.add(self._top_down_task, self.TOP_DOWN_TASK_NAME, extraArgs=[], appendTask=True)
 
     def reset(self):
@@ -185,6 +218,8 @@ class MainCamera(BaseSensor):
         self._last_frame_has_mouse = self.has_mouse
 
     def _chase_task(self, vehicle, task):
+        if not self.run_task:
+            return task.cont
         self.update_mouse_info()
         self.chase_camera_height = self._update_height(self.chase_camera_height)
         chassis_pos = vehicle.chassis.get_pos()
@@ -229,9 +264,6 @@ class MainCamera(BaseSensor):
                 self._heading_of_lane(vehicle.navigation.current_ref_lanes[0], vehicle.position) / np.pi * 180 - 90
             )
 
-        if self.world_light is not None:
-            self.world_light.set_pos(current_pos)
-
         # Don't use reparentTo()
         # pos = vehicle.convert_to_world_coordinates([0.8, 0.], vehicle.position)
         # look_at = vehicle.convert_to_world_coordinates([10.4, 0.], vehicle.position)
@@ -267,8 +299,8 @@ class MainCamera(BaseSensor):
         :param vehicle: Vehicle to chase
         :return: None
         """
-        self.current_track_vehicle = vehicle
-        self.engine.interface.track(vehicle)
+        self.current_track_agent = vehicle
+        self.engine.interface.display()
         pos = None
         if self.FOLLOW_LANE:
             pos = self._pos_on_lane(vehicle)  # Return None if routing system is not ready
@@ -318,13 +350,13 @@ class MainCamera(BaseSensor):
             engine.task_manager.remove(self.CHASE_TASK_NAME)
         if engine.task_manager.hasTaskNamed(self.TOP_DOWN_TASK_NAME):
             engine.task_manager.remove(self.TOP_DOWN_TASK_NAME)
-        self.current_track_vehicle = None
+        self.current_track_agent = None
         if self.registered:
             self.unregister()
-            self.camera.node().getDisplayRegion(0).clearDrawCallback()
+            # self.camera.node().getDisplayRegion(0).clearDrawCallback()
 
     def stop_track(self, bird_view_on_current_position=True):
-        self.engine.interface.stop_track()
+        self.engine.interface.undisplay()
         if self.engine.task_manager.hasTaskNamed(self.CHASE_TASK_NAME):
             self.engine.task_manager.remove(self.CHASE_TASK_NAME)
         if not self.engine.task_manager.hasTaskNamed(self.TOP_DOWN_TASK_NAME):
@@ -332,10 +364,12 @@ class MainCamera(BaseSensor):
             if bird_view_on_current_position:
                 current_pos = self.camera.getPos()
                 self.camera_x, self.camera_y = current_pos[0], current_pos[1]
-                self.camera_rotate = 0
+                self.camera_hpr = [0, 0, 0]
             self.engine.task_manager.add(self._top_down_task, self.TOP_DOWN_TASK_NAME, extraArgs=[], appendTask=True)
 
     def _top_down_task(self, task):
+        if not self.run_task:
+            return task.cont
         self.top_down_camera_height = self._update_height(self.top_down_camera_height)
 
         if self.inputs.isSet("up"):
@@ -348,17 +382,12 @@ class MainCamera(BaseSensor):
             self.camera_x += 1.0
 
         self.camera.setPos(self.camera_x, self.camera_y, self.top_down_camera_height)
-        if self.world_light is not None:
-            self.world_light.set_pos([self.camera_x, self.camera_y])
         if self.engine.global_config["show_coordinates"]:
             self.engine.set_coordinates_indicator_pos([self.camera_x, self.camera_y])
-        self.camera.lookAt(self.camera_x, self.camera_y, 0)
-
-        if self.inputs.isSet("right_rotate"):
-            self.camera_rotate += 3
-        if self.inputs.isSet("left_rotate"):
-            self.camera_rotate -= 3
-        self.camera.setH(self.camera_rotate)
+        if abs(sum(self.camera_hpr)) < 0.0001:
+            self.camera.lookAt(self.camera_x, self.camera_y, 0)
+        else:
+            self.camera.setHpr(Vec3(*self.camera_hpr))
         return task.cont
 
     def _update_height(self, height):
@@ -383,7 +412,10 @@ class MainCamera(BaseSensor):
     def _move_to_pointer(self):
         if self.engine.task_manager.hasTaskNamed(self.TOP_DOWN_TASK_NAME):
             # Get to and from pos in camera coordinates
-            pMouse = self.engine.mouseWatcherNode.getMouse()
+            try:
+                pMouse = self.engine.mouseWatcherNode.getMouse()
+            except:
+                return
             pFrom = Point3()
             pTo = Point3()
             self.engine.cam.node().getLens().extrude(pMouse, pFrom, pTo)
@@ -415,9 +447,46 @@ class MainCamera(BaseSensor):
     def mouse_into_window(self):
         return True if not self._last_frame_has_mouse and self.has_mouse else False
 
-    def perceive(self, vehicle, clip):
+    def perceive(self, clip=True, new_parent_node: Union[NodePath, None] = None, position=None, hpr=None) -> np.ndarray:
+        """
+        When clip is set to False, the image will be represented by unit8 with component value ranging from [0-255].
+        Otherwise, it will be float type with component value ranging from [0.-1.]. By default, the reset parameters are
+        all None. In this case, the camera will render the result with poses and position set by track() function.
+
+        When the reset parameters are not None, this camera will be mounted to a new place and render corresponding new
+        results. After this, the camera will be returned to the original states. This process is like borrowing the
+        camera to capture a new image and return the camera to the owner. This usually happens when using one camera to
+        render multiple times from different positions and poses.
+
+        new_parent_node should be a NodePath like object.origin and vehicle.origin or self.engine.origin, which
+        means the world origin. When new_parent_node is set, both position and hpr have to be set as well. The position
+        and hpr are all 3-dim vector representing:
+            1) the relative position to the reparent node
+            2) the heading/pitch/roll of the sensor
+        """
+
+        if new_parent_node:
+            assert position and hpr, "When new_parent_node is set, both position and hpr should be set as well"
+
+            # return camera to original state
+            original_object = self.camera.getParent()
+            original_hpr = self.camera.getHpr()
+            original_position = self.camera.getPos()
+
+            # reparent to new parent node
+            self.camera.reparentTo(new_parent_node)
+            # relative position
+            assert len(position) == 3, "The first parameter of camera.perceive() should be a BaseObject instance " \
+                                       "or a 3-dim vector representing the (x,y,z) position."
+            self.camera.setPos(Vec3(*position))
+            assert len(hpr) == 3, "The hpr parameter of camera.perceive() should be  a 3-dim vector representing " \
+                                  "the heading/pitch/roll."
+            self.camera.setHpr(Vec3(*hpr))
+            self.run_task = False
+            self.engine.taskMgr.step()
+            self.run_task = True
+
         engine = get_engine()
-        assert engine.main_camera.current_track_vehicle is vehicle, "Tracked vehicle mismatch"
         if self.enable_cuda:
             assert self.cuda_rendered_result is not None
             img = self.cuda_rendered_result[..., :-1][..., ::-1][::-1]
@@ -427,6 +496,12 @@ class MainCamera(BaseSensor):
             img = img.reshape((origin_img.getYSize(), origin_img.getXSize(), 4))
             img = img[::-1]
             img = img[..., :self.num_channels]
+
+        # restore
+        if new_parent_node:
+            self.camera.reparentTo(original_object)
+            self.camera.setHpr(original_hpr)
+            self.camera.setPos(original_position)
 
         if not clip:
             return img.astype(np.uint8, copy=False, order="C")

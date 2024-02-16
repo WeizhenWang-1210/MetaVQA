@@ -5,30 +5,21 @@ from metadrive.component.lane.scenario_lane import ScenarioLane
 from metadrive.component.road_network.edge_road_network import EdgeRoadNetwork
 from metadrive.constants import PGDrivableAreaProperty
 from metadrive.constants import PGLineType, PGLineColor
-from metadrive.engine.engine_utils import get_engine
 from metadrive.scenario.scenario_description import ScenarioDescription
 from metadrive.type import MetaDriveType
 from metadrive.utils.interpolating_line import InterpolatingLine
-from metadrive.utils.math import norm
-from metadrive.utils.vertex import make_polygon_model
+from metadrive.utils.math import resample_polyline, get_polyline_length
 
 
 class ScenarioBlock(BaseBlock):
     LINE_CULL_DIST = 500
 
-    def __init__(self, block_index: int, global_network, random_seed, map_index, need_lane_localization):
+    def __init__(self, block_index: int, global_network, random_seed, map_index, map_data, need_lane_localization):
         # self.map_data = map_data
         self.need_lane_localization = need_lane_localization
         self.map_index = map_index
-        data = self.engine.data_manager.current_scenario
-        sdc_track = data.get_sdc_track()
-        self.sdc_start_point = sdc_track["state"]["position"][0]
+        self.map_data = map_data
         super(ScenarioBlock, self).__init__(block_index, global_network, random_seed)
-
-    @property
-    def map_data(self):
-        e = get_engine()
-        return e.data_manager.get_scenario(self.map_index, should_copy=False)["map_features"]
 
     def _sample_topology(self) -> bool:
         for object_id, data in self.map_data.items():
@@ -47,6 +38,8 @@ class ScenarioBlock(BaseBlock):
                     ScenarioDescription.TYPE: MetaDriveType.CROSSWALK,
                     ScenarioDescription.POLYGON: data[ScenarioDescription.POLYGON]
                 }
+            else:
+                pass
         return True
 
     def create_in_world(self):
@@ -56,77 +49,52 @@ class ScenarioBlock(BaseBlock):
         graph = self.block_network.graph
         for id, lane_info in graph.items():
             lane = lane_info.lane
-            lane.construct_lane_in_block(self, lane_index=id)
-            # lane.construct_lane_line_in_block(self, [True if len(lane.left_lanes) == 0 else False,
-            #                                          True if len(lane.right_lanes) == 0 else False, ])
+            self._construct_lane(lane, lane_index=id)
         # draw
         for lane_id, data in self.map_data.items():
             type = data.get("type", None)
             if ScenarioDescription.POLYLINE in data and len(data[ScenarioDescription.POLYLINE]) <= 1:
                 continue
+
+            if not (MetaDriveType.is_road_line(type) or MetaDriveType.is_road_boundary_line(type)):
+                continue
+
+            interval = 2
+            line = np.asarray(np.asarray(data[ScenarioDescription.POLYLINE]))[..., :2]
+            length = get_polyline_length(line)
+            points = resample_polyline(line, interval) if length > interval * 2 else line
+
             if MetaDriveType.is_road_line(type):
                 if MetaDriveType.is_broken_line(type):
-                    self.construct_broken_line(
-                        np.asarray(data[ScenarioDescription.POLYLINE]),
-                        PGLineColor.YELLOW if MetaDriveType.is_yellow_line(type) else PGLineColor.GREY
+                    self._construct_broken_line(
+                        points, PGLineColor.YELLOW if MetaDriveType.is_yellow_line(type) else PGLineColor.GREY
                     )
                 else:
-                    self.construct_continuous_line(
-                        np.asarray(data[ScenarioDescription.POLYLINE]),
-                        PGLineColor.YELLOW if MetaDriveType.is_yellow_line(type) else PGLineColor.GREY
+                    self._construct_continuous_line(
+                        points, PGLineColor.YELLOW if MetaDriveType.is_yellow_line(type) else PGLineColor.GREY
                     )
             elif MetaDriveType.is_road_boundary_line(type):
-                self.construct_continuous_line(np.asarray(data[ScenarioDescription.POLYLINE]), color=PGLineColor.GREY)
-        self.construct_sidewalk()
+                self._construct_continuous_line(points, color=PGLineColor.GREY)
+        self._construct_sidewalk()
+        self._construct_crosswalk()
 
-    def construct_continuous_line(self, polyline, color):
-        line = InterpolatingLine(polyline)
-        segment_num = int(line.length / PGDrivableAreaProperty.STRIPE_LENGTH)
-        for segment in range(segment_num):
-            start = line.get_point(PGDrivableAreaProperty.STRIPE_LENGTH * segment)
-            # trick for optimizing
-            dist = norm(start[0] - self.sdc_start_point[0], start[1] - self.sdc_start_point[1])
-            if dist > self.LINE_CULL_DIST:
-                continue
-
-            if segment == segment_num - 1:
-                end = line.get_point(line.length)
-            else:
-                end = line.get_point((segment + 1) * PGDrivableAreaProperty.STRIPE_LENGTH)
-            node_path_list = ScenarioLane.construct_lane_line_segment(self, start, end, color, PGLineType.CONTINUOUS)
-            self._node_path_list.extend(node_path_list)
-
-    def construct_broken_line(self, polyline, color):
-        line = InterpolatingLine(polyline)
-        segment_num = int(line.length / (2 * PGDrivableAreaProperty.STRIPE_LENGTH))
-        for segment in range(segment_num):
-            start = line.get_point(segment * PGDrivableAreaProperty.STRIPE_LENGTH * 2)
-            # trick for optimizing
-            dist = norm(start[0] - self.sdc_start_point[0], start[1] - self.sdc_start_point[1])
-            if dist > self.LINE_CULL_DIST:
-                continue
-            end = line.get_point(
-                segment * PGDrivableAreaProperty.STRIPE_LENGTH * 2 + PGDrivableAreaProperty.STRIPE_LENGTH
+    def _construct_continuous_line(self, points, color):
+        for index in range(0, len(points) - 1):
+            node_path_list = self._construct_lane_line_segment(
+                points[index], points[index + 1], color, PGLineType.BROKEN
             )
-            if segment == segment_num - 1:
-                end = line.get_point(line.length - PGDrivableAreaProperty.STRIPE_LENGTH)
-            node_path_list = ScenarioLane.construct_lane_line_segment(self, start, end, color, PGLineType.BROKEN)
             self._node_path_list.extend(node_path_list)
 
-    def construct_crosswalk(self):
+    def _construct_broken_line(self, points, color):
         """
-        Construct the crosswalk
+        Resample and rebuild the line
         """
-        raise DeprecationWarning("The Crosswalk is built on terrain now")
-        if self.engine.global_config["show_crosswalk"] and not self.engine.use_render_pipeline:
-            for sidewalk in self.crosswalks.values():
-                polygon = sidewalk["polygon"]
-                np = make_polygon_model(polygon, 0.0)
-                np.reparentTo(self.sidewalk_node_path)
-                np.setPos(0, 0, -0.05)
-                np.setTexture(self.side_texture)
-                # np.setTexture(self.ts_normal, self.side_normal)
-                self._node_path_list.append(np)
+        for index in range(0, len(points) - 1, 2):
+            if index + 1 < len(points) - 1:
+                node_path_list = self._construct_lane_line_segment(
+                    points[index], points[index + 1], color, PGLineType.BROKEN
+                )
+                self._node_path_list.extend(node_path_list)
 
     @property
     def block_network_type(self):

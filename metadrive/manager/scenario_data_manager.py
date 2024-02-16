@@ -1,6 +1,6 @@
 import copy
 import os
-
+from metadrive.utils.config import Config
 import numpy as np
 
 from metadrive.manager.base_manager import BaseManager
@@ -125,20 +125,6 @@ class ScenarioDataManager(BaseManager):
         state["raw_data"] = raw_data
         return state
 
-    def transform_coordinate(self, scenario):
-        raise ValueError("Deprecated now as all coordinates is right-handed now")
-        if not self.engine.global_config["allow_coordinate_transform"]:
-            assert scenario[SD.METADATA][SD.COORDINATE] == MetaDriveType.COORDINATE_METADRIVE, \
-                "Only support MetaDrive coordinate!"
-        else:
-            # It supports loading WaymoData or exported data in two coordinates
-            if scenario[SD.METADATA][SD.COORDINATE] == MetaDriveType.COORDINATE_WAYMO:
-                self._coordinate_transform = True
-            elif scenario[SD.METADATA][SD.COORDINATE] == MetaDriveType.COORDINATE_METADRIVE:
-                self._coordinate_transform = False
-            else:
-                raise ValueError()
-
     @property
     def current_scenario_length(self):
         return self.current_scenario[SD.LENGTH]
@@ -202,3 +188,14 @@ class ScenarioDataManager(BaseManager):
     @property
     def data_coverage(self):
         return sum(self.coverage) / len(self.coverage) * self.engine.global_config["num_workers"]
+
+    def destroy(self):
+        """
+        Clear memory
+        """
+        super(ScenarioDataManager, self).destroy()
+        self._scenarios = {}
+        Config.clear_nested_dict(self.summary_dict)
+        self.summary_lookup.clear()
+        self.mapping.clear()
+        self.summary_dict, self.summary_lookup, self.mapping = None, None, None

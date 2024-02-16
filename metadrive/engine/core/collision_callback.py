@@ -1,6 +1,7 @@
 from metadrive.constants import MetaDriveType
 from metadrive.utils.utils import get_object_from_node
 
+
 def collision_callback(contact):
     """
     All collision callback should be here, and a notify() method can turn it on
@@ -8,7 +9,6 @@ def collision_callback(contact):
     """
 
     # now it only process BaseVehicle collision
-    
     node0 = contact.getNode0()
     node1 = contact.getNode1()
 
@@ -16,9 +16,14 @@ def collision_callback(contact):
     another_nodes = [node1, node0]
     for i in range(2):
         if nodes[i].hasPythonTag(MetaDriveType.VEHICLE):
+            obj_type = another_node_name = another_nodes[i].getName()
+            if obj_type in [MetaDriveType.BOUNDARY_SIDEWALK, MetaDriveType.CROSSWALK] \
+                    or MetaDriveType.is_road_line(obj_type):
+                continue
+            # print(obj_type)
             obj_1 = get_object_from_node(nodes[i])
             obj_2 = get_object_from_node(another_nodes[i])
-            another_node_name = another_nodes[i].getName()
+
             # crash vehicles
             if another_node_name == MetaDriveType.VEHICLE:
                 obj_1.crash_vehicle = True
@@ -38,3 +43,4 @@ def collision_callback(contact):
             # crash invisible wall or building
             elif another_node_name in [MetaDriveType.INVISIBLE_WALL, MetaDriveType.BUILDING]:
                 obj_1.crash_building = True
+            # logging.debug("{} crash with {}".format(nodes[i].getName(), another_nodes[i].getName()))

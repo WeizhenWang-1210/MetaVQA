@@ -2,9 +2,13 @@ from abc import ABC
 import numpy as np
 import gymnasium as gym
 from copy import deepcopy
+from metadrive.engine.logger import get_logger
+from metadrive.utils.config import Config
+
+logger = get_logger()
 
 
-class ObservationBase(ABC):
+class BaseObservation(ABC):
     """
     BaseObservation Class. Observation should implement all abstracted methods
     """
@@ -28,11 +32,23 @@ class ObservationBase(ABC):
     def reset(self, env, vehicle=None):
         pass
 
+    def destroy(self):
+        """
+        Clear allocated memory
+        """
+        pass
+        # Config.clear_nested_dict(self.config)
+        # self.config = None
 
-class DummyObservation(ObservationBase):
+
+class DummyObservation(BaseObservation):
     """
     Fake Observation class, can be used as placeholder
     """
+    def __init__(self, config=None):
+        super(DummyObservation, self).__init__(config)
+        logger.warning("You are using DummyObservation which doesn't collect information from the environment.")
+
     @property
     def observation_space(self):
         return gym.spaces.Box(-0.0, 1.0, shape=(1, ), dtype=np.float32)

@@ -5,37 +5,37 @@ if __name__ == "__main__":
     setup_logger(True)
     env = MetaDriveEnv(
         {
-            "num_scenarios": 10,
-            "traffic_density": 1,
+            "num_scenarios": 1,
+            "traffic_density": 0,
             "start_seed": 74,
             # "_disable_detector_mask":True,
             # "debug_physics_world": True,
             "debug": True,
             # "global_light": False,
-            # "debug_static_world": True,
+            "debug_static_world": True,
             "static_traffic_object": False,
             "show_interface": True,
             "random_agent_model": True,
-            "cull_scene": False,
             "random_spawn_lane_index": False,
             "random_lane_width": False,
             # "image_observation": True,
-            # "controller": "joystick",
             # "show_coordinates": True,
-            # "random_agent_model": False,
-            "debug_static_world": True,
+            # "debug_static_world": True,
             "manual_control": True,
             "use_render": True,
             "use_mesh_terrain": False,
+            "full_size_mesh": True,
             "accident_prob": 0,
             "decision_repeat": 5,
             "daytime": "19:00",
             "interface_panel": [],
             "need_inverse_traffic": False,
-            "rgb_clip": True,
-            "map": "SSS",
+            "norm_pixel": True,
+            "map": 1,
             # "agent_policy": ExpertPolicy,
             "random_traffic": False,
+            "map_region_size": 1024,
+            # "height_scale": 100,
             # "random_lane_width": True,
             "driving_reward": 1.0,
             # "pstats": True,
@@ -53,7 +53,6 @@ if __name__ == "__main__":
             # "camera_height": -1,
             "vehicle_config": {
                 "enable_reverse": True,
-                # "vehicle_model": "xl",
                 # "rgb_camera": (1024, 1024),
                 # "spawn_velocity": [8.728615581032535, -0.24411703918728195],
                 "spawn_velocity_car_frame": True,
@@ -64,17 +63,19 @@ if __name__ == "__main__":
                 # "destination":"2R1_3_",
                 # "show_side_detector": True,
                 # "show_lane_line_detector": True,
-                # "side_detector": dict(num_lasers=2, distance=50),
-                # "lane_line_detector": dict(num_lasers=2, distance=50),
-                # "show_line_to_navi_mark": True,
-                "show_navi_mark": False,
-                # "show_dest_mark": True
+                "side_detector": dict(num_lasers=2, distance=50),
+                "lane_line_detector": dict(num_lasers=50, distance=50),
+                "show_lane_line_detector": True,
+                "show_line_to_navi_mark": True,
+                "show_line_to_dest": True,
+                "show_navi_mark": True,
+                "show_dest_mark": True
             },
         }
     )
     import time
 
-    speed = 8
+    speed = 0.1
 
     def acc_speed():
         global speed
@@ -85,12 +86,20 @@ if __name__ == "__main__":
         speed /= 2
 
     def lower_terrain():
-        pos = env.engine.terrain._mesh_terrain.getPos()
-        env.engine.terrain._mesh_terrain.set_pos(pos[0], pos[1], pos[2] - speed)
+        pos = env.engine.terrain.mesh_collision_terrain.getPos()
+        env.engine.terrain.mesh_collision_terrain.set_pos(pos[0], pos[1] - speed, pos[2])
+
+    def lower_terrain_x():
+        pos = env.engine.terrain.mesh_collision_terrain.getPos()
+        env.engine.terrain.mesh_collision_terrain.set_pos(pos[0] - speed, pos[1], pos[2])
 
     def lift_terrain():
-        pos = env.engine.terrain._mesh_terrain.getPos()
-        env.engine.terrain._mesh_terrain.set_pos(pos[0], pos[1], pos[2] + speed)
+        pos = env.engine.terrain.mesh_collision_terrain.getPos()
+        env.engine.terrain.mesh_collision_terrain.set_pos(pos[0], pos[1] + speed, pos[2])
+
+    def lift_terrain_x():
+        pos = env.engine.terrain.mesh_collision_terrain.getPos()
+        env.engine.terrain.mesh_collision_terrain.set_pos(pos[0] + speed, pos[1], pos[2])
 
     init_state = {
         'position': (40.82264362985734, -509.3641208712943),
@@ -103,40 +112,51 @@ if __name__ == "__main__":
 
     o, _ = env.reset(seed=74)
     env.engine.accept("~", env.engine.terrain.reload_terrain_shader)
-    if env.config["render_pipeline"]:
-        env.engine.accept("5", env.engine.render_pipeline.reload_shaders)
-        env.engine.accept("7", acc_speed)
-        env.engine.accept("8", de_speed)
-        env.engine.accept("9", lift_terrain)
-        env.engine.accept("0", lower_terrain)
+    # if env.config["render_pipeline"]:
+    # env.engine.accept("5", env.engine.render_pipeline.reload_shaders)
+    env.engine.accept("5", acc_speed)
+    env.engine.accept("6", de_speed)
+    env.engine.accept("7", lift_terrain_x)
+    env.engine.accept("8", lower_terrain_x)
+    env.engine.accept("9", lift_terrain)
+    env.engine.accept("0", lower_terrain)
     env.engine.accept("`", env.engine.terrain.reload_terrain_shader)
     # env.main_camera.set_follow_lane(True)
-    # env.vehicle.get_camera("rgb_camera").save_image(env.vehicle)
+    # env.agent.get_camera("rgb_camera").save_image(env.agent)
     # for line in env.engine.coordinate_line:
-    #     line.reparentTo(env.vehicle.origin)
-    # env.vehicle.set_velocity([5, 0], in_local_frame=True)
+    #     line.reparentTo(env.agent.origin)
+    # env.agent.set_velocity([5, 0], in_local_frame=True)
     print(time.time() - start)
+    # origin = env.engine.terrain.mesh_collision_terrain.getPos()
     for s in range(1, 100000):
-        # env.vehicle.set_velocity([1, 0], in_local_frame=True)
+        # env.agent.set_velocity([1, 0], in_local_frame=True)
         o, r, tm, tc, info = env.step([0, 0])
+        env.render(text={"pos": env.agent.position})
+        # env.render(
+        #     text={
+        #         "pos": env.engine.terrain.mesh_collision_terrain.getPos(),
+        #         "origin": [origin[0], origin[1]],
+        #         "speed": speed,
+        #     }
+        # )
         # if tm:
         #     s = time.time()
         #     env.reset()
         #     print(time.time() - s)
 
-        # env.vehicle.set_pitch(-np.pi/4)
+        # env.agent.set_pitch(-np.pi/4)
         # [0.09231533, 0.491018, 0.47076905, 0.7691619, 0.5, 0.5, 1.0, 0.0, 0.48037243, 0.8904728, 0.81229943, 0.7317231, 1.0, 0.85320455, 0.9747932, 0.65675277, 0.0, 0.5, 0.5]
         # else:
         # if s % 100 == 0:
         #     env.close()
         #     env.reset()
-        # info["fuel"] = env.vehicle.energy_consumption
+        # info["fuel"] = env.agent.energy_consumption
         # env.render(
         #     text={
-        #         # "heading_diff": env.vehicle.heading_diff(env.vehicle.lane),
-        #         # "lane_width": env.vehicle.lane.width,
-        #         # "lane_index": env.vehicle.lane_index,
-        #         # "lateral": env.vehicle.lane.local_coordinates(env.vehicle.position),
+        #         # "heading_diff": env.agent.heading_diff(env.agent.lane),
+        #         # "lane_width": env.agent.lane.width,
+        #         # "lane_index": env.agent.lane_index,
+        #         # "lateral": env.agent.lane.local_coordinates(env.agent.position),
         #         "current_seed": env.current_seed
         #     }
         # )

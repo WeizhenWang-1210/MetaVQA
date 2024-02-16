@@ -12,6 +12,10 @@ from metadrive.utils import Config
 from typing import Union, Optional
 import os
 
+
+
+
+
 def convert_path(pth):
     return Filename.from_os_specific(pth).get_fullpath()
 
@@ -171,6 +175,12 @@ class CustomizedCar(BaseVehicle):
         wheel.setFrictionSlip(wheel_friction)
         wheel.setRollInfluence(0.5)
         return wheel
+
+
+
+
+
+
 
 class DefaultVehicle(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.DEFAULT_VEHICLE)
@@ -412,7 +422,8 @@ class VaryingDynamicsVehicle(DefaultVehicle):
                 name=self.name,
                 random_seed=self.random_seed,
                 position=position,
-                heading=heading
+                heading=heading,
+                _calling_reset=False
             )
 
             # lm = process_memory()
@@ -448,40 +459,4 @@ vehicle_type = {
     "test": CustomizedCar
 }
 
-VaryingShapeVehicle = VaryingDynamicsVehicle
-
-type_count = [0 for i in range(3)]
-
-
-def reset_vehicle_type_count(np_random=None):
-    global type_count
-    if np_random is None:
-        type_count = [0 for i in range(3)]
-    else:
-        type_count = [np_random.randint(100) for i in range(3)]
-
-
-def get_vehicle_type(length, np_random=None, need_default_vehicle=False):
-    if np_random is not None:
-        if length <= 4:
-            return SVehicle
-        elif length <= 5.5:
-            return [LVehicle, SVehicle, MVehicle][np_random.randint(3)]
-        else:
-            return [LVehicle, XLVehicle][np_random.randint(2)]
-    else:
-        global type_count
-        # evenly sample
-        if length <= 4:
-            return SVehicle
-        elif length <= 5.5:
-            type_count[1] += 1
-            vs = [LVehicle, MVehicle, SVehicle]
-            # vs = [SVehicle, LVehicle, MVehicle]
-            if need_default_vehicle:
-                vs.append(TrafficDefaultVehicle)
-            return vs[type_count[1] % len(vs)]
-        else:
-            type_count[2] += 1
-            vs = [LVehicle, XLVehicle]
-            return vs[type_count[2] % len(vs)]
+vehicle_class_to_type = inv_map = {v: k for k, v in vehicle_type.items()}

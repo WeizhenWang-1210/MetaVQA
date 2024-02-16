@@ -10,7 +10,7 @@ class SceneCull:
     """
     Used to cull distant rendering object in MetaDrive to improve rendering efficiency
     """
-
+    raise DeprecationWarning
     # Visualization cull
     LOD_MAP_VIS_DIST = 300  # highly related to the render efficiency !
     LOD_VEHICLE_VIS_DIST = 500
@@ -52,7 +52,7 @@ class SceneCull:
             v_p = obj.position
             if not cls.all_distance_greater_than(vis_distance, poses, v_p):
                 if not obj.origin.hasParent():
-                    obj.origin.reparentTo(engine.pbr_worldNP)
+                    obj.origin.reparentTo(engine.worldNP)
             else:
                 if obj.origin.hasParent():
                     obj.origin.detachNode()

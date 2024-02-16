@@ -1,4 +1,4 @@
-from metadrive.utils.random import get_np_random
+from metadrive.utils.random_utils import get_np_random
 
 
 class Randomizable:
@@ -19,3 +19,9 @@ class Randomizable:
 
     def generate_seed(self):
         return self.np_random.randint(0, self.MAX_RAND_INT)
+
+    def destroy(self):
+        """
+        Destroy random generator
+        """
+        self.np_random = None

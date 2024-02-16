@@ -8,13 +8,13 @@ from metadrive.component.pgblock.first_block import FirstPGBlock
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.engine_utils import engine_initialized
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from metadrive.envs.real_data_envs.waymo_env import WaymoEnv
+from metadrive.envs.scenario_env import ScenarioEnv
 from metadrive.manager.pg_map_manager import PGMapManager
 from metadrive.manager.traffic_manager import PGTrafficManager
 from metadrive.manager.traffic_manager import TrafficMode
-from metadrive.manager.waymo_data_manager import WaymoDataManager
-from metadrive.manager.waymo_map_manager import WaymoMapManager
-from metadrive.manager.waymo_traffic_manager import WaymoTrafficManager
+from metadrive.manager.scenario_data_manager import ScenarioDataManager
+from metadrive.manager.scenario_map_manager import ScenarioMapManager
+from metadrive.manager.scenario_traffic_manager import ScenarioTrafficManager
 from metadrive.utils import get_np_random
 
 MIX_WAYMO_PG_ENV_CONFIG = dict(
@@ -60,7 +60,7 @@ MIX_WAYMO_PG_ENV_CONFIG = dict(
 )
 
 
-class MixWaymoPGEnv(WaymoEnv):
+class MixWaymoPGEnv(ScenarioEnv):
     raise DeprecationWarning("Navigation error exists in this env, fix it")
 
     @classmethod
@@ -94,16 +94,16 @@ class MixWaymoPGEnv(WaymoEnv):
 
     def setup_engine(self):
         # Initialize all managers
-        self.waymo_map_manager = WaymoMapManager()
-        self.waymo_traffic_manager = WaymoTrafficManager()
+        self.waymo_map_manager = ScenarioMapManager()
+        self.waymo_traffic_manager = ScenarioTrafficManager()
 
         self.pg_map_manager = PGMapManager()
         self.pg_traffic_manager = PGTrafficManager()
 
-        super(WaymoEnv, self).setup_engine()
+        super(ScenarioEnv, self).setup_engine()
         if self.real_data_ratio > 0:
             self.is_current_real_data = True
-            self.engine.register_manager("data_manager", WaymoDataManager())
+            self.engine.register_manager("data_manager", ScenarioDataManager())
             self.engine.register_manager("map_manager", self.waymo_map_manager)
             if not self.config["no_traffic"]:
                 self.engine.register_manager("traffic_manager", self.waymo_traffic_manager)
@@ -134,10 +134,10 @@ class MixWaymoPGEnv(WaymoEnv):
                 self._init_pg_episode()
 
     def _init_pg_episode(self):
-        self.config["target_vehicle_configs"]["default_agent"]["spawn_lane_index"] = (
+        self.config["agent_configs"]["default_agent"]["spawn_lane_index"] = (
             FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, self.engine.np_random.randint(3)
         )
-        self.config["target_vehicle_configs"]["default_agent"]["destination"] = None
+        self.config["agent_configs"]["default_agent"]["destination"] = None
 
     def reset(self, seed: Union[None, int] = None):
         self.change_suite()
@@ -151,21 +151,22 @@ class MixWaymoPGEnv(WaymoEnv):
                 "env.reset() to rescue this environment. However, a better and safer solution is to check the "
                 "singleton of MetaDrive and restart your program."
             )
-        self.engine.reset()
-        if self._top_down_renderer is not None:
-            self._top_down_renderer.reset(self.current_map)
+        reset_info = self.engine.reset()
+        if self.top_down_renderer is not None:
+            self.top_down_renderer.clear()
+        self.engine.top_down_renderer = None
 
-        self.dones = {agent_id: False for agent_id in self.vehicles.keys()}
+        self.dones = {agent_id: False for agent_id in self.agents.keys()}
         self.episode_rewards = defaultdict(float)
         self.episode_lengths = defaultdict(int)
 
-        assert (len(self.vehicles) == self.num_agents) or (self.num_agents == -1)
+        assert (len(self.agents) == self.num_agents) or (self.num_agents == -1)
         # ^^^^^^ same as Base Env ^^^^^
 
         if not self.is_current_real_data:
             # give a initial speed when on metadrive
-            self.vehicle.set_velocity(self.vehicle.heading, self.engine.np_random.randint(10))
-        return self._get_reset_return()
+            self.agent.set_velocity(self.agent.heading, self.engine.np_random.randint(10))
+        return self._get_reset_return(reset_info)
 
     def _reset_global_seed(self, force_seed=None):
         current_seed = force_seed if force_seed is not None else get_np_random(None).randint(

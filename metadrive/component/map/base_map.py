@@ -4,10 +4,11 @@ from abc import ABC
 
 import cv2
 import numpy as np
+from panda3d.core import NodePath, Vec3
 
 from metadrive.base_class.base_runnable import BaseRunnable
+from metadrive.constants import CamMask
 from metadrive.constants import MapTerrainSemanticColor, MetaDriveType, PGDrivableAreaProperty
-from metadrive.engine.engine_utils import get_global_config
 from metadrive.utils.shapely_utils.geom import find_longest_edge
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,6 @@ class BaseMap(BaseRunnable, ABC):
         #     self.SEED
         # ], "Global seed {} should equal to seed in map config {}".format(random_seed, map_config[self.SEED])
         super(BaseMap, self).__init__(config=map_config)
-        self.film_size = (get_global_config()["draw_map_resolution"], get_global_config()["draw_map_resolution"])
 
         # map features
         self.road_network = self.road_network_type()
@@ -63,6 +63,11 @@ class BaseMap(BaseRunnable, ABC):
         self._generate()
         assert self.blocks, "The generate methods does not fill blocks!"
 
+        # lanes debug
+        self.lane_coordinates_debug_node = None
+        if self.engine.global_config["show_coordinates"]:
+            self.show_coordinates()
+
         #  a trick to optimize performance
         self.spawn_roads = None
         self.detach_from_world()
@@ -70,9 +75,6 @@ class BaseMap(BaseRunnable, ABC):
         # save a backup
         self._semantic_map = None
         self._height_map = None
-
-        if self.engine.global_config["show_coordinates"]:
-            self.show_coordinates()
 
     def _generate(self):
         """Key function! Please overwrite it! This func aims at fill the self.road_network adn self.blocks"""
@@ -82,10 +84,14 @@ class BaseMap(BaseRunnable, ABC):
         parent_node_path, physics_world = self.engine.worldNP or parent_np, self.engine.physics_world or physics_world
         for block in self.blocks:
             block.attach_to_world(parent_node_path, physics_world)
+        if self.lane_coordinates_debug_node is not None:
+            self.lane_coordinates_debug_node.reparentTo(parent_node_path)
 
     def detach_from_world(self, physics_world=None):
         for block in self.blocks:
             block.detach_from_world(self.engine.physics_world or physics_world)
+        if self.lane_coordinates_debug_node is not None:
+            self.lane_coordinates_debug_node.detachNode()
 
     def get_meta_data(self):
         """
@@ -113,9 +119,10 @@ class BaseMap(BaseRunnable, ABC):
         if self.road_network is not None:
             self.road_network.destroy()
         self.road_network = None
-
         self.spawn_roads = None
 
+        if self.lane_coordinates_debug_node is not None:
+            self.lane_coordinates_debug_node.removeNode()
         super(BaseMap, self).destroy()
 
     @property
@@ -132,6 +139,26 @@ class BaseMap(BaseRunnable, ABC):
 
     def show_coordinates(self):
         pass
+
+    def _show_coordinates(self, lanes):
+        if self.lane_coordinates_debug_node is not None:
+            self.lane_coordinates_debug_node.detachNode()
+            self.lane_coordinates_debug_node.removeNode()
+
+        self.lane_coordinates_debug_node = NodePath("Lane Coordinates debug")
+        self.lane_coordinates_debug_node.hide(CamMask.AllOn)
+        self.lane_coordinates_debug_node.show(CamMask.MainCam)
+        for lane in lanes:
+            long_start = lateral_start = lane.position(0, 0)
+            lateral_end = lane.position(0, 2)
+
+            long_end = long_start + lane.heading_at(0) * 4
+            np_y = self.engine._draw_line_3d(Vec3(*long_start, 0), Vec3(*long_end, 0), color=[0, 1, 0, 1], thickness=3)
+            np_x = self.engine._draw_line_3d(
+                Vec3(*lateral_start, 0), Vec3(*lateral_end, 0), color=[1, 0, 0, 1], thickness=3
+            )
+            np_x.reparentTo(self.lane_coordinates_debug_node)
+            np_y.reparentTo(self.lane_coordinates_debug_node)
 
     def get_map_features(self, interval=2):
         """
@@ -155,6 +182,7 @@ class BaseMap(BaseRunnable, ABC):
     # @time_me
     def get_semantic_map(
         self,
+        center_point,
         size=512,
         pixels_per_meter=8,
         color_setting=MapTerrainSemanticColor,
@@ -164,14 +192,17 @@ class BaseMap(BaseRunnable, ABC):
     ):
         """
         Get semantics of the map for terrain generation
+        :param center_point: 2D point, the center to select the rectangular region
         :param size: [m] length and width
         :param pixels_per_meter: the returned map will be in (size*pixels_per_meter * size*pixels_per_meter) size
         :param color_setting: color palette for different attribute. When generating terrain, make sure using
         :param line_sample_interval: [m] It determines the resolution of sampled points.
+        :param polyline_thickness: [m] The width of the road lines
         :param layer: layer to get
         MapTerrainAttribute
         :return: semantic map
         """
+        center_p = center_point
         if self._semantic_map is None:
             all_lanes = self.get_map_features(interval=line_sample_interval)
             polygons = []
@@ -200,7 +231,6 @@ class BaseMap(BaseRunnable, ABC):
             mask[..., 0] = color_setting.get_color(MetaDriveType.GROUND)
             # create an example bounding box polygon
             # for idx in range(len(polygons)):
-            center_p = self.get_center_point()
             for polygon, color in polygons:
                 points = [
                     [
@@ -216,7 +246,9 @@ class BaseMap(BaseRunnable, ABC):
                         int((p[1] - center_p[1]) * pixels_per_meter) + size / 2
                     ] for p in line
                 ]
-                cv2.polylines(mask, np.array([points]).astype(np.int32), False, color, polyline_thickness)
+                thickness = polyline_thickness * 2 if color == MapTerrainSemanticColor.YELLOW else polyline_thickness
+                thickness = min(thickness, 2)  # clip
+                cv2.polylines(mask, np.array([points]).astype(np.int32), False, color, thickness)
 
             if "crosswalk" in layer:
                 for id, sidewalk in self.crosswalks.items():
@@ -246,6 +278,7 @@ class BaseMap(BaseRunnable, ABC):
     # @time_me
     def get_height_map(
         self,
+        center_point,
         size=2048,
         pixels_per_meter=1,
         extension=2,
@@ -254,11 +287,13 @@ class BaseMap(BaseRunnable, ABC):
         """
         Get height of the map for terrain generation
         :param size: [m] length and width
+        :param center_point: 2D point, the center to select the rectangular region
         :param pixels_per_meter: the returned map will be in (size*pixels_per_meter * size*pixels_per_meter) size
         :param extension: If > 1, the returned height map's drivable region will be enlarged.
         :param height: height of drivable area.
         :return: heightfield image in uint 16 nparray
         """
+        center_p = center_point
         if self._height_map is None:
             extension = max(1, extension)
             all_lanes = self.get_map_features()
@@ -271,7 +306,6 @@ class BaseMap(BaseRunnable, ABC):
             size = int(size * pixels_per_meter)
             mask = np.zeros([size, size, 1])
 
-            center_p = self.get_center_point()
             need_scale = abs(extension - 1) > 1e-1
 
             for sidewalk in self.sidewalks.values():
@@ -294,3 +328,11 @@ class BaseMap(BaseRunnable, ABC):
                 mask = np.expand_dims(mask, axis=-1)
             self._height_map = mask
         return self._height_map
+
+    def show_bounding_box(self):
+        """
+        Draw the bounding box of map in 3D renderer
+        Returns: None
+
+        """
+        self.road_network.show_bounding_box(self.engine)

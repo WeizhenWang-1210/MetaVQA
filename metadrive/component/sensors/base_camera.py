@@ -1,4 +1,6 @@
 import numpy as np
+from typing import Union
+from panda3d.core import NodePath
 import cv2
 from metadrive.component.sensors.base_sensor import BaseSensor
 from metadrive.utils.cuda import check_cudart_err
@@ -28,19 +30,13 @@ class BaseCamera(ImageBuffer, BaseSensor):
     BUFFER_W = 84  # dim 1
     BUFFER_H = 84  # dim 2
     CAM_MASK = None
-    attached_object = None
 
     num_channels = 3
 
     def __init__(self, engine, need_cuda=False, frame_buffer_property=None):
         self._enable_cuda = need_cuda
         super(BaseCamera, self).__init__(
-            self.BUFFER_W,
-            self.BUFFER_H,
-            Vec3(0., 0.8, 1.5),
-            self.BKG_COLOR,
-            engine=engine,
-            frame_buffer_property=frame_buffer_property
+            self.BUFFER_W, self.BUFFER_H, self.BKG_COLOR, engine=engine, frame_buffer_property=frame_buffer_property
         )
 
         width = self.BUFFER_W
@@ -65,8 +61,7 @@ class BaseCamera(ImageBuffer, BaseSensor):
             self._cuda_buffer = None
 
             # make texture
-            self.cuda_texture = Texture()
-            self.buffer.addRenderTexture(self.cuda_texture, GraphicsOutput.RTMBindOrCopy)
+            self._make_cuda_texture()
 
             def _callback_func(cbdata: DisplayRegionDrawCallbackData):
                 # print("DRAW CALLBACK!!!!!!!!!!!!!!!11")
@@ -88,59 +83,91 @@ class BaseCamera(ImageBuffer, BaseSensor):
             self.new_cuda_mem_ptr = None
             self.cuda_rendered_result = None
 
+    def _make_cuda_texture(self):
+        """
+        Make a texture for cuda access
+        """
+        self.cuda_texture = Texture()
+        self.buffer.addRenderTexture(self.cuda_texture, GraphicsOutput.RTMBindOrCopy)
+
     @property
     def enable_cuda(self):
         return self is not None and self._enable_cuda
 
-    def get_image(self, base_object):
-        """
-        Borrow the camera to get observations
-        """
-        self.sync_light(base_object)
-        self.origin.reparentTo(base_object.origin)
-        img = self.get_rgb_array_cpu()
-        self.track(self.attached_object)
-        return img
-
     def save_image(self, base_object, name="debug.png"):
-        img = self.get_image(base_object)
+        """
+        Put camera to an object and save the image to the disk
+        """
+        original_parent = self.cam.getParent()
+        original_position = self.cam.getPos()
+        original_hpr = self.cam.getHpr()
+        self.cam.reparentTo(base_object.origin)
+        img = self.get_rgb_array_cpu()
+        self.track(original_parent, original_position, original_hpr)
         cv2.imwrite(name, img)
 
-    def perceive(self, base_object, clip=True) -> np.ndarray:
-        self.sync_light(base_object)
-        self.track(base_object)
+    def track(self, new_parent_node: NodePath, position, hpr):
+        """
+        Track a given object.
+        """
+        self.cam.reparentTo(new_parent_node)
+        self.cam.setPos(*position)
+        self.cam.setHpr(*hpr)
+
+    def perceive(self, clip=True, new_parent_node: Union[NodePath, None] = None, position=None, hpr=None) -> np.ndarray:
+        """
+        When clip is set to False, the image will be represented by unit8 with component value ranging from [0-255].
+        Otherwise, it will be float type with component value ranging from [0.-1.]. By default, the reset parameters are
+        all None. In this case, the camera will render the result with poses and position set by track() function.
+
+        When the reset parameters are not None, this camera will be mounted to a new place and render corresponding new
+        results. After this, the camera will be returned to the original states. This process is like borrowing the
+        camera to capture a new image and return the camera to the owner. This usually happens when using one camera to
+        render multiple times from different positions and poses.
+
+        new_parent_node should be a NodePath like object.origin and vehicle.origin or self.engine.origin, which
+        means the world origin. When new_parent_node is set, both position and hpr have to be set as well. The position 
+        and hpr are all 3-dim vector representing:
+            1) the relative position to the reparent node
+            2) the heading/pitch/roll of the sensor
+        """
+
+        if new_parent_node:
+            assert position and hpr, "When new_parent_node is set, both position and hpr should be set as well"
+
+            # return camera to original state
+            original_object = self.cam.getParent()
+            original_hpr = self.cam.getHpr()
+            original_position = self.cam.getPos()
+
+            # reparent to new parent node
+            self.cam.reparentTo(new_parent_node)
+            # relative position
+            assert len(position) == 3, "The first parameter of camera.perceive() should be a BaseObject instance " \
+                                       "or a 3-dim vector representing the (x,y,z) position."
+            self.cam.setPos(Vec3(*position))
+            assert len(hpr) == 3, "The hpr parameter of camera.perceive() should be  a 3-dim vector representing " \
+                                  "the heading/pitch/roll."
+            self.cam.setHpr(Vec3(*hpr))
+            self.engine.taskMgr.step()
+
         if self.enable_cuda:
             assert self.cuda_rendered_result is not None
-            ret = self.cuda_rendered_result[..., :-1][..., ::-1][::-1][..., :self.num_channels]
+            ret = self.cuda_rendered_result[..., :self.num_channels][..., ::-1][::-1]
         else:
             ret = self.get_rgb_array_cpu()
-        if self.engine.global_config["rgb_to_grayscale"]:
-            ret = np.dot(ret[..., :3], [0.299, 0.587, 0.114])
+
+        if new_parent_node:
+            # return camera to original objects
+            self.cam.reparentTo(original_object)
+            self.cam.setHpr(original_hpr)
+            self.cam.setPos(original_position)
+
         if not clip:
             return ret.astype(np.uint8, copy=False, order="C")
         else:
             return ret / 255
 
-    def offset_perceive(self,base_object,clip=True,offset = 0):
-        self.sync_light(base_object)
-        self.track(base_object)
-        self.origin.setH(offset)
-        if self.enable_cuda:
-            assert self.cuda_rendered_result is not None
-            ret = self.cuda_rendered_result[..., :-1][..., ::-1][::-1][..., :self.num_channels]
-        else:
-            ret = self.get_rgb_array_cpu()
-        if self.engine.global_config["rgb_to_grayscale"]:
-            ret = np.dot(ret[..., :3], [0.299, 0.587, 0.114])
-        if not clip:
-            return ret.astype(np.uint8, copy=False, order="C")
-        else:
-            return ret / 255
-
-        
-        
-        
-        
     def destroy(self):
         if self.registered:
             self.unregister()
@@ -158,15 +185,6 @@ class BaseCamera(ImageBuffer, BaseSensor):
 
     def remove_display_region(self):
         super(BaseCamera, self).remove_display_region()
-
-    def track(self, base_object):
-        if base_object is not None and self is not None:
-            self.attached_object = base_object
-            self.origin.reparentTo(base_object.origin)
-
-    def sync_light(self, obj):
-        if self.engine.world_light is not None:
-            self.engine.world_light.set_pos(obj.position)
 
     def __del__(self):
         if self.enable_cuda:

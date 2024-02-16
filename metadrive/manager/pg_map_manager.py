@@ -39,8 +39,9 @@ class PGMapManager(BaseManager):
             map.destroy()
 
     def destroy(self):
-        self.maps = None
         super(PGMapManager, self).destroy()
+        self.clear_stored_maps()
+        self.maps = None
 
     def before_reset(self):
         # remove map from world before adding
@@ -57,11 +58,12 @@ class PGMapManager(BaseManager):
             map_config.update({"seed": current_seed})
             map_config = self.add_random_to_map(map_config)
             map = self.spawn_object(PGMap, map_config=map_config, random_seed=None)
+            self.current_map = map
             if self.engine.global_config["store_map"]:
                 self.maps[current_seed] = map
         else:
             map = self.maps[current_seed]
-        self.load_map(map)
+            self.load_map(map)
 
     def add_random_to_map(self, map_config):
         if self.engine.global_config["random_lane_width"]:
@@ -130,12 +132,14 @@ class PGMapManager(BaseManager):
         self.reset()
         return loaded_map_data
 
-    def clear_objects(self, *args, **kwargs):
+    def clear_stored_maps(self):
         """
-        As Map instance should not be recycled, we will forcefully destroy useless map instances.
+        Clear all stored maps
         """
-        return super(PGMapManager, self).clear_objects(force_destroy=True, *args, **kwargs)
-
-
-# For compatibility
-MapManager = PGMapManager
+        for m in self.maps.values():
+            if m is not None:
+                m.detach_from_world()
+                m.destroy()
+        start_seed = self.start_seed = self.engine.global_config["start_seed"]
+        env_num = self.env_num = self.engine.global_config["num_scenarios"]
+        self.maps = {_seed: None for _seed in range(start_seed, start_seed + env_num)}

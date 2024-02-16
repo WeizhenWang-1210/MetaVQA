@@ -10,11 +10,11 @@ if __name__ == "__main__":
             "manual_control": True,
             "use_render": True,
             "image_observation": True,
-            "rgb_clip": True,
+            "norm_pixel": True,
         }
     )
     env.reset()
-    env.engine.accept("m", env.vehicle.get_camera([env.config["image_source"]]).save_image)
+    env.engine.accept("m", env.agent.get_camera([env.config["image_source"]]).save_image)
 
     for i in range(1, 100000):
         o, r, tm, tc, info = env.step([0, 1])

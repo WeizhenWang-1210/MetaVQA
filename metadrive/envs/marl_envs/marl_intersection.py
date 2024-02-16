@@ -154,7 +154,7 @@ def _expert():
                 )
             )
             break
-        if len(env.vehicles) == 0:
+        if len(env.agents) == 0:
             total_r = 0
             print("Reset")
             env.reset()
@@ -184,7 +184,7 @@ def _vis_debug_respawn():
     total_r = 0
     ep_s = 0
     for i in range(1, 100000):
-        action = {k: [0.0, .0] for k in env.vehicles.keys()}
+        action = {k: [0.0, .0] for k in env.agents.keys()}
         o, r, tm, tc, info = env.step(action)
         for r_ in r.values():
             total_r += r_
@@ -205,7 +205,7 @@ def _vis_debug_respawn():
                 )
             )
             # break
-        if len(env.vehicles) == 0:
+        if len(env.agents) == 0:
             total_r = 0
             print("Reset")
             env.reset()
@@ -237,9 +237,9 @@ def _vis():
     total_r = 0
     ep_s = 0
     for i in range(1, 100000):
-        actions = {k: [0.0, 1.0] for k in env.vehicles.keys()}
-        if len(env.vehicles) == 1:
-            actions = {k: [-0, 1.0] for k in env.vehicles.keys()}
+        actions = {k: [0.0, 1.0] for k in env.agents.keys()}
+        if len(env.agents) == 1:
+            actions = {k: [-0, 1.0] for k in env.agents.keys()}
         o, r, tm, tc, info = env.step(actions)
         for r_ in r.values():
             total_r += r_
@@ -251,7 +251,7 @@ def _vis():
         #     "cam_x": env.main_camera.camera_x,
         #     "cam_y": env.main_camera.camera_y,
         #     "cam_z": env.main_camera.top_down_camera_height,
-        #     "alive": len(env.vehicles)
+        #     "alive": len(env.agents)
         # }
         # env.render(text=render_text)
         # env.render(mode="top_down")
@@ -263,7 +263,7 @@ def _vis():
             )
             env.reset()
             # break
-        if len(env.vehicles) == 0:
+        if len(env.agents) == 0:
             total_r = 0
             print("Reset")
             env.reset()
@@ -337,7 +337,7 @@ def _long_run():
             if (step + 1) % 200 == 0:
                 print(
                     "{}/{} Agents: {} {}\nO: {}\nR: {}\nD: {}\nI: {}\n\n".format(
-                        step + 1, 10000, len(env.vehicles), list(env.vehicles.keys()),
+                        step + 1, 10000, len(env.agents), list(env.agents.keys()),
                         {k: (oo.shape, oo.mean(), oo.min(), oo.max())
                          for k, oo in o.items()}, r, tm, i
                     )
@@ -351,7 +351,7 @@ def _long_run():
 
 def show_map_and_traj():
     import matplotlib.pyplot as plt
-    from metadrive.obs.top_down_renderer import draw_top_down_map, draw_top_down_trajectory
+    from metadrive.engine.top_down_renderer import draw_top_down_map_native, draw_top_down_trajectory
     import json
     import cv2
     import pygame
@@ -359,7 +359,7 @@ def show_map_and_traj():
     env.reset()
     with open("metasvodist_inter_best.json", "r") as f:
         traj = json.load(f)
-    m = draw_top_down_map(env.current_map, semantic_map=False, return_surface=True)
+    m = draw_top_down_map_native(env.current_map, semantic_map=False, return_surface=True)
     m = draw_top_down_trajectory(
         m, traj, entry_differ_color=True, color_list=[(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
     )

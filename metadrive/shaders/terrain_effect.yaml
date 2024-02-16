@@ -90,17 +90,27 @@ fragment:
         uniform sampler2D rock_rough;
         
         uniform sampler2D attribute_tex;
+        uniform float grass_tex_ratio;
+        uniform float rock_tex_ratio;
+        
         
         // just learned that uniform means the variable won't change in each stage, while in/out is able to do that : )
         uniform float elevation_texture_ratio; 
         uniform float height_scale; 
 
     material: |
-        float road_tex_ratio = 32.0 * elevation_texture_ratio;
-        float grass_tex_ratio = 128.0 * elevation_texture_ratio;
+        float road_tex_ratio = 128;
+        float grass_tex_ratio = grass_tex_ratio * 4;
         const float r_min = (1-1/elevation_texture_ratio)/2;
         const float r_max = (1-1/elevation_texture_ratio)/2+1/elevation_texture_ratio;
-        vec4 attri = texture(attribute_tex, terrain_uv*elevation_texture_ratio+0.5);
+        
+        vec4 attri;
+        if (abs(elevation_texture_ratio - 1) < 0.001) {
+            attri = texture(attribute_tex, terrain_uv);
+        }
+        else {
+            attri = texture(attribute_tex, terrain_uv*elevation_texture_ratio+0.5);
+        }
         
         vec3 pixel_size = vec3(1.0, -1.0, 0) / textureSize(ShaderTerrainMesh.heightfield, 0).xxx;
         float h_u0 = texture(ShaderTerrainMesh.heightfield, terrain_uv + pixel_size.yz).x * height_scale;
@@ -113,7 +123,7 @@ fragment:
         // normal.x *= -1;
         mat3 tbn = mat3(tangent, binormal, normal);
         
-        if ((attri.r > 0.01) && terrain_uv.x>r_min && terrain_uv.y > r_min && terrain_uv.x<r_max && terrain_uv.y<r_max){
+        if ((attri.r > 0.01) && terrain_uv.x>=r_min && terrain_uv.y >= r_min && terrain_uv.x<=r_max && terrain_uv.y<=r_max){
             float value = attri.r; // Assuming it's a red channel texture
             vec3 diffuse;
             if (value < 0.11) {
@@ -181,9 +191,9 @@ fragment:
             grass_mat.specular_ior = 0.;
     
             MaterialShaderOutput rock_mat = make_default_material_output();
-            rock_mat.basecolor = texture(rock_tex, terrain_uv * grass_tex_ratio).rgb;
-            rock_mat.roughness = texture(rock_rough, terrain_uv * grass_tex_ratio).r;
-            rock_mat.normal = texture(rock_normal, terrain_uv * grass_tex_ratio).rgb*2.0-1.0;
+            rock_mat.basecolor = texture(rock_tex, terrain_uv * rock_tex_ratio*4).rgb;
+            rock_mat.roughness = texture(rock_rough, terrain_uv * rock_tex_ratio*4).r;
+            rock_mat.normal = texture(rock_normal, terrain_uv * rock_tex_ratio*4).rgb*2.0-1.0;
             rock_mat.specular_ior = 1.7;
     
             MaterialShaderOutput snow_mat = make_default_material_output();

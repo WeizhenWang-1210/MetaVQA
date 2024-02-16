@@ -15,15 +15,13 @@ if __name__ == "__main__":
             "manual_control": True,
             "use_render": False,
             "image_observation": True,  # it is a switch telling metadrive to use rgb as observation
-            "rgb_clip": True,  # clip rgb to range(0,1) instead of (0, 255)
+            "norm_pixel": True,  # clip rgb to range(0,1) instead of (0, 255)
             # "pstats": True,
         }
     )
     env.reset()
     # # print m to capture rgb observation
-    env.engine.accept(
-        "m", env.vehicle.get_camera(env.vehicle.config["image_source"]).save_image, extraArgs=[env.vehicle]
-    )
+    env.engine.accept("m", env.agent.get_camera(env.agent.config["image_source"]).save_image, extraArgs=[env.agent])
     start = time.time()
     for i in range(1, 100000):
         o, r, tm, tc, info = env.step([0, 0])

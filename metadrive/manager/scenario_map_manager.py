@@ -37,7 +37,8 @@ class ScenarioMapManager(BaseManager):
             self.sdc_dest_point = None
 
             if self._stored_maps[seed] is None:
-                new_map = ScenarioMap(map_index=seed)
+                m_data = self.engine.data_manager.get_scenario(seed, should_copy=False)["map_features"]
+                new_map = ScenarioMap(map_index=seed, map_data=m_data)
                 if self.store_map:
                     self._stored_maps[seed] = new_map
             else:
@@ -66,7 +67,7 @@ class ScenarioMapManager(BaseManager):
         self.engine.global_config.update(
             copy.deepcopy(
                 dict(
-                    target_vehicle_configs={
+                    agent_configs={
                         DEFAULT_AGENT: dict(
                             spawn_position_heading=(init_position, init_yaw), spawn_velocity=init_state["velocity"]
                         )
@@ -101,7 +102,8 @@ class ScenarioMapManager(BaseManager):
             assert len(self.spawned_objects) == 0
 
     def destroy(self):
-        self.maps = None
+        self.clear_stored_maps()
+        self._stored_maps = None
         self.current_map = None
 
         self.sdc_start_point = None
@@ -121,12 +123,6 @@ class ScenarioMapManager(BaseManager):
         self.sdc_dest_point = None
         self.current_sdc_route = None
         self.current_map = None
-
-    def clear_objects(self, *args, **kwargs):
-        """
-        As Map instance should not be recycled, we will forcefully destroy useless map instances.
-        """
-        return super(ScenarioMapManager, self).clear_objects(force_destroy=True, *args, **kwargs)
 
     def clear_stored_maps(self):
         for m in self._stored_maps.values():

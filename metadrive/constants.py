@@ -6,8 +6,10 @@ import numpy as np
 from panda3d.bullet import BulletWorld
 from panda3d.core import Vec3
 from panda3d.core import Vec4, BitMask32
-from metadrive.version import VERSION
+from shapely.geometry import Polygon
+
 from metadrive.type import MetaDriveType
+from metadrive.version import VERSION
 
 EDITION = "MetaDrive v{}".format(VERSION)
 DATA_VERSION = EDITION  # Use MetaDrive version to mark the data version
@@ -64,6 +66,7 @@ COLLISION_INFO_COLOR = dict(
 COLOR = {
     MetaDriveType.BOUNDARY_LINE: "red",
     MetaDriveType.BOUNDARY_SIDEWALK: "red",
+    MetaDriveType.CROSSWALK: "yellow",
     MetaDriveType.LINE_SOLID_SINGLE_WHITE: "orange",
     MetaDriveType.LINE_SOLID_SINGLE_YELLOW: "orange",
     MetaDriveType.LINE_BROKEN_SINGLE_YELLOW: "yellow",
@@ -119,7 +122,6 @@ class CamMask(Mask):
     MiniMap = BitMask32.bit(12)
     PARA_VIS = BitMask32.bit(13)
     DepthCam = BitMask32.bit(14)
-    ScreenshotCam = BitMask32.bit(15)
     SemanticCam = BitMask32.bit(16)
 
 
@@ -134,6 +136,7 @@ class CollisionGroup(Mask):
     InvisibleWall = BitMask32.bit(8)
     LidarBroadDetector = BitMask32.bit(9)
     TrafficParticipants = BitMask32.bit(10)
+    Crosswalk = BitMask32.bit(11)
 
     @classmethod
     def collision_rules(cls):
@@ -152,6 +155,7 @@ class CollisionGroup(Mask):
             (cls.Terrain, cls.LidarBroadDetector, False),
             (cls.Terrain, cls.TrafficObject, True),
             (cls.Terrain, cls.TrafficParticipants, True),
+            (cls.Terrain, cls.Crosswalk, False),
 
             # block collision
             (cls.BrokenLaneLine, cls.BrokenLaneLine, False),
@@ -164,8 +168,9 @@ class CollisionGroup(Mask):
             (cls.BrokenLaneLine, cls.LidarBroadDetector, False),
             (cls.BrokenLaneLine, cls.TrafficObject, True),
             (cls.BrokenLaneLine, cls.TrafficParticipants, True),
+            (cls.BrokenLaneLine, cls.Crosswalk, False),
 
-            # ego vehicle collision
+            # vehicle collision
             (cls.Vehicle, cls.Vehicle, True),
             (cls.Vehicle, cls.LaneSurface, True),
             (cls.Vehicle, cls.ContinuousLaneLine, True),
@@ -174,6 +179,7 @@ class CollisionGroup(Mask):
             (cls.Vehicle, cls.LidarBroadDetector, True),
             (cls.Vehicle, cls.TrafficObject, True),
             (cls.Vehicle, cls.TrafficParticipants, True),
+            (cls.Vehicle, cls.Crosswalk, True),
 
             # lane surface
             (cls.LaneSurface, cls.LaneSurface, False),
@@ -183,6 +189,7 @@ class CollisionGroup(Mask):
             (cls.LaneSurface, cls.LidarBroadDetector, False),
             (cls.LaneSurface, cls.TrafficObject, True),
             (cls.LaneSurface, cls.TrafficParticipants, True),
+            (cls.LaneSurface, cls.Crosswalk, False),
 
             # continuous lane line
             (cls.ContinuousLaneLine, cls.ContinuousLaneLine, False),
@@ -191,6 +198,7 @@ class CollisionGroup(Mask):
             (cls.ContinuousLaneLine, cls.LidarBroadDetector, False),
             (cls.ContinuousLaneLine, cls.TrafficObject, False),
             (cls.ContinuousLaneLine, cls.TrafficParticipants, True),
+            (cls.ContinuousLaneLine, cls.Crosswalk, False),
 
             # invisible wall
             (cls.InvisibleWall, cls.InvisibleWall, False),
@@ -198,24 +206,29 @@ class CollisionGroup(Mask):
             (cls.InvisibleWall, cls.LidarBroadDetector, True),
             (cls.InvisibleWall, cls.TrafficObject, False),
             (cls.InvisibleWall, cls.TrafficParticipants, True),
+            (cls.InvisibleWall, cls.Crosswalk, False),
 
             # side walk
             (cls.Sidewalk, cls.Sidewalk, False),
             (cls.Sidewalk, cls.LidarBroadDetector, False),
             (cls.Sidewalk, cls.TrafficObject, True),
             (cls.Sidewalk, cls.TrafficParticipants, True),  # don't allow sidewalk contact
+            (cls.Sidewalk, cls.Crosswalk, False),  # don't allow sidewalk contact
 
             # LidarBroadDetector
             (cls.LidarBroadDetector, cls.LidarBroadDetector, False),
             (cls.LidarBroadDetector, cls.TrafficObject, True),
             (cls.LidarBroadDetector, cls.TrafficParticipants, True),
+            (cls.LidarBroadDetector, cls.Crosswalk, False),
 
             # TrafficObject
             (cls.TrafficObject, cls.TrafficObject, True),
             (cls.TrafficObject, cls.TrafficParticipants, True),
+            (cls.TrafficObject, cls.Crosswalk, False),
 
             # TrafficParticipant
-            (cls.TrafficParticipants, cls.TrafficParticipants, True)
+            (cls.TrafficParticipants, cls.TrafficParticipants, True),
+            (cls.TrafficParticipants, cls.Crosswalk, True)
         ]
 
     @classmethod
@@ -303,7 +316,7 @@ class PGDrivableAreaProperty:
 
     SIDEWALK_THICKNESS = 0.3
     SIDEWALK_LENGTH = 3
-    SIDEWALK_WIDTH = 7.5
+    SIDEWALK_WIDTH = 2
     SIDEWALK_LINE_DIST = 0.6
 
     GUARDRAIL_HEIGHT = 4.0
@@ -376,6 +389,7 @@ class Semantics:
 
     # customized
     LANE_LINE = label_color("LANE_LINE", (255, 255, 255))
+    CROSSWALK = label_color("CROSSWALK", (55, 176, 189))
 
 
 class MapTerrainSemanticColor:
@@ -383,6 +397,9 @@ class MapTerrainSemanticColor:
     Do not modify this as it is for terrain generation. If you want your own palette, just add a new one or modify
     class lMapSemanticColor
     """
+    YELLOW = 0.1
+    WHITE = 0.3
+
     @staticmethod
     def get_color(type):
         """
@@ -398,7 +415,7 @@ class MapTerrainSemanticColor:
         if MetaDriveType.is_yellow_line(type):
             # return (255, 0, 0, 0)
             # return (1, 0, 0, 0)
-            return 0.1
+            return MapTerrainSemanticColor.YELLOW
         elif MetaDriveType.is_lane(type):
             # return (0, 1, 0, 0)
             return 0.2
@@ -407,7 +424,7 @@ class MapTerrainSemanticColor:
             return 0.0
         elif MetaDriveType.is_white_line(type) or MetaDriveType.is_road_boundary_line(type):
             # return (0, 0, 0, 1)
-            return 0.3
+            return MapTerrainSemanticColor.WHITE
         elif type == MetaDriveType.CROSSWALK:
             # The range of crosswalk value is 0.4 <= value < 0.76,
             # so people can save the angle (degree) of the crosswalk in attribute map
@@ -456,3 +473,72 @@ class TopDownSemanticColor:
         # else:
         #     raise ValueError("Unsupported type: {}".format(type))
         return ret
+
+
+class TerrainProperty:
+    """
+    Define some constants/properties for the map and terrain
+    """
+    map_region_size = 512
+    terrain_size = 2048
+
+    @classmethod
+    def get_semantic_map_pixel_per_meter(cls):
+        """
+        Get how many pixels are used to represent one-meter
+        Returns: a constant
+
+        """
+        assert cls.terrain_size <= 2048, "Terrain size should be fixed to 2048"
+        return 22 if cls.map_region_size <= 1024 else 11
+
+    @classmethod
+    def point_in_map(cls, point):
+        """
+        Return if the point is in the map region
+        Args:
+            map_center: center point of the map
+            point: 2D point
+
+        Returns: Boolean
+
+        """
+        x_, y_ = point[:2]
+        x = y = cls.map_region_size / 2
+        return -x <= x_ <= x and -y <= y_ <= y
+
+    @classmethod
+    def clip_polygon(cls, polygon):
+        """
+        Clip the Polygon. Make it fit into the map region and throw away the part outside the map region
+        Args:
+            map_center: center point of the map
+            polygon: a list of 2D points
+
+        Returns: A list of polygon or None
+
+        """
+        x = y = cls.map_region_size / 2
+        _rect_polygon = Polygon([(-x, y), (x, y), (x, -y), (-x, -y)])
+        polygon = Polygon(polygon)
+        try:
+            polygon = _rect_polygon.intersection(polygon)
+            # Extract the points of the clipped polygon.
+            if polygon.is_empty:
+                return None
+            else:
+                # Handle cases where the intersection might result in multiple geometries
+                return [list(polygon.exterior.coords)] if isinstance(polygon, Polygon) else \
+                    [list(geom.exterior.coords) for geom in polygon.geoms]
+        except Exception as error:
+            return None
+
+
+class CameraTagStateKey:
+    """
+    Enables multi-pass rendering
+    """
+    ID = "id"
+    RGB = "rgb"
+    Depth = "depth"
+    Semantic = "semantic"

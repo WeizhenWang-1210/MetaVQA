@@ -34,10 +34,10 @@ if __name__ == '__main__':
             start_seed=start_seed,
             random_traffic=False,
             use_render=True,
-            window_size=(1600, 1200),
+            window_size=(900, 600),
             crash_vehicle_done=False,
             manual_control=True,  # For using expert policy. You don't need to control it.
-            horizon=10,
+            horizon=100,
         )
     )
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     frame_count = 0
 
     o, _ = env.reset(seed=start_seed)
-    env.vehicle.expert_takeover = True
+    env.agent.expert_takeover = True
     env.engine.force_fps.disable()
 
     while True:
@@ -92,5 +92,5 @@ if __name__ == '__main__':
                 break
 
             o, _ = env.reset(seed=ep_count + start_seed)
-            env.vehicle.expert_takeover = True
+            env.agent.expert_takeover = True
             env.engine.force_fps.disable()
