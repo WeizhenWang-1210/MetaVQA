@@ -1,8 +1,5 @@
-# Environment that enable interactively change asset's parameters.
-# Search for agent_manager to know how it spawn object and change the parameters
-# '_get_agent_manager' is to init the agent manager
-# "step()" can pass in new parameters we want
 import copy
+from metadrive.component.navigation_module.node_network_navigation import NodeNetworkNavigation
 from typing import Union
 
 import numpy as np
@@ -11,20 +8,18 @@ from metadrive.component.algorithm.blocks_prob_dist import PGBlockDistConfig
 from metadrive.component.map.base_map import BaseMap
 from metadrive.component.map.pg_map import parse_map_config, MapGenerateMethod
 from metadrive.component.pgblock.first_block import FirstPGBlock
-from metadrive.component.vehicle.base_vehicle import BaseVehicle
 from metadrive.constants import DEFAULT_AGENT, TerminationState
 from metadrive.envs.base_env import BaseEnv
 from metadrive.manager.traffic_manager import TrafficMode
 from metadrive.manager.test_asset_agent_manager import TestAssetAgentManager
-from metadrive.utils import clip, Config, get_np_random
+from metadrive.utils import clip, Config
 
 METADRIVE_DEFAULT_CONFIG = dict(
     # ===== Generalization =====
     start_seed=0,
     num_scenarios=1,
-    environment_num=-1,  # This key is deprecated, use num_scenarios instead!
 
-    # ===== Map Config =====
+    # ===== PG Map Config =====
     map=3,  # int or string: an easy way to fill map_config
     block_dist_config=PGBlockDistConfig,
     random_lane_width=False,
@@ -61,23 +56,10 @@ METADRIVE_DEFAULT_CONFIG = dict(
     use_AI_protector=False,
     save_level=0.5,
     is_multi_agent=True,
-    vehicle_config=dict(spawn_lane_index=(FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, 0)),
-
     # ===== Agent =====
     random_spawn_lane_index=True,
-    # target_vehicle_configs={
-    #     DEFAULT_AGENT: dict(
-    #         use_special_color=True,
-    #         vehicle_model="test",
-    #         spawn_lane_index=(FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, 0),
-    #     ),
-    #     "test_agent": dict(
-    #         use_special_color=True,
-    #         vehicle_model="default",
-    #         spawn_lane_index=(FirstPGBlock.NODE_1, FirstPGBlock.NODE_2, 1),
-    #     )
-    # },
-    target_vehicle_configs={
+    vehicle_config=dict(navigation_module=NodeNetworkNavigation),
+    agent_configs={
         DEFAULT_AGENT: dict(
             use_special_color=True,
             vehicle_model="test",
@@ -109,6 +91,7 @@ METADRIVE_DEFAULT_CONFIG = dict(
     on_continuous_line_done=True,
     crash_vehicle_done=True,
     crash_object_done=True,
+    crash_human_done=True,
 )
 
 
@@ -129,11 +112,9 @@ class TestAssetMetaDriveEnv(BaseEnv):
         self.default_config_copy = Config(self.default_config(), unchangeable=True)
         super(TestAssetMetaDriveEnv, self).__init__(config)
 
-        # map setting
-        self.start_seed = self.config["start_seed"]
-        self.env_num = self.config["num_scenarios"]
-        self.in_stop = False
-
+        # scenario setting
+        self.start_seed = self.start_index = self.config["start_seed"]
+        self.env_num = self.num_scenarios
     def _get_agent_manager(self):
         return TestAssetAgentManager(init_observations=self._get_observations(), init_action_space=self._get_action_space(), test_asset_meta_info = self.test_asset_meta_info, initpos=self.initpos)
     def _merge_extra_config(self, config: Union[dict, Config]) -> Config:
@@ -141,106 +122,104 @@ class TestAssetMetaDriveEnv(BaseEnv):
         if config["vehicle_config"]["lidar"]["distance"] > 50:
             config["max_distance"] = config["vehicle_config"]["lidar"]["distance"]
         return config
-
     def _post_process_config(self, config):
         config = super(TestAssetMetaDriveEnv, self)._post_process_config(config)
-        if not config["rgb_clip"]:
+        if not config["norm_pixel"]:
             self.logger.warning(
-                "You have set rgb_clip = False, which means the observation will be uint8 values in [0, 255]. "
+                "You have set norm_pixel = False, which means the observation will be uint8 values in [0, 255]. "
                 "Please make sure you have parsed them later before feeding them to network!"
             )
-        if config["environment_num"] != -1:
-            self.logger.warning("environment_num is deprecated. Use num_scenarios instead!")
-            assert config["num_scenarios"] == 1
-            config["num_scenarios"] = config["environment_num"]
 
         config["map_config"] = parse_map_config(
             easy_map_config=config["map"], new_map_config=config["map_config"], default_config=self.default_config_copy
         )
-        config["vehicle_config"]["rgb_clip"] = config["rgb_clip"]
+        config["vehicle_config"]["norm_pixel"] = config["norm_pixel"]
         config["vehicle_config"]["random_agent_model"] = config["random_agent_model"]
-        if config.get("gaussian_noise", 0) > 0:
-            assert config["vehicle_config"]["lidar"]["gaussian_noise"] == 0, "You already provide config!"
-            assert config["vehicle_config"]["side_detector"]["gaussian_noise"] == 0, "You already provide config!"
-            assert config["vehicle_config"]["lane_line_detector"]["gaussian_noise"] == 0, "You already provide config!"
-            config["vehicle_config"]["lidar"]["gaussian_noise"] = config["gaussian_noise"]
-            config["vehicle_config"]["side_detector"]["gaussian_noise"] = config["gaussian_noise"]
-            config["vehicle_config"]["lane_line_detector"]["gaussian_noise"] = config["gaussian_noise"]
-        if config.get("dropout_prob", 0) > 0:
-            assert config["vehicle_config"]["lidar"]["dropout_prob"] == 0, "You already provide config!"
-            assert config["vehicle_config"]["side_detector"]["dropout_prob"] == 0, "You already provide config!"
-            assert config["vehicle_config"]["lane_line_detector"]["dropout_prob"] == 0, "You already provide config!"
-            config["vehicle_config"]["lidar"]["dropout_prob"] = config["dropout_prob"]
-            config["vehicle_config"]["side_detector"]["dropout_prob"] = config["dropout_prob"]
-            config["vehicle_config"]["lane_line_detector"]["dropout_prob"] = config["dropout_prob"]
         target_v_config = copy.deepcopy(config["vehicle_config"])
         if not config["is_multi_agent"]:
-            target_v_config.update(config["target_vehicle_configs"][DEFAULT_AGENT])
-            config["target_vehicle_configs"][DEFAULT_AGENT] = target_v_config
+            target_v_config.update(config["agent_configs"][DEFAULT_AGENT])
+            config["agent_configs"][DEFAULT_AGENT] = target_v_config
         return config
 
     def _get_observations(self):
         # return {DEFAULT_AGENT: self.get_single_observation(self.config["vehicle_config"]), "test_agent": self.get_single_observation(self.config["vehicle_config"])}
         return {DEFAULT_AGENT: self.get_single_observation(),
                 "test_agent": self.get_single_observation()}
-
     def done_function(self, vehicle_id: str):
-        vehicle = self.vehicles[vehicle_id]
+        vehicle = self.agents[vehicle_id]
         done = False
+        max_step = self.config["horizon"] is not None and self.episode_lengths[vehicle_id] >= self.config["horizon"]
         done_info = {
-            TerminationState.CRASH_VEHICLE: False,
-            TerminationState.CRASH_OBJECT: False,
-            TerminationState.CRASH_BUILDING: False,
-            TerminationState.OUT_OF_ROAD: False,
-            TerminationState.SUCCESS: False,
-            TerminationState.MAX_STEP: False,
-            # TerminationState.CURRENT_BLOCK: self.vehicle.navigation.current_road.block_ID(),
+            TerminationState.CRASH_VEHICLE: vehicle.crash_vehicle,
+            TerminationState.CRASH_OBJECT: vehicle.crash_object,
+            TerminationState.CRASH_BUILDING: vehicle.crash_building,
+            TerminationState.CRASH_HUMAN: vehicle.crash_human,
+            TerminationState.CRASH_SIDEWALK: vehicle.crash_sidewalk,
+            TerminationState.OUT_OF_ROAD: self._is_out_of_road(vehicle),
+            TerminationState.SUCCESS: self._is_arrive_destination(vehicle),
+            TerminationState.MAX_STEP: max_step,
             TerminationState.ENV_SEED: self.current_seed,
+            # TerminationState.CURRENT_BLOCK: self.agent.navigation.current_road.block_ID(),
             # crash_vehicle=False, crash_object=False, crash_building=False, out_of_road=False, arrive_dest=False,
         }
-        if self._is_arrive_destination(vehicle):
-            done = True
-            self.logger.info("Episode ended! Index: {} Reason: arrive_dest.".format(self.current_seed))
-            done_info[TerminationState.SUCCESS] = True
-        if self._is_out_of_road(vehicle):
-            done = True
-            self.logger.info("Episode ended! Index: {} Reason: out_of_road.".format(self.current_seed))
-            done_info[TerminationState.OUT_OF_ROAD] = True
-        if vehicle.crash_vehicle and self.config["crash_vehicle_done"]:
-            done = True
-            self.logger.info("Episode ended! Index: {} Reason: crash vehicle ".format(self.current_seed))
-            done_info[TerminationState.CRASH_VEHICLE] = True
-        if vehicle.crash_object and self.config["crash_object_done"]:
-            done = True
-            done_info[TerminationState.CRASH_OBJECT] = True
-            self.logger.info("Episode ended! Index: {} Reason: crash object ".format(self.current_seed))
-        if vehicle.crash_building:
-            done = True
-            done_info[TerminationState.CRASH_BUILDING] = True
-            self.logger.info("Episode ended! Index: {} Reason: crash building ".format(self.current_seed))
-        if self.config["max_step_per_agent"] is not None and \
-                self.episode_lengths[vehicle_id] >= self.config["max_step_per_agent"]:
-            done = True
-            done_info[TerminationState.MAX_STEP] = True
-            self.logger.info("Episode ended! Index: {} Reason: max step ".format(self.current_seed))
-
-        if self.config["horizon"] is not None and \
-                self.episode_lengths[vehicle_id] >= self.config["horizon"] and not self.is_multi_agent:
-            # single agent horizon has the same meaning as max_step_per_agent
-            done = True
-            done_info[TerminationState.MAX_STEP] = True
-            self.logger.info("Episode ended! Index: {} Reason: max step ".format(self.current_seed))
 
         # for compatibility
         # crash almost equals to crashing with vehicles
         done_info[TerminationState.CRASH] = (
             done_info[TerminationState.CRASH_VEHICLE] or done_info[TerminationState.CRASH_OBJECT]
-            or done_info[TerminationState.CRASH_BUILDING]
+            or done_info[TerminationState.CRASH_BUILDING] or done_info[TerminationState.CRASH_SIDEWALK]
+            or done_info[TerminationState.CRASH_HUMAN]
         )
+
+        # determine env return
+        if done_info[TerminationState.SUCCESS]:
+            done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: arrive_dest.".format(self.current_seed),
+                extra={"log_once": True}
+            )
+        if done_info[TerminationState.OUT_OF_ROAD]:
+            done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: out_of_road.".format(self.current_seed),
+                extra={"log_once": True}
+            )
+        if done_info[TerminationState.CRASH_VEHICLE] and self.config["crash_vehicle_done"]:
+            done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: crash vehicle ".format(self.current_seed),
+                extra={"log_once": True}
+            )
+        if done_info[TerminationState.CRASH_OBJECT] and self.config["crash_object_done"]:
+            done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: crash object ".format(self.current_seed),
+                extra={"log_once": True}
+            )
+        if done_info[TerminationState.CRASH_BUILDING]:
+            done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: crash building ".format(self.current_seed),
+                extra={"log_once": True}
+            )
+        if done_info[TerminationState.CRASH_HUMAN] and self.config["crash_human_done"]:
+            done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: crash human".format(self.current_seed),
+                extra={"log_once": True}
+            )
+        if done_info[TerminationState.MAX_STEP]:
+            # single agent horizon has the same meaning as max_step_per_agent
+            if self.config["truncate_as_terminate"]:
+                done = True
+            self.logger.info(
+                "Episode ended! Scenario Index: {} Reason: max step ".format(self.current_seed),
+                extra={"log_once": True}
+            )
         return done, done_info
 
     def cost_function(self, vehicle_id: str):
-        vehicle = self.vehicles[vehicle_id]
+        vehicle = self.agents[vehicle_id]
         step_info = dict()
         step_info["cost"] = 0
         if self._is_out_of_road(vehicle):
@@ -251,7 +230,15 @@ class TestAssetMetaDriveEnv(BaseEnv):
             step_info["cost"] = self.config["crash_object_cost"]
         return step_info['cost'], step_info
 
-    def _is_arrive_destination(self, vehicle):
+    @staticmethod
+    def _is_arrive_destination(vehicle):
+        """
+        Args:
+            vehicle: The BaseVehicle instance.
+
+        Returns:
+            flag: Whether this vehicle arrives its destination.
+        """
         long, lat = vehicle.navigation.final_lane.local_coordinates(vehicle.position)
         flag = (vehicle.navigation.final_lane.length - 5 < long < vehicle.navigation.final_lane.length + 5) and (
             vehicle.navigation.get_current_lane_width() / 2 >= lat >=
@@ -275,7 +262,7 @@ class TestAssetMetaDriveEnv(BaseEnv):
         :param vehicle_id: id of BaseVehicle
         :return: reward
         """
-        vehicle = self.vehicles[vehicle_id]
+        vehicle = self.agents[vehicle_id]
         step_info = dict()
 
         # Reward for moving forward in current lane
@@ -309,36 +296,12 @@ class TestAssetMetaDriveEnv(BaseEnv):
             reward = -self.config["crash_vehicle_penalty"]
         elif vehicle.crash_object:
             reward = -self.config["crash_object_penalty"]
+
+        step_info["route_completion"] = vehicle.navigation.route_completion
+
         return reward, step_info
 
-    def switch_to_third_person_view(self) -> (str, BaseVehicle):
-        if self.main_camera is None:
-            return
-        self.main_camera.reset()
-        if self.config["prefer_track_agent"] is not None and self.config["prefer_track_agent"] in self.vehicles.keys():
-            new_v = self.vehicles[self.config["prefer_track_agent"]]
-            current_track_vehicle = new_v
-        else:
-            if self.main_camera.is_bird_view_camera():
-                current_track_vehicle = self.current_track_vehicle
-            else:
-                vehicles = list(self.engine.agents.values())
-                if self.current_track_vehicle in vehicles:
-                    vehicles.remove(self.current_track_vehicle)
-                if len(vehicles) < 1:
-                    return
-                new_v = get_np_random().choice(vehicles)
-                current_track_vehicle = new_v
-        self.main_camera.track(current_track_vehicle)
-        return
-
-    def switch_to_top_down_view(self):
-        self.main_camera.stop_track()
-
-    def stop(self):
-        self.in_stop = not self.in_stop
-
-    def step(self, test_asset_config_dict = None, actions = None):
+    def step(self, test_asset_config_dict=None, actions=None):
         # if we have new parameters, set it
         if test_asset_config_dict is not None:
             self.agent_manager.set_test_asset_config_dict(test_asset_config_dict)
@@ -346,26 +309,9 @@ class TestAssetMetaDriveEnv(BaseEnv):
         while self.in_stop:
             self.engine.taskMgr.step()
         return ret
-
-    def next_seed_reset(self):
-        if self.current_seed + 1 < self.start_seed + self.env_num:
-            self.reset(self.current_seed + 1)
-        else:
-            self.logger.warning("Can't load next scenario! current seed is already the max scenario index")
-
-    def last_seed_reset(self):
-        if self.current_seed - 1 >= self.start_seed:
-            self.reset(self.current_seed - 1)
-        else:
-            self.logger.warning("Can't load last scenario! current seed is already the min scenario index")
-
     def setup_engine(self):
         super(TestAssetMetaDriveEnv, self).setup_engine()
-        self.engine.accept("b", self.switch_to_top_down_view)
-        self.engine.accept("q", self.switch_to_third_person_view)
-        self.engine.accept("]", self.next_seed_reset)
-        self.engine.accept("[", self.last_seed_reset)
-        self.engine.accept("p", self.stop)
+        from metadrive.manager.traffic_manager import PGTrafficManager
         from metadrive.manager.test_asset_traffic_manager import NewAssetPGTrafficManager
         from metadrive.manager.pg_map_manager import PGMapManager
         from metadrive.manager.object_manager import TrafficObjectManager
@@ -373,13 +319,6 @@ class TestAssetMetaDriveEnv(BaseEnv):
         self.engine.register_manager("traffic_manager", NewAssetPGTrafficManager())
         if abs(self.config["accident_prob"] - 0) > 1e-2:
             self.engine.register_manager("object_manager", TrafficObjectManager())
-
-    def _reset_global_seed(self, force_seed=None):
-        current_seed = force_seed if force_seed is not None else \
-            get_np_random(self._DEBUG_RANDOM_SEED).randint(self.start_seed, self.start_seed + self.env_num)
-        assert self.start_seed <= current_seed < self.start_seed + self.env_num, \
-            "scenario_index (seed) should be in [{}:{})".format(self.start_seed, self.start_seed + self.env_num)
-        self.seed(current_seed)
 
 
 if __name__ == '__main__':
@@ -391,7 +330,7 @@ if __name__ == '__main__':
         assert np.isscalar(reward)
         assert isinstance(info, dict)
 
-    env = TestAssetMetaDriveEnv()
+    env = MetaDriveEnv()
     try:
         obs, _ = env.reset()
         assert env.observation_space.contains(obs)
