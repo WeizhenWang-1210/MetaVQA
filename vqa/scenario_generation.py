@@ -70,7 +70,7 @@ def saving(env, lidar, rgb, scene_dict,masks,log_mapping, debug=False):
     if debug:
         top_down = env.render(mode = 'top_down', film_size=(6000,6000), screen_size=(1920,1080), window = False, draw_contour = True, screen_record = False, show_agent_name = True)
         result["top_down"] = np.fliplr(np.flipud(top_down))
-        result["front"] = env.main_camera.perceive(env.agent) #cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
+        result["front"] = env.main_camera.perceive(False) #cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
     result["mask"] = masks * 255
     result["log_mapping"] = log_mapping
     return result
@@ -143,8 +143,8 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
             }
         )
         if total_steps % sample_frequency == 0:
-            masks = instance_camera.perceive(env.vehicle)
-            rgb = camera.perceive(env.vehicle)
+            masks = instance_camera.perceive(clip = True, new_parent_node = env.agent.origin, position = (0., 0.8, 1.5), hpr = [0,0,0])
+            rgb = camera.perceive(clip = True, new_parent_node = env.agent.origin, position = (0., 0.8, 1.5), hpr = [0,0,0])
             #Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
             #is reserved for special purpose, and no objects will take this color.
             mapping = engine.c_id
