@@ -62,9 +62,7 @@ class Tree:
         self.root = Tnode(root)
         self.root.populate(max_depth)
         self.depth = self.get_depth()
-        self.functional = None
-        
-        
+        self.functional = None    
     def get_depth(self)->int:
         def depth(node):
             if not node:
@@ -579,7 +577,7 @@ def state_wrapper(states:Iterable[str])->Callable:
         return results
     return state
 
-def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
+def action_wrapper(egos: Iterable[ObjectNode], actions: Iterable[str], ref_heading: tuple = None)->Callable:
     def act(candidates: Iterable[ObjectNode]):
         results = []
         for candidate in candidates:
@@ -604,7 +602,7 @@ def action_wrapper(egos: [ObjectNode], actions: Iterable[str], ref_heading: tupl
     return act
 
 
-def pos_wrapper(egos: [ObjectNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
+def pos_wrapper(egos: Iterable[ObjectNode], spatial_retionships: Iterable[str], ref_heading: tuple = None)->Callable:
     '''
     A constructor for selecting all nodes that exhibit spatial_relationship with any ego in egos for spatial_relationship in spatial_relationships.
     ref_heading is provided to define what's left v.s. right
@@ -780,7 +778,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--step", type=str, default = "verification/10_299/world_10_299")
-    parser.add_argument("--episode", type = str, default = "verification/10_50_99")
+    parser.add_argument("--episode", type = str, default = "verification/10_50_79")
     args = parser.parse_args()
     """
     try:
