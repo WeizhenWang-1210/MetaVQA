@@ -74,7 +74,7 @@ def saving(env, lidar, rgb, scene_dict, masks, log_mapping, debug=False):
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
                               draw_contour=True, screen_record=False, show_agent_name=True)
         result["top_down"] = np.fliplr(np.flipud(top_down))
-        result["front"] = env.main_camera.perceive(False)  # cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
+        result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0,-6,2],[0,-0.5,0])  # cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
     result["mask"] = masks * 255
     result["log_mapping"] = log_mapping
     return result
@@ -297,13 +297,13 @@ def main():
     # env.engine.force_fps.disable()
     env.agent.expert_takeover = True
     # Call the ACTUAL data recording questions
-    for i in range(100):
-        o, r, d, _, _ = env.step([0, 0])
+    #for i in range(100):
+    #    o, r, d, _, _ = env.step([0, 0])
 
         #print(cloud_points)
         #ret1 = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, 0.8, 1.5], [0, 0, 0])
-        """ret1 = o["instance"][...,-1]
-        """
+        #ret1 = o["instance"][...,-1]
+        #
         #cv2.imshow("image", ret1)
         #ret2 = env.engine.get_sensor("instance").perceive(False, env.agent.origin, [0, 0.8, 1.5], [0, 0, 0])
         # ret3 = env.engine.get_sensor("main_camera").perceive(False, env.agent.origin, [0,0.8,1.5], [0,0,0])
