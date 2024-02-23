@@ -68,7 +68,7 @@ def saving(env, lidar, rgb, scene_dict, masks, log_mapping, debug=False):
     """
     result = dict()
     result["world"] = scene_dict
-    result["lidar"] = lidar.tolist()
+    result["lidar"] = lidar
     result["rgb"] = rgb * 255
     if debug:
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
@@ -135,12 +135,14 @@ def episode_logging(buffer, root, IO):
     return 0
 
 
-def run_episode(env, engine, sample_frequency, episode_length, camera, instance_camera):
+def run_episode(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar):
     print("I'm in the episode!")
     total_steps = 0
     buffer = dict()
     env_id = env.current_seed
     env_start = env.episode_step
+
+
     while total_steps < episode_length:
         o, r, tm, tc, info = env.step([0, 0])
         env.render(
@@ -149,6 +151,14 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
             }
         )
         if total_steps % sample_frequency == 0:
+
+            cloud_points, _ = lidar.perceive(
+                env.agent,
+                physics_world=env.engine.physics_world.dynamic_world,
+                num_lasers=env.agent.config["lidar"]["num_lasers"],
+                distance=env.agent.config["lidar"]["distance"],
+                show=False,
+            )
             masks = instance_camera.perceive(clip=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5),
                                              hpr=[0, 0, 0])
             rgb = camera.perceive(clip=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5), hpr=[0, 0, 0])
@@ -173,7 +183,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
             )
             # send all observations/informations to logging function for the actual I/O part.
             buffer[identifier] = saving(env=env,
-                                        lidar=o,
+                                        lidar=cloud_points,
                                         rgb=rgb,
                                         scene_dict=scene_dict,
                                         masks=masks,
@@ -190,7 +200,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
 
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
-                  observation_config: dict, IO_config: dict, seed: int, temporal_generation: bool, episode_length: int,
+                  IO_config: dict, seed: int, temporal_generation: bool, episode_length: int,
                   skip_length: int):
     '''
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
@@ -215,11 +225,11 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
         env.vehicle.expert_takeover = True
         counter = step = 1
         episode_counter = 0
-        W, H = observation_config["resolution"]
         engine = get_engine()
         # Create image sensors according to the resolutions.
-        camera = RGBCamera(W, H, engine)
-        instance_camera = InstanceCamera(W, H, engine)
+        camera = env.engine.get_sensor("rgb")
+        instance_camera= env.engine.get_sensor("instance")
+        lidar = env.engine.get_sensor("lidar")
         # The main data recording loop.
         while counter <= num_points and step <= max_iterations:
             # Skip steps logic: Skip the specified number of steps at the beginning of each episode
@@ -232,7 +242,8 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
                                                 sample_frequency=sample_frequency,
                                                 episode_length=episode_length,
                                                 camera=camera,
-                                                instance_camera=instance_camera)
+                                                instance_camera=instance_camera,
+                                                lidar=lidar)
             step += step_ran
             counter += len(records)
             ret_code = episode_logging(records, folder, IO)
@@ -268,13 +279,13 @@ def main():
         need_inverse_traffic=config["map_setting"]["inverse_traffic"],
         on_continuous_line_done=False,
         out_of_route_done=True,
-        vehicle_config=dict(show_lidar=True, show_navi_mark=True),
+        vehicle_config=dict(show_lidar=False, show_navi_mark=False),
         map=config["map_setting"]["map_size"] if config["map_setting"]["PG"] else config["map_setting"]["map_sequence"],
         start_seed=config["map_setting"]["start_seed"],
         debug=False,
         sensors=dict(
-            rgb=(RGBCamera, c, 256),
-            instance=(InstanceCamera, 256, 256),
+            rgb=(RGBCamera, 960,640),
+            instance=(InstanceCamera, 960,640)
         ),
         # image_observation = False,
         # agent_observation = MyObservation
@@ -286,27 +297,24 @@ def main():
     # env.engine.force_fps.disable()
     env.agent.expert_takeover = True
     # Call the ACTUAL data recording questions
-    for i in range(10000):
+    for i in range(100):
         o, r, d, _, _ = env.step([0, 0])
-        ret1 = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, 0.8, 1.5], [0, 0, 0])
+
+        #print(cloud_points)
+        #ret1 = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, 0.8, 1.5], [0, 0, 0])
         """ret1 = o["instance"][...,-1]
         """
-
-        cv2.imshow("image", ret1)
-
-        ret2 = env.engine.get_sensor("instance").perceive(False, env.agent.origin, [0, 0.8, 1.5], [0, 0, 0])
-
+        #cv2.imshow("image", ret1)
+        #ret2 = env.engine.get_sensor("instance").perceive(False, env.agent.origin, [0, 0.8, 1.5], [0, 0, 0])
         # ret3 = env.engine.get_sensor("main_camera").perceive(False, env.agent.origin, [0,0.8,1.5], [0,0,0])
-        cv2.imshow("image_2", ret2)
-
+        #cv2.imshow("image_2", ret2)
         # ret3
 
-        cv2.waitKey(1)
-    env.close()
-    """generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"], 
-                  dict(resolution=(960,540)),
+        #cv2.waitKey(1)
+    #env.close()
+    generate_data(env, config["num_samples"],config["sample_frequency"],config["max_iterations"],
                   dict(batch_folder = config["storage_path"], log = True),config["map_setting"]["start_seed"],
-                  temporal_generation=config["temporal_generation"],episode_length=config["episode_length"],skip_length=config["skip_length"])"""
+                  temporal_generation=config["temporal_generation"],episode_length=config["episode_length"],skip_length=config["skip_length"])
 
 
 if __name__ == "__main__":

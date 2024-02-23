@@ -99,7 +99,7 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
         annotation = dict(
             id = obj.id,
             color = annotate_color(obj),
-            heading = obj.heading,
+            heading = (obj.heading[0], obj.heading[1]),
             speed = speed,
             pos = position,
             bbox = box,

@@ -11,9 +11,9 @@ map_setting:
   num_scenarios: 100
   start_seed: 10
 sample_frequency: 1
-num_samples: 100
+num_samples: 5
 max_iterations: 10000
 temporal_generation: True
-episode_length: 50
+episode_length: 5
 skip_length: 50
 ...
