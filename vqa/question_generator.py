@@ -3,7 +3,7 @@ from vqa.scene_graph import SceneGraph, EpisodicGraph
 from vqa.object_node import ObjectNode,nodify,transform
 from vqa.dataset_utils import extend_bbox
 from collections import defaultdict
-from vqa.grammar import CFG_GRAMMAR
+from vqa.grammar import CFG_GRAMMAR, STATIC_GRAMMAR
 import random
 import json
 import argparse
@@ -12,10 +12,11 @@ import os
 
 
 
+GRAMMAR = STATIC_GRAMMAR
 
 
 def is_terminal(token)->bool:
-    return token not in CFG_GRAMMAR.keys()
+    return token not in GRAMMAR.keys()
 
 
 class Tnode:
@@ -29,10 +30,10 @@ class Tnode:
     def populate(self, depth):
         if is_terminal(self.token) or depth <= 0:
             return
-        rules = CFG_GRAMMAR[self.token]
+        rules = GRAMMAR[self.token]
         rule = random.choice(rules)
         if depth == 1:
-            while not all(token not in CFG_GRAMMAR.keys() for token in rule):
+            while not all(token not in GRAMMAR.keys() for token in rule):
                 rule = random.choice(rules)
         children = []
         flag = True
@@ -761,6 +762,10 @@ def locate_wrapper(origin: ObjectNode)->Callable:
         return result
     return locate
 
+def static_all(root_folder):
+    #TODO
+    pass
+
 
 if __name__ == "__main__":
     
@@ -777,8 +782,8 @@ if __name__ == "__main__":
     
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default = "verification/10_299/world_10_299")
-    parser.add_argument("--episode", type = str, default = "verification/10_50_79")
+    parser.add_argument("--step", type=str, default = "verification/10_299/world_10_50")
+    parser.add_argument("--episode", type = str, default = "verification/10_50_54")
     args = parser.parse_args()
     """
     try:
@@ -794,6 +799,7 @@ if __name__ == "__main__":
     interaction_path = os.path.join(args.episode, "interaction.json")
     episode_graph.load(args.episode, frames, interaction_path)
     graph = episode_graph.final_frame
+    GRAMMAR = STATIC_GRAMMAR
     """
     q1 = SubQuery(
         color= None,
