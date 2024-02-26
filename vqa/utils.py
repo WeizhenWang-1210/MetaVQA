@@ -35,6 +35,13 @@ def annotate_type(object):
             return name
     return "f"
 
+def annotate_lane(object):
+    if isinstance(object, BaseVehicle) and object.navigation:
+        return object.lane_index
+    else:
+        return ""
+
+
 def annotate_color(object):
     """
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
@@ -106,7 +113,7 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
             type = annotate_type(obj),
             height = height, 
             class_name = str(type(obj)),
-            lane = obj.lane_index,
+            lane = annotate_lane(obj),
             visible = visible_mask[idx],
             states = annotate_states(obj),
             collisions = annotate_collision(obj)
