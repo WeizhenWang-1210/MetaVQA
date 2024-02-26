@@ -34,8 +34,11 @@ CFG_GRAMMAR = {
 
 STATIC_GRAMMAR = {
     "<o>":[
-        ["<p>", "<t>", "<dir>"],
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
         ["us"]
+    ],
+    "<s>":[
+        ["nil"]
     ],
     "<p>":[
         ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],
@@ -50,5 +53,8 @@ STATIC_GRAMMAR = {
     ],
     "<tdir>":[
         ["l"], ["r"], ["f"], ["b"], ["lf"],["rf"],["lb"], ["rb"],
-    ]
+    ],
+    "<a>":[
+        ["nil"]
+    ],
 }
