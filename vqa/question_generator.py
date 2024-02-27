@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Union, LiteralString, Callable
 from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
     CountGreater, CountEqual, Identity, locate_wrapper
 from vqa.scene_graph import SceneGraph, EpisodicGraph
@@ -10,10 +10,12 @@ import argparse
 import os
 
 GRAMMAR = STATIC_GRAMMAR
-#TODO make grammar specific for a graph to improve sampling efficiency.
 
-def is_terminal(token) -> bool:
-    return token not in GRAMMAR.keys()
+
+
+def is_terminal(token, grammar) -> bool:
+    return token not in grammar.keys()
+
 
 class Tnode:
     def __init__(self, token) -> None:
@@ -23,8 +25,8 @@ class Tnode:
         self.key = False
         self.children = None
 
-    def populate(self, depth):
-        if is_terminal(self.token) or depth <= 0:
+    def populate(self, depth, grammar) -> None:
+        if is_terminal(self.token, grammar) or depth <= 0:
             return
         rules = GRAMMAR[self.token]
         rule = random.choice(rules)
@@ -36,8 +38,8 @@ class Tnode:
         for token in rule:
             new_node = Tnode(token)
             new_node.parent = self
-            flag = flag and is_terminal(token)
-            new_node.populate(depth - 1)
+            flag = flag and is_terminal(token, grammar)
+            new_node.populate(depth - 1, grammar)
             children.append(new_node)
         self.key = flag
         self.children = children
@@ -45,7 +47,8 @@ class Tnode:
     def __str__(self) -> str:
         return self.token
 
-    def visualize(self):
+    def visualize(self) -> LiteralString | str:
+        raise DeprecationWarning
         result = []
         if self.children == None:
             return self.token
@@ -54,10 +57,15 @@ class Tnode:
         stuff = ",".join(result)
         return "({}_{} : [{}])".format(self.token, self.key, stuff)
 
+
+
+
+
 class Tree:
-    def __init__(self, root, max_depth) -> None:
+    def __init__(self, root, max_depth, grammar) -> None:
         self.root = Tnode(root)
-        self.root.populate(max_depth)
+        self.grammar = grammar
+        self.root.populate(max_depth, self.grammar)
         self.depth = self.get_depth()
         self.functional = None
 
@@ -71,14 +79,14 @@ class Tree:
 
         return depth(self.root)
 
-    def build_functional(self, constraints):
+    def build_functional(self, constraints) -> dict:
         unique_flag = "unique" in constraints
         results = dict()
 
-        def recur_build_o(root_o, id):
+        def recur_build_o(root_o, idx):
             assert root_o.token == "<o>"
             if root_o.key:
-                results[id] = ["us"]
+                results[idx] = ["us"]
             else:
                 curr_cfg = dict(unique=unique_flag)
                 offset = 1
@@ -89,19 +97,20 @@ class Tree:
                         expand = dict()
                         for child_child in child.children:
                             if child_child.token == "<o>":
-                                expand["<o>'s id"] = recur_build_o(child_child, id + offset)
+                                expand["<o>'s id"] = recur_build_o(child_child, idx + offset)
                                 offset += 1
                             else:
                                 expand[child_child.token] = child_child.children[0].token
                         curr_cfg[child.token] = expand
-                results[id] = curr_cfg
-            return id
+                results[idx] = curr_cfg
+            return idx
 
         recur_build_o(self.root, 0)
         self.functional = results
         return results
 
-    def computation_graph(self, configs):
+    @classmethod
+    def computation_graph(cls,configs):
         def haschild(config):
             result = []
             if not isinstance(config, dict):
@@ -118,9 +127,9 @@ class Tree:
             ret = haschild(value)
             result += [(key, child) for child in ret]
         return result
-
-    def build_program(self, configs):
-        def converter(subquery, config, subqueries):
+    @classmethod
+    def build_program(cls, configs):
+        def converter(subquery: SubQuery, config: dict, subqueries):
             if isinstance(config, list):
                 subquery.us = True
                 return
@@ -154,7 +163,7 @@ class Tree:
                 root = subquery
         return root
 
-    def visualize(self):
+    def visualize(self) -> None:
         def better_visualize_tree(node, prefix=""):
             """Visualizes the tree structure."""
             if node is None:
@@ -210,7 +219,6 @@ class Tree:
                 return mapping[token][form]
             else:
                 return token.lower()
-
 
         def state_token_string_converter(token):
             if token == "visible" or token == "nil":
@@ -458,12 +466,15 @@ class Query:
         # print(self.format,[node.id.split("-")[0] for node in self.ans])
         print(self.ans)
 
+
 class QuerySpecifier:
-    def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, debug:bool = False) -> None:
+    def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
+                 debug: bool = False, ) -> None:
         self.template = template
         self.signature = None
         self.graph = graph
         self.debug = debug
+        self.grammar = grammar
         if parameters is not None:
             self.parameters = parameters
         else:
@@ -479,29 +490,29 @@ class QuerySpecifier:
             )
             if param[1] == "o":
                 start_symbol = "<o>"
-                param_tree = Tree(start_symbol, 4)
+                param_tree = Tree(start_symbol, 4, self.grammar)
 
-                while (param_tree.depth <= 2):
-                    param_tree = Tree(start_symbol, 4)
+                while param_tree.depth <= 2:
+                    param_tree = Tree(start_symbol, 4, self.grammar)
             else:
                 start_symbol = param
-                param_tree = Tree(start_symbol, 4)
+                param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
             program = Query([param_tree.build_program(functional)], "stuff", Identity,
-                            candidates = [node for node in self.graph.get_nodes() if node.id != self.graph.ego_id])
+                            candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id])
             local["prog"] = program
-            self.signature = json.dumps(functional,sort_keys=True)
+            self.signature = json.dumps(functional, sort_keys=True)
             parameters[param] = local
         return parameters
 
-    def translate(self):
+    def translate(self) -> str:
         variant = random.choice(self.template["text"])
         for param, info in self.parameters.items():
             variant = variant.replace(param, info["en"])
         return variant
 
-    def find_end_filter(self, string):
+    def find_end_filter(self, string) -> Callable:
         mapping = dict(
             count=count,
             locate=locate_wrapper(self.graph.get_ego_node()),
@@ -511,6 +522,7 @@ class QuerySpecifier:
         return mapping[string]
 
     def answer(self):
+        assert self.parameters is not None, "No parameters"
         param_answers = []
         for param, info in self.parameters.items():
             query = info["prog"]
@@ -524,6 +536,7 @@ class QuerySpecifier:
         if self.debug:
             print(param_answers)
         return end_filter(param_answers)
+
 
 def main():
     # pwd = os.getcwd()
@@ -648,4 +661,4 @@ def main():
 
 if __name__ == "__main__":
     print("hello")
-
+    main()
