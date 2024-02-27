@@ -1,20 +1,19 @@
-from typing import Any, Callable, Iterable, List, Union
+from typing import Any, Iterable, Union
+from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
+    CountGreater, CountEqual, Identity, locate_wrapper
 from vqa.scene_graph import SceneGraph, EpisodicGraph
-from vqa.object_node import ObjectNode, nodify, transform
-from vqa.dataset_utils import extend_bbox
-from collections import defaultdict
-from vqa.grammar import CFG_GRAMMAR, STATIC_GRAMMAR
+from vqa.object_node import ObjectNode
+from vqa.grammar import STATIC_GRAMMAR
 import random
 import json
 import argparse
 import os
 
 GRAMMAR = STATIC_GRAMMAR
-
+#TODO make grammar specific for a graph to improve sampling efficiency.
 
 def is_terminal(token) -> bool:
     return token not in GRAMMAR.keys()
-
 
 class Tnode:
     def __init__(self, token) -> None:
@@ -54,7 +53,6 @@ class Tnode:
             result.append(child.visualize())
         stuff = ",".join(result)
         return "({}_{} : [{}])".format(self.token, self.key, stuff)
-
 
 class Tree:
     def __init__(self, root, max_depth) -> None:
@@ -460,12 +458,6 @@ class Query:
         # print(self.format,[node.id.split("-")[0] for node in self.ans])
         print(self.ans)
 
-
-"""
-Only return when candidates are visible by ego
-"""
-
-
 class QuerySpecifier:
     def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, debug:bool = False) -> None:
         self.template = template
@@ -532,354 +524,6 @@ class QuerySpecifier:
         if self.debug:
             print(param_answers)
         return end_filter(param_answers)
-
-
-# The small functional programlets that,essentially, keep narrowing down the
-# search space.
-def color_wrapper(colors: Iterable[str]) -> Callable:
-    '''
-    Constructor for a function that return all nodes with color in colors
-    '''
-
-    def color(candidates: Iterable[ObjectNode]):
-        results = []
-        for candidate in candidates:
-            if candidate.visible and candidate.color in colors:
-                results.append(candidate)
-        return results
-
-    return color
-
-
-def type_wrapper(types: Iterable[str]) -> Callable:
-    '''
-    Constructor for a function that return all nodes with type in types or is a subtype of type in types
-    '''
-
-    # print(types)
-    def type(candidates: Iterable[ObjectNode]):
-        # print(candidates)
-        if not candidates:
-            return []
-        results = []
-        for candidate in candidates:
-            if not candidate.visible:
-                continue
-            # print(candidate)
-            for t in types:
-                if candidate.type == t or subclass(candidate.type, t):
-                    results.append(candidate)
-                    break
-        return results
-
-    return type
-
-
-def subclass(class1: str, class2: str) -> bool:
-    """
-    determine if class1 is the subclass of class2
-    """
-
-    def get_inheritance() -> defaultdict:
-        """
-        Return a lineage tree as a dictionary
-        """
-        import yaml
-        with open("./asset_config.yaml", "r") as stream:
-            tree = yaml.safe_load(stream)["type"]
-
-        inheritance = defaultdict(lambda: [])
-
-        def get_non_leaf_nodes(d, lineage, parent_key='', ):
-            non_leaf_nodes = []
-            for key, value in d.items():
-                # Construct a full key path if you are in a nested dictionary
-                full_key = parent_key + '.' + key if parent_key else key
-                if isinstance(value, dict):
-                    lineage[parent_key].append(key)
-                    non_leaf_nodes.append(full_key)
-                    # Recursively search for non-leaf nodes
-                    non_leaf_nodes.extend(get_non_leaf_nodes(value, lineage, key))
-            return non_leaf_nodes
-
-        get_non_leaf_nodes(tree, inheritance)
-        return inheritance
-
-    inheritance = get_inheritance()  # inheritance is not a tree. But, it's a DAG from supertype to subtype(like your typing system in C++)
-    if class1 == class2:
-        return True
-    result = False
-    for child in inheritance[class2]:
-        result = result or subclass(class1, child)
-    return result
-
-
-def state_wrapper(states: Iterable[str]) -> Callable:
-    """
-    Constructor for a function that return all nodes with one state in states
-    """
-
-    # TODO
-    # Now the lambda functions only work with the vehicle's state at one frame. However,
-    # we wish to do it over multiple frames to have stable behavior.
-    def state(candidates: Iterable[ObjectNode]):
-        map = dict(
-            nil=lambda x: True,
-            visible=lambda x: x.visible,
-            parked=lambda x: x.speed == 0,
-            moving=lambda x: x.speed > 0,
-            ccelerating=lambda x: x.states and x.states["accleration"] > 0.1,
-            decelerating=lambda x: x.states and x.states["accleration"] < -0.1,
-            turning=lambda x: x.states and x.states["steering"] != 0,
-        )
-        # print(candidates)
-        if not candidates:
-            return []
-        results = []
-        for candidate in candidates:
-            if not candidate.visible:
-                continue
-            # print(candidate)
-            for s in states:
-                # print(candidate.type, t)
-                if map[s](candidate):
-                    results.append(candidate)
-        return results
-
-    return state
-
-
-def action_wrapper(egos: Iterable[ObjectNode], actions: Iterable[str]) -> Callable:
-    """
-    Return a function that takes an iterable of ObjectNode and return an iterable of ObjectNode satisfying the
-    given actions, or an empty Iterable if no actions are satisfied.
-    """
-
-    def act(candidates: Iterable[ObjectNode]):
-        results = []
-        for candidate in candidates:
-            if not candidate.visible:
-                continue
-            for ego in egos:
-                for action in actions:
-                    # if candidate performed action against one ego
-                    if action == "collides":
-                        if ego in candidate.collision:
-                            results.append(candidate)
-                    elif action == "turn_left":
-                        if candidate.states.steering < 0.1:
-                            results.append(candidate)
-                    elif action == "turn_right":
-                        if candidate.states.steering > 0.1:
-                            results.append(candidate)
-                    else:
-                        if action in candidate.actions.keys() and ego in candidate.actions[action]:
-                            results.append(candidate)
-        return results
-
-    return act
-
-
-def pos_wrapper(egos: Iterable[ObjectNode], spatial_relationships: Iterable[str],
-                ref_heading: tuple = None) -> Callable:
-    """
-    A constructor for selecting all nodes that exhibit spatial_relationship with any ego in egos for
-    spatial_relationship in spatial_relationships. ref_heading is provided to define what's left v.s. right
-    """
-
-    def pos(candidates: Iterable[ObjectNode]):
-        results = []
-        for candidate in candidates:
-            if not candidate.visible:
-                continue
-            for ego in egos:
-                if ego.id != candidate.id and ego.compute_relation_string(candidate,
-                                                                          ref_heading) in spatial_relationships:
-                    results.append(candidate)
-        return results
-
-    return pos
-
-
-def greater(A, B) -> bool:
-    '''
-    checker
-    '''
-    return A > B
-
-
-def count(stuff: Iterable) -> int:
-    '''
-    checker
-    '''
-    return [len(s) for s in stuff]
-
-
-'''
-End filters
-'''
-
-
-def CountGreater(search_spaces) -> bool:
-    """
-    Return True if the first set in the search_spaces has greater length than the second set.
-    """
-    assert len(search_spaces) == 2, "CountGreater should have only two sets to work with"
-    nums = count(search_spaces)  # [count(search_space) for search_space in search_spaces]
-    return greater(nums[0], nums[1])
-
-
-def CountEqual(search_spaces) -> bool:
-    """
-    Return True if all sets in search_spaces have the same length.
-    """
-    nums = count(search_spaces)  # [count(search_space) for search_space in search_spaces]
-    first = nums[0]
-    for num in nums:
-        if num != first:
-            return False
-    return True
-
-
-def CountLess(search_spaces) -> bool:
-    """
-    Return True if the first set in the search_spaces has greater smaller than the second set.
-    """
-    assert len(search_spaces) == 2, "CountGreater should have only two sets to work with"
-    nums = count(search_spaces)  # [count(search_space) for search_space in search_spaces]
-    return greater(nums[1], nums[0])
-
-
-def Describe(search_spaces) -> str:
-    """
-    List all items in the search_space
-    """
-    search_spaces = search_spaces[0]
-    if len(search_spaces) == 0:
-        return "No, there is not any item with specified action"
-    result = "Yes, there is "
-    result += search_spaces[0].color
-    result += " "
-    result += search_spaces[0].type
-    if len(search_spaces) == 1:
-        return result
-    else:
-        for node in search_spaces[1:]:
-            result += " and "
-            result += node.color
-            result += " "
-            result += node.type
-        result += '.'
-    return result
-
-
-def Identity(search_spaces):
-    '''
-    Return the singleton answer in search spaces
-    '''
-    return search_spaces[0]
-
-
-
-
-def locate_wrapper(origin:ObjectNode)->Callable:
-    def locate(stuff: Iterable[ObjectNode]) -> Iterable:
-        """
-        Return the bbox of all AgentNodes in stuff.
-        """
-        result = []
-        for s in stuff:
-            for more_stuff in s:
-                result.append(more_stuff.bbox)
-                #print(transform(origin, more_stuff.bbox))
-        return result
-    return locate
-
-
-def generate_all_frame(templates, frame: str, attempts: int, max:int) -> dict:
-    '''
-    Take in a path to a world.json file(a single frame), generate all
-    static questions
-    '''
-    try:
-        with open(frame, 'r') as file:
-            scene_dict = json.load(file)
-    except Exception as e:
-        raise e
-    print("Working on scene {}".format(frame))
-    ego_id, nodelist = nodify(scene_dict)
-    graph = SceneGraph(ego_id, nodelist, frame)
-    #print(graph.statistics)
-    #print(GRAMMAR)
-    # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
-    for lhs, rhs in graph.statistics.items():
-        GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
-    print(rhs)
-    #print(GRAMMAR)
-    record = {}
-    templates = {"localization": templates["localization"]}
-    # Cache seen problems. Skip them if resampled
-    seen_problems = set()
-    counts = 0
-    for question_type, specification in templates.items():
-        for idx in range(attempts):
-            print(idx)
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, debug=True)
-            if q.signature in seen_problems:
-                #print(q.signature)
-                continue
-            else:
-                seen_problems.add(q.signature)
-                #print(seen_problems)
-            question = q.translate()
-            answer = q.answer()
-            if len(answer) != 0:
-                counts += 1
-                print(question, answer)
-                record[question] = answer
-                if counts >= max:
-                    return record
-            print(len(seen_problems))
-
-    return record
-
-
-def static_all(root_folder):
-    GRAMMAR = STATIC_GRAMMAR
-
-    # TODO
-    def find_world_json_paths(root_dir):
-        world_json_paths = []  # List to hold paths to all world_{id}.json files
-        for root, dirs, files in os.walk(root_dir):
-            # Extract the last part of the current path, which should be the frame folder's name
-            frame_folder_name = os.path.basename(root)
-            expected_json_filename = f'world_{frame_folder_name}.json'  # Construct expected filename
-            if expected_json_filename in files:
-                path = os.path.join(root, expected_json_filename)  # Construct full path
-                world_json_paths.append(path)
-        return world_json_paths
-
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    paths = find_world_json_paths(root_folder)
-    template_path = os.path.join(current_directory, "question_templates.json")
-    try:
-        with open(template_path, "r") as f:
-            templates = json.load(f)
-    except Exception as e:
-        raise e
-    records = {}
-    for path in paths:
-        record = generate_all_frame(templates["generic"], path, 100,3)
-        records[path] = record
-        break
-    for path, record in records.items():
-        folder = os.path.dirname(path)
-        try:
-            with open(os.path.join(folder, "static_questions.json"), "w") as f:
-                json.dump(record, f, indent=4)
-        except Exception as e:
-            raise e
-
 
 def main():
     # pwd = os.getcwd()
@@ -1004,4 +648,4 @@ def main():
 
 if __name__ == "__main__":
     print("hello")
-    static_all("verification")
+

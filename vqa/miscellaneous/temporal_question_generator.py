@@ -2,7 +2,7 @@ from typing import Any, Callable, Iterable, List
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode, nodify, transform
 from vqa.dataset_utils import extend_bbox
-from vqa.question_generator import subclass
+from vqa.functionals import subclass
 from collections import defaultdict
 import json
 import numpy as np

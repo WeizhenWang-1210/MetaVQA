@@ -10,6 +10,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 
+import vqa.functionals
+
 _DATATYPES = {}
 _DATATYPES[PointField.INT8] = ('b', 1)
 _DATATYPES[PointField.UINT8] = ('B', 1)
@@ -48,8 +50,8 @@ class LidarPublisher(Node):
                 print('Skipping unknown PointField datatype [{}]' % field.datatype, file=sys.stderr)
             else:
                 datatype_fmt, datatype_length = _DATATYPES[field.datatype]
-                fmt += field.count * datatype_fmt
-                offset += field.count * datatype_length
+                fmt += vqa.grammar_tree.count * datatype_fmt
+                offset += vqa.grammar_tree.count * datatype_length
 
         return fmt
 

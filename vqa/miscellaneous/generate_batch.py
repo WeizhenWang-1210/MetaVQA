@@ -5,7 +5,8 @@ import argparse
 import glob
 from typing import Callable, Any, Iterable
 #from APIKEY import OPEN_AI_KEY
-from vqa.question_generator import Query,SubQuery,count, QueryAnswerer,CountGreater, CountEqual, locate,CountLess 
+from vqa.question_generator import Query,SubQuery, QueryAnswerer, locate
+from vqa.functionals import count, CountGreater, CountEqual, CountLess
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import nodify
 import yaml
