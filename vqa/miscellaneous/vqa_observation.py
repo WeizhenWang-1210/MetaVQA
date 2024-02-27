@@ -1,4 +1,4 @@
-from metadrive.envs.metadrive_env import MetaDriveEnv
+rom metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
