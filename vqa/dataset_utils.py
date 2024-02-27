@@ -75,7 +75,6 @@ def find_overlap_episodes(objects_info, obj_id1, obj_id2):
 
     return overlapping_episodes
 
-
 def find_extremities(ref_heading: Iterable[float],
                      bboxes: Iterable[Iterable], center: Iterable[float]) -> Tuple[Iterable[float], ...]:
     """

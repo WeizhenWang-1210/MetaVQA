@@ -21,7 +21,7 @@ CFG_GRAMMAR = {
     ],
     "<t>":[
         ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"]
+        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"],["Pedestrian"], ["vehicle"]
     ],
     "<dir>":[
         ["nil"],["<tdir>", "<o>"]
@@ -46,7 +46,7 @@ STATIC_GRAMMAR = {
     ],
     "<t>":[
         ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"]
+        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"],["Pedestrian"], ["vehicle"]
     ],
     "<dir>":[
         ["nil"],["<tdir>", "<o>"]

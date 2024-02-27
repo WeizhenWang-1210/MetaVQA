@@ -3,11 +3,10 @@
         "localization":{
             "text": [
                 "Locate the <o>.",
-                "Give me the bounding [box] of <o>."
+                "Give me the bounding box of <o>."
             ],
             "params":[
-                "<o>",
-                "box"
+                "<o>"
             ],
             "end_filter":"locate",
             "constraint":[]
@@ -69,73 +68,28 @@
             ],
             "end_filter":"is_stationary",
             "constraint":["unique"]
-        }
-    },
-    "safety":{
-        "feasibility":{
-            "text":[
-                "Can <o> <a> at this moment?",
-                "Is it safe for <o> to <a> at this moment?"
-            ],
-            "param":[
-                "<o>", "<a>"
-            ],
-            "end_filter":"situational",
-            "constraint": ["unique"]
         },
-        "regulatory":{
-            "text":[
-                "Should <o> <a> at this moment?",
-                "Does <o> <a> break the traffic rule?",
-                "Can <o> <a> without breaking the traffic rule?",
-                "Is <o> doing <a> compliant with the traffic rule?"
+        "motion_prediction": {
+            "text": [
+                "How will the <o> move in the future?",
+                "What's the expected trajectory of <o>?"
             ],
-            "param":[
-                "<o>","<a>"
+            "param": [
+                "o"
             ],
-            "end_filter":"situational_rule",
-            "constraint":["unique"]
+            "end_filter": "predict_trajectory",
+            "constraint": []
         },
-        "counterfactual_unary":{
-            "text":[
-                "Will <e> happen if <o1> <a1>?",
-                "If <o> <a>, is <e> expected?"
+        "action_prediction": {
+            "text": [
+                "What action will <o> take? Turn left, turn right, or go straight?",
+                "Choose one action that will likely be performed for <o>: turn left, turn right, and go straight"
             ],
-            "param":[
-                "<o>","<a>"
+            "param": [
+                "o"
             ],
-            "end_filter":"inference",
-            "constraint":["unique"]
-        },
-        "counterfactual_binary":{
-            "text":[
-                "If <o1> <a1> and <o2> <a2>, will <e> happens?",
-                "Is <e> expected should <o1> <a1> and <o2> <a2>"
-            ],
-            "param":[
-                "<o1>","<a1>, <o2>, <a2>"
-            ],
-            "constraint":["unique"]
-        },
-        "counterfactual_unary_choice":{
-            "text":[
-                "What will happen if <o1> <a1>?"
-            ],
-            "param":[
-                "<o>","<a>","<ans>"
-            ],
-            "constraint":["unique"]
-        },
-        "counterfactual_binary_choice":{
-            "text":[
-                "If <o1> <a1> and <o2> <a2>, what will happens?",
-                "What's expected should <o1> <a1> and <o2> <a2>"
-            ],
-            "param":[
-                "<o1>","<a1>", "<o2>", "<a2>","<ans>"
-            ],
-            "constraint":["unique"]
+            "end_filter": "predict_turn",
+            "constraint": []
         }
     }
-   
 }

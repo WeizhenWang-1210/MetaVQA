@@ -303,17 +303,14 @@ if __name__ == "__main__":
     config_path = os.path.join(cwd,"vqa","configs","scene_generation_config.yaml")
     try:
         with open(config_path, 'r') as f:
-        #with open("D:\\research\\metavqa-merge\\MetaVQA\\vqa\\configs\\scene_generation_config.yaml", 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
     scene_folder = os.path.join(cwd,"verification")
-    output_folder = os.path.join(cwd,"verification","episodes")
-    """scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
-    output_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification\\dynamic"""
+    #output_folder = os.path.join(cwd,"verification","episodes")
     #analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
     #                                  episode_length=config["episode_length"],skip_length=config["skip_length"])
-    analyze_and_save_car_interactions(scene_folder)
+    #analyze_and_save_car_interactions(scene_folder)
     
     """create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
                                        episode_length=config["episode_length"],skip_length=config["skip_length"])"""

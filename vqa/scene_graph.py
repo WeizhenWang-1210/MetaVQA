@@ -29,8 +29,9 @@ class SceneGraph:
             self.nodes[node.id] = node
         self.ego_id:str = ego_id
         self.spatial_graph:dict = self.compute_spatial_graph()
-        self.road_graph:RoadGraph = RoadGraph([node.lane for node in nodes])
+        #self.road_graph:RoadGraph = RoadGraph([node.lane for node in nodes])
         self.folder = folder
+        self.statistics = self.generate_statistics()
 
     def refocus(self,new_ego_id:str) -> None:
         """
@@ -48,7 +49,8 @@ class SceneGraph:
                         'lf':[],
                         'rf':[],
                         'lb':[],
-                        'rb':[]
+                        'rb':[],
+                        's':[]
                     }
             ego_node =self.nodes[ego_id]
             ref_node = self.nodes[ref_id]
@@ -73,8 +75,9 @@ class SceneGraph:
                     elif side == 1 and front == 1:
                         edges['rf'].append(node.id)
                     else:
-                        print("Erroenous Relations!")
-                        exit()
+                        #print("Erroenous Relations!\n{}:{},\n{}:{}".format(ego_node.id, ego_node.pos, node.id, node.pos))
+                        #exit()
+                        edges['s'].append(node.id)
             return edges
         graph = {}
         for node_id in self.nodes.keys():
@@ -91,20 +94,20 @@ class SceneGraph:
         else:
             return 1
         
-    def check_sameSide(self, node1:str, node2:str):
+    """def check_sameSide(self, node1:str, node2:str):
         n1, n2 = self.nodes[node1], self.nodes[node2]
         return self.road_graph.reachable(n1.lane[0],n2.lane[0]) or\
-                self.road_graph.reachable(n2.lane[0],n1.lane[0])
+                self.road_graph.reachable(n2.lane[0],n1.lane[0])"""
     
-    def check_sameStreet(self, node1:str, node2:str):
+    """def check_sameStreet(self, node1:str, node2:str):
         n1, n2 = self.nodes[node1], self.nodes[node2]
         return self.check_sameSide(node1,node2) or\
                 self.road_graph.reachable('-'+n1.lane[0],n2.lane[0]) or\
                 self.road_graph.reachable(n2.lane[0],'-'+n1.lane[0]) or\
                 self.road_graph.reachable(n1.lane[0],'-'+n2.lane[0]) or\
-                self.road_graph.reachable('-'+n2.lane[0],n1.lane[0])
+                self.road_graph.reachable('-'+n2.lane[0],n1.lane[0])"""
     
-    def get_nodes(self)->ObjectNode:
+    def get_nodes(self) -> Iterable[ObjectNode]:
         return list(self.nodes.values())
     
     def get_ego_node(self)->ObjectNode:
@@ -112,6 +115,16 @@ class SceneGraph:
     
     def get_node(self, id:str)->ObjectNode:
         return self.nodes[id]
+
+    def generate_statistics(self) -> dict:
+        colors,types = set(),set()
+        for node in self.nodes.values():
+            colors.add(node.color)
+            types.add(node.type)
+        return {
+            "<p>":list(colors),
+            "<t>":list(types)
+        }
     
     
 class EpisodicGraph:
@@ -160,10 +173,9 @@ class EpisodicGraph:
         for l,r in collision_pairs:
             self.final_frame.nodes[l].collision.append(r)
             self.final_frame.node[r].collision.append(l)
-        
-        
-            
-        
+
+
+
 if __name__ == "__main__":
     test_graph = EpisodicGraph()
     test_graph.load(root_folder="C:/school/Bolei/metavqa/verification/10_50_99",
@@ -172,11 +184,3 @@ if __name__ == "__main__":
                        )
         
                 
-                
-                
-            
-            
-        
-        
-        
-        

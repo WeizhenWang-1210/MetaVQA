@@ -5,6 +5,8 @@ from metadrive.envs.base_env import BaseEnv
 from metadrive.base_class.base_object import BaseObject
 from metadrive.component.vehicle.vehicle_type import BaseVehicle,SVehicle, MVehicle, LVehicle, XLVehicle, DefaultVehicle,StaticDefaultVehicle,VaryingDynamicsVehicle, CustomizedCar
 from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
+from metadrive.component.traffic_participants.pedestrian import Pedestrian
+from metadrive.component.traffic_participants.cyclist import Cyclist
 from metadrive.component.static_object.test_new_object import TestObject
 from vqa.dataset_utils import transform_to_world
 def annotate_type(object):
@@ -28,7 +30,9 @@ def annotate_type(object):
         VaryingDynamicsVehicle: "Sedan",
         TrafficBarrier:"Barrier",
         TrafficWarning:"Warning Sign",
-        TrafficCone: "Traffic Cone"
+        TrafficCone: "Traffic Cone",
+        Cyclist:"Cyclist",
+        Pedestrian:"Pedestrian",
     }
     for c,name in vehicle_type.items():
         if isinstance(object, c):
@@ -59,6 +63,8 @@ def annotate_color(object):
         TrafficCone: "Orange",
         TrafficBarrier: "White",
         TrafficWarning: "Red",
+        Cyclist: "White",
+        Pedestrian: "White",
     }
     for c,color in vehicle_type.items():
         if isinstance(object, c):

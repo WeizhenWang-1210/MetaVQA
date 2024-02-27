@@ -9,11 +9,11 @@ map_setting:
   structures_density: 0
   accident_prob: 0
   num_scenarios: 100
-  start_seed: 10
+  start_seed: 0
 sample_frequency: 1
-num_samples: 5
+num_samples: 20
 max_iterations: 10000
 temporal_generation: True
-episode_length: 5
-skip_length: 50
+episode_length: 20
+skip_length: 30
 ...
