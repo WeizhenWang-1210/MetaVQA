@@ -35,7 +35,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int) -> dict:
     for question_type, specification in templates.items():
         for idx in range(attempts):
             print(idx)
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, debug=True)
+            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR)
             if q.signature in seen_problems:
                 #print(q.signature)
                 continue
