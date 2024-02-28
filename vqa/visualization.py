@@ -3,7 +3,7 @@ import cv2
 import json
 import os
 import numpy as np
-def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors):
+def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, prefix = "highlighted"):
     """
     Take in an instance segmentation masks to recolor pixels that belong to 
     objects with ids into the provided colors
@@ -14,7 +14,7 @@ def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors):
         with open(path_to_mapping, "r") as f:
             mapping = json.load(f)
         highlighted = highlight(img, ids, colors, mapping)
-        name = "highlighted_{}.png".format(ids[0])
+        name = "{}_{}.png".format(prefix,ids[0])
         path = os.path.join(folder, name)
         cv2.imwrite(path,highlighted)
     except Exception as e:
