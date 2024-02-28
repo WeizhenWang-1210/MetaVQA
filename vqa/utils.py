@@ -139,7 +139,7 @@ def genearte_annotation(object: BaseObject, env: BaseEnv) -> dict:
 
 def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, )-> np.array:
     """
-    Hight light imgs
+    Hight light imgs. If the color actually exists in the image, hightlight it into white
     """
     H,W,C = img.shape
     img = img / 255 #needed as the r,g,b values in the mapping is clipped.
