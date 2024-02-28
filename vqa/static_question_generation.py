@@ -20,38 +20,60 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int) -> dict:
     print("Working on scene {}".format(frame))
     ego_id, nodelist = nodify(scene_dict)
     graph = SceneGraph(ego_id, nodelist, frame)
-    #print(graph.statistics)
-    #print(GRAMMAR)
     # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
     for lhs, rhs in graph.statistics.items():
         GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
-    print(rhs)
-    #print(GRAMMAR)
     record = {}
-    templates = {"localization": templates["localization"]}
+    templates = {"count_more_binary": templates["count_more_binary"]}
     # Cache seen problems. Skip them if resampled
     seen_problems = set()
     counts = 0
     for question_type, specification in templates.items():
         for idx in range(attempts):
-            print(idx)
+            print("Attempt {} of {} for {}".format(idx, attempts, question_type))
             q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR)
-            if q.signature in seen_problems:
-                #print(q.signature)
+            """if q.signature in seen_problems:
                 continue
             else:
-                seen_problems.add(q.signature)
-                #print(seen_problems)
+                seen_problems.add(q.signature)"""
             question = q.translate()
             answer = q.answer()
-            if len(answer) != 0:
-                counts += 1
-                print(question, answer)
-                record[question] = answer
-                if counts >= max:
-                    return record
-            print(len(seen_problems))
-
+            if question_type == "counting":
+                if answer[0] > 0:
+                    counts += 1
+                    record[question] = answer
+                    if counts >= max:
+                        return record
+            elif question_type == "localization":
+                if len(answer) != 0:
+                    counts += 1
+                    record[question] = answer
+                    if counts >= max:
+                        return record
+            elif question_type == "count_equal_binary":
+                degenerate = True
+                for param, info in q.parameters.items():
+                    if len(q.parameters[param]["answer"]) > 0:
+                        degenerate = False
+                        break
+                if not degenerate:
+                    counts += 1
+                    record[question] = answer
+                    if counts >= max:
+                        return record
+            elif question_type == "count_more_binary":
+                degenerate = True
+                for param, info in q.parameters.items():
+                    if len(q.parameters[param]["answer"]) > 0:
+                        degenerate
+                        break
+                if not degenerate:
+                    counts += 1
+                    record[question] = answer
+                    if counts >= max:
+                        return record
+            else:
+                print("Unknown question type!")
     return record
 
 
