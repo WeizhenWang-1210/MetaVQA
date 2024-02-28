@@ -460,6 +460,10 @@ class Query:
         # print(self.format,[node.id.split("-")[0] for node in self.ans])
         print(self.ans)
 
+
+
+CACHE = dict()
+
 class QuerySpecifier:
     def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
                  debug: bool = False, ) -> None:
@@ -475,10 +479,12 @@ class QuerySpecifier:
 
     def instantiate(self):
         parameters = {}
+        signatures = []
         for param in self.template["params"]:
             local = dict(
                 en=None,
                 prog=None,
+                signature = None,
                 ans=None
             )
             if param[1] == "o":
@@ -492,11 +498,13 @@ class QuerySpecifier:
                 param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
+            local["signature"] =  json.dumps(functional, sort_keys=True)
             program = Query([param_tree.build_program(functional)], "stuff", Identity,
                             candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id])
             local["prog"] = program
-            self.signature = json.dumps(functional, sort_keys=True)
             parameters[param] = local
+
+        self.signatures = signatures
         return parameters
 
     def translate(self) -> str:
@@ -519,11 +527,16 @@ class QuerySpecifier:
         assert self.parameters is not None, "No parameters"
         param_answers = []
         for param, info in self.parameters.items():
-            query = info["prog"]
-            query.set_reference(self.graph.get_ego_node().heading)
-            query.set_searchspace(self.graph.get_nodes())
-            query.set_egos([self.graph.get_ego_node()])
-            answers = query.proceed()
+            if info["signature"] in CACHE.keys():
+                answers = CACHE[info["signature"]]
+            else:
+                query = info["prog"]
+                query.set_reference(self.graph.get_ego_node().heading)
+                query.set_searchspace(self.graph.get_nodes())
+                query.set_egos([self.graph.get_ego_node()])
+                answers = query.proceed()
+                CACHE[info["signature"]] = answers
+
             self.parameters[param]["answer"] = answers
             param_answers.append(answers)
         end_filter = self.find_end_filter(self.template["end_filter"])

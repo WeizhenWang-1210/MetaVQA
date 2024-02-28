@@ -5,6 +5,7 @@ from vqa.grammar import STATIC_GRAMMAR
 from vqa.object_node import nodify
 from vqa.question_generator import GRAMMAR, QuerySpecifier
 from vqa.scene_graph import SceneGraph
+from vqa.question_generator import CACHE
 
 
 def generate_all_frame(templates, frame: str, attempts: int, max:int) -> dict:
@@ -21,17 +22,18 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int) -> dict:
     ego_id, nodelist = nodify(scene_dict)
     graph = SceneGraph(ego_id, nodelist, frame)
     # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
+
+    templates = {"localization":templates["localization"]}
     for lhs, rhs in graph.statistics.items():
         GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
     record = {}
-    templates = {"count_more_binary": templates["count_more_binary"]}
     # Cache seen problems. Skip them if resampled
-    seen_problems = set()
+    #seen_problems = dict()
     counts = 0
     for question_type, specification in templates.items():
         for idx in range(attempts):
             print("Attempt {} of {} for {}".format(idx, attempts, question_type))
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR)
+            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR, debug = True)
             """if q.signature in seen_problems:
                 continue
             else:
@@ -50,22 +52,11 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int) -> dict:
                     record[question] = answer
                     if counts >= max:
                         return record
-            elif question_type == "count_equal_binary":
+            elif question_type == "count_equal_binary" or question_type == "count_more_binary":
                 degenerate = True
                 for param, info in q.parameters.items():
                     if len(q.parameters[param]["answer"]) > 0:
                         degenerate = False
-                        break
-                if not degenerate:
-                    counts += 1
-                    record[question] = answer
-                    if counts >= max:
-                        return record
-            elif question_type == "count_more_binary":
-                degenerate = True
-                for param, info in q.parameters.items():
-                    if len(q.parameters[param]["answer"]) > 0:
-                        degenerate
                         break
                 if not degenerate:
                     counts += 1
@@ -104,6 +95,7 @@ def static_all(root_folder):
     for path in paths:
         record = generate_all_frame(templates["generic"], path, 100,3)
         records[path] = record
+        CACHE.clear()
         break
     for path, record in records.items():
         folder = os.path.dirname(path)
