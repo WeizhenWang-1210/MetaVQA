@@ -8,6 +8,7 @@ import random
 import json
 import argparse
 import os
+from vqa.visualization import generate_highlighted
 
 GRAMMAR = STATIC_GRAMMAR
 
@@ -15,7 +16,6 @@ GRAMMAR = STATIC_GRAMMAR
 
 def is_terminal(token, grammar) -> bool:
     return token not in grammar.keys()
-
 
 class Tnode:
     def __init__(self, token) -> None:
@@ -56,10 +56,6 @@ class Tnode:
             result.append(child.visualize())
         stuff = ",".join(result)
         return "({}_{} : [{}])".format(self.token, self.key, stuff)
-
-
-
-
 
 class Tree:
     def __init__(self, root, max_depth, grammar) -> None:
@@ -296,7 +292,6 @@ class Tree:
 
         return recur_translate(0)
 
-
 class SubQuery:
     """
     A subquery is a single functional program. It can be stringed into a query graph(abstracted in Query). It takes a search space and returns all
@@ -387,7 +382,6 @@ class SubQuery:
         self.ans = ans
         return self.ans
 
-
 class Query:
     """
     A query is a functional implentation of an English question. It can have a single-thread of subqueries(counting/referral),
@@ -466,7 +460,6 @@ class Query:
         # print(self.format,[node.id.split("-")[0] for node in self.ans])
         print(self.ans)
 
-
 class QuerySpecifier:
     def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
                  debug: bool = False, ) -> None:
@@ -518,6 +511,7 @@ class QuerySpecifier:
             locate=locate_wrapper(self.graph.get_ego_node()),
             count_equal=CountEqual,
             count_more=CountGreater,
+
         )
         return mapping[string]
 
@@ -533,10 +527,28 @@ class QuerySpecifier:
             self.parameters[param]["answer"] = answers
             param_answers.append(answers)
         end_filter = self.find_end_filter(self.template["end_filter"])
-        if self.debug:
-            print(param_answers)
+        if self.debug and len(param_answers[0]) > 0:
+            objects = []
+            ids = []
+            for param_answer in param_answers:
+                for obj in param_answer:
+                    objects.append(f"{obj.type}:{obj.id}")
+                    ids.append(obj.id)
+            print(ids)
+            parent_folder = os.path.dirname(self.graph.folder)
+            identifier = os.path.basename(parent_folder)
+            path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
+            path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
+            folder = parent_folder
+            colors = [(1,1,1) for _ in range(len(ids))]
+            generate_highlighted(
+                path_to_mask,
+                path_to_mapping,
+                folder,
+                ids,
+                colors
+            )
         return end_filter(param_answers)
-
 
 def main():
     # pwd = os.getcwd()
@@ -657,7 +669,6 @@ def main():
     )
     print(q.translate())
     print(q.answer())
-
 
 if __name__ == "__main__":
     print("hello")

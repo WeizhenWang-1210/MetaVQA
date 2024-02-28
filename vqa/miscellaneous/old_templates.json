@@ -1,4 +1,17 @@
 {
+
+
+    "identify_property":{
+            "text":[
+                "What is the <p> for <o>?",
+                "What <p> does <o> have"
+            ],
+            "param":[
+                "<p>","<o>","<ans>"
+            ],
+            "end_filter":"extract_p",
+            "constraint":["unique"]
+        },
       "safety":{
         "feasibility":{
             "text":[
