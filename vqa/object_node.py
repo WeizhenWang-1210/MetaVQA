@@ -233,7 +233,7 @@ def transform(ego:ObjectNode,bbox:Iterable[Iterable[float]])->Iterable:
     Coordinate system transformation from world coordinate to ego's coordinate.
     +x being ego's heading, +y being +x rotate 90 degrees counterclockwise.
     """
-    assert len(bbox) == 4 ,"bbox has more than four points in agent_node.transform"
+    #assert len(bbox) == 4 ,"bbox has more than four points in agent_node.transform"
     def change_bases(x,y):
         relative_x, relative_y = x - ego.pos[0], y - ego.pos[1]
         new_x = ego.heading

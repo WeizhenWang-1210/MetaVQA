@@ -310,7 +310,7 @@ if __name__ == "__main__":
     #output_folder = os.path.join(cwd,"verification","episodes")
     #analyze_and_save_car_interactions(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
     #                                  episode_length=config["episode_length"],skip_length=config["skip_length"])
-    #analyze_and_save_car_interactions(scene_folder)
+    analyze_and_save_car_interactions(scene_folder)
     
     """create_videos_for_episodes(scene_folder, output_folder, sample_frequency=config["sample_frequency"],
                                        episode_length=config["episode_length"],skip_length=config["skip_length"])"""

@@ -9,13 +9,15 @@ import json
 import argparse
 import os
 from vqa.visualization import generate_highlighted
+from collections import defaultdict
+from vqa.object_node import transform
 
 GRAMMAR = STATIC_GRAMMAR
 
 
-
 def is_terminal(token, grammar) -> bool:
     return token not in grammar.keys()
+
 
 class Tnode:
     def __init__(self, token) -> None:
@@ -56,6 +58,7 @@ class Tnode:
             result.append(child.visualize())
         stuff = ",".join(result)
         return "({}_{} : [{}])".format(self.token, self.key, stuff)
+
 
 class Tree:
     def __init__(self, root, max_depth, grammar) -> None:
@@ -106,7 +109,7 @@ class Tree:
         return results
 
     @classmethod
-    def computation_graph(cls,configs):
+    def computation_graph(cls, configs):
         def haschild(config):
             result = []
             if not isinstance(config, dict):
@@ -123,15 +126,16 @@ class Tree:
             ret = haschild(value)
             result += [(key, child) for child in ret]
         return result
+
     @classmethod
     def build_program(cls, configs):
         def converter(subquery: SubQuery, config: dict, subqueries):
             if isinstance(config, list):
                 subquery.us = True
                 return
-            subquery.color = config["<p>"],
-            subquery.type = config["<t>"],
-            subquery.state = config["<s>"],
+            subquery.color = config["<p>"] if config["<p>"] != "nil" else None
+            subquery.type = config["<t>"] if config["<t>"] != "nil" else None
+            subquery.state = config["<s>"] if config["<s>"] != "nil" else None
             # Create the action requirements according to the grammar tree specification
             if isinstance(config["<a>"], dict):
                 if "<deed_without_o>" in config["<a>"].keys():
@@ -196,7 +200,7 @@ class Tree:
 
         def type_token_string_converter(token, form):
             mapping = dict(
-                nil=dict(singular="thing", plural="things"),
+                nil=dict(singular="relevant thing", plural="relevant things"),
                 Bus=dict(singular="bus", plural="buses"),
                 Caravan=dict(singular="caravan", plural="caravans"),
                 Coupe=dict(singular="coupe", plural="coupes"),
@@ -292,6 +296,7 @@ class Tree:
 
         return recur_translate(0)
 
+
 class SubQuery:
     """
     A subquery is a single functional program. It can be stringed into a query graph(abstracted in Query). It takes a search space and returns all
@@ -382,6 +387,7 @@ class SubQuery:
         self.ans = ans
         return self.ans
 
+
 class Query:
     """
     A query is a functional implentation of an English question. It can have a single-thread of subqueries(counting/referral),
@@ -461,21 +467,26 @@ class Query:
         print(self.ans)
 
 
-
 CACHE = dict()
+
 
 class QuerySpecifier:
     def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
-                 debug: bool = False, ) -> None:
+                 debug: bool = False, stats: bool = True) -> None:
         self.template = template
         self.signature = None
         self.graph = graph
         self.debug = debug
         self.grammar = grammar
+        self.stats = stats
         if parameters is not None:
             self.parameters = parameters
         else:
             self.parameters = self.instantiate()
+        self.statistics = dict(
+            types=defaultdict(int),
+            pos=[]
+        )
 
     def instantiate(self):
         parameters = {}
@@ -484,7 +495,7 @@ class QuerySpecifier:
             local = dict(
                 en=None,
                 prog=None,
-                signature = None,
+                signature=None,
                 ans=None
             )
             if param[1] == "o":
@@ -498,10 +509,12 @@ class QuerySpecifier:
                 param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
-            local["signature"] =  json.dumps(functional, sort_keys=True)
+            #param_tree.visualize()
+            local["signature"] = json.dumps(functional, sort_keys=True)
             program = Query([param_tree.build_program(functional)], "stuff", Identity,
                             candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id])
             local["prog"] = program
+            #print(program.heads)
             parameters[param] = local
 
         self.signatures = signatures
@@ -532,7 +545,7 @@ class QuerySpecifier:
             else:
                 query = info["prog"]
                 query.set_reference(self.graph.get_ego_node().heading)
-                query.set_searchspace(self.graph.get_nodes())
+                #query.set_searchspace(self.graph.get_nodes())
                 query.set_egos([self.graph.get_ego_node()])
                 answers = query.proceed()
                 CACHE[info["signature"]] = answers
@@ -553,7 +566,7 @@ class QuerySpecifier:
             path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
             path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
             folder = parent_folder
-            colors = [(1,1,1) for _ in range(len(ids))]
+            colors = [(1, 1, 1) for _ in range(len(ids))]
             generate_highlighted(
                 path_to_mask,
                 path_to_mapping,
@@ -561,7 +574,17 @@ class QuerySpecifier:
                 ids,
                 colors
             )
+        if self.stats:
+            self.generate_statistics(param_answers)
+
         return end_filter(param_answers)
+
+    def generate_statistics(self, params):
+        for objects in params:
+            for obj in objects:
+                self.statistics["types"][obj.type] += 1
+                self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
+
 
 def main():
     # pwd = os.getcwd()
@@ -574,23 +597,24 @@ def main():
         templates = json.load(f)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default="verification/10_299/world_10_50")
-    parser.add_argument("--episode", type=str, default="verification/10_50_54")
+    parser.add_argument("--step", type=str, default="verification/0_30_49/0_30/world_0_30")
+    parser.add_argument("--episode", type=str, default="verification/0_30_49")
     args = parser.parse_args()
-    """
+
     try:
         #print(args.step)
         with open('{}.json'.format(args.step),'r') as scene_file:
                 scene_dict = json.load(scene_file)
     except Exception as e:
-        raise e"""
-    # agent_id,nodes = nodify(scene_dict)
-    # graph = SceneGraph(agent_id,nodes)
+        raise e
+    from vqa.scene_graph import nodify
+    agent_id,nodes = nodify(scene_dict)
+    graph = SceneGraph(agent_id,nodes,folder="verification/0_30_49/0_30/world_0_30.json")
     episode_graph = EpisodicGraph()
     frames = [f for f in os.listdir(args.episode) if not ("." in f)]
-    interaction_path = os.path.join(args.episode, "interaction.json")
-    episode_graph.load(args.episode, frames, interaction_path)
-    graph = episode_graph.final_frame
+    #interaction_path = os.path.join(args.episode, "interaction.json")
+    #episode_graph.load(args.episode, frames, interaction_path)
+    #graph = episode_graph.final_frame
     GRAMMAR = STATIC_GRAMMAR
     """
     q1 = SubQuery(
@@ -675,13 +699,40 @@ def main():
                          folder = "verification/10_299",
                          ids = ids,
                          colors = [(1,1,1)]*len(ids))"""
+
+    q3 = SubQuery(
+        color=None,
+        type=None,
+        pos=None,
+        state=None,
+        action=None,
+        next=None,
+        prev={})
+    q4 = SubQuery()
+    q4.us = True
+    q3.prev["pos"] = q4
+    q4.next = q3
+    parameters_2 = {
+        "<o>": {
+            "en": "things",
+            "prog": Query([q3], "counting", Identity),
+            "ans": None,
+            "signature":"",
+        }
+    }
     q = QuerySpecifier(
         template=templates["generic"]["counting"],
-        parameters=None,
+        parameters=parameters_2,
         graph=graph,
+        grammar=GRAMMAR,
+        debug = True,
     )
+
     print(q.translate())
     print(q.answer())
+    print(q.parameters)
+    print("end")
+
 
 if __name__ == "__main__":
     print("hello")

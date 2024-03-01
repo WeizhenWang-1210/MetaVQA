@@ -32,7 +32,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     for question_type, specification in templates.items():
         for idx in range(attempts):
             print("Attempt {} of {} for {}".format(idx, attempts, question_type))
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR, debug = True, stats = True)
+            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR, debug = False, stats = True)
             question = q.translate()
             answer = q.answer()
             print(question, answer)

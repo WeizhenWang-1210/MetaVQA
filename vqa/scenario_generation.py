@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 from vqa.dataset_utils import l2_distance
 from metadrive import MetaDriveEnv
+from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from metadrive.engine.engine_utils import get_engine
@@ -256,7 +257,7 @@ def main():
             )
         }
         from metadrive.envs.scenario_env import ScenarioEnv
-        env = ScenarioEnv(env_config)
+        env = ScenarioDiverseEnv(env_config)
         env.reset()
     else:
         env_config = dict(
