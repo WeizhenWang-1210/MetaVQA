@@ -14,6 +14,8 @@ from metadrive.manager.scenario_data_manager import ScenarioDataManager
 from metadrive.manager.scenario_light_manager import ScenarioLightManager
 from metadrive.manager.scenario_map_manager import ScenarioMapManager
 from metadrive.manager.scenario_traffic_manager import ScenarioTrafficManager
+from metadrive.manager.scenario_diverse_traffic_manager import ScenarioDiverseTrafficManager
+from metadrive.manager.new_sidewalk_manager import SidewalkManager
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.utils import get_np_random
 from metadrive.utils.math import wrap_to_pi
@@ -379,6 +381,19 @@ class ScenarioEnv(BaseEnv):
             self.config["start_scenario_index"] + self.config["num_scenarios"])
         self.seed(current_seed)
 
+class ScenarioDiverseEnv(ScenarioEnv):
+
+    def setup_engine(self):
+        super(ScenarioEnv, self).setup_engine()
+        self.engine.register_manager("data_manager", ScenarioDataManager())
+        self.engine.register_manager("map_manager", ScenarioMapManager())
+        if not self.config["no_traffic"]:
+            # self.engine.register_manager("traffic_manager", ScenarioTrafficManager())
+            self.engine.register_manager("traffic_manager", ScenarioDiverseTrafficManager())
+        if not self.config["no_light"]:
+            self.engine.register_manager("light_manager", ScenarioLightManager())
+        self.engine.register_manager("curriculum_manager", ScenarioCurriculumManager())
+        # self.engine.register_manager("sidewalk_manager", SidewalkManager())
 
 if __name__ == "__main__":
     env = ScenarioEnv(
