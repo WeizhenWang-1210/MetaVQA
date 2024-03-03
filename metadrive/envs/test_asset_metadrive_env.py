@@ -116,7 +116,7 @@ class TestAssetMetaDriveEnv(BaseEnv):
         self.start_seed = self.start_index = self.config["start_seed"]
         self.env_num = self.num_scenarios
     def _get_agent_manager(self):
-        return TestAssetAgentManager(init_observations=self._get_observations(), init_action_space=self._get_action_space(), test_asset_meta_info = self.test_asset_meta_info, initpos=self.initpos)
+        return TestAssetAgentManager(init_observations=self._get_observations(), test_asset_meta_info = self.test_asset_meta_info, initpos=self.initpos)
     def _merge_extra_config(self, config: Union[dict, Config]) -> Config:
         config = self.default_config().update(config, allow_add_new_key=False)
         if config["vehicle_config"]["lidar"]["distance"] > 50:
