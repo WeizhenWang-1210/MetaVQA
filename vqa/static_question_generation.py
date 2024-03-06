@@ -9,7 +9,7 @@ from vqa.question_generator import CACHE
 
 
 
-def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:int) -> dict:
+def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:int, verbose:bool =False) -> dict:
     '''
     Take in a path to a world.json file(a single frame), generate all
     static questions
@@ -31,11 +31,13 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     counts = 0
     for question_type, specification in templates.items():
         for idx in range(attempts):
-            print("Attempt {} of {} for {}".format(idx, attempts, question_type))
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR, debug = False, stats = True)
+            if verbose:
+                print("Attempt {} of {} for {}".format(idx, attempts, question_type))
+            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR, debug = True, stats = True)
             question = q.translate()
             answer = q.answer()
-            print(question, answer)
+            if verbose:
+                print(question, answer)
             if question_type == "counting":
                 if answer[0] > 0:
                     record[id_start+counts] = dict(
@@ -87,10 +89,12 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
                         #return record
             else:
                 print("Unknown question type!")
+    if verbose:
+        print("{} questions generated for {}".format(counts, frame))
     return record, counts
 
 
-def static_all(root_folder, source, summary_path):
+def static_all(root_folder, source, summary_path, verbose = False):
     GRAMMAR = STATIC_GRAMMAR
 
     # TODO Debug so that all static questions can be generated efficiently
@@ -122,7 +126,7 @@ def static_all(root_folder, source, summary_path):
         identifider = os.path.basename(folder_name)
         rgb = os.path.join(folder_name,f"rgb_{identifider}.png")
         lidar = os.path.join(folder_name,f"lidar_{identifider}.json")
-        record,num_data = generate_all_frame(templates["generic"], path, 100,1, count)
+        record,num_data = generate_all_frame(templates["generic"], path, 100,2, count, verbose = verbose)
         for id, info in record.items():
             records[id] = dict(
                 question = info["question"],
@@ -142,14 +146,6 @@ def static_all(root_folder, source, summary_path):
             )
         count += num_data
         CACHE.clear()
-        break
-    """for path, record in records.items():
-        folder = os.path.dirname(path)
-        try:
-            with open(os.path.join(folder, "static_questions.json"), "w") as f:
-                json.dump(record, f, indent=4)
-        except Exception as e:
-            raise e"""
     try:
         with open(summary_path, "w") as f:
             json.dump(records,f,indent=4),
@@ -158,4 +154,4 @@ def static_all(root_folder, source, summary_path):
 
 
 if __name__ == "__main__":
-    static_all("verification", "NuScenes", "./verification/test.json")
+    static_all("sample", "NuScenes", "./sample/test.json", verbose= True)
