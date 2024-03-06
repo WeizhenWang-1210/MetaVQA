@@ -250,7 +250,7 @@ class BaseEngine(EngineCore, Randomizable):
         """
         """
         In addition, we need to remove a color mapping whenever an object is destructed.
-
+        
         """
         force_destroy_this_obj = True if force_destroy or self.global_config["force_destroy"] else False
 
@@ -272,7 +272,7 @@ class BaseEngine(EngineCore, Randomizable):
                 policy = self._object_policies.pop(id)
                 policy.destroy()
             if force_destroy_this_obj:
-                # self._clean_color(obj.id)
+                #self._clean_color(obj.id)
                 obj.destroy()
             else:
                 obj.detach_from_world(self.physics_world)
@@ -287,7 +287,7 @@ class BaseEngine(EngineCore, Randomizable):
                 if len(self._dying_objects[obj.class_name]) < self.global_config["num_buffering_objects"]:
                     self._dying_objects[obj.class_name].append(obj)
                 else:
-                    # self._clean_color(obj.id)
+                    #self._clean_color(obj.id)
                     obj.destroy()
             if self.global_config["record_episode"] and not self.replay_episode and record:
                 self.record_manager.add_clear_info(obj)
@@ -448,6 +448,11 @@ class BaseEngine(EngineCore, Randomizable):
             if self.force_fps.real_time_simulation and i < step_num - 1:
                 self.task_manager.step()
 
+        #  Do rendering
+        self.task_manager.step()
+        if self.on_screen_message is not None:
+            self.on_screen_message.render()
+
     def after_step(self, *args, **kwargs) -> Dict:
         """
         Update states after finishing movement
@@ -513,10 +518,11 @@ class BaseEngine(EngineCore, Randomizable):
             for obj in pending_obj:
                 self._clean_color(obj.id)
                 obj.destroy()
+        self._dying_objects = {}
         if self.main_camera is not None:
             self.main_camera.destroy()
         self.interface.destroy()
-        self.close_world()
+        self.close_engine()
 
         if self.top_down_renderer is not None:
             self.top_down_renderer.close()

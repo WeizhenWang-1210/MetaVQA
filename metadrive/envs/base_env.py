@@ -1,6 +1,4 @@
 import logging
-from metadrive.obs.image_obs import ImageStateObservation
-from metadrive.obs.state_obs import LidarStateObservation
 import time
 from collections import defaultdict
 from typing import Union, Dict, AnyStr, Optional, Tuple, Callable
@@ -9,6 +7,7 @@ import gymnasium as gym
 import numpy as np
 from panda3d.core import PNMImage
 
+from metadrive import constants
 from metadrive.component.sensors.base_camera import BaseCamera
 from metadrive.component.sensors.dashboard import DashBoard
 from metadrive.component.sensors.distance_detector import LaneLineDetector, SideDetector
@@ -22,8 +21,10 @@ from metadrive.engine.logger import get_logger, set_log_level
 from metadrive.manager.agent_manager import VehicleAgentManager
 from metadrive.manager.record_manager import RecordManager
 from metadrive.manager.replay_manager import ReplayManager
-from metadrive.obs.observation_base import DummyObservation
+from metadrive.obs.image_obs import ImageStateObservation
 from metadrive.obs.observation_base import BaseObservation
+from metadrive.obs.observation_base import DummyObservation
+from metadrive.obs.state_obs import LidarStateObservation
 from metadrive.policy.env_input_policy import EnvInputPolicy
 from metadrive.scenario.utils import convert_recorded_scenario_exported
 from metadrive.utils import Config, merge_dicts, get_np_random, concat_step_infos
@@ -334,13 +335,13 @@ class BaseEnv(gym.Env):
         #     config["multi_thread_render"] = False
 
         # Optimize sensor creation in none-screen mode
-        """if not config["use_render"] and not config["image_observation"]:
+        if not config["use_render"] and not config["image_observation"]:
             filtered = {}
             for id, cfg in config["sensors"].items():
                 if len(cfg) > 0 and not issubclass(cfg[0], BaseCamera) and id != "main_camera":
                     filtered[id] = cfg
             config["sensors"] = filtered
-            config["interface_panel"] = []"""
+            config["interface_panel"] = []
 
         # Check sensor existence
         if config["use_render"] or "main_camera" in config["sensors"]:
@@ -434,7 +435,7 @@ class BaseEnv(gym.Env):
         return self._get_step_return(actions, engine_info=engine_info)  # collect observation, reward, termination
 
     def _preprocess_actions(self, actions: Union[np.ndarray, Dict[AnyStr, np.ndarray], int]) \
-            -> Union[np.ndarray, Dict[AnyStr, np.ndarray], int]:
+        -> Union[np.ndarray, Dict[AnyStr, np.ndarray], int]:
         if not self.is_multi_agent:
             actions = {v_id: actions for v_id in self.agents.keys()}
         else:
@@ -460,11 +461,6 @@ class BaseEnv(gym.Env):
         self.engine.step(self.config["decision_repeat"])
         # update states, if restore from episode data, position and heading will be force set in update_state() function
         scene_manager_after_step_infos = self.engine.after_step()
-
-        #  Do rendering
-        self.engine.task_manager.step()
-        if self.engine.on_screen_message is not None:
-            self.engine.on_screen_message.render()
 
         # Note that we use shallow update for info dict in this function! This will accelerate system.
         return merge_dicts(
@@ -892,7 +888,8 @@ class BaseEnv(gym.Env):
         self.main_camera.track(current_track_agent)
         for name, sensor in self.engine.sensors.items():
             if hasattr(sensor, "track") and name != "main_camera":
-                sensor.track(current_track_agent.origin, [0., 0.8, 1.5], [0, 0.59681, 0])
+                camera_video_posture = [0, 0.59681, 0]
+                sensor.track(current_track_agent.origin, constants.DEFAULT_SENSOR_OFFSET, camera_video_posture)
         return
 
     def next_seed_reset(self):

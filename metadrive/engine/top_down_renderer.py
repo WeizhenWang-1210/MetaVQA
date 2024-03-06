@@ -284,7 +284,6 @@ class TopDownRenderer:
         # (2) frame is a copy of the background so you can draw movable things on it.
         # It is super large as the background.
         self._frame_canvas = self._background_canvas.copy()
-        
 
         # (3) canvas_rotate is only used when target_vehicle_heading_up=True and is use to center the tracked agent.
         if self.target_agent_heading_up:
@@ -519,7 +518,7 @@ class TopDownRenderer:
                 position = (field[0] / 2, field[1] / 2)
             off = (position[0] - field[0] / 2, position[1] - field[1] / 2)
             self.screen_canvas.blit(source=canvas, dest=(0, 0), area=(off[0], off[1], field[0], field[1]))
-        else:    
+        else:
             position = self._frame_canvas.pos2pix(*v.position)
             area = (
                 position[0] - self.canvas_rotate.get_size()[0] / 2, position[1] - self.canvas_rotate.get_size()[1] / 2,

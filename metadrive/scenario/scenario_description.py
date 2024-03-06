@@ -115,7 +115,7 @@ import math
 import os
 from collections import defaultdict
 from typing import Optional
-
+from metadrive.utils.math import norm
 import numpy as np
 
 from metadrive.type import MetaDriveType
@@ -163,6 +163,7 @@ class ScenarioDescription(dict):
     COORDINATE = "coordinate"
     SDC_ID = "sdc_id"  # Not necessary, but can be stored in metadata.
     METADATA_KEYS = {METADRIVE_PROCESSED, COORDINATE, TIMESTEP}
+    OLD_ORIGIN_IN_CURRENT_COORDINATE = "old_origin_in_current_coordinate"
 
     ALLOW_TYPES = (int, float, str, np.ndarray, dict, list, tuple, type(None), set)
 
@@ -265,6 +266,13 @@ class ScenarioDescription(dict):
                 assert isinstance(
                     feature[ScenarioDescription.POLYLINE], (np.ndarray, list, tuple)
                 ), "lane center line is in invalid type"
+            if ScenarioDescription.POLYGON in feature and ScenarioDescription.POLYLINE in feature:
+                line_centroid = np.mean(feature["polyline"], axis=0)[:2]
+                polygon_centroid = np.mean(feature["polygon"], axis=0)[:2]
+                diff = line_centroid - polygon_centroid
+                assert norm(diff[0], diff[
+                    1]) < 100, "The distance between centroids of polyline and polygon is greater than 100m. " \
+                               "The map converter should be wrong!"
 
     @classmethod
     def _check_object_state_dict(cls, obj_state, scenario_length, object_id, valid_check=True):
@@ -622,6 +630,51 @@ class ScenarioDescription(dict):
             if max - min > target:
                 break
         return float(max - min)
+
+    @staticmethod
+    def centralize_to_ego_car_initial_position(scenario):
+        """
+        All positions of polylines/polygons/objects are offset to ego car's first frame position.
+        Returns: a modified scenario file
+        """
+        sdc_id = scenario[ScenarioDescription.METADATA][ScenarioDescription.SDC_ID]
+        initial_pos = np.array(scenario[ScenarioDescription.TRACKS][sdc_id]["state"]["position"][0], copy=True)[:2]
+        if abs(np.sum(initial_pos)) < 1e-3:
+            return scenario
+        return ScenarioDescription.offset_scenario_with_new_origin(scenario, initial_pos)
+
+    @staticmethod
+    def offset_scenario_with_new_origin(scenario, new_origin):
+        """
+        Set a new origin for the whole scenario. The new origin's position in old coordinate system is recorded, so you
+        can add it back and restore the raw data
+        Args:
+            scenario: The scenario description
+            new_origin: The new origin's coordinate in old coordinate system
+
+        Returns: modified data
+
+        """
+        new_origin = np.copy(np.asarray(new_origin))
+        for track in scenario[ScenarioDescription.TRACKS].values():
+            track["state"]["position"] = np.asarray(track["state"]["position"])
+            track["state"]["position"][..., :2] -= new_origin
+
+        for map_feature in scenario[ScenarioDescription.MAP_FEATURES].values():
+            if "polyline" in map_feature:
+                map_feature["polyline"] = np.asarray(map_feature["polyline"])
+                map_feature["polyline"][..., :2] -= new_origin
+            if "polygon" in map_feature:
+                map_feature["polygon"] = np.asarray(map_feature["polygon"])
+                map_feature["polygon"][..., :2] -= new_origin
+
+        for light in scenario[ScenarioDescription.DYNAMIC_MAP_STATES].values():
+            if ScenarioDescription.TRAFFIC_LIGHT_POSITION in light:
+                light["stop_point"] = np.asarray(light["stop_point"])
+                light[ScenarioDescription.TRAFFIC_LIGHT_POSITION][..., :2] -= new_origin
+
+        scenario["metadata"]["old_origin_in_current_coordinate"] = -new_origin
+        return scenario
 
 
 def _recursive_check_type(obj, allow_types, depth=0):

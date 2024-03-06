@@ -21,7 +21,6 @@ from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
 from ray.rllib.execution.rollout_ops import ParallelRollouts
 from ray.rllib.policy import Policy
 
-import vqa.functionals
 from metadrive import GeneralizationRacing
 from metadrive.constants import TerminationState
 
@@ -147,7 +146,7 @@ def evaluate(trainer, num_episodes=20):
         episodes = batch.split_by_episode()
 
         ret_reward.extend([e["rewards"].sum() for e in episodes])
-        ret_length.extend([vqa.grammar_tree.count for e in episodes])
+        ret_length.extend([e.count for e in episodes])
         ret_success_rate.extend([e["infos"][-1][TerminationState.SUCCESS] for e in episodes])
         ret_out_rate.extend([e["infos"][-1][TerminationState.OUT_OF_ROAD] for e in episodes])
         ret_crash_vehicle_rate.extend([e["infos"][-1][TerminationState.CRASH_VEHICLE] for e in episodes])

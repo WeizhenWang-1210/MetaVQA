@@ -456,6 +456,7 @@ vehicle_type = {
     "default": DefaultVehicle,
     "static_default": StaticDefaultVehicle,
     "varying_dynamics": VaryingDynamicsVehicle,
+    "traffic_default": TrafficDefaultVehicle,
     "test": CustomizedCar
 }
 
