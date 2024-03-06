@@ -26,7 +26,11 @@ def saving(env, lidar, rgb, scene_dict, masks, log_mapping, debug=False):
     if debug:
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
                               draw_contour=True, screen_record=False, show_agent_name=True)
-        result["top_down"] = np.fliplr(np.flipud(top_down))
+
+        image = np.fliplr(np.flipud(top_down))
+        b, g, r = image[:,:,0], image[:,:,1], image[:,:,2]
+        rgb_image = np.dstack((r, g, b))
+        result["top_down"] = rgb_image
         result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
                                                                 [0, -0.5, 0])  # cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
     result["mask"] = masks * 255
@@ -120,7 +124,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
             mapping = engine.c_id
             # to be consider observable, the object must not be black/white(reserved) and must have at least 32 pixels observable
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (r == 0 and g == 0 and b == 0) and (
-                    c > 32)
+                    c > 128)
             visible_ids, log_mapping = get_visible_object_ids(masks, mapping, filter)
             # Record only if there are observable objects.
 
