@@ -93,7 +93,7 @@ def episode_logging(buffer, root, IO):
     return 0
 
 
-def run_episode(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar):
+def run_episode(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, job_range = None):
     print("I'm in the episode! Starting at env{}, step{}".format(env.current_seed, env.episode_step))
     total_steps = 0
     buffer = dict()
@@ -151,6 +151,8 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                                         debug=True)
         total_steps += 1
         if (tm or tc) and info["arrive_dest"]:
+            if job_range is not None and env.current_seed+1 >= job_range[-1]:
+                break
             env.reset(env.current_seed + 1)
             env.current_track_agent.expert_takeover = True
             break
@@ -161,7 +163,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
                   IO_config: dict, seed: int, episode_length: int,
-                  skip_length: int):
+                  skip_length: int, job_range = None):
     '''
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
@@ -192,6 +194,10 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
         lidar = env.engine.get_sensor("lidar")
         # The main data recording loop.
         while counter <= num_points and step <= max_iterations:
+            if job_range is not None:
+                #We've exhausted all the environments for process.
+                if env.current_seed not in range(job_range[0], job_range[-1]):
+                    break
             # Skip steps logic: Skip the specified number of steps at the beginning of each episode
             if step % (skip_length + episode_length) < skip_length:
                 env.step([0, 0])
@@ -203,7 +209,8 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
                                                 episode_length=episode_length,
                                                 camera=camera,
                                                 instance_camera=instance_camera,
-                                                lidar=lidar)
+                                                lidar=lidar,
+                                                job_range = job_range)
             step += step_ran
             counter += len(records)
             ret_code = episode_logging(records, folder, IO)

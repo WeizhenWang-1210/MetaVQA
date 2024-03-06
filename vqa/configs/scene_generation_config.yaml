@@ -1,5 +1,5 @@
 ---
-storage_path : "sample"
+storage_path : "multiprocess"
 map_setting:
   PG: True
   map_size: 5
