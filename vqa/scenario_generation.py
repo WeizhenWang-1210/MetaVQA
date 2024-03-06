@@ -112,9 +112,9 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                 show=False,
             )
             identifier = "{}_{}".format(env.current_seed, env.episode_step)
-            masks = instance_camera.perceive(clip=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5),
+            masks = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5),
                                              hpr=[0, 0, 0])
-            rgb = camera.perceive(clip=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5), hpr=[0, 0, 0])
+            rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5), hpr=[0, 0, 0])
             # Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
             # is reserved for special purpose, and no objects will take this color.
             mapping = engine.c_id
@@ -178,7 +178,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
         folder = os.path.join(IO_config["batch_folder"])
         os.makedirs(folder, exist_ok=True)
         print("This session is stored in folder: {}".format(folder))
-        env.vehicle.expert_takeover = True
+        env.agent.expert_takeover = True
         counter = step = 1
         episode_counter = 0
         engine = get_engine()
@@ -270,7 +270,7 @@ def main():
         }
         print("Finished reading")
         from metadrive.envs.scenario_env import ScenarioEnv
-        env = ScenarioEnv(env_config)
+        env = ScenarioDiverseEnv(env_config)
         env.reset(seed=0)
     else:
         env_config = dict(
