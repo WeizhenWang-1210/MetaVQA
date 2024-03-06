@@ -34,6 +34,7 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
         self.path_config = self.config.loadPath()
         self.adj_folder = self.path_config['adj_parameter_folder']
         self.init_car_adj_list()
+        self.original_car_ratio = 0.4
     def init_car_adj_list(self):
         self.car_asset_metainfos = []  # List to store the file paths
         for root, dirs, files in os.walk(self.adj_folder):
@@ -68,13 +69,16 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
             return
 
         # create vehicle
-        # if state["vehicle_class"]:
-        #     vehicle_class = state["vehicle_class"]
-        # else:
-        #     vehicle_class = get_vehicle_type(
-        #         float(state["length"]), None if self.even_sample_v else self.np_random, self.need_default_vehicle
-        #     )
-        vehicle_type, asset_info = self.randomCustomizedCar()
+        use_original_vehicle = random.random()  < self.original_car_ratio
+        if use_original_vehicle:
+            if state["vehicle_class"]:
+                vehicle_class = state["vehicle_class"]
+            else:
+                vehicle_class = get_vehicle_type(
+                    float(state["length"]), None if self.even_sample_v else self.np_random, self.need_default_vehicle
+                )
+        else:
+            vehicle_class, asset_info = self.randomCustomizedCar()
         obj_name = v_id if self.engine.global_config["force_reuse_object_name"] else None
         v_cfg = copy.copy(self._traffic_v_config)
         if self.engine.global_config["top_down_show_real_size"]:
@@ -85,10 +89,15 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
                     "Scenario ID: {}. The top_down size of vehicle {} is weird: "
                     "{}".format(self.engine.current_seed, v_id, [v_cfg["length"], v_cfg["width"]])
                 )
-        v = self.spawn_object(
-            vehicle_type, position=state["position"], heading=state["heading"], vehicle_config=v_cfg, name=obj_name,
-            test_asset_meta_info=asset_info
-        )
+        if use_original_vehicle:
+            v = self.spawn_object(
+                vehicle_class, position=state["position"], heading=state["heading"], vehicle_config=v_cfg, name=obj_name
+            )
+        else:
+            v = self.spawn_object(
+                vehicle_class, position=state["position"], heading=state["heading"], vehicle_config=v_cfg, name=obj_name,
+                test_asset_meta_info=asset_info
+            )
         self._scenario_id_to_obj_id[v_id] = v.name
         self._obj_id_to_scenario_id[v.name] = v_id
 
@@ -119,30 +128,30 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
 type_count = [0 for i in range(3)]
 
 
-# def get_vehicle_type(length, np_random=None, need_default_vehicle=False):
-#     if np_random is not None:
-#         if length <= 4:
-#             return SVehicle
-#         elif length <= 5.5:
-#             return [LVehicle, SVehicle, MVehicle][np_random.randint(3)]
-#         else:
-#             return [LVehicle, XLVehicle][np_random.randint(2)]
-#     else:
-#         global type_count
-#         # evenly sample
-#         if length <= 4:
-#             return SVehicle
-#         elif length <= 5.5:
-#             type_count[1] += 1
-#             vs = [LVehicle, MVehicle, SVehicle]
-#             # vs = [SVehicle, LVehicle, MVehicle]
-#             if need_default_vehicle:
-#                 vs.append(TrafficDefaultVehicle)
-#             return vs[type_count[1] % len(vs)]
-#         else:
-#             type_count[2] += 1
-#             vs = [LVehicle, XLVehicle]
-#             return vs[type_count[2] % len(vs)]
+def get_vehicle_type(length, np_random=None, need_default_vehicle=False):
+    if np_random is not None:
+        if length <= 4:
+            return SVehicle
+        elif length <= 5.5:
+            return [LVehicle, SVehicle, MVehicle][np_random.randint(3)]
+        else:
+            return [LVehicle, XLVehicle][np_random.randint(2)]
+    else:
+        global type_count
+        # evenly sample
+        if length <= 4:
+            return SVehicle
+        elif length <= 5.5:
+            type_count[1] += 1
+            vs = [LVehicle, MVehicle, SVehicle]
+            # vs = [SVehicle, LVehicle, MVehicle]
+            if need_default_vehicle:
+                vs.append(TrafficDefaultVehicle)
+            return vs[type_count[1] % len(vs)]
+        else:
+            type_count[2] += 1
+            vs = [LVehicle, XLVehicle]
+            return vs[type_count[2] % len(vs)]
 
 
 def reset_vehicle_type_count(np_random=None):

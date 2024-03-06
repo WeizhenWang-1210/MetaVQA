@@ -55,6 +55,7 @@ class NewAssetPGTrafficManager(PGTrafficManager):
         self.path_config = self.config.loadPath()
         self.adj_folder = self.path_config['adj_parameter_folder']
         self.init_car_adj_list()
+        self.original_car_ratio = 0.4
 
     def init_car_adj_list(self):
         self.car_asset_metainfos = []  # List to store the file paths
@@ -94,7 +95,10 @@ class NewAssetPGTrafficManager(PGTrafficManager):
                 lane_idx = lane.index
                 long = self.np_random.rand() * lane.length / 2
                 traffic_v_config = {"spawn_lane_index": lane_idx, "spawn_longitude": long}
-                new_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info = asset_metainfo)
+                if vehicle_type == CustomizedCar:
+                    new_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info = asset_metainfo)
+                else:
+                    new_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config)
                 from metadrive.policy.idm_policy import IDMPolicy
                 self.add_policy(new_v.id, IDMPolicy, new_v, self.generate_seed())
                 self._traffic_vehicles.append(new_v)
@@ -112,12 +116,17 @@ class NewAssetPGTrafficManager(PGTrafficManager):
                 # if self.np_random.rand() > traffic_density and abs(lane.length - InRampOnStraight.RAMP_LEN) > 0.1:
                 #     # Do special handling for ramp, and there must be vehicles created there
                 #     continue
-                # vehicle_type = self.random_vehicle_type()
-
-                vehicle_type, asset_info = self.randomCustomizedCar()
+                use_original_vehicle = random.random() < self.original_car_ratio
+                if use_original_vehicle:
+                    vehicle_type = self.random_vehicle_type()
+                else:
+                    vehicle_type, asset_info = self.randomCustomizedCar()
                 traffic_v_config = {"spawn_lane_index": lane.index, "spawn_longitude": long}
                 traffic_v_config.update(self.engine.global_config["traffic_vehicle_config"])
-                random_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info=asset_info)
+                if use_original_vehicle:
+                    random_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config)
+                else:
+                    random_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info=asset_info)
                 from metadrive.policy.idm_policy import IDMPolicy
                 self.add_policy(random_v.id, IDMPolicy, random_v, self.generate_seed())
                 self._traffic_vehicles.append(random_v)
@@ -158,9 +167,15 @@ class NewAssetPGTrafficManager(PGTrafficManager):
 
             from metadrive.policy.idm_policy import IDMPolicy
             for v_config in selected:
-                vehicle_type, asset_info = self.randomCustomizedCar()
-                v_config.update(self.engine.global_config["traffic_vehicle_config"])
-                random_v = self.spawn_object(vehicle_type, vehicle_config=v_config, test_asset_meta_info=asset_info)
+                use_original_vehicle = random.random() < self.original_car_ratio
+                if use_original_vehicle:
+                    vehicle_type = self.random_vehicle_type()
+                    v_config.update(self.engine.global_config["traffic_vehicle_config"])
+                    random_v = self.spawn_object(vehicle_type, vehicle_config=v_config)
+                else:
+                    vehicle_type, asset_info = self.randomCustomizedCar()
+                    v_config.update(self.engine.global_config["traffic_vehicle_config"])
+                    random_v = self.spawn_object(vehicle_type, vehicle_config=v_config, test_asset_meta_info=asset_info)
                 self.add_policy(random_v.id, IDMPolicy, random_v, self.generate_seed())
                 vehicles_on_block.append(random_v.name)
 
