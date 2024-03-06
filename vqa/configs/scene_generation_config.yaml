@@ -1,5 +1,5 @@
 ---
-storage_path : "verification"
+storage_path : "sample"
 map_setting:
   PG: True
   map_size: 5
@@ -10,7 +10,7 @@ map_setting:
   accident_prob: 0
   num_scenarios: 100
   start_seed: 0
-sample_frequency: 1
+sample_frequency: 5
 num_samples: 20
 max_iterations: 10000
 temporal_generation: True

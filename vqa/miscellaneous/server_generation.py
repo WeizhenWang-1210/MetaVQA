@@ -7,7 +7,6 @@ from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
-from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.engine_utils import get_engine
 import cv2
 import os
@@ -124,6 +123,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
             visible_ids, log_mapping = get_visible_object_ids(masks, mapping, filter)
             # Record only if there are observable objects.
 
+
             #log_mapping = {id: log_mapping[id] for id in visible_ids}
 
             valid_objects = engine.get_objects(
@@ -132,7 +132,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
 
             visible_mask = [True if x in visible_ids else False for x in valid_objects.keys()]
             objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask)
-            ego_annotation = genearte_annotation(env.agent, env)
+            ego_annotation = genearte_annotation(env.vehicle, env)
             scene_dict = dict(
                 ego=ego_annotation,
                 objects=objects_annotations
@@ -148,7 +148,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
         total_steps += 1
         if (tm or tc) and info["arrive_dest"]:
             env.reset(env.current_seed + 1)
-            env.current_track_agent.expert_takeover = True
+            env.current_track_vehicle.expert_takeover = True
             break
     env_end = env.episode_step
     print("exist episode")
@@ -163,7 +163,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
     IO_config.
     '''
     try:
-        #o, _ = env.reset(seed)
+        o, _ = env.reset(seed)
         """
         Create the folder in which you will save your data. The structure would be of:
             root/{episode}_{begin_step}_{end_step}/{step}/[name]_{episode}_{step}.extensions
@@ -230,7 +230,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--headless", type=bool, default=False, help="Rendering in headless mode")
     parser.add_argument("--scenarios", type=bool, default=False, help="Use scenarionet environment")
-    parser.add_argument("--data_directory", type=str, default=None, help="the paths that stores the scenarionet data")
     args = parser.parse_args()
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
@@ -243,35 +242,24 @@ def main():
         asset_path = AssetLoader.asset_path
         use_waymo = False
         from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-
-
-
-        if args.data_directory:
-            from metadrive.scenario import utils as sd_utils
-            scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
-            num_scenarios = len(scenario_summary.keys())
-        else:
-            num_scenarios = 3 if use_waymo else 10
-
-
         env_config = {
             "sequential_seed": True,
             "reactive_traffic": True,
             "use_render": use_render,
-            "data_directory": args.data_directory if args.data_directory is not None else AssetLoader.file_path(
+            "data_directory": AssetLoader.file_path(
                 asset_path, "waymo" if use_waymo else "nuscenes", unix_style=False
             ),
-            "num_scenarios": num_scenarios,
+            "num_scenarios": 3 if use_waymo else 10,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
                 rgb=(RGBCamera, 960, 640),
                 instance=(InstanceCamera, 960, 640)
-            )
+            ),
+
         }
-        print("Finished reading")
         from metadrive.envs.scenario_env import ScenarioEnv
-        env = ScenarioEnv(env_config)
-        env.reset(seed=0)
+        env = ScenarioDiverseEnv(env_config)
+        env.reset()
     else:
         env_config = dict(
             use_render=use_render,
