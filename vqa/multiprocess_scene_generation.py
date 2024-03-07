@@ -1,20 +1,12 @@
-from metadrive.envs.base_env import BaseEnv
-from vqa.utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import argparse
-import numpy as np
-from vqa.dataset_utils import l2_distance
 from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
-from metadrive.engine.asset_loader import AssetLoader
-from metadrive.engine.engine_utils import get_engine
-import cv2
 from vqa.scenario_generation import generate_data
 import os
-import json
 import yaml
-
+import multiprocessing as multp
 
 def main(data_directory, scenarios, headless, config, id, num_scenarios, job_range = None):
     # Setup the gymnasium environment
@@ -115,7 +107,7 @@ if __name__ == "__main__":
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
-    import multiprocessing as multp
+
     if args.data_directory:
         from metadrive.scenario import utils as sd_utils
         scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)

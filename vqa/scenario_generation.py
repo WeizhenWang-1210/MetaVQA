@@ -7,6 +7,7 @@ from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.engine_utils import get_engine
 import cv2
@@ -132,7 +133,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
 
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
-                                      env.agent) <= 50 and x.id != env.agent.id)  # get all objectes within 50m of the ego(except agent)
+                                      env.agent) <= 50 and x.id != env.agent.id and not isinstance(x, BaseTrafficLight))  # get all objectes within 50m of the ego(except agent)
 
             visible_mask = [True if x in visible_ids else False for x in valid_objects.keys()]
             objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask)
@@ -218,6 +219,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
             if ret_code == 0:
                 print("Successfully created episode {}".format(episode_counter))
                 episode_counter += 1
+
     except Exception as e:
         raise e
     finally:
@@ -252,7 +254,7 @@ def main():
     if args.scenarios:
         from metadrive.engine.asset_loader import AssetLoader
         asset_path = AssetLoader.asset_path
-        use_waymo = False
+        use_waymo = True
         from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 
 

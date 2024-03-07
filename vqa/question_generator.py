@@ -213,7 +213,7 @@ class Tree:
                 Sedan=dict(singular="sedan", plural="sedans"),
                 SportCar=dict(singular="sports car", plural="sports cars"),
                 Truck=dict(singular="truck", plural="trucks"),
-                Hatchback=dict(singular="hatchback", plural="hatchbacks")
+                Hatchback=dict(singular="hatchback", plural="hatchbacks"),
             )
             if token in mapping.keys():
                 return mapping[token][form]
@@ -597,7 +597,7 @@ def main():
         templates = json.load(f)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default="verification/0_30_49/0_30/world_0_30")
+    parser.add_argument("--step", type=str, default="multiprocess/4588_1_40/4588_31/world_4588_31")
     parser.add_argument("--episode", type=str, default="verification/0_30_49")
     args = parser.parse_args()
 
@@ -609,9 +609,9 @@ def main():
         raise e
     from vqa.scene_graph import nodify
     agent_id,nodes = nodify(scene_dict)
-    graph = SceneGraph(agent_id,nodes,folder="verification/0_30_49/0_30/world_0_30.json")
-    episode_graph = EpisodicGraph()
-    frames = [f for f in os.listdir(args.episode) if not ("." in f)]
+    graph = SceneGraph(agent_id,nodes,folder="multiprocess/4588_1_40/4588_31/world_4588_31.json")
+    #episode_graph = EpisodicGraph()
+    #frames = [f for f in os.listdir(args.episode) if not ("." in f)]
     #interaction_path = os.path.join(args.episode, "interaction.json")
     #episode_graph.load(args.episode, frames, interaction_path)
     #graph = episode_graph.final_frame
@@ -702,7 +702,7 @@ def main():
 
     q3 = SubQuery(
         color=None,
-        type=None,
+        type=["Traffic Light"],
         pos=None,
         state=None,
         action=None,
@@ -714,8 +714,8 @@ def main():
     q4.next = q3
     parameters_2 = {
         "<o>": {
-            "en": "things",
-            "prog": Query([q3], "counting", Identity),
+            "en": "traffic light",
+            "prog": Query([q3], "counting", Identity, candidates=[node for node in graph.get_nodes() if node.id != agent_id]),
             "ans": None,
             "signature":"",
         }
@@ -731,6 +731,7 @@ def main():
     print(q.translate())
     print(q.answer())
     print(q.parameters)
+    print(q.statistics)
     print("end")
 
 
