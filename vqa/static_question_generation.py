@@ -26,7 +26,10 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     #templates = {"count_more_binary":templates["count_more_binary"]}
     for lhs, rhs in graph.statistics.items():
         #GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
-        GRAMMAR[lhs] = [[item] for item in rhs + ["nil"]]
+        if lhs == "<p>":
+            GRAMMAR[lhs] = [[item] for item in rhs + ["nil"]]
+        else:
+            GRAMMAR[lhs] = [[item] for item in rhs]
     record = {}
     counts = 0
     for question_type, specification in templates.items():
