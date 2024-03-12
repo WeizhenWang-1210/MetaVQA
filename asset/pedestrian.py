@@ -46,6 +46,7 @@ def try_pedestrian(render=False):
         "scale": 1
     }
     env.reset()
+    drawer = env.engine.make_point_drawer(scale=1)
     try:
         # obj_1 = env.engine.spawn_object(TestObject, position=[30, -5], heading_theta=0, random_seed=1, force_spawn=True, asset_metainfo = asset_metainfo)
         for s in range(1, 100000000):
@@ -56,7 +57,25 @@ def try_pedestrian(render=False):
             #     else:
             #         print(type(obj))
             ego = env.vehicle
-            print(ego.crashed_objects)
+            for key, object in env.engine.get_objects().items():
+
+                close, far =object.origin.getTightBounds()
+                width, height, length = object.WIDTH, object.HEIGHT, object.LENGTH
+                height = far[2]
+                box = [
+                    (length / 2, width / 2),
+                    (length / 2, -width / 2),
+                    (-length / 2, width / 2),
+                    (-length / 2, -width / 2),
+                ]
+                transformed_box = [object.convert_to_world_coordinates(vec, object.position) for vec in box]
+                height_extended_box = [(x, y, height) for x, y in transformed_box]
+                drawer.draw_points(height_extended_box, [
+                    (1, 1, 1, 1),
+                    (1, 1, 1, 1),
+                    (1, 1, 0, 1),
+                    (1, 1, 0, 1)
+                ])
 
             if (tm or tc) and info["arrive_dest"]:
                 env.reset()

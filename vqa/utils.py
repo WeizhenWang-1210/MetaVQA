@@ -103,11 +103,12 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
     for idx, obj in enumerate(objects):
         g_min_point,g_max_point = obj.origin.getTightBounds()
         height = g_max_point[2]
-        p4 = g_min_point[0],g_max_point[1]
+        """ p4 = g_min_point[0],g_max_point[1]
         p1 = g_max_point[0],g_max_point[1]
         p2 = g_max_point[0],g_min_point[1]
         p3 = g_min_point[0],g_min_point[1]
-        box = [p1,p2,p3,p4]
+        box = [p1,p2,p3,p4]"""
+        box = obj.bounding_box
         speed = -1
         position = obj.position.tolist()
         if isinstance(obj, BaseObject):
