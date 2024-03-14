@@ -57,7 +57,7 @@ def annotate_color(object):
     vehicle_type = {
         SVehicle: "Blue",
         MVehicle: "White",
-        LVehicle: "Gray",
+        LVehicle: "Grey",
         XLVehicle: "White",
         DefaultVehicle: "Red",
         StaticDefaultVehicle: "Red",
@@ -109,7 +109,6 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
         p3 = g_min_point[0],g_min_point[1]
         box = [p1,p2,p3,p4]"""
         box = obj.bounding_box
-        box = [list(l) for l in box]
         speed = -1
         position = obj.position.tolist()
         if isinstance(obj, BaseObject):

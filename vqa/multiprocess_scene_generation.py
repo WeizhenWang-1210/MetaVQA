@@ -31,7 +31,9 @@ def main(data_directory, scenarios, headless, config, id, num_scenarios, job_ran
             "sensors": dict(
                 rgb=(RGBCamera, 960, 640),
                 instance=(InstanceCamera, 960, 640)
-            )
+            ),
+            "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
+            "height_scale": 1,
         }
         print("Finished reading")
         from metadrive.envs.scenario_env import ScenarioEnv
@@ -57,7 +59,8 @@ def main(data_directory, scenarios, headless, config, id, num_scenarios, job_ran
             sensors=dict(
                 rgb=(RGBCamera, 960, 640),
                 instance=(InstanceCamera, 960, 640)
-            )
+            ),
+            height_scale=1,
         )
         env = MetaDriveEnv(env_config)
         if not job_range:
@@ -118,6 +121,7 @@ if __name__ == "__main__":
     #print(job_intervals)
     processes = []
     for proc_id in range(args.num_proc):
+        print("Seding job{}".format(proc_id))
         p = multp.Process(
             target=main,
             args=(

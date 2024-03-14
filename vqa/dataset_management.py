@@ -34,7 +34,6 @@ def merge_ba(folder, destination, base_name):
     except Exception as e:
         raise e
 
-
 def splitting(qa, path, ps=[0.65, 0.15, 0.2]):
     def generate_categorical_list(n, categories, probabilities):
         return np.random.choice(categories, size=n, p=probabilities).tolist()
@@ -79,8 +78,7 @@ def dataset_statistics(qa, path):
             type_counter[key] += value
         if data_point["question_type"] == "counting":
             num_counter[data_point["answer"][0]] += 1
-        if data_point["question_type"] == "localization":
-            pos_storage += data_point["answer"]
+        pos_storage += data_point["pos_statistics"]
         if data_point["question_type"] == "count_equal_binary" or data_point["question_type"] == "count_more_binary":
             bool_counter[data_point["answer"]] += 1
     stats = {}
@@ -94,6 +92,14 @@ def dataset_statistics(qa, path):
             json.dump(stats, fp=f, indent=2)
     except Exception as e:
         raise e
+
+def visualize_pos(points, vis_path):
+    pass
+
+
+def export_dataset(qas):
+    with open()
+
 
 if __name__ == '__main__':
     dataset_statistics("./multiprocess_1/merged.json","./multiprocess_1/merged_stats.json")
