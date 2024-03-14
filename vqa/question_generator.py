@@ -61,7 +61,7 @@ class Tnode:
 
 
 class Tree:
-    def __init__(self, root, max_depth, grammar) -> None:
+    def __init__(self, root:str, max_depth, grammar) -> None:
         self.root = Tnode(root)
         self.grammar = grammar
         self.root.populate(max_depth, self.grammar)
@@ -133,9 +133,9 @@ class Tree:
             if isinstance(config, list):
                 subquery.us = True
                 return
-            subquery.color = config["<p>"] if config["<p>"] != "nil" else None
-            subquery.type = config["<t>"] if config["<t>"] != "nil" else None
-            subquery.state = config["<s>"] if config["<s>"] != "nil" else None
+            subquery.color = [config["<p>"]] if config["<p>"] != "nil" else None
+            subquery.type = [config["<t>"]] if config["<t>"] != "nil" else None
+            subquery.state = [config["<s>"]] if config["<s>"] != "nil" else None
             # Create the action requirements according to the grammar tree specification
             if isinstance(config["<a>"], dict):
                 if "<deed_without_o>" in config["<a>"].keys():
@@ -343,6 +343,8 @@ class SubQuery:
                     ref_heading: tuple):
         '''
         Initialize the functions for filtering
+        Why delayed insantiatiation? For a subquery in a computation graph, how you instantiate pos functions
+        and action functions are dependent of previous question's answers.
         '''
         if self.us:
             # If the query is "us", just return the ego node. No actual search needs to be performed.
@@ -354,6 +356,7 @@ class SubQuery:
             state_func = state_wrapper(self.state) if self.state else None
             pos_func = pos_wrapper(self.prev["pos"].ans, self.pos, ref_heading) if self.pos else None
             if self.action:
+                #TODO Why we need this distinction?
                 if "action" not in self.prev.keys():
                     action_func = action_wrapper(egos, self.action)
                 else:
@@ -378,6 +381,10 @@ class SubQuery:
         The tricky part here is that when we keep the entire node space in mind when we do the filtering based on the spatial relationships,
         and consecutive filterings on types and colors are selected from all such nodes.
         """
+        #TODO then, is candidates really necessary?
+        """
+         If self.us, then we always return the ego of the graph. Else, we always use all_nodes to to the position filtering.
+        """
         color_func, type_func, pos_func, state_func, action_func = self.funcs
         ans = pos_func(all_nodes) if pos_func else ans
         ans = type_func(ans) if type_func else ans
@@ -386,6 +393,22 @@ class SubQuery:
         ans = action_func(ans) if action_func else ans
         self.ans = ans
         return self.ans
+
+    def __str__(self) -> str:
+        # print(self.format,[node.id.split("-")[0] for node in self.ans])
+        dict = {}
+        for path, prog in self.prev.items():
+            dict[path] = prog.__str__()
+        my = {
+            "color": self.color,
+            "type": self.type,
+            "pos": self.pos,
+            "prev": dict,
+            "ego": self.us,
+            "funcs": [f is not None for f in self.funcs] if self.funcs else self.funcs,
+            "ans": self.ans
+        }
+        return json.dumps(my)
 
 
 class Query:
@@ -436,9 +459,7 @@ class Query:
     def proceed(self):
         '''
         Go down the query, store partial answers in sub-query, store the final answer in query
-        
         '''
-
         def postorder_traversal(subquery, egos, ref_heading, all_nodes):
             """
             Return: A list of nodes being the answer of the previous question.
@@ -459,12 +480,9 @@ class Query:
         self.ans = self.final(search_spaces)
         return self.ans
 
-    def __str__(self) -> str:
-        '''
-        get all answers
-        '''
-        # print(self.format,[node.id.split("-")[0] for node in self.ans])
-        print(self.ans)
+
+
+
 
 
 CACHE = dict()
@@ -505,14 +523,15 @@ class QuerySpecifier:
                 while param_tree.depth <= 2:
                     param_tree = Tree(start_symbol, 4, self.grammar)
             else:
+                print("No fucking way I'm executed")
                 start_symbol = param
                 param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
             #param_tree.visualize()
             local["signature"] = json.dumps(functional, sort_keys=True)
-            program = Query([param_tree.build_program(functional)], "stuff", Identity,
-                            candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id])
+            program = Query([Tree.build_program(functional)], "stuff", Identity,
+                            candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id]) #if node.id != self.graph.ego_id
             local["prog"] = program
             #print(program.heads)
             parameters[param] = local
@@ -597,7 +616,7 @@ def main():
         templates = json.load(f)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=str, default="multiprocess/4588_1_40/4588_31/world_4588_31")
+    parser.add_argument("--step", type=str, default="some/5_80_119/5_100/world_5_100")
     parser.add_argument("--episode", type=str, default="verification/0_30_49")
     args = parser.parse_args()
 
@@ -609,7 +628,7 @@ def main():
         raise e
     from vqa.scene_graph import nodify
     agent_id,nodes = nodify(scene_dict)
-    graph = SceneGraph(agent_id,nodes,folder="multiprocess/4588_1_40/4588_31/world_4588_31.json")
+    graph = SceneGraph(agent_id,nodes,folder="some/5_80_119/5_100/world_5_100")
     #episode_graph = EpisodicGraph()
     #frames = [f for f in os.listdir(args.episode) if not ("." in f)]
     #interaction_path = os.path.join(args.episode, "interaction.json")
@@ -700,21 +719,29 @@ def main():
                          ids = ids,
                          colors = [(1,1,1)]*len(ids))"""
 
+    for lhs, rhs in graph.statistics.items():
+        #GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
+        if lhs == "<p>":
+            GRAMMAR[lhs] = [[item] for item in rhs + ["nil"]]
+        else:
+            GRAMMAR[lhs] = [[item] for item in rhs]
+
     q3 = SubQuery(
-        color=None,
-        type=["Traffic Light"],
-        pos=None,
+        color=None,#["Blue"],
+        type=["vehicle"],
+        pos=None,#["rf"],
         state=None,
         action=None,
         next=None,
         prev={})
-    q4 = SubQuery()
-    q4.us = True
-    q3.prev["pos"] = q4
-    q4.next = q3
+    #q4 = SubQuery()
+    #q4.us = True
+    #q3.prev["pos"] = q4
+    #q4.next = q3
+    print(q3)
     parameters_2 = {
         "<o>": {
-            "en": "traffic light",
+            "en": "Pedestrian",
             "prog": Query([q3], "counting", Identity, candidates=[node for node in graph.get_nodes() if node.id != agent_id]),
             "ans": None,
             "signature":"",
@@ -734,7 +761,39 @@ def main():
     print(q.statistics)
     print("end")
 
+def test_tree(file):
+    with open(file, 'r') as scene_file:
+        scene_dict = json.load(scene_file)
+    from vqa.scene_graph import nodify
+    agent_id, nodes = nodify(scene_dict)
+    graph = SceneGraph(agent_id, nodes, folder=file)
+    grammar = GRAMMAR
+    for lhs, rhs in graph.statistics.items():
+        if lhs == "<p>":
+            grammar[lhs] = [[item] for item in ["nil"]]
+        else:
+            grammar[lhs] = [[item] for item in ["vehicle"] + rhs]
+    tree = Tree("<o>",2,grammar)
+    tree.visualize()
+    plan = tree.build_functional([""])
+    prog = Tree.build_program(plan)
+    print(prog)
+    query = Query([prog], "stuff",
+          Identity,
+          ref_heading = graph.get_ego_node().heading,
+          candidates = [node for node in graph.get_nodes()])
+    query.set_egos([graph.get_ego_node()])
+    answer = query.proceed()
+    print(answer)
+    generate_highlighted('SOME.png', "some/5_80_119/5_100/metainformation_5_100.json",
+                         )
+
+
+
+
+
 
 if __name__ == "__main__":
-    print("hello")
-    main()
+    #print("hello")
+    #main()
+    test_tree("some/5_80_119/5_100/world_5_100.json")

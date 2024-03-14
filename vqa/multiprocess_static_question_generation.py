@@ -6,7 +6,6 @@ import argparse
 import multiprocessing as multp
 from vqa.question_generator import CACHE
 def job(paths, source, summary_path, verbose = False):
-    GRAMMAR = STATIC_GRAMMAR
     current_directory = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(current_directory, "question_templates.json")
     try:

@@ -119,8 +119,9 @@ class SceneGraph:
     def generate_statistics(self) -> dict:
         colors,types = set(),set()
         for node in self.nodes.values():
-            colors.add(node.color)
-            types.add(node.type)
+            if node.visible:
+                colors.add(node.color)
+                types.add(node.type)
         return {
             "<p>":list(colors),
             "<t>":list(types)

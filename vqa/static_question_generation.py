@@ -24,19 +24,20 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     graph = SceneGraph(ego_id, nodelist, frame)
     # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
     #templates = {"count_more_binary":templates["count_more_binary"]}
+    grammar = GRAMMAR
     for lhs, rhs in graph.statistics.items():
         #GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
         if lhs == "<p>":
-            GRAMMAR[lhs] = [[item] for item in rhs + ["nil"]]
+            grammar[lhs] = [[item] for item in ["nil"]+rhs]
         else:
-            GRAMMAR[lhs] = [[item] for item in rhs]
+            grammar[lhs] = [[item] for item in ["vehicle"]+rhs]
     record = {}
     counts = 0
     for question_type, specification in templates.items():
         for idx in range(attempts):
             if verbose:
                 print("Attempt {} of {} for {}".format(idx, attempts, question_type))
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=GRAMMAR, debug = True, stats = True)
+            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=grammar, debug = True, stats = True)
             question = q.translate()
             answer = q.answer()
             if verbose:
@@ -124,7 +125,6 @@ def static_all(root_folder, source, summary_path, verbose = False):
     count = 0
     for path in paths:
         assert len(CACHE)==0, f"Non empty cache for {path}"
-
         folder_name = os.path.dirname(path)
         identifider = os.path.basename(folder_name)
         rgb = os.path.join(folder_name,f"rgb_{identifider}.png")
@@ -157,4 +157,4 @@ def static_all(root_folder, source, summary_path, verbose = False):
 
 
 if __name__ == "__main__":
-    static_all("sample", "NuScenes", "./sample/test.json", verbose= True)
+    static_all("some", "NuScenes", ".some/static.json", verbose= True)

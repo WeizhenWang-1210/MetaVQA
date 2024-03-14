@@ -222,7 +222,7 @@ def nodify(scene_dict:dict)->Tuple[str,List[ObjectNode]]:
                             height = ego_dict['height'],
                             type = ego_dict['type'],
                             lane = ego_dict['lane'],
-                            visible = True,
+                            visible = ego_dict["visible"],
                             states = ego_dict["states"],
                             collisions = ego_dict["collisions"])
             )

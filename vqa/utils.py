@@ -22,7 +22,7 @@ def annotate_type(object):
 
 
     vehicle_type = {
-        SVehicle: "Compact Sedan",
+        SVehicle: "Hatchback",
         MVehicle: "Sedan",
         LVehicle: "Pickup",
         XLVehicle: "Truck",
@@ -30,11 +30,11 @@ def annotate_type(object):
         StaticDefaultVehicle: "Sedan",
         VaryingDynamicsVehicle: "Sedan",
         TrafficBarrier:"Barrier",
-        TrafficWarning:"Warning Sign",
-        TrafficCone: "Traffic Cone",
-        Cyclist:"Cyclist",
+        TrafficWarning:"Warning",
+        TrafficCone: "Cone",
+        Cyclist:"Bike",
         Pedestrian:"Pedestrian",
-        ScenarioTrafficLight:"Traffic Light"
+        ScenarioTrafficLight:"TrafficLight"
     }
     for c,name in vehicle_type.items():
         if isinstance(object, c):
@@ -57,7 +57,7 @@ def annotate_color(object):
     vehicle_type = {
         SVehicle: "Blue",
         MVehicle: "White",
-        LVehicle: "Grey",
+        LVehicle: "Gray",
         XLVehicle: "White",
         DefaultVehicle: "Red",
         StaticDefaultVehicle: "Red",
@@ -109,6 +109,7 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
         p3 = g_min_point[0],g_min_point[1]
         box = [p1,p2,p3,p4]"""
         box = obj.bounding_box
+        box = [list(l) for l in box]
         speed = -1
         position = obj.position.tolist()
         if isinstance(obj, BaseObject):
