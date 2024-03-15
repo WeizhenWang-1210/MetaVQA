@@ -579,7 +579,7 @@ class QuerySpecifier:
                 for obj in param_answer:
                     objects.append(f"{obj.type}:{obj.id}")
                     ids.append(obj.id)
-            print(ids)
+            #print(ids)
             parent_folder = os.path.dirname(self.graph.folder)
             identifier = os.path.basename(parent_folder)
             path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
@@ -604,6 +604,31 @@ class QuerySpecifier:
                 self.statistics["types"][obj.type] += 1
                 self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
 
+    def generate_mask(self, id):
+        """
+        Create a mask corresponding to the answer of a problem
+
+        """
+        parent_folder = os.path.dirname(self.graph.folder)
+        identifier = os.path.basename(parent_folder)
+        path_to_mask = os.path.join(parent_folder, f"mask_{id}.png")
+        path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
+        folder = parent_folder
+        ids = []
+        param_answers = []
+        for param, info in self.parameters.items():
+            param_answers.append(self.parameters[param]["answer"])
+        for param_answer in param_answers:
+            for obj in param_answer:
+                ids.append(obj.id)
+        colors = [(1, 1, 1) for _ in range(len(ids))]
+        generate_highlighted(
+            path_to_mask,
+            path_to_mapping,
+            folder,
+            ids,
+            colors
+        )
 
 def main():
     # pwd = os.getcwd()

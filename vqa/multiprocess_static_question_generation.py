@@ -21,7 +21,7 @@ def job(paths, source, summary_path, verbose = False):
         identifider = os.path.basename(folder_name)
         rgb = os.path.join(folder_name, f"rgb_{identifider}.png")
         lidar = os.path.join(folder_name, f"lidar_{identifider}.json")
-        record, num_data = generate_all_frame(templates["generic"], path, 100, 2, count, verbose=verbose)
+        record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose)
         for id, info in record.items():
             records[id] = dict(
                 question=info["question"],

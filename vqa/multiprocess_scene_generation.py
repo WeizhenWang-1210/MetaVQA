@@ -117,6 +117,10 @@ if __name__ == "__main__":
         num_scenarios = len(scenario_summary.keys())
     else:
         num_scenarios = 10
+
+    if not args.scenarios:
+        num_scenarios = config["map_setting"]["num_scenarios"]
+
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
     #print(job_intervals)
     processes = []

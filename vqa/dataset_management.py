@@ -97,13 +97,39 @@ def visualize_pos(points, vis_path):
     pass
 
 
-def export_dataset(qas):
-    with open()
+def export_dataset(qa_path, data_directory):
+    import shutil
+    with open(qa_path,"r") as file:
+        qa_pairs = json.load(file)
+
+    export_qas = qa_pairs
+    for id, metainfo  in qa_pairs.items():
+        new_data_path = os.path.join(data_directory, id)
+        os.makedirs(new_data_path,exist_ok=True)
+        for angle, frames in metainfo["rgb"].items():
+            frame_id = 0
+            new_frames = []
+            for frame in frames:
+                folder = os.path.join(new_data_path, "rgb",angle)
+                os.makedirs(folder, exist_ok=True)
+                new_path = os.path.join(new_data_path, "rgb", angle, f"{frame_id}.png")
+                shutil.copy2(frame, new_path)
+                frame_id += 1
+                new_frames.append(new_path)
+            metainfo["rgb"][angle] = new_frames
+        new_lidar_path = os.path.join(new_data_path, "lidar.json")
+        shutil.copy2(metainfo["lidar"], new_lidar_path)
+        metainfo["lidar"] = new_lidar_path
+    export_path = os.path.join(data_directory,"exported.json")
+    with open(export_path, "w") as file:
+        json.dump(export_qas, file, indent=2)
+
 
 
 if __name__ == '__main__':
-    dataset_statistics("./multiprocess_1/merged.json","./multiprocess_1/merged_stats.json")
-    #splitting("./multiprocess_1/merged.json", "./multiprocess_1/spllited_merge.json")
-    #merge_ba("./multiprocess_1", "./multiprocess_1/merged.json", "qa")
-    #delete_files_with_prefix("./verification", "highlighted")
+    #merge_ba("./waymo_demo", "./waymo_demo/merged.json", "qa")
+    #dataset_statistics("./waymo_demo/merged.json","./waymo_demo/merged_stats.json")
+    #splitting("./waymo_demo/merged.json", "./waymo_demo/spllited_merge.json")
+    #delete_files_with_prefix("./multiprocess_demo", "highlighted")
+    export_dataset("./waymo_demo/merged.json","export")
 

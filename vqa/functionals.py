@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Iterable, Callable
-
-from vqa.object_node import ObjectNode
+from vqa.object_node import ObjectNode,transform
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
@@ -251,7 +250,7 @@ def locate_wrapper(origin:ObjectNode)->Callable:
         result = []
         for s in stuff:
             for more_stuff in s:
-                result.append(more_stuff.bbox)
-                #print(transform(origin, more_stuff.bbox))
+                transformed = transform(origin, more_stuff.bbox)
+                result.append(transformed)
         return result
     return locate

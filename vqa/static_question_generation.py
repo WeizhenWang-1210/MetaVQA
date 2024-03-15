@@ -28,9 +28,9 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     for lhs, rhs in graph.statistics.items():
         #GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
         if lhs == "<p>":
-            grammar[lhs] = [[item] for item in ["nil"]+rhs]
+            grammar[lhs] = [[item] for item in rhs+["nil"]]
         else:
-            grammar[lhs] = [[item] for item in ["vehicle"]+rhs]
+            grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
     record = {}
     counts = 0
     for question_type, specification in templates.items():
