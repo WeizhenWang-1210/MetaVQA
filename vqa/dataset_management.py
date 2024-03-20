@@ -125,11 +125,45 @@ def export_dataset(qa_path, data_directory):
         json.dump(export_qas, file, indent=2)
 
 
+def export_dataset_2(qa_path, src_data_directory, target_data_directory):
+    import shutil
+
+    with open(qa_path,"r") as file:
+        qa_pairs = json.load(file)
+    paths_to_keep = set()
+    for id, metainfo in qa_pairs.items():
+        for angle, frames in metainfo['rgb'].items():
+            new_frames = []
+            for frame in frames:
+                path = "/".join(frame.split("/")[1:])
+                paths_to_keep.add(path)
+                new_frames.append(os.path.join(target_data_directory,path))
+            qa_pairs[id]["rgb"][angle] = new_frames
+        lidar_path = ("/".join(metainfo["lidar"].split("/")[1:]))
+        paths_to_keep.add(lidar_path)
+        qa_pairs[id]["lidar"] = os.path.join(target_data_directory,lidar_path)
+
+    for path in paths_to_keep:
+        source_path = os.path.join(src_data_directory, path)
+        target_path = os.path.join(target_data_directory,path)
+        target_dir = os.path.dirname(target_path)
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir, exist_ok=True)
+        shutil.copy2(source_path,target_path)
+
+    with open(os.path.join(target_data_directory,"exported.json"), "w") as f:
+        json.dump(qa_pairs,f,indent=2)
+
+
+
+
+
 
 if __name__ == '__main__':
     #merge_ba("./waymo_demo", "./waymo_demo/merged.json", "qa")
     #dataset_statistics("./waymo_demo/merged.json","./waymo_demo/merged_stats.json")
     #splitting("./waymo_demo/merged.json", "./waymo_demo/spllited_merge.json")
     #delete_files_with_prefix("./multiprocess_demo", "highlighted")
-    export_dataset("./waymo_demo/merged.json","export")
+    #export_dataset("./waymo_demo/merged.json","export")
+    export_dataset_2("./waymo_demo/merged.json","waymo_demo","export_1")
 
