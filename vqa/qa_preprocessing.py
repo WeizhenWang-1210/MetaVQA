@@ -45,10 +45,10 @@ def open_to_close_vocab(path, converted_path):
             qa_pairs[id]["answer"] = converted_answers
         elif info["question_type"] == "counting":
             print(info["answer"][0], answer_space[info["answer"][0]])
-            qa_pairs[id]["answer"] = answer_space[info["answer"][0]]
+            qa_pairs[id]["answer"] = [answer_space[info["answer"][0]]]
         else:
             str_rep = "true" if info["answer"] else "false"
-            qa_pairs[id]["answer"] = str_rep
+            qa_pairs[id]["answer"] = [answer_space[str_rep]]
     new_qa = {}
     new_qa["qas"] = qa_pairs
     new_qa["answer_space"] = len(answer_space)
