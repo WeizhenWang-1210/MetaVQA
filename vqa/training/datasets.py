@@ -1,14 +1,9 @@
 import torch
-from transformers import BertTokenizer, BertModel
-from torch.utils.data import DataLoader, TensorDataset, Dataset
+from transformers import BertTokenizer
+from torch.utils.data import Dataset
 import json
-import torch.nn as nn
-from tqdm import tqdm
 from torchvision import transforms
 from PIL import Image
-import torch.nn as nn
-import torchvision.models as models
-from torch.autograd import Variable
 from collections import defaultdict
 
 
@@ -21,7 +16,7 @@ class MultiChoiceDataset(Dataset):
     with special symbol paddings. Attention masks are also calculated.
     """
 
-    def __init__(self, qa_paths, split, indices) -> None:
+    def __init__(self, qa_paths, split, indices, map) -> None:
         super(MultiChoiceDataset, self).__init__()
         try:
             with open(qa_paths, "r") as f:
@@ -40,12 +35,13 @@ class MultiChoiceDataset(Dataset):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         self.text_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.map = map
 
     @classmethod
     def load_split(cls, qa, indices):
-        data = defaultdict(dict)
+        data = {}
         for idx, i in enumerate(indices):
-            data[i] = qa["qas"][idx]
+            data[idx] = qa["qas"][i]
         return data
 
     def __len__(self):
@@ -80,7 +76,7 @@ class MultiChoiceDataset(Dataset):
         return ttensor, mtensor
 
     def __getitem__(self, index):
-        index = f"{index}"
+        #index = f"{index}"
         question, image_paths, lidar_paths, answers = self.data[index]["question"], self.data[index]["rgb"], \
             self.data[index]["lidar"], self.data[index]["answer"]
         gt = torch.zeros(5203)
@@ -91,4 +87,4 @@ class MultiChoiceDataset(Dataset):
         image_z = self.encode_rgb(image_paths)
         lidar_z = self.encode_lidar([lidar_paths])
         # print(question_z.shape, question_mask.shape,image_z.shape, lidar_z.shape, gt.shape)
-        return question_z, question_mask, image_z.squeeze(), lidar_z.squeeze(), gt
+        return question_z, question_mask, image_z.squeeze(), lidar_z.squeeze(), gt, index

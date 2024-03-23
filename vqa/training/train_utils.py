@@ -1,34 +1,208 @@
 import wandb
-wandb.login()
+from vqa.models.baselines import Baseline
+from vqa.models.components import Bert_Encoder, MLP_Multilabel, Resnet50_Encoder
+from torch.utils.data import DataLoader
+from vqa.training.datasets import MultiChoiceDataset
+from vqa.qa_preprocessing import answer_space_reversed
+from torch import nn
+from torch.nn.functional import binary_cross_entropy
+import torch
+import json
+from tqdm import tqdm
+import os
+from PIL import Image
 
-import random
+def get_model_size(model):
+    param_size = 0
+    for param in model.parameters():
+        param_size += param.nelement() * param.element_size()
+    buffer_size = 0
+    for buffer in model.buffers():
+        buffer_size += buffer.nelement() * buffer.element_size()
 
-# Launch 5 simulated experiments
-total_runs = 5
-for run in range(total_runs):
-    # 🐝 1️⃣ Start a new run to track this script
+    size_all_mb = (param_size + buffer_size) / 1024 ** 2
+    print('model size: {:.3f}MB'.format(size_all_mb))
+
+def get_model(MODEL, **kwargs):
+    return MODEL(**kwargs)
+
+
+def get_dataloader(LOADER, split, **kwargs):
+    if split == "train":
+        return LOADER(
+            shuffle=True,
+            **kwargs
+        )
+    else:
+        return LOADER(
+            shuffle=False,
+            **kwargs
+        )
+
+
+def get_dataset(DATASET, **kwargs):
+    return DATASET(**kwargs)
+
+
+def multilabel_eval(network, valid_dl, loss_func, log_qa=False, batch_idx=0, device="cpu"):
+    network.to(device)
+    """Compute performance of the model on the validation dataset and log a wandb.Table"""
+    network.eval()
+    val_loss = 0.
+    num_correct = 0
+    with torch.inference_mode():
+
+        with tqdm( valid_dl, unit="batch") as tstep:
+            for i, (question, mask, image, lidar, label, index) in enumerate(tstep):
+                question, mask, image, lidar, label = question.to(device), mask.to(device), image.to(device), lidar.to(device), label.to(device)
+                output = network(question, mask, image, lidar)
+                pred = (output > 0.5)
+                num_correct += torch.sum(label == pred).item()
+                val_loss += loss_func(output, label) * label.size(0)
+                if i == batch_idx and log_qa:
+                    qa_ids = []
+                    for row, qa_id in enumerate(index):
+                        qa_ids.append(qa_id.item())
+                    log_qa_table(valid_dl.dataset, qa_ids, pred, label, output)
+    return val_loss / len(valid_dl.dataset), num_correct / len(valid_dl.dataset)
+
+
+def log_qa_table(dataset, qa_ids, predicted, labels, probs):
+    #predicted, labels, probs = predicted.to("cpu"), labels.to("cpu"), probs.to("cpu")
+    "Log a wandb.Table with (img, pred, target, scores)"
+    # 🐝 Create a wandb Table to log images, labels and predictions to
+    table = wandb.Table(columns=["id", "question", "image", "pred", "target","BCE"])
+    for row, id in enumerate(qa_ids):
+        qa = dataset.data[id]
+        question = qa["question"]
+        #print([dataset.map[answer_id] for answer_id, label in enumerate(labels[row]) if label.item() == 1])
+        gt = " ".join(sorted([str(dataset.map[answer_id]) for answer_id, label in enumerate(labels[row]) if label.item() == 1]))
+        preds = " ".join(sorted([str(dataset.map[answer_id]) for answer_id, pred in enumerate(predicted[row]) if pred.item() == 1]))
+        gt_distro = dataset[id][-2]
+        pred_distro = probs[row]
+        bce = binary_cross_entropy(gt_distro,pred_distro).item()
+        table.add_data(
+            id,
+            question,
+            wandb.Image(qa["rgb"]["front"][0]),
+            preds,
+            gt,
+            bce
+        )
+    wandb.log({"predictions_table": table})
+
+
+def multilabel_train(model, train_loader, valid_loader, criterion, optimizer, epochs=20, device = "cpu", eval_every = 1, save_every = 5, log_dir = "./", save_best = True, save_last = True):
+    os.makedirs(name = f"./{log_dir}", exist_ok=True)
+    cur_best = float("inf")
+    model.to(device)
+    val_loss = 0.0
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+        with tqdm(train_loader, unit = "batch") as tstep:
+            for question,mask,image,lidar,label,_ in tstep:
+                tstep.set_description(f"Epoch {epoch}")
+                question,mask,image,lidar,label = question.to(device),mask.to(device),image.to(device),lidar.to(device),label.to(device)
+                optimizer.zero_grad()
+                output = model(question,mask,image,lidar)
+                loss = criterion(output, label)
+                loss.backward()
+                tstep.set_postfix(loss = loss.item())
+                optimizer.step()
+                running_loss+=loss.item()
+        if (epoch + 1) % eval_every == 0:
+            avg_loss = running_loss / len(train_loader)
+            val_loss, val_accuracy = multilabel_eval(model, valid_loader, criterion, log_qa=True, device=device)
+            print(f'Epoch [{epoch + 1}/{epochs}], Average Train Loss: {avg_loss:.4f}, Average Val Loss, {val_loss:.4f}, Validation Accuracy: {val_accuracy:.2f}')
+            wandb.log({"acc":val_accuracy, "loss":val_loss})
+
+            if save_best and val_loss < cur_best:
+                print('Logging best parameters()')
+                torch.save(
+                    {
+                        'epoch': epoch,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'optimizer': optimizer.__class__.__name__,
+                        'val_loss': val_loss,
+                    }, os.path.join(log_dir, f'{model.name}_best.pth')
+                )
+                cur_best = val_loss
+        if (epoch + 1) % save_every == 0:
+            torch.save(
+                {
+                  'epoch': epoch,
+                  'model_state_dict': model.state_dict(),
+                  'optimizer_state_dict': optimizer.state_dict(),
+                  'optimizer':optimizer.__class__.__name__,
+                  'val_loss': val_loss,
+                }, os.path.join(log_dir,f'{model.name}_{epoch + 1}.pth')
+            )
+    if save_last:
+        torch.save(
+            {
+                'epoch': epochs,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'optimizer': optimizer.__class__.__name__,
+                'val_loss': val_loss,
+            }, os.path.join(log_dir, f'{model.name}_{epochs}.pth')
+        )
+
+
+if __name__ == "__main__":
+    split_file = "./export_1/split.json"
+    qa_file = "./export_1/converted.json"
+    with open(split_file, "r") as file:
+        split_dict = json.load(file)
+
+    wandb_config = dict(
+        name="some"
+    )
+
+    wandb.login()
     wandb.init(
-        # Set the project where this run will be logged
-        project="basic-intro",
-        # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
-        name=f"experiment_{run}",
-        # Track hyperparameters and run metadata
-        config={
-            "learning_rate": 0.02,
-            "architecture": "CNN",
-            "dataset": "CIFAR-100",
-            "epochs": 10,
-        })
+        project="test",
+        name = wandb_config["name"]
+    )
+    dataloaders = {}
+    for split, indices in split_dict.items():
+        if split == "src":
+            continue
+        dataset_config = dict(
+                            qa_paths=qa_file,
+                            split=split,
+                            indices=indices,
+                            map=answer_space_reversed
+                        )
+        dataset = get_dataset(MultiChoiceDataset, **dataset_config)
+        loader_config = dict(
+            dataset=dataset,
+            batch_size=16
+        )
+        loader = get_dataloader(DataLoader, dataset.split, **loader_config)
+        dataloaders[split] = loader
+    network_config = dict(
+        text_encoder=Bert_Encoder(),
+        rgb_encoder=Resnet50_Encoder(),
+        predictor=MLP_Multilabel(input_dim=2936, hidden_dim=4096, output_dim=5203, num_hidden=1),
+        name="baseline"
+    )
 
-    # This simple block simulates a training loop logging metrics
-    epochs = 10
-    offset = random.random() / 5
-    for epoch in range(2, epochs):
-        acc = 1 - 2 ** -epoch - random.random() / epoch - offset
-        loss = 2 ** -epoch + random.random() / epoch + offset
-
-        # 🐝 2️⃣ Log metrics from your script to W&B
-        wandb.log({"acc": acc, "loss": loss})
-
-    # Mark the run as finished
+    model = get_model(Baseline, **network_config)
+    get_model_size(model)
+    bceloss = torch.nn.BCELoss()
+    adam = torch.optim.Adam(model.parameters(),lr = 1e-5)
+    multilabel_train(
+        model=model,
+        train_loader=dataloaders["train"],
+        valid_loader=dataloaders["val"],
+        criterion=bceloss,
+        optimizer=adam,
+        epochs=10,
+        log_dir=wandb_config["name"]
+    )
+    #multilabel_eval(model,dataloaders["test"],nn.)
+    multilabel_eval(model,dataloaders["test"],nn.BCELoss(),log_qa=True,device = "cpu")
     wandb.finish()

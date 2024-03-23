@@ -18,6 +18,7 @@ joint_space = grid_points + num_space + bool_space
 print(joint_space)
 
 answer_space = {key: id for id, key in enumerate(joint_space)}
+answer_space_reversed = {id: key for id, key in enumerate(joint_space)}
 
 
 def open_to_close_vocab(path, converted_path):
