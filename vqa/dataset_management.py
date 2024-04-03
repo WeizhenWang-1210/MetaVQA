@@ -38,7 +38,7 @@ def splitting(qa, path, ps=[0.65, 0.15, 0.2]):
     def generate_categorical_list(n, categories, probabilities):
         return np.random.choice(categories, size=n, p=probabilities).tolist()
     with open(qa, "r") as file:
-        data = json.load(file)
+        data = json.load(file)["qas"]
     split_file = {
         "src": qa,
         "train": [],
@@ -135,13 +135,17 @@ def export_dataset_2(qa_path, src_data_directory, target_data_directory):
         for angle, frames in metainfo['rgb'].items():
             new_frames = []
             for frame in frames:
-                path = "/".join(frame.split("/")[1:])
+                path = "/".join(frame.split("/")[5:])
                 paths_to_keep.add(path)
-                new_frames.append(os.path.join(target_data_directory,path))
+                #print(os.path.join(target_data_directory,path))
+                #break
+                new_frames.append(os.path.join("./",path))
             qa_pairs[id]["rgb"][angle] = new_frames
-        lidar_path = ("/".join(metainfo["lidar"].split("/")[1:]))
+        lidar_path = "/".join(metainfo["lidar"].split("/")[5:])
+        #print(os.path.join(target_data_directory,lidar_path))
+        #exit()
         paths_to_keep.add(lidar_path)
-        qa_pairs[id]["lidar"] = os.path.join(target_data_directory,lidar_path)
+        qa_pairs[id]["lidar"] = os.path.join("./",lidar_path)
 
     for path in paths_to_keep:
         source_path = os.path.join(src_data_directory, path)
@@ -160,10 +164,9 @@ def export_dataset_2(qa_path, src_data_directory, target_data_directory):
 
 
 if __name__ == '__main__':
-    #merge_ba("./waymo_demo", "./waymo_demo/merged.json", "qa")
-    #dataset_statistics("./waymo_demo/merged.json","./waymo_demo/merged_stats.json")
-    #splitting("./waymo_demo/merged.json", "./waymo_demo/spllited_merge.json")
+    #merge_ba("/bigdata/weizhen/metavqa/100k", "/bigdata/weizhen/metavqa/100k/merged.json", "qa")
+    #dataset_statistics("./waymo_sample/merged.json","./waymo_sample/statistics.json")
+    #splitting("./export_waymo/converted.json", "./export_waymo/split.json")
     #delete_files_with_prefix("./multiprocess_demo", "highlighted")
-    #export_dataset("./waymo_demo/merged.json","export")
-    export_dataset_2("./waymo_demo/merged.json","waymo_demo","export_1")
-
+    #export_dataset_2("/bigdata/weizhen/metavqa/100k/merged.json","/bigdata/weizhen/metavqa/100k","/bigdata/weizhen/metavqa/100k_export")
+    splitting("/bigdata/weizhen/metavqa/100k_export/converted.json", "/bigdata/weizhen/metavqa/100k_export/split.json")

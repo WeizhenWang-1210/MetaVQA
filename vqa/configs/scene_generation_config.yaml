@@ -1,5 +1,5 @@
 ---
-storage_path : "multiprocess"
+storage_path : "/bigdata/weizhen/metavqa/100k"
 map_setting:
   PG: True
   map_size: 5
@@ -11,9 +11,9 @@ map_setting:
   num_scenarios: 100
   start_seed: 0
 sample_frequency: 10
-num_samples: 10
-max_iterations: 10000
+num_samples: 6250
+max_iterations: 1000000000000000
 temporal_generation: True
 episode_length: 40
-skip_length: 100
+skip_length: 30
 ...

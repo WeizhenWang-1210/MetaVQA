@@ -45,7 +45,7 @@ def open_to_close_vocab(path, converted_path):
             #print(converted_answers)
             qa_pairs[id]["answer"] = converted_answers
         elif info["question_type"] == "counting":
-            print(info["answer"][0], answer_space[info["answer"][0]])
+            #print(info["answer"][0], answer_space[info["answer"][0]])
             qa_pairs[id]["answer"] = [answer_space[info["answer"][0]]]
         else:
             str_rep = "true" if info["answer"] else "false"
@@ -60,4 +60,4 @@ def open_to_close_vocab(path, converted_path):
 
 
 if __name__ == "__main__":
-    open_to_close_vocab("./export_1/exported.json", "./export_1/converted.json")
+    open_to_close_vocab("/bigdata/weizhen/metavqa/100k_export/exported.json", "/bigdata/weizhen/metavqa/100k_export/converted.json")

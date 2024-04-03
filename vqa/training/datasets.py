@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 import json
 from torchvision import transforms
 from PIL import Image
+import os
 from collections import defaultdict
 
 
@@ -16,7 +17,7 @@ class MultiChoiceDataset(Dataset):
     with special symbol paddings. Attention masks are also calculated.
     """
 
-    def __init__(self, qa_paths, split, indices, map) -> None:
+    def __init__(self, qa_paths, split, indices, map, base = "./") -> None:
         super(MultiChoiceDataset, self).__init__()
         try:
             with open(qa_paths, "r") as f:
@@ -36,6 +37,7 @@ class MultiChoiceDataset(Dataset):
         ])
         self.text_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.map = map
+        self.base = base
 
     @classmethod
     def load_split(cls, qa, indices):
@@ -51,21 +53,23 @@ class MultiChoiceDataset(Dataset):
         buffer = []
         for angle, paths in image_paths.items():
             for path in paths:
-                img = Image.open(path)
+                rebased = os.path.join(self.base, path)
+                img = Image.open(rebased)
                 transformed = self.img_transform(img)
                 buffer.append(transformed)
         return torch.stack(buffer, dim=0)
 
-    @classmethod
-    def encode_lidar(cls, lidar_paths):
+
+    def encode_lidar(self, lidar_paths):
         """
         Return the lidar directly as concatenated tensor
         """
         buffer = []
         for lidar in lidar_paths:
+            lidar = os.path.join(self.base, lidar)
             with open(lidar, "r") as file:
                 data = json.load(file)
-            feature = torch.tensor(data["lidar"])
+            feature = torch.tensor(data["lidar"])*50 #multiplied with 50 to restore into world scale.
             buffer.append(feature)
         return torch.stack(buffer, dim=0)
 
