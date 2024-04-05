@@ -1,7 +1,8 @@
 import torch
-from transformers import BertModel
+from transformers import BertModel, ViTImageProcessor, ViTModel
 import torch.nn as nn
 import torchvision.models as models
+from torchvision import transforms
 
 
 class MLP_Multilabel(nn.Module):
@@ -55,6 +56,44 @@ class Bert_Encoder(nn.Module):
         return text_feature
 
 
+class ViT_Encoder(nn.Module):
+    """
+    Given an Imagenet transformed image tensor, return features from ViT pretrained on ImageNet-21k with 224*224 resolution
+    """
+    PROCESSOR = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224-in21k')
+
+    def __init__(self):
+        super(ViT_Encoder, self).__init__()
+        self.network, self.norm = self.setup()
+
+    @classmethod
+    def get_preprocessor(cls):
+        def handle(img):
+            return cls.PROCESSOR(images=img, return_tensors="pt")
+
+        return handle
+
+    @classmethod
+    def setup(cls):
+        model = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
+        model.eval()
+        modules, layernorm = list(model.children())[:-2], list(model.children())[-1]
+        encoder = nn.Sequential(*modules)
+        for p in encoder.parameters():
+            p.requires_grad = False
+        return encoder, layernorm
+
+    def forward(self, x):
+        patch = self.network(x).last_hidden_state[:, 1:, :] #ignore the cls token
+        return self.norm(patch)
+
+class Clip_Encoder(nn.Module):
+    """
+    Encode models with ViT pretrained using CLIP.
+    """
+
+
+
 class Resnet50_Encoder(nn.Module):
     """
     Given an Imagenet transformed image tensor, return the embedding vector after the final average pooling.
@@ -79,4 +118,10 @@ class Resnet50_Encoder(nn.Module):
     def forward(self, x):
         return self.network(x).squeeze(-1).squeeze(-1)
 
-
+    @classmethod
+    def get_preprocessor(cls):
+        return transforms.Compose([
+            transforms.Resize(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])

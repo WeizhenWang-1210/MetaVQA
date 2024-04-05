@@ -183,6 +183,14 @@ if __name__ == "__main__":
         project="100k",
         name=wandb_config["name"]
     )
+    network_config = dict(
+        text_encoder=Bert_Encoder(),
+        rgb_encoder=Resnet50_Encoder(),
+        predictor=MLP_Multilabel(input_dim=2936, hidden_dim=4096, output_dim=5203, num_hidden=4),
+        name="baseline"
+    )
+    model = get_model(Baseline, **network_config)
+
     dataloaders = {}
     for split, indices in split_dict.items():
         if split == "src":
@@ -193,6 +201,7 @@ if __name__ == "__main__":
             indices=indices,
             map=answer_space_reversed,
             base = base,
+            img_transform = model.get_preprocessor()
         )
         dataset = get_dataset(MultiChoiceDataset, **dataset_config)
         loader_config = dict(
@@ -203,12 +212,7 @@ if __name__ == "__main__":
         dataloaders[split] = loader
         print(f"{split}:{len(dataset)}")
 
-    network_config = dict(
-        text_encoder=Bert_Encoder(),
-        rgb_encoder=Resnet50_Encoder(),
-        predictor=MLP_Multilabel(input_dim=2936, hidden_dim=4096, output_dim=5203, num_hidden=4),
-        name="baseline"
-    )
+
 
     model = get_model(Baseline, **network_config)
     get_model_size(model)

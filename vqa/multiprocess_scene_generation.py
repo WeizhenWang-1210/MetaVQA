@@ -125,7 +125,7 @@ if __name__ == "__main__":
     #print(job_intervals)
     processes = []
     for proc_id in range(args.num_proc):
-        print("Seding job{}".format(proc_id))
+        print("Sending job{}".format(proc_id))
         p = multp.Process(
             target=main,
             args=(

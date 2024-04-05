@@ -17,7 +17,14 @@ class MultiChoiceDataset(Dataset):
     with special symbol paddings. Attention masks are also calculated.
     """
 
-    def __init__(self, qa_paths, split, indices, map, base = "./") -> None:
+    def __init__(self, qa_paths, split, indices, map,
+                 base = "./",
+                 img_transform = transforms.Compose([
+                                    transforms.Resize(224),
+                                    transforms.ToTensor(),
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                ]),
+                 ) -> None:
         super(MultiChoiceDataset, self).__init__()
         try:
             with open(qa_paths, "r") as f:
@@ -29,12 +36,7 @@ class MultiChoiceDataset(Dataset):
         self.indices = indices
         self.data = self.load_split(qa, self.indices)
         self.answer_dim = qa["answer_space"]
-        self.img_transform = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        self.img_transform = img_transform
         self.text_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.map = map
         self.base = base
