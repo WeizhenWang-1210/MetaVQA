@@ -40,8 +40,8 @@ class configReader:
         self.spawnPosDict = None
         self.spawnNumDict = None
         self.reverseType = None
-        self.path_config_path = "./path_config.yaml"
-        self.asset_config_path = "./asset_config.yaml"
+        self.path_config_path = "../path_config.yaml"
+        self.asset_config_path = "../asset_config.yaml"
         with open(self.path_config_path, "r") as file:
             self.path_config = yaml.safe_load(file)
         with open(self.asset_config_path, "r") as file2:
