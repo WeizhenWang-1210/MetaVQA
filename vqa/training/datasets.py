@@ -59,6 +59,7 @@ class MultiChoiceDataset(Dataset):
                 img = Image.open(rebased)
                 transformed = self.img_transform(img)
                 buffer.append(transformed)
+
         return torch.stack(buffer, dim=0)
 
 

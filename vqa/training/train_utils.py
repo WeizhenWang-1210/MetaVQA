@@ -1,6 +1,6 @@
 import wandb
 from vqa.models.baselines import Baseline
-from vqa.models.components import Bert_Encoder, MLP_Multilabel, Resnet50_Encoder
+from vqa.models.components import Bert_Encoder, MLP_Multilabel, Resnet50_Encoder, ViT_Encoder
 from torch.utils.data import DataLoader
 from vqa.training.datasets import MultiChoiceDataset
 from vqa.qa_preprocessing import answer_space_reversed
@@ -168,25 +168,25 @@ def multilabel_train(model, train_loader, valid_loader, criterion, optimizer, ep
 
 
 if __name__ == "__main__":
-    base = "/bigdata/weizhen/metavqa/100k_export/"
-    split_file = "/bigdata/weizhen/metavqa/100k_export/split.json"
-    qa_file = "/bigdata/weizhen/metavqa/100k_export/converted.json"
+    base = "/home/weizhen/100k_export"
+    split_file = "/home/weizhen/100k_export/split.json"
+    qa_file = "/home/weizhen/100k_export/converted.json"
     with open(split_file, "r") as file:
         split_dict = json.load(file)
 
     wandb_config = dict(
-        name="large_baseline_num_hidden=4g_sum_gpu"
+        name="100k_ViT+BERT_2048_1"
     )
 
     wandb.login()
     wandb.init(
-        project="100k",
+        project="100k_vit",
         name=wandb_config["name"]
     )
     network_config = dict(
         text_encoder=Bert_Encoder(),
-        rgb_encoder=Resnet50_Encoder(),
-        predictor=MLP_Multilabel(input_dim=2936, hidden_dim=4096, output_dim=5203, num_hidden=4),
+        rgb_encoder=ViT_Encoder(),
+        predictor=MLP_Multilabel(input_dim=1656, hidden_dim=2048, output_dim=5203, num_hidden=1),
         name="baseline"
     )
     model = get_model(Baseline, **network_config)
@@ -201,7 +201,7 @@ if __name__ == "__main__":
             indices=indices,
             map=answer_space_reversed,
             base = base,
-            img_transform = model.get_preprocessor()
+            img_transform = ViT_Encoder.get_preprocessor()
         )
         dataset = get_dataset(MultiChoiceDataset, **dataset_config)
         loader_config = dict(

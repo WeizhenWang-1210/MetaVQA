@@ -1,5 +1,5 @@
 import torch
-from transformers import BertModel, ViTImageProcessor, ViTModel
+from transformers import BertModel, ViTImageProcessor, ViTModel, CLIPFeatureExtractor, AutoModel
 import torch.nn as nn
 import torchvision.models as models
 from torchvision import transforms
@@ -69,7 +69,7 @@ class ViT_Encoder(nn.Module):
     @classmethod
     def get_preprocessor(cls):
         def handle(img):
-            return cls.PROCESSOR(images=img, return_tensors="pt")
+            return cls.PROCESSOR(images=img, return_tensors="pt")['pixel_values']
 
         return handle
 
@@ -92,6 +92,34 @@ class Clip_Encoder(nn.Module):
     Encode models with ViT pretrained using CLIP.
     """
 
+class Clip_ViT_Encoder(nn.Module):
+    """
+    Given an Imagenet transformed image tensor, return features from ViT pretrained on ImageNet-21k with 224*224 resolution
+    """
+    PROCESSOR = CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32")
+
+    def __init__(self):
+        super(Clip_ViT_Encoder, self).__init__()
+        self.network = self.setup()
+
+    @classmethod
+    def get_preprocessor(cls):
+        def handle(img):
+            return cls.PROCESSOR(images=img, return_tensors="pt")['pixel_values']
+
+        return handle
+
+    @classmethod
+    def setup(cls):
+        model = AutoModel.from_pretrained("openai/clip-vit-base-patch32").CLIPVisionTransformer
+        model.eval()
+        modules = list(model.children())
+        encoder = nn.Sequential(*modules)
+        for p in encoder.parameters():
+            p.requires_grad = False
+        return encoder
+    def forward(self, x):
+        return self.network.get_image_features(x)
 
 
 class Resnet50_Encoder(nn.Module):
