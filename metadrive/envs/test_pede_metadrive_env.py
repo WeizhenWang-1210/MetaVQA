@@ -307,7 +307,7 @@ class TestPedeMetaDriveEnv(BaseEnv):
         from metadrive.manager.new_sidewalk_manager import SidewalkManager
         self.engine.register_manager("map_manager", PGMapManager())
         self.engine.register_manager("traffic_manager", NewAssetPGTrafficManager())
-        # self.engine.register_manager("sidewalk_manager", SidewalkManager())
+        self.engine.register_manager("sidewalk_manager", SidewalkManager())
         if abs(self.config["accident_prob"] - 0) > 1e-2:
             self.engine.register_manager("object_manager", TrafficObjectManager())
 

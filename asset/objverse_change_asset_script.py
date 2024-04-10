@@ -264,13 +264,13 @@ if __name__ == "__main__":
     #              src_parent_folder = src_parent_folder,
     #              ignore_list_path = ignore_adj_folder)
     # ===========================================Static Model=======================================
-    model_update(is_auto = True,
-                 is_car_model=False,
-                 destination_folder= destination_folder,
-                 json_path = json_path,
-                 adj_parameter_folder= adj_parameter_folder,
-                 src_parent_folder = src_parent_folder,
-                 ignore_list_path = ignore_adj_folder)
+    # model_update(is_auto = True,
+    #              is_car_model=False,
+    #              destination_folder= destination_folder,
+    #              json_path = json_path,
+    #              adj_parameter_folder= adj_parameter_folder,
+    #              src_parent_folder = src_parent_folder,
+    #              ignore_list_path = ignore_adj_folder)
     # ===========================================GLTF Model=======================================
     # src_parent_folder = path_config["metadriveassetgltf"]  # Folder where you want to copy the files
     # gltf_updater(destination_folder = destination_folder,
@@ -278,10 +278,10 @@ if __name__ == "__main__":
     #              src_parent_folder = src_parent_folder,
     #              ignore_list_path = ignore_adj_folder)
     # ============================================Raw Asset Folder==================================
-    # raw_asset_src_folder = path_config["raw_assetfolder"]
-    # folder_asset_update( is_auto = True,
-    #             is_car_model=True,
-    #             destination_folder = destination_folder,
-    #             adj_parameter_folder= adj_parameter_folder,
-    #             raw_asset_src_folder = raw_asset_src_folder,
-    #             ignore_list_path = ignore_adj_folder)
+    raw_asset_src_folder = path_config["raw_assetfolder"]
+    folder_asset_update( is_auto = True,
+                is_car_model=False,
+                destination_folder = destination_folder,
+                adj_parameter_folder= adj_parameter_folder,
+                raw_asset_src_folder = raw_asset_src_folder,
+                ignore_list_path = ignore_adj_folder)

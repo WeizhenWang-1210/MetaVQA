@@ -46,14 +46,14 @@ BASE_PATH = os.path.join(os.path.expanduser("~"), ".objaverse")
 ## File Descriptions
 
 - `MetaVQA/asset/download_assets.py`: Download assets from `objaverse` with certain tag. Save asset path json
-- `MetaVQA/asset/objverse_filter_asset.py`: Go over the asset downloaded from objaverse, decide whether to use them later, and add annotations to each asset.
+- `MetaVQA/asset/objverse_filter_asset.py`: Manually Go over the asset downloaded from objaverse, decide whether to use them later, and add annotations to each asset.
 - `MetaVQA/asset/show_mesh.py`: Helper function to display an asset using trimesh.
-- `MetaVQA/asset/objverse_change_asset.py`: Interactive Asset parameters updater that display a new CAR asset in the environment and let you adjust the parameters like size interactively.
+- `MetaVQA/asset/objverse_change_asset.py`: Interactive Asset parameters updater that display a new CAR asset in the environment and let you adjust the parameters interactively.
 - `MetaVQA/asset/objverse_change_asset_static.py`: Same as above, but for other static objects.
 - `MetaVQA/asset/objversse_change_asset_script.py`: Script to apply the above script to batch of new assets.
 - `MetaVQA/asset/layout_static_obj.py`: Manually placed adjusted assets in a static scene, to generate static demo.
-- `MetaVQA/asset/pedestrian.py`: Test Pedestrian manager that auto-generate pedestrian on sidewalk.
-- `MetaVQA/metadrive/envs/test_asset_metadrive_env.py`: Adjusted env that can place new `car` asset and change its parameters in real time. Used for "objverse_change_asset.py"
+- `MetaVQA/asset/pedestrian.py`: Test sidewalk manager that randomly lay some assets on sidewalk.
+- `MetaVQA/metadrive/envs/test_asset_metadrive_env.py`: Adjusted env that use the `test_asset_agent_manager` and can place new `car` asset and change its parameters in real time. Used for "objverse_change_asset.py"
 - `MetaVQA/metadrive/manager/test_asset_agent_manager.py`: Adjusted agent manager that place the `car` and update its parameter interactively.
 - `MetaVQA/metadrive/envs/test_pede_metadrive_env.py`: Adjusted env that use new sidewalk manager to spawn static object on sidewalk
 - `MetaVQA/metadrive/manager/sidewalk_manager.py`: Adjusted manager that adds items (currently pedestrian) on the sidewalk.

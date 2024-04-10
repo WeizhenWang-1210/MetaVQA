@@ -546,8 +546,8 @@ class BaseEngine(EngineCore, Randomizable):
         :param manager_name: name shouldn't exist in self._managers and not be same as any class attribute
         :param manager: subclass of BaseManager
         """
-        assert manager_name not in self._managers, "Manager already exists in BaseEngine, Use update_manager() to " \
-                                                   "overwrite"
+        assert manager_name not in self._managers, "Manager {} already exists in BaseEngine, Use update_manager() to " \
+                                                   "overwrite".format(manager_name)
         assert not hasattr(self, manager_name), "Manager name can not be same as the attribute in BaseEngine"
         self._managers[manager_name] = manager
         setattr(self, manager_name, manager)
