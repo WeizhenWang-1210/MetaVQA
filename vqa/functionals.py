@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Iterable, Callable
-from vqa.object_node import ObjectNode,transform
+from vqa.object_node import ObjectNode, transform
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
@@ -242,7 +242,7 @@ def Identity(search_spaces):
     return search_spaces[0]
 
 
-def locate_wrapper(origin:ObjectNode)->Callable:
+def locate_wrapper(origin: ObjectNode) -> Callable:
     def locate(stuff: Iterable[ObjectNode]) -> Iterable:
         """
         Return the bbox of all AgentNodes in stuff.
@@ -253,4 +253,19 @@ def locate_wrapper(origin:ObjectNode)->Callable:
                 transformed = transform(origin, more_stuff.bbox)
                 result.append(transformed)
         return result
+
     return locate
+
+
+def extract_color(search_spaces):
+    result = set()
+    for search_space in search_spaces:
+        result.update([obj.color for obj in search_space])
+    return list(result)
+
+
+def extract_type(search_spaces):
+    result = set()
+    for search_space in search_spaces:
+        result.update([obj.type for obj in search_space])
+    return list(result)

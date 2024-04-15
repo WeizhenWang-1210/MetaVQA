@@ -1,9 +1,9 @@
 from typing import Any, Iterable, Union, LiteralString, Callable
 from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
-    CountGreater, CountEqual, Identity, locate_wrapper
+    CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type
 from vqa.scene_graph import SceneGraph, EpisodicGraph
 from vqa.object_node import ObjectNode
-from vqa.grammar import STATIC_GRAMMAR
+from vqa.grammar import STATIC_GRAMMAR,NO_COLOR_STATIC
 import random
 import json
 import argparse
@@ -30,10 +30,10 @@ class Tnode:
     def populate(self, depth, grammar) -> None:
         if is_terminal(self.token, grammar) or depth <= 0:
             return
-        rules = GRAMMAR[self.token]
+        rules = grammar[self.token]
         rule = random.choice(rules)
         if depth == 1:
-            while not all(token not in GRAMMAR.keys() for token in rule):
+            while not all(token not in grammar.keys() for token in rule):
                 rule = random.choice(rules)
         children = []
         flag = True
@@ -80,10 +80,14 @@ class Tree:
 
     def build_functional(self, constraints) -> dict:
         unique_flag = "unique" in constraints
+        """no_color_flag = "no_color" in constraints
+        if no_color_flag:
+            self.grammar = NO_COLOR_STATIC
+            print("here")"""
         results = dict()
 
         def recur_build_o(root_o, idx):
-            assert root_o.token == "<o>"
+            assert root_o.token == "<o>" or root_o.token == "<ox>"
             if root_o.key:
                 results[idx] = ["us"]
             else:
@@ -95,7 +99,7 @@ class Tree:
                     else:
                         expand = dict()
                         for child_child in child.children:
-                            if child_child.token == "<o>":
+                            if child_child.token == "<o>" or child_child.token == "<ox>":
                                 expand["<o>'s id"] = recur_build_o(child_child, idx + offset)
                                 offset += 1
                             else:
@@ -133,8 +137,22 @@ class Tree:
             if isinstance(config, list):
                 subquery.us = True
                 return
-            subquery.color = [config["<p>"]] if config["<p>"] != "nil" else None
-            subquery.type = [config["<t>"]] if config["<t>"] != "nil" else None
+            if "<p>" in config.keys():
+                subquery.color = [config["<p>"]] if config["<p>"] != "nil" else None
+            elif "<px>" in config.keys():
+                subquery.color = [config["<px>"]] if config["<px>"] != "nil" else None
+            else:
+                print("Major fucked up")
+                exit()
+            if "<t>" in config.keys():
+                subquery.type = [config["<t>"]] if config["<t>"] != "nil" else None
+            elif "<tx>" in  config.keys():
+                subquery.type = [config["<tx>"]] if config["<tx>"] != "nil" else None
+            else:
+                print("Major fucked up")
+                exit()
+
+
             subquery.state = [config["<s>"]] if config["<s>"] != "nil" else None
             # Create the action requirements according to the grammar tree specification
             if isinstance(config["<a>"], dict):
@@ -245,8 +263,21 @@ class Tree:
             else:
                 form = "singular" if object_dict[obj_id]["unique"] else "plural"
                 s = state_token_string_converter(object_dict[obj_id]['<s>'])
-                p = color_token_string_converter(object_dict[obj_id]['<p>'])
-                t = type_token_string_converter(object_dict[obj_id]['<t>'], form)
+                if "<p>" in object_dict[obj_id].keys():
+                    p = color_token_string_converter(object_dict[obj_id]['<p>'])
+                elif "<px>" in object_dict[obj_id].keys():
+                    p = color_token_string_converter(object_dict[obj_id]['<px>'])
+                else:
+                    print("Something terribly wrong happend")
+                    exit()
+                if "<t>" in object_dict[obj_id].keys():
+                    t = type_token_string_converter(object_dict[obj_id]['<t>'], form)
+                elif "<tx>" in object_dict[obj_id].keys():
+                    t = type_token_string_converter(object_dict[obj_id]['<tx>'], form)
+                else:
+                    print("Something terribly wrong happened")
+                    exit()
+
                 dir = ''
                 if isinstance(object_dict[obj_id]['<dir>'], str):
                     dir = object_dict[obj_id]['<dir>'] if object_dict[obj_id]['<dir>'] != 'nil' else ''
@@ -489,8 +520,9 @@ CACHE = dict()
 
 
 class QuerySpecifier:
-    def __init__(self, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
+    def __init__(self, type:str, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
+        self.type = type
         self.template = template
         self.signature = None
         self.graph = graph
@@ -508,7 +540,7 @@ class QuerySpecifier:
 
     def instantiate(self):
         parameters = {}
-        signatures = []
+        signatures = [self.type]
         for param in self.template["params"]:
             local = dict(
                 en=None,
@@ -529,14 +561,16 @@ class QuerySpecifier:
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
             #param_tree.visualize()
-            local["signature"] = json.dumps(functional, sort_keys=True)
+            signature_string = json.dumps(functional, sort_keys=True)
+            local["signature"] = signature_string
+            signatures.append(signature_string)
+
             program = Query([Tree.build_program(functional)], "stuff", Identity,
                             candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id]) #if node.id != self.graph.ego_id
             local["prog"] = program
             #print(program.heads)
             parameters[param] = local
-
-        self.signatures = signatures
+        self.signature = "-".join(signatures)
         return parameters
 
     def translate(self) -> str:
@@ -551,6 +585,8 @@ class QuerySpecifier:
             locate=locate_wrapper(self.graph.get_ego_node()),
             count_equal=CountEqual,
             count_more=CountGreater,
+            extract_color=extract_color,
+            extract_type=extract_type
 
         )
         return mapping[string]
@@ -773,6 +809,7 @@ def main():
         }
     }
     q = QuerySpecifier(
+        type = "counting",
         template=templates["generic"]["counting"],
         parameters=parameters_2,
         graph=graph,
@@ -786,7 +823,7 @@ def main():
     print(q.statistics)
     print("end")
 
-def test_tree(file):
+def some_tree(file):
     with open(file, 'r') as scene_file:
         scene_dict = json.load(scene_file)
     from vqa.scene_graph import nodify
@@ -800,7 +837,7 @@ def test_tree(file):
             grammar[lhs] = [[item] for item in ["vehicle"] + rhs]
     tree = Tree("<o>",2,grammar)
     tree.visualize()
-    plan = tree.build_functional([""])
+    plan = tree.build_functional(["no_color"])
     prog = Tree.build_program(plan)
     print(prog)
     query = Query([prog], "stuff",
@@ -810,7 +847,7 @@ def test_tree(file):
     query.set_egos([graph.get_ego_node()])
     answer = query.proceed()
     print(answer)
-    generate_highlighted('SOME.png', "some/5_80_119/5_100/metainformation_5_100.json",
+    generate_highlighted('SOME.png', "verification/9_41_80/9_41/metainformation_5_100.json",
                          )
 
 
@@ -821,4 +858,4 @@ def test_tree(file):
 if __name__ == "__main__":
     #print("hello")
     #main()
-    test_tree("some/5_80_119/5_100/world_5_100.json")
+    some_tree("verification/9_41_80/9_41/world_9_41.json")

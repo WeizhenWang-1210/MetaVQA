@@ -4,12 +4,12 @@ import os
 from vqa.grammar import STATIC_GRAMMAR
 from vqa.object_node import nodify
 from vqa.question_generator import GRAMMAR, QuerySpecifier
+from vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
 from vqa.scene_graph import SceneGraph
 from vqa.question_generator import CACHE
 
 
-
-def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:int, verbose:bool =False) -> dict:
+def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False) -> dict:
     '''
     Take in a path to a world.json file(a single frame), generate all
     static questions
@@ -23,39 +23,60 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     ego_id, nodelist = nodify(scene_dict)
     graph = SceneGraph(ego_id, nodelist, frame)
     # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
-    #templates = {"count_more_binary":templates["count_more_binary"]}
-    grammar = GRAMMAR
-    for lhs, rhs in graph.statistics.items():
-        #GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
-        if lhs == "<p>":
-            grammar[lhs] = [[item] for item in rhs+["nil"]]
-        else:
-            grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
     record = {}
     counts = 0
+    valid_questions = set()
     for question_type, specification in templates.items():
+        if question_type == "color_identification":
+            grammar = NO_COLOR_STATIC
+            for lhs, rhs in graph.statistics.items():
+                if lhs == "<p>":
+                    grammar["<px>"] = [[item] for item in rhs + ["nil"]]
+                else:
+                    grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
+        elif question_type == "type_identification":
+            grammar = NO_TYPE_STATIC
+            for lhs, rhs in graph.statistics.items():
+                if lhs == "<t>":
+                    grammar["<tx>"] = [[item] for item in rhs + ["vehicle"]]
+                else:
+                    grammar[lhs] = [[item] for item in rhs + ["nil"]]
+        else:
+            grammar = STATIC_GRAMMAR
+            for lhs, rhs in graph.statistics.items():
+                if lhs == "<p>":
+                    grammar[lhs] = [[item] for item in rhs + ["nil"]]
+                else:
+                    grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
         for idx in range(attempts):
             if verbose:
                 print("Attempt {} of {} for {}".format(idx, attempts, question_type))
-            q = QuerySpecifier(template=specification, parameters=None, graph=graph, grammar=grammar, debug = True, stats = True)
+            q = QuerySpecifier(type=question_type, template=specification, parameters=None, graph=graph,
+                               grammar=grammar, debug=True, stats=True)
+            if q.signature in valid_questions:
+                if verbose:
+                    print("Skip <{}> since the equivalent question has been asked before".format(q.translate()))
+                continue
             question = q.translate()
             answer = q.answer()
             if verbose:
                 print(question, answer)
             if question_type == "counting":
                 if answer[0] > 0:
-                    record[id_start+counts] = dict(
-                        question = question,
-                        answer = answer,
-                        answer_form = "str",
-                        question_type = question_type,
-                        type_statistics = q.statistics["types"],
-                        pos_statistics =q.statistics["pos"] #already in ego's coordinate, with ego's heading as the +y direction
+                    record[id_start + counts] = dict(
+                        question=question,
+                        answer=answer,
+                        answer_form="str",
+                        question_type=question_type,
+                        type_statistics=q.statistics["types"],
+                        pos_statistics=q.statistics["pos"]
+                        # already in ego's coordinate, with ego's heading as the +y direction
                     )
                     counts += 1
+                    valid_questions.add(q.signature)
                     if counts >= max:
                         break
-                        #return record
+                        # return record
             elif question_type == "localization":
                 if len(answer) != 0:
                     record[id_start + counts] = dict(
@@ -68,9 +89,10 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
                         # already in ego's coordinate, with ego's heading as the +y direction
                     )
                     counts += 1
+                    valid_questions.add(q.signature)
                     if counts >= max:
                         break
-                        #return record
+                        # return record
             elif question_type == "count_equal_binary" or question_type == "count_more_binary":
                 degenerate = True
                 for param, info in q.parameters.items():
@@ -88,9 +110,25 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
                         # already in ego's coordinate, with ego's heading as the +y direction
                     )
                     counts += 1
+                    valid_questions.add(q.signature)
                     if counts >= max:
                         break
-                        #return record
+                        # return record
+            elif question_type == "color_identification" or question_type == "type_identification":
+                if len(answer) > 0:
+                    record[id_start + counts] = dict(
+                        question=question,
+                        answer=answer,
+                        answer_form="str",
+                        question_type=question_type,
+                        type_statistics=q.statistics["types"],
+                        pos_statistics=q.statistics["pos"]
+                        # already in ego's coordinate, with ego's heading as the +y direction
+                    )
+                    counts += 1
+                    valid_questions.add(q.signature)
+                    if counts >= max:
+                        break
             else:
                 print("Unknown question type!")
     if verbose:
@@ -98,9 +136,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max:int, id_start:i
     return record, counts
 
 
-def static_all(root_folder, source, summary_path, verbose = False):
-    GRAMMAR = STATIC_GRAMMAR
-
+def static_all(root_folder, source, summary_path, verbose=False):
     # TODO Debug so that all static questions can be generated efficiently
     def find_world_json_paths(root_dir):
         world_json_paths = []  # List to hold paths to all world_{id}.json files
@@ -124,37 +160,37 @@ def static_all(root_folder, source, summary_path, verbose = False):
     records = {}
     count = 0
     for path in paths:
-        assert len(CACHE)==0, f"Non empty cache for {path}"
+        assert len(CACHE) == 0, f"Non empty cache for {path}"
         folder_name = os.path.dirname(path)
         identifider = os.path.basename(folder_name)
-        rgb = os.path.join(folder_name,f"rgb_{identifider}.png")
-        lidar = os.path.join(folder_name,f"lidar_{identifider}.json")
-        record,num_data = generate_all_frame(templates["generic"], path, 100,2, count, verbose = verbose)
+        rgb = os.path.join(folder_name, f"rgb_{identifider}.png")
+        lidar = os.path.join(folder_name, f"lidar_{identifider}.json")
+        record, num_data = generate_all_frame(templates["generic"], path, 100, 2, count, verbose=verbose)
         for id, info in record.items():
             records[id] = dict(
-                question = info["question"],
-                answer = info["answer"],
-                question_type = info["question_type"],
-                answer_form = info["answer_form"],
-                type_statistics = info["type_statistics"],
-                pos_statistics = info["pos_statistics"],
-                rgb = dict(
-                    front = [rgb],
+                question=info["question"],
+                answer=info["answer"],
+                question_type=info["question_type"],
+                answer_form=info["answer_form"],
+                type_statistics=info["type_statistics"],
+                pos_statistics=info["pos_statistics"],
+                rgb=dict(
+                    front=[rgb],
                     left=[],
                     back=[],
                     right=[]
                 ),
-                lidar = lidar,
-                source = source
+                lidar=lidar,
+                source=source
             )
         count += num_data
         CACHE.clear()
     try:
         with open(summary_path, "w") as f:
-            json.dump(records,f,indent=4),
+            json.dump(records, f, indent=4),
     except Exception as e:
         raise e
 
 
 if __name__ == "__main__":
-    static_all("some", "NuScenes", ".some/static.json", verbose= True)
+    static_all("verification", "NuScenes", "verification/static.json", verbose=True)
