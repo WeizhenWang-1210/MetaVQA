@@ -48,4 +48,6 @@ path_config.yaml
 **/tests/**/*.jpg
 **/tests/**/*.png
 /metadrive/engine/core/run_time_map_mesh.png
+/verification_multiview
+*.zip
 

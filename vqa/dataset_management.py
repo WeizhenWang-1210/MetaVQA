@@ -38,7 +38,7 @@ def splitting(qa, path, ps=[0.65, 0.15, 0.2]):
     def generate_categorical_list(n, categories, probabilities):
         return np.random.choice(categories, size=n, p=probabilities).tolist()
     with open(qa, "r") as file:
-        data = json.load(file)["qas"]
+        data = json.load(file)
     split_file = {
         "src": qa,
         "train": [],
@@ -159,7 +159,29 @@ def export_dataset_2(qa_path, src_data_directory, target_data_directory):
         json.dump(qa_pairs,f,indent=2)
 
 
+def count_sub_subfolders(directory):
+    sub_subfolder_count = 0
 
+    # List all subfolders in the main directory
+    for root, dirs, files in os.walk(directory):
+        # For each directory in the current root
+        for dir in dirs:
+            # Get the full path of the current subfolder
+            subfolder_path = os.path.join(root, dir)
+            # List all entries in the subfolder
+            sub_entries = os.listdir(subfolder_path)
+            # Count how many of these entries are directories (sub-subfolders)
+            sub_subfolder_count += sum(os.path.isdir(os.path.join(subfolder_path, entry)) for entry in sub_entries)
+
+    return sub_subfolder_count
+
+def count_envs(directory):
+    seed = set()
+    for stuff in os.listdir(directory):
+        if os.path.isdir(os.path.join(directory,stuff)):
+            env_id = int(stuff.split("_")[0])
+            seed.add(env_id)
+    return len(seed)
 
 
 
@@ -169,4 +191,6 @@ if __name__ == '__main__':
     #splitting("./export_waymo/converted.json", "./export_waymo/split.json")
     #delete_files_with_prefix("./multiprocess_demo", "highlighted")
     #export_dataset_2("/bigdata/weizhen/metavqa/100k/merged.json","/bigdata/weizhen/metavqa/100k","/bigdata/weizhen/metavqa/100k_export")
-    splitting("/bigdata/weizhen/metavqa/100k_export/converted.json", "/bigdata/weizhen/metavqa/100k_export/split.json")
+    #splitting("verification/static.json", "verification/split.json")
+    #print(count_sub_subfolders("../100k_export"))
+    print(count_envs("../100k_export"))
