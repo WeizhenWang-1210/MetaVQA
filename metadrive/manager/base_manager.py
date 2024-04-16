@@ -396,7 +396,7 @@ class BaseAgentManager(BaseManager):
         """
         This func is a function that take each object as the first argument and *arg and **kwargs as others.
         """
-        # assert len(self.active_agents) > 0, "Not enough objects exist!"
+        assert len(self.active_agents) > 0, "Not enough objects exist!"
         ret = dict()
         for k, v in self.active_agents.items():
             ret[k] = func(v, *args, **kwargs)

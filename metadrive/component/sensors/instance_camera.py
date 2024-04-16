@@ -1,4 +1,3 @@
-from numpy import ndarray
 from panda3d.core import RenderState, LightAttrib, ColorAttrib, ShaderAttrib, TextureAttrib, FrameBufferProperties
 
 from metadrive.component.sensors.base_camera import BaseCamera
