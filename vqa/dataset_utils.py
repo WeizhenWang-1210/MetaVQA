@@ -164,7 +164,8 @@ def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_pos
     # Check the positions of obj2's extremes relative to obj1
     left_count, right_count = 0, 0
     for point in [left_extreme, right_extreme]:
-        relative_position_left = dot(point, left_vector)
+        relative_point = point[0]-obj1_position[0],point[1]-obj1_position[1]
+        relative_position_left = dot(relative_point, left_vector)
         if relative_position_left > 0:
             left_count += 1
         else:
