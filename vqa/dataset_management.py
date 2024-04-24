@@ -34,9 +34,11 @@ def merge_ba(folder, destination, base_name):
     except Exception as e:
         raise e
 
+
 def splitting(qa, path, ps=[0.65, 0.15, 0.2]):
     def generate_categorical_list(n, categories, probabilities):
         return np.random.choice(categories, size=n, p=probabilities).tolist()
+
     with open(qa, "r") as file:
         data = json.load(file)
     split_file = {
@@ -64,12 +66,12 @@ def splitting(qa, path, ps=[0.65, 0.15, 0.2]):
 
 
 def dataset_statistics(qa, path):
-    from collections import  Counter
-    #Which types occur
-    #Distribution of counting problems
-    #Space distribution of the things referred(ego)
-    #Question Types
-    question_counter,num_counter,type_counter, pos_storage, bool_counter = Counter(),Counter(),Counter(), [], Counter()
+    from collections import Counter
+    # Which types occur
+    # Distribution of counting problems
+    # Space distribution of the things referred(ego)
+    # Question Types
+    question_counter, num_counter, type_counter, pos_storage, bool_counter = Counter(), Counter(), Counter(), [], Counter()
     with open(qa, "r") as file:
         data = json.load(file)
     for data_point in data.values():
@@ -93,24 +95,25 @@ def dataset_statistics(qa, path):
     except Exception as e:
         raise e
 
+
 def visualize_pos(points, vis_path):
     pass
 
 
 def export_dataset(qa_path, data_directory):
     import shutil
-    with open(qa_path,"r") as file:
+    with open(qa_path, "r") as file:
         qa_pairs = json.load(file)
 
     export_qas = qa_pairs
-    for id, metainfo  in qa_pairs.items():
+    for id, metainfo in qa_pairs.items():
         new_data_path = os.path.join(data_directory, id)
-        os.makedirs(new_data_path,exist_ok=True)
+        os.makedirs(new_data_path, exist_ok=True)
         for angle, frames in metainfo["rgb"].items():
             frame_id = 0
             new_frames = []
             for frame in frames:
-                folder = os.path.join(new_data_path, "rgb",angle)
+                folder = os.path.join(new_data_path, "rgb", angle)
                 os.makedirs(folder, exist_ok=True)
                 new_path = os.path.join(new_data_path, "rgb", angle, f"{frame_id}.png")
                 shutil.copy2(frame, new_path)
@@ -120,7 +123,7 @@ def export_dataset(qa_path, data_directory):
         new_lidar_path = os.path.join(new_data_path, "lidar.json")
         shutil.copy2(metainfo["lidar"], new_lidar_path)
         metainfo["lidar"] = new_lidar_path
-    export_path = os.path.join(data_directory,"exported.json")
+    export_path = os.path.join(data_directory, "exported.json")
     with open(export_path, "w") as file:
         json.dump(export_qas, file, indent=2)
 
@@ -128,7 +131,7 @@ def export_dataset(qa_path, data_directory):
 def export_dataset_2(qa_path, src_data_directory, target_data_directory):
     import shutil
 
-    with open(qa_path,"r") as file:
+    with open(qa_path, "r") as file:
         qa_pairs = json.load(file)
     paths_to_keep = set()
     for id, metainfo in qa_pairs.items():
@@ -137,26 +140,26 @@ def export_dataset_2(qa_path, src_data_directory, target_data_directory):
             for frame in frames:
                 path = "/".join(frame.split("/")[5:])
                 paths_to_keep.add(path)
-                #print(os.path.join(target_data_directory,path))
-                #break
-                new_frames.append(os.path.join("./",path))
+                # print(os.path.join(target_data_directory,path))
+                # break
+                new_frames.append(os.path.join("./", path))
             qa_pairs[id]["rgb"][angle] = new_frames
         lidar_path = "/".join(metainfo["lidar"].split("/")[5:])
-        #print(os.path.join(target_data_directory,lidar_path))
-        #exit()
+        # print(os.path.join(target_data_directory,lidar_path))
+        # exit()
         paths_to_keep.add(lidar_path)
-        qa_pairs[id]["lidar"] = os.path.join("./",lidar_path)
+        qa_pairs[id]["lidar"] = os.path.join("./", lidar_path)
 
     for path in paths_to_keep:
         source_path = os.path.join(src_data_directory, path)
-        target_path = os.path.join(target_data_directory,path)
+        target_path = os.path.join(target_data_directory, path)
         target_dir = os.path.dirname(target_path)
         if not os.path.exists(target_dir):
             os.makedirs(target_dir, exist_ok=True)
-        shutil.copy2(source_path,target_path)
+        shutil.copy2(source_path, target_path)
 
-    with open(os.path.join(target_data_directory,"exported.json"), "w") as f:
-        json.dump(qa_pairs,f,indent=2)
+    with open(os.path.join(target_data_directory, "exported.json"), "w") as f:
+        json.dump(qa_pairs, f, indent=2)
 
 
 def count_sub_subfolders(directory):
@@ -175,22 +178,22 @@ def count_sub_subfolders(directory):
 
     return sub_subfolder_count
 
+
 def count_envs(directory):
     seed = set()
     for stuff in os.listdir(directory):
-        if os.path.isdir(os.path.join(directory,stuff)):
+        if os.path.isdir(os.path.join(directory, stuff)):
             env_id = int(stuff.split("_")[0])
             seed.add(env_id)
     return len(seed)
 
 
-
 if __name__ == '__main__':
-    #merge_ba("/bigdata/weizhen/metavqa/100k", "/bigdata/weizhen/metavqa/100k/merged.json", "qa")
-    #dataset_statistics("./waymo_sample/merged.json","./waymo_sample/statistics.json")
-    #splitting("./export_waymo/converted.json", "./export_waymo/split.json")
-    #delete_files_with_prefix("./multiprocess_demo", "highlighted")
-    #export_dataset_2("/bigdata/weizhen/metavqa/100k/merged.json","/bigdata/weizhen/metavqa/100k","/bigdata/weizhen/metavqa/100k_export")
-    #splitting("verification/static.json", "verification/split.json")
-    #print(count_sub_subfolders("../100k_export"))
+    # merge_ba("/bigdata/weizhen/metavqa/100k", "/bigdata/weizhen/metavqa/100k/merged.json", "qa")
+    # dataset_statistics("./waymo_sample/merged.json","./waymo_sample/statistics.json")
+    # splitting("./export_waymo/converted.json", "./export_waymo/split.json")
+    # delete_files_with_prefix("./multiprocess_demo", "highlighted")
+    # export_dataset_2("/bigdata/weizhen/metavqa/100k/merged.json","/bigdata/weizhen/metavqa/100k","/bigdata/weizhen/metavqa/100k_export")
+    # splitting("verification/static.json", "verification/split.json")
+    # print(count_sub_subfolders("../100k_export"))
     print(count_envs("../100k_export"))

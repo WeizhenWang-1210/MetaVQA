@@ -152,7 +152,7 @@ def episode_logging(buffer, root, IO, multiview=True):
         except Exception as e:
             raise e
         if multiview:
-            log_data_mult(data,instance_folder)
+            log_data_mult(data, instance_folder)
         else:
             log_data(data, instance_folder)
     return 0
@@ -267,7 +267,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                 Log_Mapping = dict()
                 for perspective in rgb_dict.keys():
                     visible_ids, log_mapping = get_visible_object_ids(rgb_dict[perspective]["mask"], mapping, filter)
-                    #print(perspective,visible_ids)
+                    # print(perspective,visible_ids)
                     visible_ids_set.update(visible_ids)
                     rgb_dict[perspective]["visible_ids"] = visible_ids
                     Log_Mapping.update(log_mapping)
@@ -281,7 +281,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                                           env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
                                                                                                        BaseTrafficLight))  # get all objectes within 50m of the ego(except agent)
                 observing_camera = []
-                print(len(valid_objects), len(visible_ids_set))
+                #print(len(valid_objects), len(visible_ids_set))
                 for obj_id in valid_objects.keys():
                     final = []
                     for perspective in rgb_dict.keys():
@@ -289,7 +289,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                             final.append(perspective)
                     observing_camera.append(final)
                 visible_mask = [True if x in visible_ids_set else False for x in valid_objects.keys()]
-                print(visible_mask, observing_camera)
+                #print(visible_mask, observing_camera)
                 objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask,
                                                            observing_camera)
                 ego_annotation = genearte_annotation(env.agent, env)
@@ -320,10 +320,10 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
 def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
                   IO_config: dict, seed: int, episode_length: int,
                   skip_length: int, job_range=None):
-    '''
+    """
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
-    '''
+    """
     try:
         # o, _ = env.reset(seed)
         """
@@ -366,7 +366,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
                                                 camera=camera,
                                                 instance_camera=instance_camera,
                                                 lidar=lidar,
-                                                job_range = job_range)
+                                                job_range=job_range)
             step += step_ran
             counter += len(records)
             ret_code = episode_logging(records, folder, IO)
@@ -386,19 +386,17 @@ def main():
     cwd = os.getcwd()
     full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
     from metadrive.engine.asset_loader import AssetLoader
-
     try:
         # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
         with open(full_path, 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
-    # Setup the gymnasium environment
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--headless", type=bool, default=False, help="Rendering in headless mode")
-    parser.add_argument("--scenarios", type=bool, default=False, help="Use scenarionet environment")
-    parser.add_argument("--data_directory", type=str, default=None, help="the paths that stores the scenarionet data")
+    parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
+    parser.add_argument("--scenarios", default=False, help="Use ScenarioNet environment", action="store_true")
+    parser.add_argument("--data_directory", type=str, default=None, help="the paths that stores the ScenarioNet data")
     args = parser.parse_args()
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
@@ -406,6 +404,7 @@ def main():
         use_render = False
     else:
         use_render = True
+    # Setup the gymnasium environment
     if args.scenarios:
         from metadrive.engine.asset_loader import AssetLoader
         asset_path = AssetLoader.asset_path

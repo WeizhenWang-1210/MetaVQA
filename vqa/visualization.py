@@ -4,20 +4,23 @@ import json
 import os
 from PIL import Image
 import numpy as np
-def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, prefix = "highlighted"):
+
+
+def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, prefix="highlighted"):
     """
     Take in an instance segmentation masks to recolor pixels that belong to 
     objects with ids into the provided colors
     """
     try:
         img = cv2.imread(path_to_mask)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) #convert img from bgr to rgb. This is the order of channels in our mapping.
+        img = cv2.cvtColor(img,
+                           cv2.COLOR_BGR2RGB)  # convert img from bgr to rgb. This is the order of channels in our mapping.
         with open(path_to_mapping, "r") as f:
             mapping = json.load(f)
         highlighted = highlight(img, ids, colors, mapping)
-        name = "{}_{}.png".format(prefix,ids[0])
+        name = "{}_{}.png".format(prefix, ids[0])
         path = os.path.join(folder, name)
-        cv2.imwrite(path,highlighted)
+        cv2.imwrite(path, highlighted)
     except Exception as e:
         raise e
 
@@ -44,7 +47,8 @@ def multiview_visualization(images, output_path):
 
     # Save or show the new image
     grid_img.save(output_path)
-    #grid_img.show()
+    # grid_img.show()
+
 
 if __name__ == "__main__":
     """path_to_mask = "some_folder/10_40/mask_10_40.png"

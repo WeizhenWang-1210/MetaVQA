@@ -1,6 +1,6 @@
 from PIL import Image
 import numpy as np
-
+from vqa.dataset_utils import get_distance
 
 def world_annotation_checker(filepath, colormappath, multiviewmask=None):
     import json
@@ -31,8 +31,10 @@ def world_annotation_checker(filepath, colormappath, multiviewmask=None):
             observable_count += 1
             assert len(obj["observing_camera"]) > 0, "No visible camera observed {} despite annotated observable in {}"\
                 .format(obj["id"], filepath)
+        assert get_distance(obj["pos"], world_annotation["ego"]["pos"]) < 50, \
+            "Object {} is {}m away from ego".format(obj["id"], get_distance(obj["pos"], world_annotation["ego"]["pos"]))
     for id in visibleidpool:
-        assert id in mapidpool, "Can't extablish color mapping for object{}".format(id)
+        assert id in mapidpool, "Can't establish color mapping for object{}".format(id)
         if multiviewmask is not None:
             color = id2color[id]
             assert (round(color[0], 5), round(color[1], 5),
