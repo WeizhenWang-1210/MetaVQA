@@ -162,6 +162,12 @@ class ObjectNode:
             return 0
     
 
+class DynamicNode:
+    pass
+
+
+
+
 def find_extremities(ref_heading: Iterable[float], 
                      bboxes: Iterable[Iterable], center: Iterable[float])->Tuple[Iterable[float],...]:
     """

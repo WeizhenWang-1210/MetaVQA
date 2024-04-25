@@ -1,8 +1,12 @@
 import json
 import os
-from vqa.dataset_utils import dot,get_distance, l2_distance, find_overlap_episodes, position_frontback_relative_to_obj1, position_left_right_relative_to_obj1
+from vqa.dataset_utils import dot, get_distance, l2_distance, find_overlap_episodes, \
+    position_frontback_relative_to_obj1, position_left_right_relative_to_obj1
+import math
+
+
 class DynamicFilter:
-    def __init__(self, scene_folder, sample_frequency:int, episode_length:int, skip_length:int):
+    def __init__(self, scene_folder, sample_frequency: int, episode_length: int, skip_length: int):
         self.scene_folder = scene_folder
         self.scene_info = self.process_episodes(sample_frequency, episode_length, skip_length)
 
@@ -10,7 +14,7 @@ class DynamicFilter:
         self.scene_folder = episodes_folder
         self.scene_info = self.process_episodes()
 
-    def process_episodes(self, sample_frequency:int, episode_length:int, skip_length:int)->dict:
+    def process_episodes(self, sample_frequency: int, episode_length: int, skip_length: int) -> dict:
         '''
         Read the world json file for specified episodes, and return a dictionary of object information.
 
@@ -63,37 +67,36 @@ class DynamicFilter:
                     for ego in data["ego"]:
                         ego_id = ego["id"]
                         if ego_id not in objects_info:
-                             objects_info[ego_id] = {}
+                            objects_info[ego_id] = {}
                         episode_start = step - (step % (skip_length + episode_length)) + skip_length + 1
                         episode_end = episode_start + episode_length - 1
                         episode = f"{episode_start}-{episode_end}"
                         if episode not in objects_info[ego_id]:
                             objects_info[ego_id][episode] = {}
                         objects_info[ego_id][episode][step] = obj
-                        
-
 
         return objects_info
 
-    def process_episodes(self)->dict:
+    def process_episodes(self) -> dict:
         objects_info = {}
         for episode_folder in os.listdir(self.scene_folder):
-            #splitted = episode_folder.split("_")
-            #episode_start, episode_end = splitted[1], splitted[2]
+            # splitted = episode_folder.split("_")
+            # episode_start, episode_end = splitted[1], splitted[2]
             full_path = os.path.join(self.scene_folder, episode_folder)
             for frame_folder in os.listdir(full_path):
                 if os.path.isdir(os.path.join(full_path, frame_folder)):
                     step = int(frame_folder.split("_")[-1])
-                    json_file_path = os.path.join(self.scene_folder, episode_folder, frame_folder, f"world_{frame_folder}.json")
+                    json_file_path = os.path.join(self.scene_folder, episode_folder, frame_folder,
+                                                  f"world_{frame_folder}.json")
                     try:
-                        with open(json_file_path,"r") as file:
+                        with open(json_file_path, "r") as file:
                             data = json.load(file)
                         for obj in data.get("objects", []):
                             obj_id = obj.get("id")
                             if obj_id is not None:
                                 if obj_id not in objects_info:
                                     objects_info[obj_id] = {}
-                                episode = episode_folder#f"{episode_start}-{episode_end}"
+                                episode = episode_folder  # f"{episode_start}-{episode_end}"
                                 if episode not in objects_info[obj_id]:
                                     objects_info[obj_id][episode] = {}
                                 objects_info[obj_id][episode][step] = obj
@@ -108,7 +111,7 @@ class DynamicFilter:
                         raise e
         return objects_info
 
-    def follow(self, obj1:str, obj2:str, distance_threshold:int = 10,strickness:float = 0.8)->list:
+    def follow(self, obj1: str, obj2: str, distance_threshold: int = 10, strickness: float = 0.8) -> list:
         '''
         Return a list of episodes where obj1 is followed by obj2
         obj1 is followed by obj2 if:
@@ -123,6 +126,7 @@ class DynamicFilter:
         :param strickness: the percentage of the steps needed for predicate to be true on the episode.
         :return: a list of episodes where obj1 is followed by obj2
         '''
+
         def follow_onestep(episode, step_id):
             # check if single step satisfy the follow condition
             obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
@@ -130,18 +134,19 @@ class DynamicFilter:
             obj1_heading = self.scene_info[obj1][episode][step_id]["heading"]
             obj2_bbox = self.scene_info[obj2][episode][step_id]["bbox"]
             distance_checker = get_distance(obj1_pos, obj2_pos) < distance_threshold
-            obj2_obj1 = [obj2_pos[0]-obj1_pos[0], obj2_pos[1]-obj1_pos[1]]
-            heading_checker = obj1_heading[0]*obj2_obj1[0] + obj1_heading[1]*obj2_obj1[1] < 0
+            obj2_obj1 = [obj2_pos[0] - obj1_pos[0], obj2_pos[1] - obj1_pos[1]]
+            heading_checker = obj1_heading[0] * obj2_obj1[0] + obj1_heading[1] * obj2_obj1[1] < 0
             frontback_checker = position_frontback_relative_to_obj1(obj1_heading, obj1_pos, obj2_bbox) == "back"
             rightleft_checker = position_left_right_relative_to_obj1(obj1_heading, obj1_pos, obj2_bbox) == "overlap"
             # TODO: Implement Lidar
             return distance_checker and heading_checker and frontback_checker and rightleft_checker
+
         episodes_overlap = find_overlap_episodes(self.scene_info, obj1, obj2)
         match_episode = []
         # for all continuous episodes, check if all steps satisfy the follow condition
-        
+
         for episode in episodes_overlap:
-            #episode_flag = True
+            # episode_flag = True
             satisfy_counter = 0
             counter = 0
             # for all time steps in the episode, check if the follow condition is satisfied
@@ -149,11 +154,11 @@ class DynamicFilter:
                 counter += 1
                 if follow_onestep(episode, step_id):
                     satisfy_counter += 1
-            if satisfy_counter/counter >= strickness:
+            if satisfy_counter / counter >= strickness:
                 match_episode.append(episode)
         return match_episode
 
-    def pass_by(self, obj1:str, obj2:str)->list:
+    def pass_by(self, obj1: str, obj2: str) -> list:
         '''
         Return a list of episodes where obj2 pass by obj1
         obj2 pass_by obj1 if:
@@ -162,46 +167,47 @@ class DynamicFilter:
         :param obj2: the id of the object that passes by
         :return: a list of episodes where obj2 pass by obj1
         '''
+
         def sign_onestep(episode, step_id):
             # get the sign of obj2-obj1 dot obj1.heading for single step
             obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
             obj2_pos = self.scene_info[obj2][episode][step_id]["pos"]
             obj1_heading = self.scene_info[obj1][episode][step_id]["heading"]
-            obj2_obj1 = [obj2_pos[0]-obj1_pos[0], obj2_pos[1]-obj1_pos[1]]
-            prod = dot(obj1_heading,obj2_obj1)
+            obj2_obj1 = [obj2_pos[0] - obj1_pos[0], obj2_pos[1] - obj1_pos[1]]
+            prod = dot(obj1_heading, obj2_obj1)
             if prod > 0:
                 return 1
             elif prod == 0:
                 return 0
             else:
                 return -1
-        
+
         episodes_overlap = find_overlap_episodes(self.scene_info, obj1, obj2)
         match_episode = []
         for episode in episodes_overlap:
-            prev_sign = None # Track previous sign
+            prev_sign = None  # Track previous sign
             signature = []
             flag = False
             for step_id in self.scene_info[obj1][episode].keys():
                 curr_sign = sign_onestep(episode, step_id)
-                if prev_sign is not None and  curr_sign != prev_sign:
+                if prev_sign is not None and curr_sign != prev_sign:
                     signature.append(prev_sign)
                 prev_sign = curr_sign
             if not signature:
                 continue
             if curr_sign != signature[-1]:
                 signature.append(curr_sign)
-            if len(signature)==2:
-                if (signature[0]==-1 and signature[-1]==1) or (signature[0]==1 and signature[-1]==-1):
+            if len(signature) == 2:
+                if (signature[0] == -1 and signature[-1] == 1) or (signature[0] == 1 and signature[-1] == -1):
                     flag = True
-            if len(signature)==3:
-                if (signature[0]==-1 and signature[-1]==1) or (signature[0]==1 and signature[-1]==-1):
+            if len(signature) == 3:
+                if (signature[0] == -1 and signature[-1] == 1) or (signature[0] == 1 and signature[-1] == -1):
                     flag = True
             if flag:
                 match_episode.append(episode)
         return match_episode
 
-    def collide_with(self, obj1:str, obj2:str)->list:
+    def collide_with(self, obj1: str, obj2: str) -> list:
         '''
         Return a list of episodes where obj1 collide with obj2
         obj1 collide with obj2 if:
@@ -224,7 +230,7 @@ class DynamicFilter:
                 match_episode.append(episode)
         return match_episode
 
-    def head_toward(self, obj1:str, obj2:str,strickness:float = 0.8)->list:
+    def head_toward(self, obj1: str, obj2: str, strickness: float = 0.8) -> list:
         '''
         Return a list of episodes where obj2 head toward obj1
         obj2 head toward obj1 if:
@@ -233,14 +239,16 @@ class DynamicFilter:
         :param obj2: the id of the object that head toward
         :return: a list of episodes where obj2 head toward obj1
         '''
+
         def head_toward_onestep(episode, step_id):
             # check if single step satisfy the follow condition
             obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
             obj2_pos = self.scene_info[obj2][episode][step_id]["pos"]
             obj2_heading = self.scene_info[obj2][episode][step_id]["heading"]
-            obj2_obj1 = [obj2_pos[0]-obj1_pos[0], obj2_pos[1]-obj1_pos[1]]
-            heading_checker = dot(obj2_heading, obj2_obj1)< 0
+            obj2_obj1 = [obj2_pos[0] - obj1_pos[0], obj2_pos[1] - obj1_pos[1]]
+            heading_checker = dot(obj2_heading, obj2_obj1) < 0
             return heading_checker
+
         episodes_overlap = find_overlap_episodes(self.scene_info, obj1, obj2)
         match_episode = []
         # for all continuous episodes, check if all steps satisfy the follow condition
@@ -251,11 +259,12 @@ class DynamicFilter:
                 if head_toward_onestep(episode, step_id):
                     satisfy_counter += 1
                 counter += 1
-            if satisfy_counter/counter >= strickness:
+            if satisfy_counter / counter >= strickness:
                 match_episode.append(episode)
         return match_episode
 
-    def drive_alongside(self, obj1:str, obj2:str, distance_threshold=10, heading_threshold=0.7, stricktness = 0.8)->list:
+    def drive_alongside(self, obj1: str, obj2: str, distance_threshold=10, heading_threshold=0.7,
+                        stricktness=0.8) -> list:
         '''
         Return a list of episodes where obj2 drive alongside obj1
         obj2 drive alongside obj1 if:
@@ -264,8 +273,9 @@ class DynamicFilter:
             obj2 is about directly to the right(left) of obj1 for the entirety of the observation episode.
 
         '''
-        #obj2 drive alongside obj1 if obj2 remains about directly to the right(left) of obj1 for the entirety of the
-        #observation episode.
+
+        # obj2 drive alongside obj1 if obj2 remains about directly to the right(left) of obj1 for the entirety of the
+        # observation episode.
         def alongside_onestep(episode, step_id):
             # check if single step satisfy the follow condition
             obj1_pos = self.scene_info[obj1][episode][step_id]["pos"]
@@ -290,15 +300,111 @@ class DynamicFilter:
                 if alongside_onestep(episode, step_id):
                     satisfy_counter += 1
                 counter += 1
-            if satisfy_counter/counter >= stricktness:
+            if satisfy_counter / counter >= stricktness:
                 match_episode.append(episode)
         return match_episode
 
-if __name__=="__main__":
-    scene_folder = "D:\\research\\metavqa-merge\\MetaVQA\\vqa\\verification"
+
+class TemporalGraph:
+    def __init__(self, frames, observable_at_key=True, tolerance=0.8):
+        """
+        We ask questions based on the observation_phase and return answr for the prediction phase
+        Note that in MetaDrive each step is 0.1s
+        Will give attempt to give 2 seconds of observation and half seconds of prediction phase
+        So, observation phase = 20 and prediction phase = 5
+
+
+        """
+        self.observation_phase = 0.8
+        self.prediction_phase = 0.2
+        self.tolerance = tolerance
+        self.observable_at_key = observable_at_key
+        self.frames = frames
+        self.observation_frames = math.floor(len(self.frames) * self.observation_phase)
+        self.prediction_frames = len(self.frames) - self.observation_frames
+        self.key_frame = self.observation_frames - 1
+        self.node_ids = self.find_nodes(self.frames, self.observable_at_key, self.tolerance)
+        self.nodes = self.build_nodes(self.node_ids, self.frames)
+        self.ego_id = self.frames[0]["ego"]["id"]
+
+
+    def find_nodes(self, frames, observable_at_key=True, noise_tolerance=0.8):
+        """
+        We consider objects that are observable for the noise_tolerance amount
+        of time(also, must be observable at key frame) for the observation period and still exist in the prediction phase
+        """
+        observation_frames = self.observation_frames
+        prediction_frames = self.prediction_frames
+        observable_at_t = {
+            t: set() for t in range(observation_frames)
+        }
+        exist_at_t = {
+            t: set() for t in range(observation_frames, observation_frames + prediction_frames)
+        }
+        all_nodes = set()
+        for i in range(observation_frames):
+            for obj in frames[i]["objects"]:
+                if obj["visible"]:
+                    observable_at_t[i].add(obj["id"])
+                all_nodes.add(obj["id"])
+        for i in range(observation_frames, observation_frames + prediction_frames):
+            for obj in frames[i]["objects"]:
+                exist_at_t[i].add(obj["id"])
+                all_nodes.add(obj["id"])
+        final_nodes = set()
+        for node in all_nodes:
+            observable_frame = 0
+            for nodes_observable in observable_at_t.values():
+                if node in nodes_observable:
+                    observable_frame += 1
+            if observable_frame / observation_frames >= noise_tolerance:
+                if (not observable_at_key) or (node in observable_at_t[self.key_frame]):
+                    final_nodes.add(node)
+        for nodes_exist in exist_at_t.values():
+            final_nodes = final_nodes.intersection(nodes_exist)
+        print(len(all_nodes), len(final_nodes))
+        return final_nodes
+
+    def get_nodes(self):
+        return self.nodes
+
+class TemporalNode:
+    def __init__(self, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras, states,
+                 collisions, actions):
+        # time-invariant properties
+        self.id = id  # as defined in the metadrive env
+        self.states = states  # accleration, thurning
+        self.type = type  # as annotated
+        self.height = height  # The height retrieved from the assert's convex hull.
+        self.color = color  # as annotated
+
+        # time-dependent properties
+        self.positions = positions  # (x,y) in world coordinate
+        self.speeds = speeds  # in m/s
+        self.headings = headings  # (dx, dy), in world coordinate
+        self.bboxes = bboxes  # bounding box with
+        self.observing_cameras = observing_cameras
+        self.collision = collisions
+        self.actions = actions  # action record is (other_node, action_name)
+
+    def future_positions(self, now_frame, pred_frames):
+        return self.positions[now_frame + 1: now_frame + 1 + pred_frames]
+
+    def future_bboxes(self, now_frame, pred_frames):
+        return self.bboxes[now_frame + 1: now_frame + 1 + pred_frames]
+
+
+if __name__ == "__main__":
+    """scene_folder = "E:\\Bolei\\MetaVQA\\temporal"
     dynamic_filter = DynamicFilter(scene_folder)
     objects_info = dynamic_filter.load_scene()
-    print(objects_info[list(objects_info.keys())[0]])
+    print(objects_info[list(objects_info.keys())[0]])"""
+    episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
+    import glob
+    import json
 
-
-#TODO: Record Collision Event.  In scenario_generation.py
+    frames_files = sorted(glob.glob(episode_folder, recursive=True))
+    frames = [json.load(open(file, "r")) for file in frames_files]
+    graph = TemporalGraph(frames)
+    print(graph.nodes)
+    print(graph.observation_frames, graph.prediction_frames)

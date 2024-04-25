@@ -1,9 +1,10 @@
 from typing import Any, Iterable, Union, LiteralString, Callable
 from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
-    CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type
+    CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
+    extract_type_unique
 from vqa.scene_graph import SceneGraph, EpisodicGraph
 from vqa.object_node import ObjectNode
-from vqa.grammar import STATIC_GRAMMAR,NO_COLOR_STATIC
+from vqa.grammar import STATIC_GRAMMAR, NO_COLOR_STATIC
 import random
 import json
 import argparse
@@ -61,12 +62,13 @@ class Tnode:
 
 
 class Tree:
-    def __init__(self, root:str, max_depth, grammar) -> None:
+    def __init__(self, root: str, max_depth, grammar) -> None:
         self.root = Tnode(root)
         self.grammar = grammar
         self.root.populate(max_depth, self.grammar)
         self.depth = self.get_depth()
         self.functional = None
+        self.constriants = None
 
     def get_depth(self) -> int:
         def depth(node):
@@ -79,6 +81,7 @@ class Tree:
         return depth(self.root)
 
     def build_functional(self, constraints) -> dict:
+        self.constriants = constraints
         unique_flag = "unique" in constraints
         """no_color_flag = "no_color" in constraints
         if no_color_flag:
@@ -146,12 +149,11 @@ class Tree:
                 exit()
             if "<t>" in config.keys():
                 subquery.type = [config["<t>"]] if config["<t>"] != "nil" else None
-            elif "<tx>" in  config.keys():
+            elif "<tx>" in config.keys():
                 subquery.type = [config["<tx>"]] if config["<tx>"] != "nil" else None
             else:
                 print("Major fucked up")
                 exit()
-
 
             subquery.state = [config["<s>"]] if config["<s>"] != "nil" else None
             # Create the action requirements according to the grammar tree specification
@@ -218,7 +220,7 @@ class Tree:
 
         def type_token_string_converter(token, form):
             mapping = dict(
-                nil=dict(singular="relevant thing", plural="relevant things"),
+                nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
                 Caravan=dict(singular="caravan", plural="caravans"),
                 Coupe=dict(singular="coupe", plural="coupes"),
@@ -387,7 +389,7 @@ class SubQuery:
             state_func = state_wrapper(self.state) if self.state else None
             pos_func = pos_wrapper(self.prev["pos"].ans, self.pos, ref_heading) if self.pos else None
             if self.action:
-                #TODO Why we need this distinction?
+                # TODO Why we need this distinction?
                 if "action" not in self.prev.keys():
                     action_func = action_wrapper(egos, self.action)
                 else:
@@ -412,7 +414,7 @@ class SubQuery:
         The tricky part here is that when we keep the entire node space in mind when we do the filtering based on the spatial relationships,
         and consecutive filterings on types and colors are selected from all such nodes.
         """
-        #TODO then, is candidates really necessary?
+        # TODO then, is candidates really necessary?
         """
          If self.us, then we always return the ego of the graph. Else, we always use all_nodes to to the position filtering.
         """
@@ -491,6 +493,7 @@ class Query:
         '''
         Go down the query, store partial answers in sub-query, store the final answer in query
         '''
+
         def postorder_traversal(subquery, egos, ref_heading, all_nodes):
             """
             Return: A list of nodes being the answer of the previous question.
@@ -512,15 +515,11 @@ class Query:
         return self.ans
 
 
-
-
-
-
 CACHE = dict()
 
 
 class QuerySpecifier:
-    def __init__(self, type:str, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
+    def __init__(self, type: str, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
         self.type = type
         self.template = template
@@ -560,23 +559,28 @@ class QuerySpecifier:
                 param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
-            #param_tree.visualize()
+            # param_tree.visualize()
             signature_string = json.dumps(functional, sort_keys=True)
             local["signature"] = signature_string
             signatures.append(signature_string)
 
             program = Query([Tree.build_program(functional)], "stuff", Identity,
-                            candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id]) #if node.id != self.graph.ego_id
+                            candidates=[node for node in self.graph.get_nodes() if
+                                        node.id != self.graph.ego_id])  # if node.id != self.graph.ego_id
             local["prog"] = program
-            #print(program.heads)
+            # print(program.heads)
             parameters[param] = local
         self.signature = "-".join(signatures)
         return parameters
 
-    def translate(self) -> str:
+    def translate(self, constraint_string=None) -> str:
         variant = random.choice(self.template["text"])
         for param, info in self.parameters.items():
             variant = variant.replace(param, info["en"])
+            if constraint_string is not None:
+                final_string = "I'm referring to one that is {}.".format(constraint_string)
+                variant = " ".join([variant, final_string])
+
         return variant
 
     def find_end_filter(self, string) -> Callable:
@@ -586,7 +590,9 @@ class QuerySpecifier:
             count_equal=CountEqual,
             count_more=CountGreater,
             extract_color=extract_color,
-            extract_type=extract_type
+            extract_color_unique=extract_color_unique,
+            extract_type=extract_type,
+            extract_type_unique=extract_type_unique,
 
         )
         return mapping[string]
@@ -600,7 +606,7 @@ class QuerySpecifier:
             else:
                 query = info["prog"]
                 query.set_reference(self.graph.get_ego_node().heading)
-                #query.set_searchspace(self.graph.get_nodes())
+                # query.set_searchspace(self.graph.get_nodes())
                 query.set_egos([self.graph.get_ego_node()])
                 answers = query.proceed()
                 CACHE[info["signature"]] = answers
@@ -615,7 +621,7 @@ class QuerySpecifier:
                 for obj in param_answer:
                     objects.append(f"{obj.type}:{obj.id}")
                     ids.append(obj.id)
-            #print(ids)
+            # print(ids)
             parent_folder = os.path.dirname(self.graph.folder)
             identifier = os.path.basename(parent_folder)
             path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
@@ -666,6 +672,52 @@ class QuerySpecifier:
             colors
         )
 
+    def export_qa(self):
+        def type_token_string_converter(token, form):
+            mapping = dict(
+                nil=dict(singular="object", plural="objects"),
+                Bus=dict(singular="bus", plural="buses"),
+                Caravan=dict(singular="caravan", plural="caravans"),
+                Coupe=dict(singular="coupe", plural="coupes"),
+                FireTruck=dict(singular="fire engine", plural="fire engines"),
+                Jeep=dict(singular="jeep", plural="jeeps"),
+                Pickup=dict(singular="pickup", plural="pickups"),
+                Policecar=dict(singular="police car", plural="policecars"),
+                SUV=dict(singular="SUV", plural="SUVs"),
+                SchoolBus=dict(singular="school bus", plural="school buses"),
+                Sedan=dict(singular="sedan", plural="sedans"),
+                SportCar=dict(singular="sports car", plural="sports cars"),
+                Truck=dict(singular="truck", plural="trucks"),
+                Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+            )
+            if token in mapping.keys():
+                return mapping[token][form]
+            else:
+                return token.lower()
+
+        if "unique" not in self.template["constraint"]:
+            question = self.translate()
+            answer = self.answer()
+            if self.type == "type_identification":
+                answer = [type_token_string_converter(token, "singular").capitalize() for token in answer]
+            return [(question, answer)]
+        else:
+            qas = []
+            answer = self.answer()
+            # assume that for unique-constrained questions, the answer a dictionary of form {obj_id: answer}
+            for obj_id, answer in answer.items():
+                concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
+                rounded = (int(concrete_location[0]), int(concrete_location[1]))
+                question = self.translate("located at {} ".format(
+                        rounded
+                    )
+                )
+                if self.type == "type_identification_unique":
+                    answer = type_token_string_converter(answer, "singular").capitalize()
+                qas.append((question, (obj_id,answer)))
+            return qas
+
+
 def main():
     # pwd = os.getcwd()
     # absolute_file_path = os.path.abspath(__file__)
@@ -682,19 +734,19 @@ def main():
     args = parser.parse_args()
 
     try:
-        #print(args.step)
-        with open('{}.json'.format(args.step),'r') as scene_file:
-                scene_dict = json.load(scene_file)
+        # print(args.step)
+        with open('{}.json'.format(args.step), 'r') as scene_file:
+            scene_dict = json.load(scene_file)
     except Exception as e:
         raise e
     from vqa.scene_graph import nodify
-    agent_id,nodes = nodify(scene_dict)
-    graph = SceneGraph(agent_id,nodes,folder="some/5_80_119/5_100/world_5_100")
-    #episode_graph = EpisodicGraph()
-    #frames = [f for f in os.listdir(args.episode) if not ("." in f)]
-    #interaction_path = os.path.join(args.episode, "interaction.json")
-    #episode_graph.load(args.episode, frames, interaction_path)
-    #graph = episode_graph.final_frame
+    agent_id, nodes = nodify(scene_dict)
+    graph = SceneGraph(agent_id, nodes, folder="some/5_80_119/5_100/world_5_100")
+    # episode_graph = EpisodicGraph()
+    # frames = [f for f in os.listdir(args.episode) if not ("." in f)]
+    # interaction_path = os.path.join(args.episode, "interaction.json")
+    # episode_graph.load(args.episode, frames, interaction_path)
+    # graph = episode_graph.final_frame
     GRAMMAR = STATIC_GRAMMAR
     """
     q1 = SubQuery(
@@ -781,40 +833,41 @@ def main():
                          colors = [(1,1,1)]*len(ids))"""
 
     for lhs, rhs in graph.statistics.items():
-        #GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
+        # GRAMMAR[lhs] = [[item] for item in rhs + ['nil']]
         if lhs == "<p>":
             GRAMMAR[lhs] = [[item] for item in rhs + ["nil"]]
         else:
             GRAMMAR[lhs] = [[item] for item in rhs]
 
     q3 = SubQuery(
-        color=None,#["Blue"],
+        color=None,  # ["Blue"],
         type=["vehicle"],
-        pos=None,#["rf"],
+        pos=None,  # ["rf"],
         state=None,
         action=None,
         next=None,
         prev={})
-    #q4 = SubQuery()
-    #q4.us = True
-    #q3.prev["pos"] = q4
-    #q4.next = q3
+    # q4 = SubQuery()
+    # q4.us = True
+    # q3.prev["pos"] = q4
+    # q4.next = q3
     print(q3)
     parameters_2 = {
         "<o>": {
             "en": "Pedestrian",
-            "prog": Query([q3], "counting", Identity, candidates=[node for node in graph.get_nodes() if node.id != agent_id]),
+            "prog": Query([q3], "counting", Identity,
+                          candidates=[node for node in graph.get_nodes() if node.id != agent_id]),
             "ans": None,
-            "signature":"",
+            "signature": "",
         }
     }
     q = QuerySpecifier(
-        type = "counting",
+        type="counting",
         template=templates["generic"]["counting"],
         parameters=parameters_2,
         graph=graph,
         grammar=GRAMMAR,
-        debug = True,
+        debug=True,
     )
 
     print(q.translate())
@@ -822,6 +875,7 @@ def main():
     print(q.parameters)
     print(q.statistics)
     print("end")
+
 
 def some_tree(file):
     with open(file, 'r') as scene_file:
@@ -835,15 +889,15 @@ def some_tree(file):
             grammar[lhs] = [[item] for item in ["nil"]]
         else:
             grammar[lhs] = [[item] for item in ["vehicle"] + rhs]
-    tree = Tree("<o>",2,grammar)
+    tree = Tree("<o>", 2, grammar)
     tree.visualize()
     plan = tree.build_functional(["no_color"])
     prog = Tree.build_program(plan)
     print(prog)
     query = Query([prog], "stuff",
-          Identity,
-          ref_heading = graph.get_ego_node().heading,
-          candidates = [node for node in graph.get_nodes()])
+                  Identity,
+                  ref_heading=graph.get_ego_node().heading,
+                  candidates=[node for node in graph.get_nodes()])
     query.set_egos([graph.get_ego_node()])
     answer = query.proceed()
     print(answer)
@@ -851,11 +905,7 @@ def some_tree(file):
                          )
 
 
-
-
-
-
 if __name__ == "__main__":
-    #print("hello")
-    #main()
+    # print("hello")
+    # main()
     some_tree("verification/9_41_80/9_41/world_9_41.json")

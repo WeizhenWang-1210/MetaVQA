@@ -2,14 +2,14 @@
     "generic":{
         "localization":{
             "text": [
-                "Locate the <o>.",
-                "Give me the bounding box of <o>.",
-                "Please localize the <o>.",
-                "Locate the <o> immediately.",
-                "Identify the position of the <o>.",
-                "Pinpoint the whereabouts of the <o>.",
-                "Determine the position of the <o>.",
-                "Find and report the location of the <o>."
+                "Locate all <o>.",
+                "Give me the bounding boxes of all <o>.",
+                "Please localize all <o>.",
+                "Locate all <o> immediately.",
+                "Identify the positions of all <o>.",
+                "Pinpoint the whereabouts of all <o>.",
+                "Determine the positions of all <o>.",
+                "Find and report the locations of all <o>."
             ],
             "params":[
                 "<o>"
@@ -95,6 +95,37 @@
             ],
             "end_filter": "extract_type",
             "constraint": ["no_type"]
+        },
+        "color_identification_unique": {
+            "text": [
+                "What's the color for <o>?",
+                "What's the color of <o>?",
+                "Which color can be seen for <o>?",
+                "Which color is associated with <o>?",
+                "Find the color for <o>.",
+                "Describe the color of <o>.",
+                "Identify the color seen on <o>.",
+                "Specify the color associated with <o>."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "extract_color_unique",
+            "constraint": ["no_color","unique"]
+        },
+        "type_identification_unique": {
+            "text": [
+                "For the <o>, what is its type?",
+                "What type does <o> fall into?",
+                "Name the type of <o>.",
+                "Identify the type of <o>.",
+                "State the category of <o>."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "extract_type_unique",
+            "constraint": ["no_type", "unique"]
         }
     },
     "dynamic":{

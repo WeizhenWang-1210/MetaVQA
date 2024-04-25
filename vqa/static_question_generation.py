@@ -7,6 +7,7 @@ from vqa.question_generator import GRAMMAR, QuerySpecifier
 from vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
 from vqa.scene_graph import SceneGraph
 from vqa.question_generator import CACHE
+from vqa.object_node import transform
 
 
 def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False) -> dict:
@@ -26,15 +27,20 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
     record = {}
     counts = 0
     valid_questions = set()
+    """templates = {
+        # "color_identification_unique": templates["color_identification_unique"]
+        "type_identification_unique": templates["type_identification_unique"]
+    }"""
     for question_type, specification in templates.items():
-        if question_type == "color_identification":
+        type_count = 0
+        if question_type == "color_identification" or question_type == "color_identification_unique":
             grammar = NO_COLOR_STATIC
             for lhs, rhs in graph.statistics.items():
                 if lhs == "<p>":
                     grammar["<px>"] = [[item] for item in rhs + ["nil"]]
                 else:
                     grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
-        elif question_type == "type_identification":
+        elif question_type == "type_identification" or question_type == "type_identification_unique":
             grammar = NO_TYPE_STATIC
             for lhs, rhs in graph.statistics.items():
                 if lhs == "<t>":
@@ -52,85 +58,107 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
             if verbose:
                 print("Attempt {} of {} for {}".format(idx, attempts, question_type))
             q = QuerySpecifier(type=question_type, template=specification, parameters=None, graph=graph,
-                               grammar=grammar, debug=True, stats=True)
+                               grammar=grammar, debug=False, stats=True)
             if q.signature in valid_questions:
                 if verbose:
                     print("Skip <{}> since the equivalent question has been asked before".format(q.translate()))
                 continue
-            question = q.translate()
-            answer = q.answer()
+            # question = q.translate()
+            # answer = q.answer()
+            result = q.export_qa()
             if verbose:
-                print(question, answer)
-            if question_type == "counting":
-                if answer[0] > 0:
-                    record[id_start + counts] = dict(
+                print(result)
+            for question, answer in result:
+                """                if verbose:
+                                    print(question, answer)"""
+                if question_type == "counting":
+                    if answer[0] > 0:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="str",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"]
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                            # return record
+                elif question_type == "localization":
+                    if len(answer) != 0:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="bboxs",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"]
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                            # return record
+                elif question_type == "count_equal_binary" or question_type == "count_more_binary":
+                    degenerate = True
+                    for param, info in q.parameters.items():
+                        if len(q.parameters[param]["answer"]) > 0:
+                            degenerate = False
+                            break
+                    if not degenerate:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="str",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"]
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                            # return record
+                elif question_type in ["color_identification", "type_identification"]:
+                    if len(answer) > 0:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="str",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"]
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                elif question_type in ["color_identification_unique", "type_identification_unique"]:
+                    obj_id, answer = answer
+                    record[id_start + counts + type_count] = dict(
                         question=question,
                         answer=answer,
                         answer_form="str",
                         question_type=question_type,
-                        type_statistics=q.statistics["types"],
-                        pos_statistics=q.statistics["pos"]
+                        type_statistics=[q.graph.get_node(obj_id).type],
+                        pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos])
                         # already in ego's coordinate, with ego's heading as the +y direction
                     )
-                    counts += 1
+                    type_count += 1
                     valid_questions.add(q.signature)
-                    if counts >= max:
+                    if type_count >= max:
                         break
-                        # return record
-            elif question_type == "localization":
-                if len(answer) != 0:
-                    record[id_start + counts] = dict(
-                        question=question,
-                        answer=answer,
-                        answer_form="bboxs",
-                        question_type=question_type,
-                        type_statistics=q.statistics["types"],
-                        pos_statistics=q.statistics["pos"]
-                        # already in ego's coordinate, with ego's heading as the +y direction
-                    )
-                    counts += 1
-                    valid_questions.add(q.signature)
-                    if counts >= max:
-                        break
-                        # return record
-            elif question_type == "count_equal_binary" or question_type == "count_more_binary":
-                degenerate = True
-                for param, info in q.parameters.items():
-                    if len(q.parameters[param]["answer"]) > 0:
-                        degenerate = False
-                        break
-                if not degenerate:
-                    record[id_start + counts] = dict(
-                        question=question,
-                        answer=answer,
-                        answer_form="str",
-                        question_type=question_type,
-                        type_statistics=q.statistics["types"],
-                        pos_statistics=q.statistics["pos"]
-                        # already in ego's coordinate, with ego's heading as the +y direction
-                    )
-                    counts += 1
-                    valid_questions.add(q.signature)
-                    if counts >= max:
-                        break
-                        # return record
-            elif question_type == "color_identification" or question_type == "type_identification":
-                if len(answer) > 0:
-                    record[id_start + counts] = dict(
-                        question=question,
-                        answer=answer,
-                        answer_form="str",
-                        question_type=question_type,
-                        type_statistics=q.statistics["types"],
-                        pos_statistics=q.statistics["pos"]
-                        # already in ego's coordinate, with ego's heading as the +y direction
-                    )
-                    counts += 1
-                    valid_questions.add(q.signature)
-                    if counts >= max:
-                        break
-            else:
-                print("Unknown question type!")
+                else:
+                    print("Unknown question type!")
+            if type_count >= max:
+                break
+        counts += type_count
     if verbose:
         print("{} questions generated for {}".format(counts, frame))
     return record, counts
@@ -162,10 +190,11 @@ def static_all(root_folder, source, summary_path, verbose=False):
     for path in paths:
         assert len(CACHE) == 0, f"Non empty cache for {path}"
         folder_name = os.path.dirname(path)
-        identifider = os.path.basename(folder_name)
-        rgb = os.path.join(folder_name, f"rgb_{identifider}.png")
-        lidar = os.path.join(folder_name, f"lidar_{identifider}.json")
-        record, num_data = generate_all_frame(templates["generic"], path, 100, 2, count, verbose=verbose)
+        identifier = os.path.basename(folder_name)
+        perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+        # rgb = os.path.join(folder_name, f"rgb_{identifier}.png")
+        lidar = os.path.join(folder_name, f"lidar_{identifier}.json")
+        record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose)
         for id, info in record.items():
             records[id] = dict(
                 question=info["question"],
@@ -174,12 +203,7 @@ def static_all(root_folder, source, summary_path, verbose=False):
                 answer_form=info["answer_form"],
                 type_statistics=info["type_statistics"],
                 pos_statistics=info["pos_statistics"],
-                rgb=dict(
-                    front=[rgb],
-                    left=[],
-                    back=[],
-                    right=[]
-                ),
+                rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in perspectives},
                 lidar=lidar,
                 source=source
             )
@@ -193,4 +217,4 @@ def static_all(root_folder, source, summary_path, verbose=False):
 
 
 if __name__ == "__main__":
-    static_all("verification", "NuScenes", "verification/static.json", verbose=True)
+    static_all("multiview", "NuScenes", "multiview/static.json", verbose=True)

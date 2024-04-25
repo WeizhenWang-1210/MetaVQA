@@ -264,8 +264,31 @@ def extract_color(search_spaces):
     return list(result)
 
 
+def extract_color_unique(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for obj in search_space:
+            result[obj.id] = obj.color
+    return result
+
+
 def extract_type(search_spaces):
     result = set()
     for search_space in search_spaces:
         result.update([obj.type for obj in search_space])
     return list(result)
+
+
+def extract_type_unique(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for obj in search_space:
+            result[obj.id] = obj.type
+    return result
+
+
+def motion_Pred(search_spaces):
+    future_dict = {}
+    for search_space in search_spaces:
+        for obj in search_space:
+            future_dict[obj.id] = obj.get
