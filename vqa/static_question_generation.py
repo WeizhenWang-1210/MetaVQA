@@ -72,6 +72,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                 """                if verbose:
                                     print(question, answer)"""
                 if question_type == "counting":
+
                     if answer[0] > 0:
                         record[id_start + counts + type_count] = dict(
                             question=question,
@@ -205,7 +206,7 @@ def static_all(root_folder, source, summary_path, verbose=False):
                 pos_statistics=info["pos_statistics"],
                 rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in perspectives},
                 lidar=lidar,
-                source=source
+                source=source,
             )
         count += num_data
         CACHE.clear()
@@ -217,4 +218,4 @@ def static_all(root_folder, source, summary_path, verbose=False):
 
 
 if __name__ == "__main__":
-    static_all("multiview", "NuScenes", "multiview/static.json", verbose=True)
+    static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)

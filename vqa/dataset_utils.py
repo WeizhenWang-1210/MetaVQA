@@ -1,16 +1,19 @@
 from typing import Iterable, Tuple
 import numpy as np
 from metadrive.base_class.base_object import BaseObject
+import math
 
-def dot(v1: Iterable[float], v2:Iterable[float])->float:
+
+def dot(v1: Iterable[float], v2: Iterable[float]) -> float:
     """
     Dot Product of vector v1 and v2.
     """
     assert len(v1) == len(v2), "Mismatched Dimension of v1 and v2!"
     ans = 0
-    for l,r in zip(v1,v2):
-        ans += l*r
+    for l, r in zip(v1, v2):
+        ans += l * r
     return ans
+
 
 def transform_to_world(points_ego, ego_world_position, heading_vector):
     points_ego = np.array(points_ego)
@@ -18,40 +21,45 @@ def transform_to_world(points_ego, ego_world_position, heading_vector):
     heading_vector = np.array(heading_vector)
     # Extract components of the unit vector
     u_x, u_y = heading_vector
-    
+
     # Create the rotation matrix from the unit vector
     R = np.array([
         [u_x, -u_y],
         [u_y, u_x]
     ])
-    
+
     # Rotate the points
     points_rotated = np.dot(R, points_ego.T).T
-    
+
     # Translate the points
     points_world = points_rotated + ego_world_position
-    
+
     return points_world.tolist()
 
-def l2_distance(o1:BaseObject, o2:BaseObject) -> float:
-    pos_1,pos_2 = o1.position, o2.position
+
+def l2_distance(o1: BaseObject, o2: BaseObject) -> float:
+    pos_1, pos_2 = o1.position, o2.position
     pos_1, pos_2 = pos_1.tolist(), pos_2.tolist()
-    return np.sqrt((pos_1[0]-pos_2[0])**2 + (pos_1[1]-pos_2[1])**2)
+    return np.sqrt((pos_1[0] - pos_2[0]) ** 2 + (pos_1[1] - pos_2[1]) ** 2)
 
-def get_distance(pos_1:list, pos_2:list) -> float:
-    return np.sqrt((pos_1[0]-pos_2[0])**2 + (pos_1[1]-pos_2[1])**2)
 
-def extend_bbox(bbox: Iterable[Iterable[float]], z: float)->Iterable[Iterable[float]]:
+def get_distance(pos_1: list, pos_2: list) -> float:
+    return np.sqrt((pos_1[0] - pos_2[0]) ** 2 + (pos_1[1] - pos_2[1]) ** 2)
+
+
+def extend_bbox(bbox: Iterable[Iterable[float]], z: float) -> Iterable[Iterable[float]]:
     """
     Provided bbox of from the top-down view and the height of the bx, return a 3-d bounding box
     from bottom to the top
     """
     assert len(bbox) == 4, "Expecting 4 vertices of bbox in the xy plane!"
     result = []
-    for h in (0,z):
+    for h in (0, z):
         for box in bbox:
-            result.append(box+[h])
+            result.append(box + [h])
     return result
+
+
 def find_overlap_episodes(objects_info, obj_id1, obj_id2):
     '''
     Given two object ids, find the episodes in which both objects exist.
@@ -74,6 +82,7 @@ def find_overlap_episodes(objects_info, obj_id1, obj_id2):
                 overlapping_episodes.append(episode)
 
     return overlapping_episodes
+
 
 def find_extremities(ref_heading: Iterable[float],
                      bboxes: Iterable[Iterable], center: Iterable[float]) -> Tuple[Iterable[float], ...]:
@@ -102,7 +111,10 @@ def find_extremities(ref_heading: Iterable[float],
     right_bbox[1] += center[1]
 
     return left_bbox, right_bbox
-def position_frontback_relative_to_obj1(obj1_heading: Iterable[float], obj1_position: Iterable[float], obj2_bbox: Iterable[Iterable]) -> str:
+
+
+def position_frontback_relative_to_obj1(obj1_heading: Iterable[float], obj1_position: Iterable[float],
+                                        obj2_bbox: Iterable[Iterable]) -> str:
     """
     Determine if obj2 is behind, in front of, or overlapping with obj1.
 
@@ -134,6 +146,8 @@ def position_frontback_relative_to_obj1(obj1_heading: Iterable[float], obj1_posi
         return "front"
     else:
         return "overlap"
+
+
 def perpendicular_vectors(vector: Iterable[float]) -> Tuple[Iterable[float], Iterable[float]]:
     """
     Given a 2D vector, return two vectors, one pointing to its left-hand direction
@@ -142,7 +156,10 @@ def perpendicular_vectors(vector: Iterable[float]) -> Tuple[Iterable[float], Ite
     left_vector = [vector[1], -vector[0]]
     right_vector = [-vector[1], vector[0]]
     return left_vector, right_vector
-def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_position: Iterable[float], obj2_bbox: Iterable[Iterable]) -> str:
+
+
+def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_position: Iterable[float],
+                                         obj2_bbox: Iterable[Iterable]) -> str:
     """
     Determine if obj2 is to the left or right of obj1.
 
@@ -164,7 +181,7 @@ def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_pos
     # Check the positions of obj2's extremes relative to obj1
     left_count, right_count = 0, 0
     for point in [left_extreme, right_extreme]:
-        relative_point = point[0]-obj1_position[0],point[1]-obj1_position[1]
+        relative_point = point[0] - obj1_position[0], point[1] - obj1_position[1]
         relative_position_left = dot(relative_point, left_vector)
         if relative_position_left > 0:
             left_count += 1
@@ -178,3 +195,31 @@ def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_pos
         return "right"
     else:
         return "overlap"
+
+
+def norm(point):
+    return math.sqrt(point[0] ** 2 + point[1] ** 2)
+
+
+def centroid(points):
+    x = sum(p[0] for p in points) / len(points)
+    y = sum(p[1] for p in points) / len(points)
+    return (x, y)
+
+
+def order_points_clockwise(points):
+    """
+    Take in a list of (n,2)
+    """
+    points = np.array(points)
+    center = np.mean(points, axis=0)
+    arctan2 = lambda s, c: angle if (angle := np.arctan2(s, c)) >= 0 else 2 * np.pi + angle
+
+    def clockwise_around_center(point):
+        diff = point - center
+        rcos = np.dot(diff, center)
+        rsin = np.cross(diff, center)
+        return arctan2(rsin, rcos)
+
+    sorted_points = sorted(points, key=clockwise_around_center)
+    return [list(point) for point in sorted_points]

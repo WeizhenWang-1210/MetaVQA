@@ -234,6 +234,7 @@ class Tree:
                 SportCar=dict(singular="sports car", plural="sports cars"),
                 Truck=dict(singular="truck", plural="trucks"),
                 Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+                vehicle=dict(singular="vehicle", plural="vehicles")
             )
             if token in mapping.keys():
                 return mapping[token][form]
@@ -578,7 +579,7 @@ class QuerySpecifier:
         for param, info in self.parameters.items():
             variant = variant.replace(param, info["en"])
             if constraint_string is not None:
-                final_string = "I'm referring to one that is {}.".format(constraint_string)
+                final_string = "I'm referring to the one that is {}.".format(constraint_string)
                 variant = " ".join([variant, final_string])
 
         return variant

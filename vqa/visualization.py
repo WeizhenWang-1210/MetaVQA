@@ -57,20 +57,25 @@ if __name__ == "__main__":
     generate_highlighted(path_to_mask, path_to_mapping, folder, ["3a056b4d-bf7a-438d-a633-1d7cef82e499","fa209feb-dadf-424f-ab54-a136d6166c73"],
                          [(1,1,1),(1,1,1)])"""
     images = [
-        "verification_multiview/0_30_69/0_30/rgb_leftf_0_30.png",
-        "verification_multiview/0_30_69/0_30/rgb_front_0_30.png",
-        "verification_multiview/0_30_69/0_30/rgb_rightf_0_30.png",
-        "verification_multiview/0_30_69/0_30/rgb_leftb_0_30.png",
-        "verification_multiview/0_30_69/0_30/rgb_back_0_30.png",
-        "verification_multiview/0_30_69/0_30/rgb_rightb_0_30.png",
+        "verification_multiview/95_210_239/95_210/rgb_leftf_95_210.png",
+        "verification_multiview/95_210_239/95_210/rgb_front_95_210.png",
+        "verification_multiview/95_210_239/95_210/rgb_rightf_95_210.png",
+        "verification_multiview/95_210_239/95_210/rgb_leftb_95_210.png",
+        "verification_multiview/95_210_239/95_210/rgb_back_95_210.png",
+        "verification_multiview/95_210_239/95_210/rgb_rightb_95_210.png",
     ]
     masks = [
-        "verification_multiview/0_30_69/0_30/mask_leftf_0_30.png",
-        "verification_multiview/0_30_69/0_30/mask_front_0_30.png",
-        "verification_multiview/0_30_69/0_30/mask_rightf_0_30.png",
-        "verification_multiview/0_30_69/0_30/mask_leftb_0_30.png",
-        "verification_multiview/0_30_69/0_30/mask_back_0_30.png",
-        "verification_multiview/0_30_69/0_30/mask_rightb_0_30.png",
+        "verification_multiview/95_210_239/95_210/mask_leftf_95_210.png",
+        "verification_multiview/95_210_239/95_210/mask_front_95_210.png",
+        "verification_multiview/95_210_239/95_210/mask_rightf_95_210.png",
+        "verification_multiview/95_210_239/95_210/mask_leftb_95_210.png",
+        "verification_multiview/95_210_239/95_210/mask_back_95_210.png",
+        "verification_multiview/95_210_239/95_210/mask_rightb_95_210.png",
     ]
-    multiview_visualization(images, "verification_multiview/0_30_69/0_30/multiview_rgb_0_30.png")
-    multiview_visualization(masks, "verification_multiview/0_30_69/0_30/multiview_mask_0_30.png")
+
+    multiview_visualization(images, "verification_multiview/95_210_239/95_210/multiview_rgb_95_210.png")
+    multiview_visualization(masks, "verification_multiview/95_210_239/95_210/multiview_mask_95_210.png")
+
+
+#chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
+#control signal/context inserted as text.

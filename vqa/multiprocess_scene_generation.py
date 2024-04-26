@@ -95,9 +95,9 @@ if __name__ == "__main__":
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
     parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate data")
     parser.add_argument("--headless", action='store_true', help="Rendering in headless mode")
-    parser.add_argument("--scenarios", action='store_true', help="Use scenarionet environment")
+    parser.add_argument("--scenarios", action='store_true', help="Use ScenarioNet environment")
     parser.add_argument("--data_directory", type=str, default=None,
-                        help="the paths that stores the scenarionet data")
+                        help="the paths that stores the ScenarioNet data")
     parser.add_argument("--config", type=str, default=default_config_path,
                         help="path to the data generation configuration file")
     args = parser.parse_args()
@@ -122,7 +122,6 @@ if __name__ == "__main__":
         num_scenarios = config["map_setting"]["num_scenarios"]
 
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
-    #print(job_intervals)
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))

@@ -5,7 +5,9 @@ import os
 import argparse
 import multiprocessing as multp
 from vqa.question_generator import CACHE
-def job(paths, source, summary_path, verbose = False):
+
+
+def job(paths, source, summary_path, verbose=False):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(current_directory, "question_templates.json")
     try:
@@ -92,6 +94,8 @@ if __name__ == "__main__":
                 path = os.path.join(root, expected_json_filename)  # Construct full path
                 world_json_paths.append(path)
         return world_json_paths
+
+
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -100,7 +104,7 @@ if __name__ == "__main__":
                         help="the paths to the recorded data")
     parser.add_argument("--output_base", type=str, default="./qa",
                         help="directory to the generated QA files, each file will be extended with id ")
-    parser.add_argument("--src", type = str, default="PG", help="specify the data source of the driving scenarios")
+    parser.add_argument("--src", type=str, default="PG", help="specify the data source of the driving scenarios")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     print("Running with the following parameters")
@@ -116,7 +120,7 @@ if __name__ == "__main__":
             args=(
                 chunks[proc_id],
                 args.src,
-                os.path.join(args.output_base,f"qa{proc_id}.json"),
+                os.path.join(args.output_base, f"qa{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
@@ -125,5 +129,3 @@ if __name__ == "__main__":
     for p in processes:
         p.join()
     print("All processes finished.")
-
-
