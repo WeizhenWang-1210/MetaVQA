@@ -3,6 +3,10 @@ from vqa.dynamic_filter import TemporalNode, TemporalGraph
 from question_generator import Tnode, Tree, SubQuery, Query, CACHE
 from collections import defaultdict
 import json
+
+from vqa.visualization import generate_highlighted
+
+
 class DynamicQuerySpecifier:
     def __init__(self, type:str, template: dict, parameters: Union[dict, None], graph: TemporalGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:

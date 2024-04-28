@@ -1,9 +1,10 @@
-import json
 import os
 from vqa.dataset_utils import dot, get_distance, l2_distance, find_overlap_episodes, \
     position_frontback_relative_to_obj1, position_left_right_relative_to_obj1
 import math
 
+from vqa.scene_graph import SceneGraph
+from vqa.object_node import ObjectNode
 
 class DynamicFilter:
     def __init__(self, scene_folder, sample_frequency: int, episode_length: int, skip_length: int):
@@ -319,13 +320,23 @@ class TemporalGraph:
         self.prediction_phase = 0.2
         self.tolerance = tolerance
         self.observable_at_key = observable_at_key
-        self.frames = frames
+        self.frames: list[str] = frames
         self.observation_frames = math.floor(len(self.frames) * self.observation_phase)
         self.prediction_frames = len(self.frames) - self.observation_frames
         self.key_frame = self.observation_frames - 1
         self.node_ids = self.find_nodes(self.frames, self.observable_at_key, self.tolerance)
         self.nodes = self.build_nodes(self.node_ids, self.frames)
-        self.ego_id = self.frames[0]["ego"]["id"]
+        self.ego_id: str = self.frames[0]["ego"]["id"]
+        self.key_frame_graph: SceneGraph = self.build_key_frame()
+
+
+    def build_nodes(self,node_ids, frames):
+        scenes = [json.load(open(frame, "r")) for frame in frames]
+        for node in node_ids:
+            for info in
+            type = scenes[0]["objects"][""]
+
+
 
 
     def find_nodes(self, frames, observable_at_key=True, noise_tolerance=0.8):
@@ -368,6 +379,58 @@ class TemporalGraph:
     def get_nodes(self):
         return self.nodes
 
+
+    def build_key_frame(self) -> SceneGraph:
+        key_frame_path = self.frames[self.key_frame]
+        key_frame_annotation = json.load(open(key_frame_path, "r"))
+        nodes = []
+        ego_id = key_frame_annotation["ego"]["id"]
+        ego_dict = key_frame_annotation['ego']
+        ego_node = ObjectNode(
+            pos=ego_dict["pos"],
+            color=ego_dict["color"],
+            speed=ego_dict["speed"],
+            heading=ego_dict["heading"],
+            id=ego_dict['id'],
+            bbox=ego_dict['bbox'],
+            height=ego_dict['height'],
+            type=ego_dict['type'],
+            lane=ego_dict['lane'],
+            visible=ego_dict["visible"],
+            states=ego_dict["states"],
+            collisions=ego_dict["collisions"]
+        )
+        self.nodes.append(ego_node)
+        for info in key_frame_annotation["objects"]:
+            if info["id"] in self.node_ids:
+                nodes.append(ObjectNode(
+                    pos=info["pos"],
+                    color=info["color"],
+                    speed=info["speed"],
+                    heading=info["heading"],
+                    id=info['id'],
+                    bbox=info['bbox'],
+                    height=info['height'],
+                    type=info['type'],
+                    lane=info['lane'],
+                    visible=info['visible'],
+                    states=info["states"],
+                    collisions=info["collisions"])
+                )
+        key_graph = SceneGraph(
+            ego_id = ego_id, nodes = nodes, folder = key_frame_annotation
+        )
+        return key_graph
+
+
+
+
+
+
+
+
+
+
 class TemporalNode:
     def __init__(self, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras, states,
                  collisions, actions):
@@ -392,6 +455,9 @@ class TemporalNode:
 
     def future_bboxes(self, now_frame, pred_frames):
         return self.bboxes[now_frame + 1: now_frame + 1 + pred_frames]
+
+
+
 
 
 if __name__ == "__main__":
