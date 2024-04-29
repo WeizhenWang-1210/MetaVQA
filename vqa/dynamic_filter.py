@@ -7,6 +7,7 @@ from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode
 from collections import defaultdict
 from typing import Iterable
+import numpy as np
 
 
 class DynamicFilter:
@@ -314,11 +315,11 @@ class TemporalNode:
                  states,
                  collisions, interaction=[]):
         # time-invariant properties
-        self.now_frame = now_frame
+        self.now_frame = now_frame  # 0-indexed.indicate when is "now". The past is history and inclusive of now.
         self.id = id  # as defined in the metadrive env
         self.states = states  # accleration, thurning
         self.type = type  # as annotated
-        self.height = height  # The height retrieved from the assert's convex hull.
+        self.height = height  # The height retrieved from the asset's convex hull.
         self.color = color  # as annotated
 
         # time-dependent properties
@@ -326,10 +327,10 @@ class TemporalNode:
         self.speeds = speeds  # in m/s
         self.headings = headings  # (dx, dy), in world coordinate
         self.bboxes = bboxes  # bounding box with
-        self.observing_cameras = observing_cameras
-        self.collision = collisions
-        self.interaction = interaction  # action record is (other_node, action_name)
-        self.actions = self.summarize_action(self.now_frame)
+        self.observing_cameras = observing_cameras  # record which ego camera observed the object.
+        self.collision = collisions  # record collisions(if any) along time.
+        self.interaction = interaction  # interaction record is (other_node, action_name)
+        self.actions = self.summarize_action(self.now_frame)  # intrinsic actions that can be summarized independently.
 
     def future_positions(self, now_frame, pred_frames=None):
         if pred_frames is None:
@@ -345,109 +346,129 @@ class TemporalNode:
 
     def summarize_action(self, now_frame):
         """
-        Return the intrinsic actions
-        Turning:
-        Acceleration:
+        Apparently, in real envs, we don't have any second-order information. We only have speed.
+        So, all actions must be summarized leveraging speed/positions.
+
         """
         actions = []
-        if "acceleration" in self.states[0].keys():
-            avg_acceleration = sum([record["acceleration"] for record in self.states[:now_frame+1]]) / now_frame
-            if avg_acceleration > 0.2:
-                actions.append("acclerating")
-            elif avg_acceleration < -0.2:
-                actions.append("decelerating")
-        if "steering" in self.states[0].keys():
-            avg_steering = sum([record["steering"] for record in self.states[:now_frame+1]]) / now_frame
-            if avg_steering > 0.2:
-                actions.append("turn_right")
-            elif avg_steering < -0.2:
-                actions.append("turn_left")
+        front_vector = self.headings[0]
+        left_vector = -front_vector[1], front_vector[0]
+        final_pos = self.positions[now_frame]
+        init_pos = self.positions[0]
+        displacement = final_pos[0] - init_pos[0], final_pos[1] - init_pos[1]
+        print(self.id, dot(displacement, left_vector))
+        if dot(displacement, left_vector) > 1.5:
+            actions.append("turn_left")
+        elif dot(displacement, left_vector) < -1.5:
+            actions.append("turn_right")
+        else:
+            actions.append("go straight")
         pos_differential = 0
         prev_pos = self.positions[0]
-        for pos in self.positions[1:now_frame+1]:
+        for pos in self.positions[1:now_frame + 1]:
             new_differential = get_distance(pos, prev_pos)
             pos_differential += new_differential
             prev_pos = pos
         if pos_differential < 0.5:
             actions.append("parked")
-        speed_differential = 0
+        std_speed = np.std([self.speeds[:now_frame + 1]])
+        speed_differentials = []
         prev_speed = self.speeds[0]
-        for speed in self.speeds[1:now_frame+1]:
-            speed_differential += abs(speed - prev_speed)
-        if speed_differential < 1:
-            actions.append("constant_speed")
+        for speed in self.speeds[1:now_frame + 1]:
+            speed_differentials.append(speed-prev_speed)
+            prev_speed = speed
+        if majority_true(speed_differentials, lambda x : x > 0) and self.speeds[now_frame] > self.speeds[0] and std_speed > 1:
+            actions.append("acceleration")
+        elif majority_true(speed_differentials, lambda x : x < 0) and self.speeds[now_frame] < self.speeds[0] and std_speed > 1:
+            actions.append("deceleration")
         return actions
+    def __str__(self):
+        return self.id
 
-        # can't have (acclerating, decelerating) and (constant_speed)
-        # can't have (acclerating, decelerating) and (parked)
-        # can't have (turn_left, turn_right) and (parked)
+def majority_true(things, creterion, threshold=0.8):
+    num_things = len(things)
+    num_true = 0
+    for thing in things:
+        if creterion(thing):
+            num_true += 1
+    return num_true/num_things >= threshold
 
 
 class TemporalGraph:
-    def __init__(self, frames, observable_at_key=True, tolerance=0.8):
+    def __init__(self, framepaths, observable_at_key=True, tolerance=0.8):
         """
         We ask questions based on the observation_phase and return answr for the prediction phase
         Note that in MetaDrive each step is 0.1s
         Will give attempt to give 2 seconds of observation and half seconds of prediction phase
         So, observation phase = 20 and prediction phase = 5
+        Each graph will store the path to the original annotation("For statistics purpose") and also the loaded information
+
         """
-        self.observation_phase = 0.8
-        self.prediction_phase = 0.2
-        self.tolerance = tolerance
-        self.observable_at_key = observable_at_key
-        self.frames: list[str] = frames
-        self.observation_frames = math.floor(len(self.frames) * self.observation_phase)
-        self.prediction_frames = len(self.frames) - self.observation_frames
-        self.key_frame = self.observation_frames - 1
-        self.node_ids = self.find_nodes(self.frames, self.observable_at_key, self.tolerance)
+
+        self.observation_phase = 0.8  # This is the percentage of frames belonging into observation. The last frame
+        # is "present"
+        self.prediction_phase = 1.0 - self.observation_phase
+        self.tolerance = tolerance  # The percentage(of observation phase) of being observable for objects to be
+        # considered in the graph.
+        self.observable_at_key = observable_at_key  # enforce that the objects referred must be observable at the key
+        # frame.
+        self.framepaths: list[str] = framepaths
+        self.frames: list[dict] = [json.load(open(framepath, "r")) for framepath in framepaths]
+
+        self.num_observation_frames = math.floor(len(self.framepaths) * self.observation_phase)
+        self.num_prediction_frames = len(self.framepaths) - self.num_observation_frames
+        self.idx_key_frame = self.num_observation_frames - 1  # since 0-indexed. The past is [0,self._idx_key_frame]
+        self.node_ids: Iterable[str] = self.find_node_ids(self.frames, self.observable_at_key, self.tolerance)
         self.ego_id: str = self.frames[0]["ego"]["id"]
+        assert all([self.frames[i]["ego"]["id"] == self.ego_id for i in
+                    range(len(self.frames))]), "Ego changed during this period."
         self.nodes = self.build_nodes(self.node_ids, self.frames)
         self.key_frame_graph: SceneGraph = self.build_key_frame()
 
     def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
-        scenes = self.frames#[json.load(open(frame, "r")) for frame in frames]
         positions = defaultdict(list)
         headings = defaultdict(list)
         colors = defaultdict(str)
         types = defaultdict(str)
         visibles = defaultdict(list)
-        obseving_cameras = defaultdict(list)
+        observing_cameras = defaultdict(list)
         speeds = defaultdict(list)
         bboxes = defaultdict(list)
         heights = defaultdict(list)
         states = defaultdict(list)
         collisions = defaultdict(list)
-        actions = defaultdict(dict)
+        actions = defaultdict(dict)  # need to analyze inter-object actions later.
         temporal_nodes = {}
-        for timestamp, scene in enumerate(scenes):
-            for object in scene["objects"]:
+        for timestamp, frame in enumerate(frames):
+            for object in frame["objects"]:
                 if object["id"] in node_ids:
                     positions[object["id"]].append(object["pos"])
                     headings[object["id"]].append(object["heading"])
                     colors[object["id"]] = object["color"]
                     types[object["id"]] = object["type"]
                     visibles[object["id"]].append(object["visible"])
-                    obseving_cameras[object["id"]].append(object["observing_camera"])
+                    observing_cameras[object["id"]].append(object["observing_camera"])
                     speeds[object["id"]].append(object["speed"])
                     bboxes[object["id"]].append(object["bbox"])
                     heights[object["id"]].append(object["height"])
                     states[object["id"]].append(object["states"])
                     collisions[object["id"]].append(object["collisions"])
 
-            positions[self.ego_id].append(scene["ego"]["pos"])
-            headings[self.ego_id].append(scene["ego"]["heading"])
-            colors[self.ego_id] = scene["ego"]["color"]
-            types[self.ego_id] = scene["ego"]["type"]
-            visibles[self.ego_id].append(scene["ego"]["visible"])
-            obseving_cameras[self.ego_id].append(scene["ego"]["observing_camera"])
-            speeds[self.ego_id].append(scene["ego"]["speed"])
-            bboxes[self.ego_id].append(scene["ego"]["bbox"])
-            heights[self.ego_id].append(scene["ego"]["height"])
-            states[self.ego_id].append(scene["ego"]["states"])
-            collisions[self.ego_id].append(scene["ego"]["collisions"])
+            positions[self.ego_id].append(frame["ego"]["pos"])
+            headings[self.ego_id].append(frame["ego"]["heading"])
+            colors[self.ego_id] = frame["ego"]["color"]
+            types[self.ego_id] = frame["ego"]["type"]
+            visibles[self.ego_id].append(frame["ego"]["visible"])
+            observing_cameras[self.ego_id].append(frame["ego"]["observing_camera"])
+            speeds[self.ego_id].append(frame["ego"]["speed"])
+            bboxes[self.ego_id].append(frame["ego"]["bbox"])
+            heights[self.ego_id].append(frame["ego"]["height"])
+            states[self.ego_id].append(frame["ego"]["states"])
+            collisions[self.ego_id].append(frame["ego"]["collisions"])
+
         for node_id in node_ids:
             temporal_node = TemporalNode(
-                id=node_id, now_frame=self.key_frame, type=types[node_id], height=heights[node_id],
+                id=node_id, now_frame=self.idx_key_frame, type=types[node_id], height=heights[node_id],
                 positions=positions[node_id],
                 color=colors[node_id], speeds=speeds[node_id], headings=headings[node_id], bboxes=bboxes[node_id],
                 observing_cameras=bboxes[node_id], states=states[node_id], collisions=collisions[node_id],
@@ -455,13 +476,14 @@ class TemporalGraph:
             temporal_nodes[node_id] = temporal_node
         return temporal_nodes
 
-    def find_nodes(self, frames, observable_at_key=True, noise_tolerance=0.8) -> Iterable[str]:
+    def find_node_ids(self, frames, observable_at_key=True, noise_tolerance=0.8) -> Iterable[str]:
         """
+        Not including the ego_id
         We consider objects that are observable for the noise_tolerance amount
         of time(also, must be observable at key frame) for the observation period and still exist in the prediction phase
         """
-        observation_frames = self.observation_frames
-        prediction_frames = self.prediction_frames
+        observation_frames = self.num_observation_frames
+        prediction_frames = self.num_prediction_frames
         observable_at_t = {
             t: set() for t in range(observation_frames)
         }
@@ -485,19 +507,18 @@ class TemporalGraph:
                 if node in nodes_observable:
                     observable_frame += 1
             if observable_frame / observation_frames >= noise_tolerance:
-                if (not observable_at_key) or (node in observable_at_t[self.key_frame]):
+                if (not observable_at_key) or (node in observable_at_t[self.idx_key_frame]):
                     final_nodes.add(node)
         for nodes_exist in exist_at_t.values():
             final_nodes = final_nodes.intersection(nodes_exist)
-        print(len(all_nodes), len(final_nodes))
+        final_nodes.add(frames[0]["ego"]["id"])
         return final_nodes
 
     def get_nodes(self):
         return self.nodes
 
     def build_key_frame(self) -> SceneGraph:
-        key_frame_path = self.frames[self.key_frame]
-        key_frame_annotation = key_frame_path #json.load(open(key_frame_path, "r"))
+        key_frame_annotation = self.frames[self.idx_key_frame]  # json.load(open(key_frame_path, "r"))
         nodes = []
         ego_id = key_frame_annotation["ego"]["id"]
         ego_dict = key_frame_annotation['ego']
@@ -515,8 +536,7 @@ class TemporalGraph:
             states=ego_dict["states"],
             collisions=ego_dict["collisions"]
         )
-        self.nodes[ego_id] = ego_node
-        nodes.append()
+        nodes.append(ego_node)
         for info in key_frame_annotation["objects"]:
             if info["id"] in self.node_ids:
                 nodes.append(ObjectNode(
@@ -534,22 +554,28 @@ class TemporalGraph:
                     collisions=info["collisions"])
                 )
         key_graph = SceneGraph(
-            ego_id=ego_id, nodes=nodes, folder=key_frame_annotation
+            ego_id=ego_id, nodes=nodes, folder=self.framepaths[self.idx_key_frame]
         )
         return key_graph
-
 
 if __name__ == "__main__":
     """scene_folder = "E:\\Bolei\\MetaVQA\\temporal"
     dynamic_filter = DynamicFilter(scene_folder)
     objects_info = dynamic_filter.load_scene()
     print(objects_info[list(objects_info.keys())[0]])"""
-    episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
+    episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_150_179/**/world*.json"
     import glob
     import json
 
-    frames_files = sorted(glob.glob(episode_folder, recursive=True))
-    frames = [json.load(open(file, "r")) for file in frames_files]
-    graph = TemporalGraph(frames)
-    print(graph.nodes)
-    print(graph.observation_frames, graph.prediction_frames)
+    frame_files = sorted(glob.glob(episode_folder, recursive=True))
+    # frames = [json.load(open(file, "r")) for file in frames_files]
+    graph = TemporalGraph(frame_files)
+    #print(graph.node_ids)
+    #print(graph.ego_id)
+    for node in graph.get_nodes().values():
+        print(node.id, node.actions)
+
+    #print(graph.get_nodes())
+    #print(graph.key_frame_graph)
+
+    # print(graph.num_observation_frames, graph.num_prediction_frames)
