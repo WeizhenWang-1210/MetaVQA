@@ -5,6 +5,9 @@ import math
 
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode
+from collections import defaultdict
+from typing import Iterable
+
 
 class DynamicFilter:
     def __init__(self, scene_folder, sample_frequency: int, episode_length: int, skip_length: int):
@@ -306,6 +309,81 @@ class DynamicFilter:
         return match_episode
 
 
+class TemporalNode:
+    def __init__(self, now_frame, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras,
+                 states,
+                 collisions, interaction=[]):
+        # time-invariant properties
+        self.now_frame = now_frame
+        self.id = id  # as defined in the metadrive env
+        self.states = states  # accleration, thurning
+        self.type = type  # as annotated
+        self.height = height  # The height retrieved from the assert's convex hull.
+        self.color = color  # as annotated
+
+        # time-dependent properties
+        self.positions = positions  # (x,y) in world coordinate
+        self.speeds = speeds  # in m/s
+        self.headings = headings  # (dx, dy), in world coordinate
+        self.bboxes = bboxes  # bounding box with
+        self.observing_cameras = observing_cameras
+        self.collision = collisions
+        self.interaction = interaction  # action record is (other_node, action_name)
+        self.actions = self.summarize_action(self.now_frame)
+
+    def future_positions(self, now_frame, pred_frames=None):
+        if pred_frames is None:
+            return self.positions[now_frame + 1:]
+        else:
+            return self.positions[now_frame + 1: now_frame + 1 + pred_frames]
+
+    def future_bboxes(self, now_frame, pred_frames=None):
+        if pred_frames is None:
+            return self.bboxes[now_frame + 1:]
+        else:
+            return self.bboxes[now_frame + 1: now_frame + 1 + pred_frames]
+
+    def summarize_action(self, now_frame):
+        """
+        Return the intrinsic actions
+        Turning:
+        Acceleration:
+        """
+        actions = []
+
+        if "acceleration" in self.actions[0].keys():
+            avg_acceleration = sum([acc for acc in self.actions[:now_frame+1]["acceleration"]]) / now_frame
+            if avg_acceleration > 0.2:
+                actions.append("acclerating")
+            elif avg_acceleration < -0.2:
+                actions.append("decelerating")
+        if "steering" in self.actions[0].keys():
+            avg_steering = sum([acc for acc in self.actions[:now_frame+1]["steering"]]) / now_frame
+            if avg_steering > 0.2:
+                actions.append("turn_right")
+            elif avg_steering < -0.2:
+                actions.append("turn_left")
+        pos_differential = 0
+        prev_pos = self.positions[0]
+        for pos in self.positions[1:now_frame+1]:
+            new_differential = get_distance(pos, prev_pos)
+            pos_differential += new_differential
+            prev_pos = pos
+        if pos_differential < 0.5:
+            actions.append("parked")
+        speed_differential = 0
+        prev_speed = self.speeds[0]
+        for speed in self.speeds[1:now_frame+1]:
+            speed_differential += abs(speed - prev_speed)
+        if speed_differential < 1:
+            actions.append("constant_speed")
+        return actions
+
+        # can't have (acclerating, decelerating) and (constant_speed)
+        # can't have (acclerating, decelerating) and (parked)
+        # can't have (turn_left, turn_right) and (parked)
+
+
 class TemporalGraph:
     def __init__(self, frames, observable_at_key=True, tolerance=0.8):
         """
@@ -313,8 +391,6 @@ class TemporalGraph:
         Note that in MetaDrive each step is 0.1s
         Will give attempt to give 2 seconds of observation and half seconds of prediction phase
         So, observation phase = 20 and prediction phase = 5
-
-
         """
         self.observation_phase = 0.8
         self.prediction_phase = 0.2
@@ -325,21 +401,63 @@ class TemporalGraph:
         self.prediction_frames = len(self.frames) - self.observation_frames
         self.key_frame = self.observation_frames - 1
         self.node_ids = self.find_nodes(self.frames, self.observable_at_key, self.tolerance)
-        self.nodes = self.build_nodes(self.node_ids, self.frames)
         self.ego_id: str = self.frames[0]["ego"]["id"]
+        self.nodes = self.build_nodes(self.node_ids, self.frames)
         self.key_frame_graph: SceneGraph = self.build_key_frame()
 
+    def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
+        scenes = self.frames#[json.load(open(frame, "r")) for frame in frames]
+        positions = defaultdict(list)
+        headings = defaultdict(list)
+        colors = defaultdict(str)
+        types = defaultdict(str)
+        visibles = defaultdict(list)
+        obseving_cameras = defaultdict(list)
+        speeds = defaultdict(list)
+        bboxes = defaultdict(list)
+        heights = defaultdict(list)
+        states = defaultdict(list)
+        collisions = defaultdict(list)
+        actions = defaultdict(dict)
+        temporal_nodes = {}
+        for timestamp, scene in enumerate(scenes):
+            for object in scene["objects"]:
+                if object["id"] in node_ids:
+                    positions[object["id"]].append(object["pos"])
+                    headings[object["id"]].append(object["heading"])
+                    colors[object["id"]] = object["color"]
+                    types[object["id"]] = object["type"]
+                    visibles[object["id"]].append(object["visible"])
+                    obseving_cameras[object["id"]].append(object["observing_camera"])
+                    speeds[object["id"]].append(object["speed"])
+                    bboxes[object["id"]].append(object["bbox"])
+                    heights[object["id"]].append(object["height"])
+                    states[object["id"]].append(object["states"])
+                    collisions[object["id"]].append(object["collisions"])
+                    actions[]
 
-    def build_nodes(self,node_ids, frames):
-        scenes = [json.load(open(frame, "r")) for frame in frames]
-        for node in node_ids:
-            for info in
-            type = scenes[0]["objects"][""]
+            positions[self.ego_id].append(scene["ego"]["pos"])
+            headings[self.ego_id].append(scene["ego"]["heading"])
+            colors[self.ego_id] = scene["ego"]["color"]
+            types[self.ego_id] = scene["ego"]["type"]
+            visibles[self.ego_id].append(scene["ego"]["visible"])
+            obseving_cameras[self.ego_id].append(scene["ego"]["observing_camera"])
+            speeds[self.ego_id].append(scene["ego"]["speed"])
+            bboxes[self.ego_id].append(scene["ego"]["bbox"])
+            heights[self.ego_id].append(scene["ego"]["height"])
+            states[self.ego_id].append(scene["ego"]["states"])
+            collisions[self.ego_id].append(scene["ego"]["collisions"])
+        for node_id in node_ids:
+            temporal_node = TemporalNode(
+                id=node_id, now_frame=self.key_frame, type=types[node_id], height=heights[node_id],
+                positions=positions[node_id],
+                color=colors[node_id], speeds=speeds[node_id], headings=headings[node_id], bboxes=bboxes[node_id],
+                observing_cameras=bboxes[node_id], states=states[node_id], collisions=collisions[node_id],
+            )
+            temporal_nodes[node_id] = temporal_node
+        return temporal_nodes
 
-
-
-
-    def find_nodes(self, frames, observable_at_key=True, noise_tolerance=0.8):
+    def find_nodes(self, frames, observable_at_key=True, noise_tolerance=0.8) -> Iterable[str]:
         """
         We consider objects that are observable for the noise_tolerance amount
         of time(also, must be observable at key frame) for the observation period and still exist in the prediction phase
@@ -379,7 +497,6 @@ class TemporalGraph:
     def get_nodes(self):
         return self.nodes
 
-
     def build_key_frame(self) -> SceneGraph:
         key_frame_path = self.frames[self.key_frame]
         key_frame_annotation = json.load(open(key_frame_path, "r"))
@@ -418,46 +535,9 @@ class TemporalGraph:
                     collisions=info["collisions"])
                 )
         key_graph = SceneGraph(
-            ego_id = ego_id, nodes = nodes, folder = key_frame_annotation
+            ego_id=ego_id, nodes=nodes, folder=key_frame_annotation
         )
         return key_graph
-
-
-
-
-
-
-
-
-
-
-class TemporalNode:
-    def __init__(self, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras, states,
-                 collisions, actions):
-        # time-invariant properties
-        self.id = id  # as defined in the metadrive env
-        self.states = states  # accleration, thurning
-        self.type = type  # as annotated
-        self.height = height  # The height retrieved from the assert's convex hull.
-        self.color = color  # as annotated
-
-        # time-dependent properties
-        self.positions = positions  # (x,y) in world coordinate
-        self.speeds = speeds  # in m/s
-        self.headings = headings  # (dx, dy), in world coordinate
-        self.bboxes = bboxes  # bounding box with
-        self.observing_cameras = observing_cameras
-        self.collision = collisions
-        self.actions = actions  # action record is (other_node, action_name)
-
-    def future_positions(self, now_frame, pred_frames):
-        return self.positions[now_frame + 1: now_frame + 1 + pred_frames]
-
-    def future_bboxes(self, now_frame, pred_frames):
-        return self.bboxes[now_frame + 1: now_frame + 1 + pred_frames]
-
-
-
 
 
 if __name__ == "__main__":
