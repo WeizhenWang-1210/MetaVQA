@@ -350,15 +350,14 @@ class TemporalNode:
         Acceleration:
         """
         actions = []
-
-        if "acceleration" in self.actions[0].keys():
-            avg_acceleration = sum([acc for acc in self.actions[:now_frame+1]["acceleration"]]) / now_frame
+        if "acceleration" in self.states[0].keys():
+            avg_acceleration = sum([record["acceleration"] for record in self.states[:now_frame+1]]) / now_frame
             if avg_acceleration > 0.2:
                 actions.append("acclerating")
             elif avg_acceleration < -0.2:
                 actions.append("decelerating")
-        if "steering" in self.actions[0].keys():
-            avg_steering = sum([acc for acc in self.actions[:now_frame+1]["steering"]]) / now_frame
+        if "steering" in self.states[0].keys():
+            avg_steering = sum([record["steering"] for record in self.states[:now_frame+1]]) / now_frame
             if avg_steering > 0.2:
                 actions.append("turn_right")
             elif avg_steering < -0.2:
@@ -434,7 +433,6 @@ class TemporalGraph:
                     heights[object["id"]].append(object["height"])
                     states[object["id"]].append(object["states"])
                     collisions[object["id"]].append(object["collisions"])
-                    actions[]
 
             positions[self.ego_id].append(scene["ego"]["pos"])
             headings[self.ego_id].append(scene["ego"]["heading"])
@@ -499,7 +497,7 @@ class TemporalGraph:
 
     def build_key_frame(self) -> SceneGraph:
         key_frame_path = self.frames[self.key_frame]
-        key_frame_annotation = json.load(open(key_frame_path, "r"))
+        key_frame_annotation = key_frame_path #json.load(open(key_frame_path, "r"))
         nodes = []
         ego_id = key_frame_annotation["ego"]["id"]
         ego_dict = key_frame_annotation['ego']
@@ -517,7 +515,8 @@ class TemporalGraph:
             states=ego_dict["states"],
             collisions=ego_dict["collisions"]
         )
-        self.nodes.append(ego_node)
+        self.nodes[ego_id] = ego_node
+        nodes.append()
         for info in key_frame_annotation["objects"]:
             if info["id"] in self.node_ids:
                 nodes.append(ObjectNode(
