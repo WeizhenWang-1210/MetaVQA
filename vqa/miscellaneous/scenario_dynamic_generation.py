@@ -1,9 +1,6 @@
-import cv2
 import json
-import os
-import re
 import yaml
-from vqa.dynamic_filter import DynamicFilter
+from vqa.miscellaneous.dynamic_filter import DynamicFilter
 def find_valid_car_pairs(scene_info):
     """
     Identifies valid pairs of cars that share at least one episode.

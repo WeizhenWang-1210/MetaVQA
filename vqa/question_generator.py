@@ -2,7 +2,7 @@ from typing import Any, Iterable, Union, LiteralString, Callable
 from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
     CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
     extract_type_unique
-from vqa.scene_graph import SceneGraph, EpisodicGraph
+from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode
 from vqa.grammar import STATIC_GRAMMAR, NO_COLOR_STATIC
 import random
@@ -154,12 +154,17 @@ class Tree:
             subquery.state = [config["<s>"]] if config["<s>"] != "nil" else None
             # Create the action requirements according to the grammar tree specification
             if isinstance(config["<a>"], dict):
-                if "<deed_without_o>" in config["<a>"].keys():
-                    subquery.action = [config["<a>"]["<deed_without_o>"]]
-                else:
-                    subquery.action = [config["<a>"]["<deed_with_o>"]]
+                if "<active_deed>" in config["<a>"].keys():
+                    subquery.action = [config["<a>"]["<active_deed>"]]
                     subquery.prev["action"] = subqueries[config["<a>"]["<o>'s id"]]
                     subqueries[config["<a>"]["<o>'s id"]].next = subquery
+                elif "<passive_deed>" in config["<a>"].keys():
+                    subquery.action = [config["<a>"]["<passive_deed>"]]
+                    subquery.prev["action"] = subqueries[config["<a>"]["<o>'s id"]]
+                    subqueries[config["<a>"]["<o>'s id"]].next = subquery
+                else:
+                    print("This should not be executed")
+                    exit()
             else:
                 subquery.action = None
             # Create the positional requirements according to the grammar tree specification
@@ -240,12 +245,12 @@ class Tree:
         def state_token_string_converter(token):
             map = {
                 "nil": "",
-                "parked":"parked",
-                "accelerating":"accelerating",
-                "decelerating":"decelerating",
-                "turn_left":"left-turning",
-                "turn_right":"right-turning",
-                "moving":"moving"
+                "parked": "parked",
+                "accelerating": "accelerating",
+                "decelerating": "decelerating",
+                "turn_left": "left-turning",
+                "turn_right": "right-turning",
+                "moving": "moving"
             }
             return map[token]
 
@@ -313,16 +318,18 @@ class Tree:
                     a = action_token_string_converter(object_dict[obj_id]['<a>'], form, "passive")
                 elif isinstance(object_dict[obj_id]['<a>'], dict):
                     if '<passive_deed>' in object_dict[obj_id]['<a>'].keys():
-                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<passive_deed>'], form, "active")
+                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<passive_deed>'], form,
+                                                                    "active")
                         new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
                         a = deed_with_o + ' ' + new_o
                     elif "<active_deed>" in object_dict[obj_id]['<a>'].keys():
-                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<active_deed>'], form, "passive")
+                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<active_deed>'], form,
+                                                                    "passive")
                         new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
                         a = deed_with_o + ' ' + new_o
                     else:
                         print("warning!shouldn't be reachable")
-                        #a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'], form)
+                        # a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'], form)
                 else:
                     print("warning!")
                 result = ""
@@ -372,12 +379,11 @@ class SubQuery:
             "nil": None,
             "turn left": "turn_left",
             "turn right": "turn_right",
-
         }
         self.action = action
-        if action:
-            self.action = [map[a] for a in
-                           action]  # The action we are looking for, with or without respect to some objects
+        # if action:
+        #    self.action = [map[a] for a in
+        #                   action]  # The action we are looking for, with or without respect to some objects
         self.color = color  # The color we are looking for
         self.type = type  # The type we are looking for
         self.pos = pos  # The spatial relationship we are looking for
@@ -392,6 +398,9 @@ class SubQuery:
         Initialize the functions for filtering
         Why delayed insantiatiation? For a subquery in a computation graph, how you instantiate pos functions
         and action functions are dependent of previous question's answers.
+
+        In fact, egos can be either an ObjectNode or TemporalNode
+
         '''
         if self.us:
             # If the query is "us", just return the ego node. No actual search needs to be performed.
@@ -402,14 +411,7 @@ class SubQuery:
             type_func = type_wrapper(self.type) if self.type else None
             state_func = state_wrapper(self.state) if self.state else None
             pos_func = pos_wrapper(self.prev["pos"].ans, self.pos, ref_heading) if self.pos else None
-            if self.action:
-                # TODO Why we need this distinction?
-                if "action" not in self.prev.keys():
-                    action_func = action_wrapper(egos, self.action)
-                else:
-                    action_func = action_wrapper(self.prev["action"].ans, self.action)
-            else:
-                action_func = None
+            action_func = action_wrapper(self.prev["action"].ans, self.action) if self.action else None
             self.funcs = [color_func, type_func, pos_func, state_func, action_func]
 
     def __call__(self,
@@ -450,6 +452,7 @@ class SubQuery:
             "color": self.color,
             "type": self.type,
             "pos": self.pos,
+            "action": self.action,
             "prev": dict,
             "ego": self.us,
             "funcs": [f is not None for f in self.funcs] if self.funcs else self.funcs,
@@ -723,13 +726,49 @@ class QuerySpecifier:
                 concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
                 rounded = (int(concrete_location[0]), int(concrete_location[1]))
                 question = self.translate("located at {} ".format(
-                        rounded
-                    )
+                    rounded
+                )
                 )
                 if self.type == "type_identification_unique":
                     answer = type_token_string_converter(answer, "singular").capitalize()
-                qas.append((question, (obj_id,answer)))
+                qas.append((question, (obj_id, answer)))
             return qas
+
+
+def try_instantiation():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    # Construct the path to the other file
+    template_path = os.path.join(current_directory, "question_templates.json")
+    with open(template_path, "r") as f:
+        templates = json.load(f)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--step", type=str, default="verification_multiview/95_30_59/95_30/world_95_30")
+    args = parser.parse_args()
+    try:
+        # print(args.step)
+        with open('{}.json'.format(args.step), 'r') as scene_file:
+            scene_dict = json.load(scene_file)
+    except Exception as e:
+        raise e
+    from vqa.scene_graph import nodify
+    agent_id, nodes = nodify(scene_dict)
+    graph = SceneGraph(agent_id, nodes, folder="some/5_80_119/5_100/world_5_100")
+
+    subq1 = SubQuery()
+    subq1.us = True
+    subq2 = SubQuery(
+        color=None,
+        type=["vehicle"],
+        action=["head_toward"],
+        prev={
+            "action":subq1
+        }
+    )
+    subq2.instantiate(
+        [graph.get_ego_node()],
+        graph.get_ego_node().heading
+    )
+    print(subq2)
 
 
 def main():
@@ -922,4 +961,5 @@ def some_tree(file):
 if __name__ == "__main__":
     # print("hello")
     # main()
-    some_tree("verification/9_41_80/9_41/world_9_41.json")
+    # some_tree("verification/9_41_80/9_41/world_9_41.json")
+    try_instantiation()
