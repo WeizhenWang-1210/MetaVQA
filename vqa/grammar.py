@@ -4,7 +4,7 @@ CFG_GRAMMAR = {
         ["us"]
     ],
     "<s>":[
-        ["nil"],["parked"],["moving"],["accelerating"],["decelerating"], ["turn_left"], ["turn_right"]
+        ["nil"],["parked"],["accelerating"], ["decelerating"], ["turn_left"], ["turn_right"]
     ],
     "<a>":[
         ["nil"], ["<passive_deed>","<o>"],["<active_deed>","<o>"]
