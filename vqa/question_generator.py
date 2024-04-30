@@ -251,11 +251,12 @@ class Tree:
                 "turn_left": "left-turning",
                 "turn_right": "right-turning",
                 "moving": "moving"
+
             }
             return map[token]
 
         def action_token_string_converter(token, form, agency):
-            if agency == "active":
+            if agency == "passive":
                 map = {
                     "followed": dict(singular="is followed by", plural="are followed by"),
                     "passed_by": dict(singular="is passed by", plural="are passed by"),
@@ -319,15 +320,16 @@ class Tree:
                 elif isinstance(object_dict[obj_id]['<a>'], dict):
                     if '<passive_deed>' in object_dict[obj_id]['<a>'].keys():
                         deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<passive_deed>'], form,
-                                                                    "active")
+                                                                    "passive")
                         new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
                         a = deed_with_o + ' ' + new_o
                     elif "<active_deed>" in object_dict[obj_id]['<a>'].keys():
                         deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<active_deed>'], form,
-                                                                    "passive")
+                                                                    "active")
                         new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
                         a = deed_with_o + ' ' + new_o
                     else:
+                        a = ''
                         print("warning!shouldn't be reachable")
                         # a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'], form)
                 else:

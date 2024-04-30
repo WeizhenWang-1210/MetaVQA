@@ -89,7 +89,7 @@ def state_wrapper(states: Iterable[str]) -> Callable:
         for candidate in candidates:
             for s in states:
                 if s in candidate.actions:
-                    return candidate
+                    results.append(candidate)
         return results
 
     return state
@@ -104,6 +104,7 @@ def action_wrapper(egos: Iterable[TemporalNode], actions: Iterable[str]) -> Call
     def act(candidates: Iterable[TemporalNode]):
         results = []
         for candidate in candidates:
+            #print(candidate)
             for ego in egos:
                 for action in actions:
                     # if candidate performed action against one ego

@@ -1,18 +1,23 @@
 from typing import Union
-
-from nltk import CFG
-
-from vqa.dynamic_filter import TemporalNode, TemporalGraph
-from question_generator import Tnode, Tree, SubQuery, Query, CACHE
+from vqa.scene_graph import TemporalGraph
+from question_generator import Tree, SubQuery, Query, CACHE
+from vqa.functionals import Identity
 from collections import defaultdict
 from vqa.grammar import CFG_GRAMMAR
 import json
-
+import os
 from vqa.visualization import generate_highlighted
+import random
 
-"""
+from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
+    CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
+    extract_type_unique
+from typing import Callable, Dict
+from vqa.object_node import transform
+
+
 class DynamicQuerySpecifier:
-    def __init__(self, type:str, template: dict, parameters: Union[dict, None], graph: TemporalGraph, grammar: dict,
+    def __init__(self, type: str, template: dict, parameters: Union[dict, None], graph: TemporalGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
         self.type = type
         self.template = template
@@ -43,33 +48,38 @@ class DynamicQuerySpecifier:
             )
             if param[1] == "o":
                 start_symbol = "<o>"
-                param_tree = Tree(start_symbol, 6, self.grammar)
+                param_tree = Tree(start_symbol, 4, self.grammar)
 
                 while param_tree.depth <= 2:
-                    param_tree = Tree(start_symbol, 6, self.grammar)
+                    param_tree = Tree(start_symbol, 4, self.grammar)
             else:
                 print("No fucking way I'm executed")
                 start_symbol = param
-                param_tree = Tree(start_symbol, 6, self.grammar)
+                param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
-            #param_tree.visualize()
+            # param_tree.visualize()
             signature_string = json.dumps(functional, sort_keys=True)
             local["signature"] = signature_string
             signatures.append(signature_string)
 
             program = Query([Tree.build_program(functional)], "stuff", Identity,
-                            candidates=[node for node in self.graph.get_nodes() if node.id != self.graph.ego_id]) #if node.id != self.graph.ego_id
+                            candidates=[node for node in self.graph.get_nodes().values() if
+                                        node.id != self.graph.ego_id])  # if node.id != self.graph.ego_id
             local["prog"] = program
-            #print(program.heads)
+            # print(program.heads)
             parameters[param] = local
         self.signature = "-".join(signatures)
         return parameters
 
-    def translate(self) -> str:
+    def translate(self, constraint_string=None) -> str:
         variant = random.choice(self.template["text"])
         for param, info in self.parameters.items():
             variant = variant.replace(param, info["en"])
+            if constraint_string is not None:
+                final_string = "I'm referring to the one that is {}.".format(constraint_string)
+                variant = " ".join([variant, final_string])
+
         return variant
 
     def find_end_filter(self, string) -> Callable:
@@ -79,8 +89,10 @@ class DynamicQuerySpecifier:
             count_equal=CountEqual,
             count_more=CountGreater,
             extract_color=extract_color,
-            extract_type=extract_type
-
+            extract_color_unique=extract_color_unique,
+            extract_type=extract_type,
+            extract_type_unique=extract_type_unique,
+            # TODO add end filter for dynamic questions
         )
         return mapping[string]
 
@@ -107,7 +119,7 @@ class DynamicQuerySpecifier:
                 for obj in param_answer:
                     objects.append(f"{obj.type}:{obj.id}")
                     ids.append(obj.id)
-            #print(ids)
+            # print(ids)
             parent_folder = os.path.dirname(self.graph.folder)
             identifier = os.path.basename(parent_folder)
             path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
@@ -153,16 +165,112 @@ class DynamicQuerySpecifier:
             ids,
             colors
         )
-"""
+
+    def export_qa(self):
+        def type_token_string_converter(token, form):
+            mapping = dict(
+                nil=dict(singular="object", plural="objects"),
+                Bus=dict(singular="bus", plural="buses"),
+                Caravan=dict(singular="caravan", plural="caravans"),
+                Coupe=dict(singular="coupe", plural="coupes"),
+                FireTruck=dict(singular="fire engine", plural="fire engines"),
+                Jeep=dict(singular="jeep", plural="jeeps"),
+                Pickup=dict(singular="pickup", plural="pickups"),
+                Policecar=dict(singular="police car", plural="policecars"),
+                SUV=dict(singular="SUV", plural="SUVs"),
+                SchoolBus=dict(singular="school bus", plural="school buses"),
+                Sedan=dict(singular="sedan", plural="sedans"),
+                SportCar=dict(singular="sports car", plural="sports cars"),
+                Truck=dict(singular="truck", plural="trucks"),
+                Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+            )
+            if token in mapping.keys():
+                return mapping[token][form]
+            else:
+                return token.lower()
+
+        if "unique" not in self.template["constraint"]:
+            question = self.translate()
+            answer = self.answer()
+            if self.type == "type_identification":
+                answer = [type_token_string_converter(token, "singular").capitalize() for token in answer]
+            return [(question, answer)]
+        else:
+            qas = []
+            answer = self.answer()
+            # assume that for unique-constrained questions, the answer a dictionary of form {obj_id: answer}
+            for obj_id, answer in answer.items():
+                concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
+                rounded = (int(concrete_location[0]), int(concrete_location[1]))
+                question = self.translate("located at {} ".format(rounded))
+                if self.type == "type_identification_unique":
+                    answer = type_token_string_converter(answer, "singular").capitalize()
+                qas.append((question, (obj_id, answer)))
+            return qas
 
 
 def sample_tree():
-    text_tree = Tree(root = "<o>", max_depth = 5, grammar =  CFG_GRAMMAR)
+    text_tree = Tree(root="<o>", max_depth=4, grammar=CFG_GRAMMAR)
     text_tree.visualize()
     print(text_tree.build_functional(["unique"]))
     print(text_tree.translate())
+    print(text_tree.build_program(text_tree.build_functional(["unique"])))
+
+
+def try_graph():
+    episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+    import glob
+    # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
+    frame_files = sorted(glob.glob(episode_folder, recursive=True))
+    graph = TemporalGraph(frame_files)
+    for node in graph.get_nodes().values():
+        print(node.id, node.actions)
+    for node_id, node in graph.get_nodes().items():
+        print(node.id, node.interactions)
+
+
+def try_pipeline():
+    episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+    import glob
+    # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
+    frame_files = sorted(glob.glob(episode_folder, recursive=True))
+    graph = TemporalGraph(frame_files)
+
+    template_path = os.path.join("./vqa", "question_templates.json")
+    with open(template_path, "r") as f:
+        templates = json.load(f)
+
+    statistics = graph.statistics
+    grammar = CFG_GRAMMAR
+    for lhs, rhs in statistics.items():
+        if lhs == "<t>":
+            grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
+        elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+            grammar[lhs] = [[item] for item in rhs]
+        else:
+            grammar[lhs] = [[item] for item in rhs + ["nil"]]
+    #print(grammar)
+
+    templates = templates["generic"]
+    for question_type, specification in templates.items():
+
+        print(question_type)
+        q = DynamicQuerySpecifier(
+            type=question_type, template=specification, parameters=None,
+            graph=graph, grammar=CFG_GRAMMAR, debug=False, stats=False
+        )
+        result = q.export_qa()
+        while question_type == "color_identification_unique" and len(result)==0:
+            q = DynamicQuerySpecifier(
+                type=question_type, template=specification, parameters=None,
+                graph=graph, grammar=grammar, debug=False, stats=False
+            )
+            print(q.translate())
+            result = q.export_qa()
+        print(result)
 
 
 
 if __name__ == "__main__":
-   sample_tree()
+    try_pipeline()
+    #sample_tree()

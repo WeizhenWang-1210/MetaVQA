@@ -98,7 +98,7 @@ class SceneGraph:
 
     def get_nodes(self) -> Iterable[ObjectNode]:
         return list(self.nodes.values())
-    
+
     def get_ego_node(self)->ObjectNode:
         return self.nodes[self.ego_id]
     
@@ -150,9 +150,13 @@ class TemporalGraph:
                 if j != i:
                     self.nodes[i].analyze_interaction(self.nodes[j], self.idx_key_frame)
         self.key_frame_graph: SceneGraph = self.build_key_frame()
+        self.statistics = self.generate_statistics()
 
     def get_ego_node(self):
         return self.nodes[self.ego_id]
+
+    def get_node(self, node_id):
+        return self.nodes[node_id]
 
     def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
         positions = defaultdict(list)
@@ -285,17 +289,23 @@ class TemporalGraph:
         return key_graph
 
     def generate_statistics(self):
-        colors, types, actions, interactions = set(), set(), set(), set()
+        colors, types, actions, passive_deeds, active_deeds = set(), set(), set(), set(), set()
         for node in self.nodes.values():
             colors.add(node.color)
             types.add(node.type)
-            actions.add(node.actions)
-            interactions.add(list(node.interactions.keys()))
+            for action in node.actions:
+                actions.add(action)
+            for interaction in node.interactions.keys():
+                if interaction in ["followed","passed_by","headed_toward","accompanied_by"]:
+                    passive_deeds.add(interaction)
+                else:
+                    active_deeds.add(interaction)
         return {
             "<p>": list(colors),
             "<t>": list(types),
             "<s>": list(actions),
-            "<interactions>": list(interactions)
+            "<passive_deed>": list(passive_deeds),
+            "<active_deed>": list(active_deeds)
         }
 
 

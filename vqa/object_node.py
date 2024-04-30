@@ -220,8 +220,6 @@ class TemporalNode:
             actions.append("turn_left")
         elif dot(displacement, left_vector) < -1.5:
             actions.append("turn_right")
-        else:
-            actions.append("go_straight")
         pos_differential = 0
         prev_pos = self.positions[0]
         for pos in self.positions[1:now_frame + 1]:
