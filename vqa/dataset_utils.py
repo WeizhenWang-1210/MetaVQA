@@ -133,7 +133,8 @@ def position_frontback_relative_to_obj1(obj1_heading: Iterable[float], obj1_posi
     # Check the positions of obj2's extremes relative to obj1
     behind_count, front_count = 0, 0
     for point in obj2_extremes:
-        relative_position = dot(point, obj1_heading)
+        relative_position = point[0]-obj1_position[0], point[1]-obj1_position[1]
+        relative_position = dot(relative_position, obj1_heading)
         if relative_position < 0:
             behind_count += 1
         elif relative_position > 0:

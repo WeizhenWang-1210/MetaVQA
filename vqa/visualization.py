@@ -4,6 +4,7 @@ import json
 import os
 from PIL import Image
 import numpy as np
+import imageio
 
 
 def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, prefix="highlighted"):
@@ -26,7 +27,7 @@ def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, pre
 
 
 def multiview_visualization(images, output_path):
-    if len(images) != 6:
+    """if len(images) != 6:
         raise ValueError("Exactly 6 images are required.")
 
     # Open images using PIL
@@ -47,7 +48,44 @@ def multiview_visualization(images, output_path):
 
     # Save or show the new image
     grid_img.save(output_path)
-    # grid_img.show()
+    # grid_img.show()"""
+    imgs = [Image.open(img_path) for img_path in images]
+    grid_array= gridify_imarrays(imgs)
+    Image.fromarray(grid_array).save(output_path)
+
+def create_video(frame_arrays, filename):
+    """
+    frames in (h,w,c) numpy arrays, unint8
+    output_path should be str
+    create a mp4 video file implied
+    """
+    output_path = filename #f'{filename}.mp4'
+    fps = 10
+    writer = imageio.get_writer(output_path, fps=fps)
+    for frame in frame_arrays:
+        writer.append_data(frame)
+    writer.close()
+
+def gridify_imarrays(imarrays, orders=None)->np.ndarray:
+    """
+    Convert 6 images into 6 3 * 2 grid.
+    lf f rf          ^ +x
+    lb b rb    +y <--|
+    Assert images a list of numpy arrays in shape (h,w,c)
+    orders should be a list of len()
+    """
+    imgs = imarrays
+    if orders is not None:
+        for old_pos, new_pos in enumerate(orders):
+            imgs[new_pos] = imarrays[old_pos]
+    top_row = np.concatenate(imgs[:3], axis=1)
+
+    # Concatenate three arrays for the second row
+    bottom_row = np.concatenate(imgs[3:], axis=1)
+
+    # Concatenate the two rows to get the final grid shape
+    final_grid = np.concatenate((top_row, bottom_row), axis=0)
+    return final_grid
 
 
 if __name__ == "__main__":
@@ -56,7 +94,7 @@ if __name__ == "__main__":
     folder = "some_folder/10_40"
     generate_highlighted(path_to_mask, path_to_mapping, folder, ["3a056b4d-bf7a-438d-a633-1d7cef82e499","fa209feb-dadf-424f-ab54-a136d6166c73"],
                          [(1,1,1),(1,1,1)])"""
-    images = [
+    """images = [
         "verification_multiview/95_210_239/95_210/rgb_leftf_95_210.png",
         "verification_multiview/95_210_239/95_210/rgb_front_95_210.png",
         "verification_multiview/95_210_239/95_210/rgb_rightf_95_210.png",
@@ -71,11 +109,42 @@ if __name__ == "__main__":
         "verification_multiview/95_210_239/95_210/mask_leftb_95_210.png",
         "verification_multiview/95_210_239/95_210/mask_back_95_210.png",
         "verification_multiview/95_210_239/95_210/mask_rightb_95_210.png",
-    ]
+    ]"""
 
-    multiview_visualization(images, "verification_multiview/95_210_239/95_210/multiview_rgb_95_210.png")
-    multiview_visualization(masks, "verification_multiview/95_210_239/95_210/multiview_mask_95_210.png")
+    #multiview_visualization(images, "verification_multiview/95_210_239/95_210/multiview_rgb_95_210.png")
+    #multiview_visualization(masks, "verification_multiview/95_210_239/95_210/multiview_mask_95_210.png")
+    import glob
+
+    #episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_30_59/**/rgb_back*.json"
+
+    perspectives = ["leftf","front", "rightf","leftb","back", "rightb"]
+    imarrays = {
+        perspective:[] for perspective in perspectives
+    }
+    for perspective in perspectives:
+        path_template = f"C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_90_119/**/rgb_{perspective}*.png"
+        frame_files = sorted(glob.glob(path_template, recursive=True))
+        #print(frame_files)
+        imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
+    num_frames = len(imarrays[perspectives[0]])
+    print(num_frames)
+    concatenated_arrays = []
+    for frame in range(num_frames):
+        arrays = []
+        for perspective in perspectives:
+            arrays.append(imarrays[perspective][frame])
+        concatenated_arrays.append(gridify_imarrays(arrays))
+    create_video(concatenated_arrays, "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_90_119/episode_rgb.mp4")
 
 
-#chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
-#control signal/context inserted as text.
+    top_down_template = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_90_119/**/top_down*.png"
+    frame_files = sorted(glob.glob(top_down_template, recursive=True))
+    imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
+    create_video(imarrays, "C:/school/Bolei/Merging/metaVQA/verification_multiview/95_90_119/episode_top_down.mp4")
+
+
+
+
+
+# chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
+# control signal/context inserted as text.
