@@ -224,3 +224,12 @@ def order_points_clockwise(points):
 
     sorted_points = sorted(points, key=clockwise_around_center)
     return [list(point) for point in sorted_points]
+
+
+def majority_true(things, creterion=lambda x: x, threshold=0.8):
+    num_things = len(things)
+    num_true = 0
+    for thing in things:
+        if creterion(thing):
+            num_true += 1
+    return num_true / num_things >= threshold
