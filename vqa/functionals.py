@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Iterable, Callable
-from vqa.object_node import ObjectNode, transform
+from vqa.object_node import ObjectNode, transform, TemporalNode
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
@@ -8,9 +8,10 @@ def color_wrapper(colors: Iterable[str]) -> Callable:
     Constructor for a function that return all nodes with color in colors
     '''
 
-    def color(candidates: Iterable[ObjectNode]):
+    def color(candidates: Iterable[ObjectNode | TemporalNode]):
         results = []
         for candidate in candidates:
+            #for TemporalNode, will invoke the property decorator.
             if candidate.visible and candidate.color in colors:
                 results.append(candidate)
         return results
@@ -22,9 +23,7 @@ def type_wrapper(types: Iterable[str]) -> Callable:
     '''
     Constructor for a function that return all nodes with type in types or is a subtype of type in types
     '''
-
-    # print(types)
-    def type(candidates: Iterable[ObjectNode]):
+    def type(candidates: Iterable[ObjectNode| TemporalNode]):
         # print(candidates)
         if not candidates:
             return []
@@ -85,63 +84,31 @@ def state_wrapper(states: Iterable[str]) -> Callable:
     """
     Constructor for a function that return all nodes with one state in states
     """
-
-    # TODO
-    # Now the lambda functions only work with the vehicle's state at one frame. However,
-    # we wish to do it over multiple frames to have stable behavior.
-    def state(candidates: Iterable[ObjectNode]):
-        map = dict(
-            nil=lambda x: True,
-            visible=lambda x: x.visible,
-            parked=lambda x: x.speed == 0,
-            moving=lambda x: x.speed > 0,
-            ccelerating=lambda x: x.states and x.states["accleration"] > 0.1,
-            decelerating=lambda x: x.states and x.states["accleration"] < -0.1,
-            turning=lambda x: x.states and x.states["steering"] != 0,
-        )
-        # print(candidates)
-        if not candidates:
-            return []
+    def state(candidates: Iterable[TemporalNode]):
         results = []
         for candidate in candidates:
-            if not candidate.visible:
-                continue
-            # print(candidate)
             for s in states:
-                # print(candidate.type, t)
-                if map[s](candidate):
-                    results.append(candidate)
+                if s in candidate.actions:
+                    return candidate
         return results
 
     return state
 
 
-def action_wrapper(egos: Iterable[ObjectNode], actions: Iterable[str]) -> Callable:
+def action_wrapper(egos: Iterable[TemporalNode], actions: Iterable[str]) -> Callable:
     """
     Return a function that takes an iterable of ObjectNode and return an iterable of ObjectNode satisfying the
     given actions, or an empty Iterable if no actions are satisfied.
     """
 
-    def act(candidates: Iterable[ObjectNode]):
+    def act(candidates: Iterable[TemporalNode]):
         results = []
         for candidate in candidates:
-            if not candidate.visible:
-                continue
             for ego in egos:
                 for action in actions:
                     # if candidate performed action against one ego
-                    if action == "collides":
-                        if ego in candidate.collision:
-                            results.append(candidate)
-                    elif action == "turn_left":
-                        if candidate.states.steering < 0.1:
-                            results.append(candidate)
-                    elif action == "turn_right":
-                        if candidate.states.steering > 0.1:
-                            results.append(candidate)
-                    else:
-                        if action in candidate.actions.keys() and ego in candidate.actions[action]:
-                            results.append(candidate)
+                    if ego in candidate.interactions[action]:
+                        results.append(candidate)
         return results
 
     return act
@@ -155,6 +122,7 @@ def pos_wrapper(egos: Iterable[ObjectNode], spatial_relationships: Iterable[str]
     """
 
     def pos(candidates: Iterable[ObjectNode]):
+
         results = []
         for candidate in candidates:
             if not candidate.visible:
