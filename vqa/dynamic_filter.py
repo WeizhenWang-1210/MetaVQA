@@ -11,7 +11,6 @@ from typing import Iterable
 import numpy as np
 
 
-
 class DynamicFilter:
     def __init__(self, scene_folder, sample_frequency: int, episode_length: int, skip_length: int):
         self.scene_folder = scene_folder
@@ -334,7 +333,10 @@ class TemporalNode:
         if interaction is not None:
             self.interaction = interaction
         else:
-            self.interaction = [] # interaction record is (other_node, action_name)
+            self.interaction = {
+                "active": [],
+                "passive": []
+            }  # interaction record is (other_node, action_name)
         self.actions = self.summarize_action(self.now_frame)  # intrinsic actions that can be summarized independently.
 
     def future_positions(self, now_frame, pred_frames=None):
@@ -361,7 +363,7 @@ class TemporalNode:
         final_pos = self.positions[now_frame]
         init_pos = self.positions[0]
         displacement = final_pos[0] - init_pos[0], final_pos[1] - init_pos[1]
-        #print(self.id, dot(displacement, left_vector))
+        # print(self.id, dot(displacement, left_vector))
         if dot(displacement, left_vector) > 1.5:
             actions.append("turn_left")
         elif dot(displacement, left_vector) < -1.5:
@@ -380,11 +382,13 @@ class TemporalNode:
         speed_differentials = []
         prev_speed = self.speeds[0]
         for speed in self.speeds[1:now_frame + 1]:
-            speed_differentials.append(speed-prev_speed)
+            speed_differentials.append(speed - prev_speed)
             prev_speed = speed
-        if majority_true(speed_differentials, lambda x : x > 0) and self.speeds[now_frame] > self.speeds[0] and std_speed > 1:
+        if majority_true(speed_differentials, lambda x: x > 0) and self.speeds[now_frame] > self.speeds[
+            0] and std_speed > 1:
             actions.append("acceleration")
-        elif majority_true(speed_differentials, lambda x : x < 0) and self.speeds[now_frame] < self.speeds[0] and std_speed > 1:
+        elif majority_true(speed_differentials, lambda x: x < 0) and self.speeds[now_frame] < self.speeds[
+            0] and std_speed > 1:
             actions.append("deceleration")
         return actions
 
@@ -403,15 +407,18 @@ class TemporalNode:
                     return 0
                 else:
                     return -1
+
             def close_point(obj1, obj2):
                 min_distance = float("inf")
-                for step in range(now_frame+1):
+                for step in range(now_frame + 1):
                     min_distance = min(min_distance, get_distance(obj1.positions[step], obj2.positions[step]))
                 return min_distance
+
             closest_distance = close_point(center, other)
-            signs = [sign_onestep(center, other, i) for i in range(now_frame+1)]
+            signs = [sign_onestep(center, other, i) for i in range(now_frame + 1)]
             return signs[0] < 0 < signs[-1] and (closest_distance < 5)
-        def head_toward(center,other):
+
+        def head_toward(center, other):
             def head_toward_onestep(obj1, obj2, step_id):
                 # check if single step satisfy the follow condition
                 obj1_pos = obj1.positions[step_id]
@@ -420,9 +427,11 @@ class TemporalNode:
                 obj2_heading = obj2.headings[step_id]
                 obj2_obj1 = [obj2_pos[0] - obj1_pos[0], obj2_pos[1] - obj1_pos[1]]
                 heading_checker = dot(obj2_heading, obj2_obj1) < 0 and dot(obj1_heading, obj2_obj1) > 0
-                return heading_checker
-            signs = [head_toward_onestep(center, other, i) for i in range(now_frame+1)]
-            return majority_true(signs)#all(signs)
+                return heading_checker and obj2.speeds[step_id] > 0
+
+            signs = [head_toward_onestep(center, other, i) for i in range(now_frame + 1)]
+            return majority_true(signs)  # all(signs)
+
         def follow(center, other):
 
             def follow_one_step(obj1, obj2, step_id):
@@ -431,10 +440,12 @@ class TemporalNode:
                 obj1_heading = obj1.headings[step_id]
                 obj2_heading = obj2.headings[step_id]
                 obj2_obj1 = [obj2_pos[0] - obj1_pos[0], obj2_pos[1] - obj1_pos[1]]
-                heading_checker = dot(obj2_heading, obj2_obj1) < 0 and dot(obj1_heading, obj2_obj1) < -2 and norm(obj2_obj1) < 10
-                return heading_checker
-            flags= [follow_one_step(center, other, i) for i in range(now_frame+1)]
-            return majority_true(flags)#all(flags)
+                heading_checker = dot(obj2_heading, obj2_obj1) < 0 and dot(obj1_heading, obj2_obj1) < -2 and norm(
+                    obj2_obj1) < 10
+                return heading_checker and obj1.speeds[step_id] > 0 and obj2.speeds[step_id] > 0
+
+            flags = [follow_one_step(center, other, i) for i in range(now_frame + 1)]
+            return majority_true(flags)  # all(flags)
 
         def drive_alongside(center, other):
             def alongside_onestep(obj1, obj2, step_id):
@@ -448,35 +459,40 @@ class TemporalNode:
                 heading_checker = dot(obj1_heading, obj2_heading) > 0.8
                 frontback_checker = position_frontback_relative_to_obj1(obj1_heading, obj1_pos, obj2_bbox) == "overlap"
                 rightleft_checker = position_left_right_relative_to_obj1(obj1_heading, obj1_pos, obj2_bbox) != "overlap"
-                return distance_checker and heading_checker and frontback_checker and rightleft_checker
-            flags = [alongside_onestep(center, other, i) for i in range(now_frame + 1)]
-            #print(flags)
-            return majority_true(flags)#all(flags)
+                return distance_checker and heading_checker and frontback_checker and rightleft_checker and obj1.speeds[step_id] > 0  and obj2.speeds[step_id] > 0
 
+            flags = [alongside_onestep(center, other, i) for i in range(now_frame + 1)]
+            # print(flags)
+            return majority_true(flags)  # all(flags)
 
         pass_by_flag = pass_by(self, other)
         if pass_by_flag:
-            self.interaction.append(("pass_by", other.id))
+            self.interaction["passive"].append(("pass_by", other.id))
+            other.interaction["active"].append(("pass_by", self.id))
         head_toward_flag = head_toward(self, other)
         if head_toward_flag:
-            self.interaction.append(("head_toward", other.id))
+            self.interaction["passive"].append(("head_toward", other.id))
+            other.interaction["active"].append(("head_toward", self.id))
         follow_flag = follow(self, other)
         if follow_flag:
-            self.interaction.append(("follow", other.id))
-        alongside_flag = drive_alongside(self,other)
+            self.interaction["passive"].append(("follow", other.id))
+            other.interaction["active"].append(("follow", self.id))
+        alongside_flag = drive_alongside(self, other)
         if alongside_flag:
-            self.interaction.append(("alongside", other.id))
+            self.interaction["passive"].append(("drive_alongside", other.id))
+            other.interaction["active"].append(("drive_alongside", self.id))
 
     def __str__(self):
         return self.id
 
-def majority_true(things, creterion = lambda x: x, threshold=0.8):
+
+def majority_true(things, creterion=lambda x: x, threshold=0.8):
     num_things = len(things)
     num_true = 0
     for thing in things:
         if creterion(thing):
             num_true += 1
-    return num_true/num_things >= threshold
+    return num_true / num_things >= threshold
 
 
 class TemporalGraph:
@@ -510,7 +526,7 @@ class TemporalGraph:
         self.nodes: Iterable[TemporalNode] = self.build_nodes(self.node_ids, self.frames)
         for i in self.nodes.keys():
             for j in self.nodes.keys():
-                if j != i :
+                if j != i:
                     self.nodes[i].analyze_interaction(self.nodes[j], self.idx_key_frame)
         self.key_frame_graph: SceneGraph = self.build_key_frame()
 
@@ -647,12 +663,13 @@ class TemporalGraph:
         )
         return key_graph
 
+
 if __name__ == "__main__":
     """scene_folder = "E:\\Bolei\\MetaVQA\\temporal"
     dynamic_filter = DynamicFilter(scene_folder)
     objects_info = dynamic_filter.load_scene()
     print(objects_info[list(objects_info.keys())[0]])"""
-    episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+    episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
     import glob
     import json
 

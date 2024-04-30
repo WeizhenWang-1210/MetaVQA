@@ -4,16 +4,16 @@ CFG_GRAMMAR = {
         ["us"]
     ],
     "<s>":[
-        ["nil"],["visible"],["parked"],["moving"],["accelerating"],["decelerating"],["turning"]
+        ["nil"],["parked"],["moving"],["accelerating"],["decelerating"], ["turn_left"], ["turn_right"]
     ],
     "<a>":[
-        ["nil"], ["<deed_with_o>","<o>"],["<deed_without_o>"]
+        ["nil"], ["<passive_deed>","<o>"],["<active_deed>","<o>"]
     ],
-    "<deed_with_o>":[
-        ["follow"],["pass by"],["collide with"],["head toward"],["drive alongside"]
+    "<passive_deed>":[
+        ["followed"],["passed_by"],["headed_toward"],["accompanied_by"]
     ],
-    "<deed_without_o>":[
-        ["turn right"], ["turn left"]
+    "<active_deed>":[
+        ["follow"],["pass_by"],["head_toward"],["move_alongside"],
     ],
     "<p>":[
         ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],

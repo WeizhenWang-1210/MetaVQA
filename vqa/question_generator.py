@@ -83,10 +83,6 @@ class Tree:
     def build_functional(self, constraints) -> dict:
         self.constriants = constraints
         unique_flag = "unique" in constraints
-        """no_color_flag = "no_color" in constraints
-        if no_color_flag:
-            self.grammar = NO_COLOR_STATIC
-            print("here")"""
         results = dict()
 
         def recur_build_o(root_o, idx):
@@ -242,22 +238,34 @@ class Tree:
                 return token.lower()
 
         def state_token_string_converter(token):
-            if token == "visible" or token == "nil":
-                return ""
-            return token
-
-        def action_token_string_converter(token, form):
             map = {
-                "follow": dict(singular="follows", plural="follow"),
-                "pass by": dict(singular="passes by", plural="pass by"),
-                "collide with": dict(singular="collides with", plural="collide with"),
-                "head toward": dict(singular="heads toward", plural="head toward"),
-                "drive alongside": dict(singular="drives alongside", plural="drive alongside"),
-                "nil": dict(singular="", plural=""),
-                "turn left": dict(singular="turns left", plural="turn left"),
-                "turn right": dict(singular="turns right", plural="turn right"),
-
+                "nil": "",
+                "parked":"parked",
+                "accelerating":"accelerating",
+                "decelerating":"decelerating",
+                "turn_left":"left-turning",
+                "turn_right":"right-turning",
+                "moving":"moving"
             }
+            return map[token]
+
+        def action_token_string_converter(token, form, agency):
+            if agency == "active":
+                map = {
+                    "followed": dict(singular="is followed by", plural="are followed by"),
+                    "passed_by": dict(singular="is passed by", plural="are passed by"),
+                    "headed_toward": dict(singular="is headed toward by", plural="are headed toward by"),
+                    "accompanied_by": dict(singular="is accompanied by", plural="are accompanied by"),
+                    "nil": dict(singular="", plural=""),
+                }
+            else:
+                map = {
+                    "follow": dict(singular="follows", plural="follow"),
+                    "pass_by": dict(singular="passes by", plural="pass by"),
+                    "head_toward": dict(singular="heads toward", plural="head toward"),
+                    "move_alongside": dict(singular="moves alongside with", plural="move alongside with"),
+                    "nil": dict(singular="", plural=""),
+                }
             return map[token][form]
 
         def recur_translate(obj_id):
@@ -302,14 +310,19 @@ class Tree:
                     print("warning!")
                 a = ''
                 if isinstance(object_dict[obj_id]['<a>'], str):
-                    a = action_token_string_converter(object_dict[obj_id]['<a>'], form)
+                    a = action_token_string_converter(object_dict[obj_id]['<a>'], form, "passive")
                 elif isinstance(object_dict[obj_id]['<a>'], dict):
-                    if '<deed_with_o>' in object_dict[obj_id]['<a>'].keys():
-                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_with_o>'], form)
+                    if '<passive_deed>' in object_dict[obj_id]['<a>'].keys():
+                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<passive_deed>'], form, "active")
+                        new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
+                        a = deed_with_o + ' ' + new_o
+                    elif "<active_deed>" in object_dict[obj_id]['<a>'].keys():
+                        deed_with_o = action_token_string_converter(object_dict[obj_id]['<a>']['<active_deed>'], form, "passive")
                         new_o = recur_translate(object_dict[obj_id]['<a>']["<o>'s id"])
                         a = deed_with_o + ' ' + new_o
                     else:
-                        a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'], form)
+                        print("warning!shouldn't be reachable")
+                        #a = action_token_string_converter(object_dict[obj_id]['<a>']['<deed_without_o>'], form)
                 else:
                     print("warning!")
                 result = ""

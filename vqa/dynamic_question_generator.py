@@ -1,12 +1,16 @@
 from typing import Union
+
+from nltk import CFG
+
 from vqa.dynamic_filter import TemporalNode, TemporalGraph
 from question_generator import Tnode, Tree, SubQuery, Query, CACHE
 from collections import defaultdict
+from vqa.grammar import CFG_GRAMMAR
 import json
 
 from vqa.visualization import generate_highlighted
 
-
+"""
 class DynamicQuerySpecifier:
     def __init__(self, type:str, template: dict, parameters: Union[dict, None], graph: TemporalGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
@@ -14,7 +18,7 @@ class DynamicQuerySpecifier:
         self.template = template
         self.signature = None
         self.graph = graph
-        self.key_frame = self.graph.key_frame
+        self.key_frame = self.graph.idx_key_frame
         self.debug = debug
         self.grammar = grammar
         self.stats = stats
@@ -39,14 +43,14 @@ class DynamicQuerySpecifier:
             )
             if param[1] == "o":
                 start_symbol = "<o>"
-                param_tree = Tree(start_symbol, 4, self.grammar)
+                param_tree = Tree(start_symbol, 6, self.grammar)
 
                 while param_tree.depth <= 2:
-                    param_tree = Tree(start_symbol, 4, self.grammar)
+                    param_tree = Tree(start_symbol, 6, self.grammar)
             else:
                 print("No fucking way I'm executed")
                 start_symbol = param
-                param_tree = Tree(start_symbol, 4, self.grammar)
+                param_tree = Tree(start_symbol, 6, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
             local["en"] = param_tree.translate()
             #param_tree.visualize()
@@ -129,10 +133,6 @@ class DynamicQuerySpecifier:
                 self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
 
     def generate_mask(self, id):
-        """
-        Create a mask corresponding to the answer of a problem
-
-        """
         parent_folder = os.path.dirname(self.graph.folder)
         identifier = os.path.basename(parent_folder)
         path_to_mask = os.path.join(parent_folder, f"mask_{id}.png")
@@ -153,14 +153,16 @@ class DynamicQuerySpecifier:
             ids,
             colors
         )
+"""
 
 
-
-
+def sample_tree():
+    text_tree = Tree(root = "<o>", max_depth = 5, grammar =  CFG_GRAMMAR)
+    text_tree.visualize()
+    print(text_tree.build_functional(["unique"]))
+    print(text_tree.translate())
 
 
 
 if __name__ == "__main__":
-    #print("hello")
-    #main()
-    some_tree("verification/9_41_80/9_41/world_9_41.json")
+   sample_tree()
