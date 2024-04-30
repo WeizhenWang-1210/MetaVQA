@@ -81,7 +81,7 @@ def annotate_color(object):
 def annotate_states(object):
     states = dict()
     if isinstance(object, CustomizedCar) or isinstance(object, BaseVehicle):
-        states["accleration"] = object.throttle_brake
+        states["acceleration"] = object.throttle_brake
         states["steering"] = object.steering
     return states
 
