@@ -1,6 +1,8 @@
+import math
 from typing import Iterable
 from collections import defaultdict
-from vqa.object_node import ObjectNode, nodify
+
+from vqa.object_node import ObjectNode, nodify, TemporalNode
 import os
 import json
 class RoadGraph:
@@ -93,20 +95,7 @@ class SceneGraph:
             return 0
         else:
             return 1
-        
-    """def check_sameSide(self, node1:str, node2:str):
-        n1, n2 = self.nodes[node1], self.nodes[node2]
-        return self.road_graph.reachable(n1.lane[0],n2.lane[0]) or\
-                self.road_graph.reachable(n2.lane[0],n1.lane[0])"""
-    
-    """def check_sameStreet(self, node1:str, node2:str):
-        n1, n2 = self.nodes[node1], self.nodes[node2]
-        return self.check_sameSide(node1,node2) or\
-                self.road_graph.reachable('-'+n1.lane[0],n2.lane[0]) or\
-                self.road_graph.reachable(n2.lane[0],'-'+n1.lane[0]) or\
-                self.road_graph.reachable(n1.lane[0],'-'+n2.lane[0]) or\
-                self.road_graph.reachable('-'+n2.lane[0],n1.lane[0])"""
-    
+
     def get_nodes(self) -> Iterable[ObjectNode]:
         return list(self.nodes.values())
     
@@ -126,54 +115,191 @@ class SceneGraph:
             "<p>":list(colors),
             "<t>":list(types)
         }
-    
-    
-class EpisodicGraph:
-    def __init__(self) -> None:
-        self.frames = {}
-        self.final_frame = None
-    
-    def load(self, root_folder, frame_names, interaction_path):
-        def find_collision_pairs(scene_dict):
-            results = []
-            results += [tuple(sorted([scene_dict["ego"], other])) for other in scene_dict["ego"]["collisions"]]
-            for node in scene_dict["objects"]:
-                results += [tuple(sorted([node.id, other])) for other in node["collisions"]]
-            return results
-        index = 0
-        frame_paths = sorted(frame_names)
-        collision_pairs = []
-        for frame_name in frame_paths:
-            if os.path.isdir(os.path.join(root_folder, frame_name)):
-                frame_path = os.path.join(root_folder, frame_name)
-                json_path = os.path.join(frame_path,"world_{}.json".format(frame_name))
-                try:
-                    with open(json_path, "r") as file:
-                        scene_dict = json.load(file)
-                except Exception as e:
-                    raise e
-                ego_id, nodes = nodify(scene_dict)
-                collision_pairs+=find_collision_pairs(scene_dict)
-                frame_graph = SceneGraph(ego_id, nodes, json_path)
-                self.frames[index] = frame_graph
-                index += 1
-                
-            
-        self.final_frame = self.frames[index-1]
-        try:
-            with open(interaction_path,"r") as file:
-                interaction = json.load(file)
-        except Exception as e:
-            raise e
-        for action, pairs in interaction.items():
-            #l is being affected by r
-            for l, r in pairs:
-                self.final_frame.nodes[r].actions[action] = l
-        collision_pairs = set(collision_pairs)
-        #record all collision event in the last frame
-        for l,r in collision_pairs:
-            self.final_frame.nodes[l].collision.append(r)
-            self.final_frame.node[r].collision.append(l)
+
+class TemporalGraph:
+    def __init__(self, framepaths, observable_at_key=True, tolerance=0.8):
+        """
+        We ask questions based on the observation_phase and return answr for the prediction phase
+        Note that in MetaDrive each step is 0.1s
+        Will give attempt to give 2 seconds of observation and half seconds of prediction phase
+        So, observation phase = 20 and prediction phase = 5
+        Each graph will store the path to the original annotation("For statistics purpose") and also the loaded information
+
+        """
+
+        self.observation_phase = 0.8  # This is the percentage of frames belonging into observation. The last frame
+        # is "present"
+        self.prediction_phase = 1.0 - self.observation_phase
+        self.tolerance = tolerance  # The percentage(of observation phase) of being observable for objects to be
+        # considered in the graph.
+        self.observable_at_key = observable_at_key  # enforce that the objects referred must be observable at the key
+        # frame.
+        self.framepaths: list[str] = framepaths
+        self.frames: list[dict] = [json.load(open(framepath, "r")) for framepath in framepaths]
+
+        self.num_observation_frames = math.floor(len(self.framepaths) * self.observation_phase)
+        self.num_prediction_frames = len(self.framepaths) - self.num_observation_frames
+        self.idx_key_frame = self.num_observation_frames - 1  # since 0-indexed. The past is [0,self._idx_key_frame]
+        self.node_ids: Iterable[str] = self.find_node_ids(self.frames, self.observable_at_key, self.tolerance)
+        self.ego_id: str = self.frames[0]["ego"]["id"]
+        assert all([self.frames[i]["ego"]["id"] == self.ego_id for i in
+                    range(len(self.frames))]), "Ego changed during this period."
+        self.nodes: dict[str, TemporalNode] = self.build_nodes(self.node_ids, self.frames)
+        for i in self.nodes.keys():
+            for j in self.nodes.keys():
+                if j != i:
+                    self.nodes[i].analyze_interaction(self.nodes[j], self.idx_key_frame)
+        self.key_frame_graph: SceneGraph = self.build_key_frame()
+
+    def get_ego_node(self):
+        return self.nodes[self.ego_id]
+
+    def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
+        positions = defaultdict(list)
+        headings = defaultdict(list)
+        colors = defaultdict(str)
+        types = defaultdict(str)
+        observing_cameras = defaultdict(list)
+        speeds = defaultdict(list)
+        bboxes = defaultdict(list)
+        heights = defaultdict(list)
+        states = defaultdict(list)
+        collisions = defaultdict(list)
+        actions = defaultdict(dict)  # need to analyze inter-object actions later.
+        temporal_nodes = {}
+        for timestamp, frame in enumerate(frames):
+            for object in frame["objects"]:
+                if object["id"] in node_ids:
+                    positions[object["id"]].append(object["pos"])
+                    headings[object["id"]].append(object["heading"])
+                    colors[object["id"]] = object["color"]
+                    types[object["id"]] = object["type"]
+                    observing_cameras[object["id"]].append(object["observing_camera"])
+                    speeds[object["id"]].append(object["speed"])
+                    bboxes[object["id"]].append(object["bbox"])
+                    heights[object["id"]].append(object["height"])
+                    states[object["id"]].append(object["states"])
+                    collisions[object["id"]].append(object["collisions"])
+
+            positions[self.ego_id].append(frame["ego"]["pos"])
+            headings[self.ego_id].append(frame["ego"]["heading"])
+            colors[self.ego_id] = frame["ego"]["color"]
+            types[self.ego_id] = frame["ego"]["type"]
+            observing_cameras[self.ego_id].append(frame["ego"]["observing_camera"])
+            speeds[self.ego_id].append(frame["ego"]["speed"])
+            bboxes[self.ego_id].append(frame["ego"]["bbox"])
+            heights[self.ego_id].append(frame["ego"]["height"])
+            states[self.ego_id].append(frame["ego"]["states"])
+            collisions[self.ego_id].append(frame["ego"]["collisions"])
+
+        for node_id in node_ids:
+            temporal_node = TemporalNode(
+                id=node_id, now_frame=self.idx_key_frame, type=types[node_id], height=heights[node_id],
+                positions=positions[node_id],
+                color=colors[node_id], speeds=speeds[node_id], headings=headings[node_id], bboxes=bboxes[node_id],
+                observing_cameras=observing_cameras[node_id], states=states[node_id], collisions=collisions[node_id],
+            )
+            temporal_nodes[node_id] = temporal_node
+        return temporal_nodes
+
+    def find_node_ids(self, frames, observable_at_key=True, noise_tolerance=0.8) -> Iterable[str]:
+        """
+        Not including the ego_id
+        We consider objects that are observable for the noise_tolerance amount
+        of time(also, must be observable at key frame) for the observation period and still exist in the prediction phase
+        """
+        observation_frames = self.num_observation_frames
+        prediction_frames = self.num_prediction_frames
+        observable_at_t = {
+            t: set() for t in range(observation_frames)
+        }
+        exist_at_t = {
+            t: set() for t in range(observation_frames, observation_frames + prediction_frames)
+        }
+        all_nodes = set()
+        for i in range(observation_frames):
+            for obj in frames[i]["objects"]:
+                if obj["visible"]:
+                    observable_at_t[i].add(obj["id"])
+                all_nodes.add(obj["id"])
+        for i in range(observation_frames, observation_frames + prediction_frames):
+            for obj in frames[i]["objects"]:
+                exist_at_t[i].add(obj["id"])
+                all_nodes.add(obj["id"])
+        final_nodes = set()
+        for node in all_nodes:
+            observable_frame = 0
+            for nodes_observable in observable_at_t.values():
+                if node in nodes_observable:
+                    observable_frame += 1
+            if observable_frame / observation_frames >= noise_tolerance:
+                if (not observable_at_key) or (node in observable_at_t[self.idx_key_frame]):
+                    final_nodes.add(node)
+        for nodes_exist in exist_at_t.values():
+            final_nodes = final_nodes.intersection(nodes_exist)
+        final_nodes.add(frames[0]["ego"]["id"])
+        return final_nodes
+
+    def get_nodes(self):
+        return self.nodes
+
+    def build_key_frame(self) -> SceneGraph:
+        key_frame_annotation = self.frames[self.idx_key_frame]  # json.load(open(key_frame_path, "r"))
+        nodes = []
+        ego_id = key_frame_annotation["ego"]["id"]
+        ego_dict = key_frame_annotation['ego']
+        ego_node = ObjectNode(
+            pos=ego_dict["pos"],
+            color=ego_dict["color"],
+            speed=ego_dict["speed"],
+            heading=ego_dict["heading"],
+            id=ego_dict['id'],
+            bbox=ego_dict['bbox'],
+            height=ego_dict['height'],
+            type=ego_dict['type'],
+            lane=ego_dict['lane'],
+            visible=ego_dict["visible"],
+            states=ego_dict["states"],
+            collisions=ego_dict["collisions"]
+        )
+        nodes.append(ego_node)
+        for info in key_frame_annotation["objects"]:
+            if info["id"] in self.node_ids:
+                nodes.append(ObjectNode(
+                    pos=info["pos"],
+                    color=info["color"],
+                    speed=info["speed"],
+                    heading=info["heading"],
+                    id=info['id'],
+                    bbox=info['bbox'],
+                    height=info['height'],
+                    type=info['type'],
+                    lane=info['lane'],
+                    visible=info['visible'],
+                    states=info["states"],
+                    collisions=info["collisions"])
+                )
+        key_graph = SceneGraph(
+            ego_id=ego_id, nodes=nodes, folder=self.framepaths[self.idx_key_frame]
+        )
+        return key_graph
+
+    def generate_statistics(self):
+        colors, types, actions, interactions = set(), set(), set(), set()
+        for node in self.nodes.values():
+            colors.add(node.color)
+            types.add(node.type)
+            actions.add(node.actions)
+            interactions.add(list(node.interactions.keys()))
+        return {
+            "<p>": list(colors),
+            "<t>": list(types),
+            "<s>": list(actions),
+            "<interactions>": list(interactions)
+        }
+
+
+
 
 
 
@@ -183,5 +309,4 @@ if __name__ == "__main__":
                        frame_names= os.listdir("C:/school/Bolei/metavqa/verification/10_50_99"),
                        interaction_path= "C:/school/Bolei/metavqa/verification/10_50_99/interaction.json"
                        )
-        
-                
+
