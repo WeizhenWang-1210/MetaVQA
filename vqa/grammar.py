@@ -31,7 +31,41 @@ CFG_GRAMMAR = {
     ]
 }
 
+NO_STATE_CFG = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"]
+    ],
+    "<a>": [
+        ["nil"], ["<passive_deed>", "<o>"], ["<active_deed>", "<o>"]
+    ],
+    "<passive_deed>": [
+        ["followed"], ["passed_by"], ["headed_toward"], ["accompanied_by"]
+    ],
+    "<active_deed>": [
+        ["follow"], ["pass_by"], ["head_toward"], ["move_alongside"],
+    ],
+    "<p>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
+    ],
+    "<t>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<o>"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ]
 
+}
 
 STATIC_GRAMMAR = {
     "<o>":[

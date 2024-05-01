@@ -11,7 +11,7 @@ def color_wrapper(colors: Iterable[str]) -> Callable:
     def color(candidates: Iterable[ObjectNode | TemporalNode]):
         results = []
         for candidate in candidates:
-            #for TemporalNode, will invoke the property decorator.
+            # for TemporalNode, will invoke the property decorator.
             if candidate.visible and candidate.color in colors:
                 results.append(candidate)
         return results
@@ -23,7 +23,8 @@ def type_wrapper(types: Iterable[str]) -> Callable:
     '''
     Constructor for a function that return all nodes with type in types or is a subtype of type in types
     '''
-    def type(candidates: Iterable[ObjectNode| TemporalNode]):
+
+    def type(candidates: Iterable[ObjectNode | TemporalNode]):
         # print(candidates)
         if not candidates:
             return []
@@ -84,6 +85,7 @@ def state_wrapper(states: Iterable[str]) -> Callable:
     """
     Constructor for a function that return all nodes with one state in states
     """
+
     def state(candidates: Iterable[TemporalNode]):
         results = []
         for candidate in candidates:
@@ -104,7 +106,7 @@ def action_wrapper(egos: Iterable[TemporalNode], actions: Iterable[str]) -> Call
     def act(candidates: Iterable[TemporalNode]):
         results = []
         for candidate in candidates:
-            #print(candidate)
+            # print(candidate)
             for ego in egos:
                 for action in actions:
                     # if candidate performed action against one ego
@@ -261,3 +263,65 @@ def motion_Pred(search_spaces):
     for search_space in search_spaces:
         for obj in search_space:
             future_dict[obj.id] = obj.get
+
+
+def is_stationary(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for object in search_space:
+            result[object.id] = "parked" in object.actions
+    return result
+
+
+def is_turning(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for object in search_space:
+            result[object.id] = ("turn_left" in object.actions) or ("turn_right" in object.actions)
+    return result
+
+
+def accelerated(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for object in search_space:
+            result[object.id] = "accelerated" in object.actions
+    return result
+
+
+def identify_speed(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for object in search_space:
+            result[object.id] = object.speed
+    return result
+
+
+def identify_heading(search_spaces):
+    result = {}
+    for search_space in search_spaces:
+        for object in search_space:
+            result[object.id] = object.heading
+    return result
+
+
+def identify_head_toward(ego):
+    def helper(search_spaces):
+        result = {}
+        for search_space in search_spaces:
+            for object in search_space:
+                result[object.id] = ego.id in object.interactions["head_toward"]
+        return result
+
+    return helper
+
+
+def predict_trajectory(now_frame):
+    def helper(search_spaces):
+        result = {}
+        for search_space in search_spaces:
+            for object in search_space:
+                result[object.id] = object.future_bboxes(now_frame)
+        return result
+
+    return helper

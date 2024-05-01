@@ -216,9 +216,9 @@ class TemporalNode:
         init_pos = self.positions[0]
         displacement = final_pos[0] - init_pos[0], final_pos[1] - init_pos[1]
         # print(self.id, dot(displacement, left_vector))
-        if dot(displacement, left_vector) > 1.5:
+        if dot(displacement, left_vector) > 3:
             actions.append("turn_left")
-        elif dot(displacement, left_vector) < -1.5:
+        elif dot(displacement, left_vector) < -3:
             actions.append("turn_right")
         pos_differential = 0
         prev_pos = self.positions[0]
@@ -350,6 +350,10 @@ class TemporalNode:
     @property
     def heading(self):
         return self.headings[self.now_frame]
+
+    @property
+    def speed(self):
+        return self.speeds[self.now_frame]
 
     def leftORright(self, node, ref_heading: Iterable[float]) -> int:
         """

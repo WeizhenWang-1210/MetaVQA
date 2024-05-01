@@ -3,15 +3,17 @@ from vqa.scene_graph import TemporalGraph
 from question_generator import Tree, SubQuery, Query, CACHE
 from vqa.functionals import Identity
 from collections import defaultdict
-from vqa.grammar import CFG_GRAMMAR
+from vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
 import json
 import os
 from vqa.visualization import generate_highlighted
 import random
 
-from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
+from vqa.functionals import is_stationary, count, \
     CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
-    extract_type_unique
+    extract_type_unique, is_turning, identify_speed, identify_heading, identify_head_toward, predict_trajectory, \
+    accelerated
+
 from typing import Callable, Dict
 from vqa.object_node import transform
 
@@ -92,6 +94,14 @@ class DynamicQuerySpecifier:
             extract_color_unique=extract_color_unique,
             extract_type=extract_type,
             extract_type_unique=extract_type_unique,
+            is_stationary=is_stationary,
+            is_turning=is_turning,
+            accelerated=accelerated,
+            identify_speed=identify_speed,
+            identify_heading=identify_heading,
+            identify_head_toward=identify_head_toward(self.graph.get_ego_node()),
+            predict_trajectory=predict_trajectory(self.key_frame)
+
             # TODO add end filter for dynamic questions
         )
         return mapping[string]
@@ -135,7 +145,6 @@ class DynamicQuerySpecifier:
             )
         if self.stats:
             self.generate_statistics(param_answers)
-
         return end_filter(param_answers)
 
     def generate_statistics(self, params):
@@ -217,8 +226,8 @@ def sample_tree():
     print(text_tree.build_program(text_tree.build_functional(["unique"])))
 
 
-def try_graph():
-    episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+def try_graph(episode):
+    episode_folder = episode  # "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
     import glob
     # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
     frame_files = sorted(glob.glob(episode_folder, recursive=True))
@@ -229,48 +238,78 @@ def try_graph():
         print(node.id, node.interactions)
 
 
-def try_pipeline():
-    episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+def try_pipeline(episode):
+    episode_folder = episode  # "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
     import glob
     # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
     frame_files = sorted(glob.glob(episode_folder, recursive=True))
     graph = TemporalGraph(frame_files)
+    print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
 
     template_path = os.path.join("./vqa", "question_templates.json")
     with open(template_path, "r") as f:
         templates = json.load(f)
 
     statistics = graph.statistics
-    grammar = CFG_GRAMMAR
+    grammar = NO_STATE_CFG
     for lhs, rhs in statistics.items():
         if lhs == "<t>":
             grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
         elif lhs == "<active_deed>" or lhs == "<passive_deed>":
             grammar[lhs] = [[item] for item in rhs]
-        else:
+        elif lhs != "<s>":
             grammar[lhs] = [[item] for item in rhs + ["nil"]]
-    #print(grammar)
+    remove_key = set()
+    for lhs, rhs in grammar.items():
+        if len(rhs) == 0:
+            remove_key.add(lhs)
+    new_grammar = grammar
 
-    templates = templates["generic"]
+    for token in remove_key:
+        new_grammar.pop(token)
+    # print(grammar)
+    # print(remove_key)
+    for token in remove_key:
+        for lhs, rules in new_grammar.items():
+            new_rule = []
+            for rhs in rules:
+                if token in rhs:
+                    continue
+                new_rule.append(rhs)
+            new_grammar[lhs] = new_rule
+    # print(new_grammar)
+    # print(grammar)
+    templates = templates["dynamic"]  # templates["generic"]
+    templates = {
+        # "identify_stationary": templates["identify_stationary"]
+        # "identify_turning": templates["identify_turning"]
+        #"identify_acceleration": templates["identify_acceleration"]
+        #"identify_speed": templates["identify_speed"]
+        #"identify_heading": templates["identify_heading"]
+        #"identify_head_toward": templates["identify_head_toward"]
+        "predict_trajectory": templates["predict_trajectory"]
+    }
     for question_type, specification in templates.items():
 
         print(question_type)
         q = DynamicQuerySpecifier(
             type=question_type, template=specification, parameters=None,
-            graph=graph, grammar=CFG_GRAMMAR, debug=False, stats=False
+            graph=graph, grammar=new_grammar, debug=False, stats=False
         )
         result = q.export_qa()
-        while question_type == "color_identification_unique" and len(result)==0:
+        while len(result) == 0:  # question_type == "identify_turning" and
             q = DynamicQuerySpecifier(
                 type=question_type, template=specification, parameters=None,
-                graph=graph, grammar=grammar, debug=False, stats=False
+                graph=graph, grammar=new_grammar, debug=False, stats=False
             )
             print(q.translate())
             result = q.export_qa()
         print(result)
 
 
-
 if __name__ == "__main__":
-    try_pipeline()
-    #sample_tree()
+    #EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_150_179/**/world*.json"
+    EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+    try_graph(EPISODE)
+    try_pipeline(EPISODE)
+    # sample_tree()

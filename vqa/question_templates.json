@@ -128,40 +128,104 @@
             "constraint": ["no_type", "unique"]
         }
     },
-    "dynamic":{
-        "identify_stationary":{
-            "text":[
+    "dynamic": {
+        "identify_stationary": {
+            "text": [
                 "Is the <o> stationary?",
                 "Is the <o> parked?",
                 "Is the <o> not moving?"
             ],
-            "param":[
-                "o"
+            "params": [
+                "<o>"
             ],
-            "end_filter":"is_stationary",
-            "constraint":["unique"]
+            "end_filter": "is_stationary",
+            "constraint": [
+                "unique", "no_state"
+            ]
         },
-        "motion_prediction": {
+        "identify_turning": {
             "text": [
-                "How will the <o> move in the future?",
-                "What's the expected trajectory of <o>?"
+                "Did the <o> turn?"
             ],
-            "param": [
-                "o"
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "is_turning",
+            "constraint": [
+                "unique", "no_state"
+            ]
+        },
+        "identify_acceleration": {
+            "text": [
+                "Did the <o> acclerated?"
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "accelerated",
+            "constraint": [
+                "unique", "no_state"
+            ]
+        },
+        "identify_speed": {
+            "text":[
+                "What's speed of <o> now?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"identify_speed",
+            "constraint":[
+                "unique" , "no_state"
+            ]
+        },
+        "identify_heading":{
+            "text":[
+                "Where is <o> heading?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"identify_heading",
+            "constraint":[
+                "unique", "no_state"
+            ]
+        },
+        "identify_head_toward": {
+            "text":[
+                "Is the <o> heading toward us?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"identify_head_toward",
+            "constraint":[
+                "unique", "no_state"
+            ]
+        },
+        "predict_trajectory": {
+            "text": [
+                "Predict the trajectories of <o> in the 0.5 second at 10hz frequency."
+            ],
+            "params": [
+                "<o>"
             ],
             "end_filter": "predict_trajectory",
-            "constraint": []
-        },
-        "action_prediction": {
-            "text": [
-                "What action will <o> take? Turn left, turn right, or go straight?",
-                "Choose one action that will likely be performed for <o>: turn left, turn right, and go straight"
+            "constraint": [
+                "unique"
+            ]
+        }
+    },
+    "safety": {
+        "predict_collision": {
+            "text":[
+                "Given the past observation, is collision likely to happen?"
             ],
-            "param": [
-                "o"
+            "params":[
+                "<o>"
             ],
-            "end_filter": "predict_turn",
-            "constraint": []
+            "end_filter":"predict_collision",
+            "constraint":["unique"]
         }
     }
 }
