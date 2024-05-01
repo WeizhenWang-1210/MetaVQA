@@ -102,7 +102,7 @@ class DynamicQuerySpecifier:
             identify_head_toward=identify_head_toward(self.graph.get_ego_node()),
             predict_trajectory=predict_trajectory(self.key_frame)
 
-            # TODO add end filter for dynamic questions
+            # TODO add end filter for safety questions
         )
         return mapping[string]
 
