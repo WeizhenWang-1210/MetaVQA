@@ -321,7 +321,7 @@ def predict_trajectory(now_frame):
         result = {}
         for search_space in search_spaces:
             for object in search_space:
-                result[object.id] = object.future_bboxes(now_frame)
+                result[object.id] = object.future_positions(now_frame)
         return result
-
     return helper
+

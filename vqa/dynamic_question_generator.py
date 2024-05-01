@@ -245,6 +245,8 @@ def try_pipeline(episode):
     frame_files = sorted(glob.glob(episode_folder, recursive=True))
     graph = TemporalGraph(frame_files)
     print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
+    print(f"Key frame is {graph.idx_key_frame}")
+    print(f"Total frame number {len(graph.frames)}")
 
     template_path = os.path.join("./vqa", "question_templates.json")
     with open(template_path, "r") as f:
@@ -290,8 +292,6 @@ def try_pipeline(episode):
         "predict_trajectory": templates["predict_trajectory"]
     }
     for question_type, specification in templates.items():
-
-        print(question_type)
         q = DynamicQuerySpecifier(
             type=question_type, template=specification, parameters=None,
             graph=graph, grammar=new_grammar, debug=False, stats=False
@@ -302,9 +302,7 @@ def try_pipeline(episode):
                 type=question_type, template=specification, parameters=None,
                 graph=graph, grammar=new_grammar, debug=False, stats=False
             )
-            print(q.translate())
             result = q.export_qa()
-        print(result)
 
 
 if __name__ == "__main__":
