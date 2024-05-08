@@ -176,7 +176,7 @@
             ],
             "end_filter":"identify_speed",
             "constraint":[
-                "unique" , "no_state"
+                "unique"
             ]
         },
         "identify_heading":{
@@ -188,7 +188,7 @@
             ],
             "end_filter":"identify_heading",
             "constraint":[
-                "unique", "no_state"
+                "unique"
             ]
         },
         "identify_head_toward": {
@@ -222,10 +222,39 @@
                 "Given the past observation, is collision likely to happen?"
             ],
             "params":[
-                "<o>"
             ],
             "end_filter":"predict_collision",
-            "constraint":["unique"]
+            "constraint":["before_collision"]
+        },
+        "blame_collision": {
+            "text":[
+                "Which object is responsible for the collision?"
+            ],
+            "params":[
+            ],
+            "end_filter":"blame_collision",
+            "constraint":["after_collision"]
+        },
+        "stop_safe": {
+            "text": [
+                "Will collisions be avoided if we stop all-together now?"
+            ],
+            "params":[
+            ],
+            "end_filter":"counterfactual_stop",
+            "constraint":["immediate_before_collision"]
+        },
+        "move_around": {
+            "text": [
+                "If we wre <d> away from our current position, will the collision still happen?"
+            ],
+            "params": [
+                "<d>"
+            ],
+            "end_filter": "counterfactual_displacement",
+            "constraint": ["at_collision"]
         }
+
+
     }
 }

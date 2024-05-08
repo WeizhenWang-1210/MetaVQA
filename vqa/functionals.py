@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Iterable, Callable
-from vqa.object_node import ObjectNode, transform, TemporalNode
+from vqa.object_node import ObjectNode, transform, TemporalNode, transform_vec
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
@@ -296,13 +296,17 @@ def identify_speed(search_spaces):
             result[object.id] = object.speed
     return result
 
-
-def identify_heading(search_spaces):
-    result = {}
-    for search_space in search_spaces:
-        for object in search_space:
-            result[object.id] = object.heading
-    return result
+from vqa.dataset_utils import transform_heading
+def identify_heading(origin_pos, origin_heading):
+    def helper(search_spaces):
+        result = {}
+        for search_space in search_spaces:
+            for object in search_space:
+                result[object.id] = transform_heading(
+                    object.heading, origin_pos, origin_heading
+                )
+        return result
+    return helper
 
 
 def identify_head_toward(ego):
@@ -316,12 +320,16 @@ def identify_head_toward(ego):
     return helper
 
 
-def predict_trajectory(now_frame):
+def predict_trajectory(now_frame, origin_pos, origin_heading):
     def helper(search_spaces):
         result = {}
         for search_space in search_spaces:
             for object in search_space:
-                result[object.id] = object.future_positions(now_frame)
+                future_positions = object.future_positions(now_frame)
+                transformed = []
+                for pos in future_positions:
+                    transformed += transform_vec(origin_pos, origin_heading, [pos])
+                result[object.id] = transformed
         return result
     return helper
 

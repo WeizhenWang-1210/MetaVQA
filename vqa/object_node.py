@@ -184,7 +184,7 @@ class TemporalNode:
         self.headings = headings  # (dx, dy), in world coordinate
         self.bboxes = bboxes  # bounding box with
         self.observing_cameras = observing_cameras  # record which ego camera observed the object.
-        self.collision = collisions  # record collisions(if any) along time.
+        self.collisions = collisions  # record collisions(if any) along time.
         if interaction is not None:
             self.interactions = interaction
         else:
@@ -333,11 +333,11 @@ class TemporalNode:
         alongside_flag = drive_alongside(self, other)
         if alongside_flag:
             self.interactions["accompanied_by"].append(other.id)
-            other.interactions["drive_alongside"].append(self.id)
+            other.interactions["move_alongside"].append(self.id)
 
     @property
     def visible(self):
-        return len(self.observing_cameras[self.now_frame])>0
+        return len(self.observing_cameras[self.now_frame]) > 0
 
     @property
     def bbox(self):
@@ -559,9 +559,45 @@ def transform(ego: ObjectNode, bbox: Iterable[Iterable[float]]) -> Iterable:
     return [change_bases(*point) for point in bbox]
 
 
+def transform_vec(origin, positive_x, bbox):
+    def change_bases(x, y):
+        relative_x, relative_y = x - origin[0], y - origin[1]
+        new_x = positive_x
+        new_y = (-new_x[1], new_x[0])
+        x = (relative_x * new_x[0] + relative_y * new_x[1])
+        y = (relative_x * new_y[0] + relative_y * new_y[1])
+        return [x, y]
+
+    return [change_bases(*point) for point in bbox]
+
+
 def distance(node1: ObjectNode, node2: ObjectNode) -> float:
     """
     Return the Euclidean distance between two AgentNodes
     """
     dx, dy = node1.pos[0] - node2.pos[0], node1.pos[1] - node2.pos[1]
     return np.sqrt(dx ** 2 + dy ** 2)
+
+
+def overlap(box1, box2):
+    # Unpack the coordinates
+    x1_1, y1_1, x2_1, y2_1 = box1
+    x1_2, y1_2, x2_2, y2_2 = box2
+
+    # Normalize the coordinates to always have (min_x, min_y) as the top-left
+    # and (max_x, max_y) as the bottom-right
+    x1_1, x2_1 = sorted([x1_1, x2_1])
+    y1_1, y2_1 = sorted([y1_1, y2_1])
+    x1_2, x2_2 = sorted([x1_2, x2_2])
+    y1_2, y2_2 = sorted([y1_2, y2_2])
+
+    # Check if one box is to the left of the other
+    if x1_1 >= x2_2 or x1_2 >= x2_1:
+        return False
+
+    # Check if one box is above the other
+    if y1_1 >= y2_2 or y1_2 >= y2_1:
+        return False
+
+    # Boxes overlap
+    return True

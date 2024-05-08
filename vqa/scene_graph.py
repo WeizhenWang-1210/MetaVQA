@@ -159,6 +159,7 @@ class TemporalGraph:
         return self.nodes[node_id]
 
     def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
+        print(len(frames))
         positions = defaultdict(list)
         headings = defaultdict(list)
         colors = defaultdict(str)
@@ -169,7 +170,6 @@ class TemporalGraph:
         heights = defaultdict(list)
         states = defaultdict(list)
         collisions = defaultdict(list)
-        actions = defaultdict(dict)  # need to analyze inter-object actions later.
         temporal_nodes = {}
         for timestamp, frame in enumerate(frames):
             for object in frame["objects"]:
@@ -183,8 +183,7 @@ class TemporalGraph:
                     bboxes[object["id"]].append(object["bbox"])
                     heights[object["id"]].append(object["height"])
                     states[object["id"]].append(object["states"])
-                    collisions[object["id"]].append(object["collisions"])
-
+                    collisions[object["id"]] += [(timestamp,id) for (_, id) in object["collisions"]]
             positions[self.ego_id].append(frame["ego"]["pos"])
             headings[self.ego_id].append(frame["ego"]["heading"])
             colors[self.ego_id] = frame["ego"]["color"]
@@ -194,8 +193,7 @@ class TemporalGraph:
             bboxes[self.ego_id].append(frame["ego"]["bbox"])
             heights[self.ego_id].append(frame["ego"]["height"])
             states[self.ego_id].append(frame["ego"]["states"])
-            collisions[self.ego_id].append(frame["ego"]["collisions"])
-
+            collisions[self.ego_id] += [(timestamp,id) for (_, id) in frame["ego"]["collisions"]]
         for node_id in node_ids:
             temporal_node = TemporalNode(
                 id=node_id, now_frame=self.idx_key_frame, type=types[node_id], height=heights[node_id],
@@ -218,7 +216,7 @@ class TemporalGraph:
             t: set() for t in range(observation_frames)
         }
         exist_at_t = {
-            t: set() for t in range(observation_frames, observation_frames + prediction_frames)
+            t: set() for t in range(observation_frames + prediction_frames)
         }
         all_nodes = set()
         for i in range(observation_frames):
@@ -226,6 +224,7 @@ class TemporalGraph:
                 if obj["visible"]:
                     observable_at_t[i].add(obj["id"])
                 all_nodes.add(obj["id"])
+                exist_at_t[i].add(obj["id"])
         for i in range(observation_frames, observation_frames + prediction_frames):
             for obj in frames[i]["objects"]:
                 exist_at_t[i].add(obj["id"])
@@ -308,15 +307,43 @@ class TemporalGraph:
             "<active_deed>": list(active_deeds)
         }
 
+    def export_trajectories(self):
+        from vqa.object_node import transform
+        center_traj = {}
+        bbox_traj = {}
+        origin = self.get_ego_node().positions[0]
+        positive_x = self.get_ego_node().headings[0]
+        for id in self.nodes.keys():
+            assert len(self.nodes[id].positions) == len(self.frames)
+            transformed_positions = []
+            for position in self.nodes[id].positions:
+                transformed_positions.append(
+                    transform(origin, positive_x,
+                              [position])[0]
+                )
+            transformed_bboxes = []
+            for bbox in self.nodes[id].bboxes:
+                transformed_bboxes.append(
+                    transform(origin, positive_x,
+                    bbox)
+                )
+            center_traj[id] = transformed_positions#self.nodes[id].positions
+            bbox_traj[id] = transformed_bboxes
+        json.dump(center_traj, open(f"center.json","w"))
+        json.dump(bbox_traj, open(f"bbox.json","w"))
+
 
 
 
 
 
 if __name__ == "__main__":
-    test_graph = EpisodicGraph()
-    test_graph.load(root_folder="C:/school/Bolei/metavqa/verification/10_50_99",
-                       frame_names= os.listdir("C:/school/Bolei/metavqa/verification/10_50_99"),
-                       interaction_path= "C:/school/Bolei/metavqa/verification/10_50_99/interaction.json"
-                       )
+    EPISODE = "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/world*.json"
+    import glob
+    episode_folder = EPISODE
+    # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
+    frame_files = sorted(glob.glob(episode_folder, recursive=True))
+    #print(len(frame_files))
+    graph = TemporalGraph(frame_files)
+    #graph.export_trajectories()
 

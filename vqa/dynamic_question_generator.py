@@ -1,6 +1,6 @@
 from typing import Union
 from vqa.scene_graph import TemporalGraph
-from question_generator import Tree, SubQuery, Query, CACHE
+from question_generator import Tree, SubQuery, Query #CACHE
 from vqa.functionals import Identity
 from collections import defaultdict
 from vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
@@ -19,6 +19,7 @@ from vqa.object_node import transform
 
 
 class DynamicQuerySpecifier:
+    CACHE = {}
     def __init__(self, type: str, template: dict, parameters: Union[dict, None], graph: TemporalGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
         self.type = type
@@ -85,9 +86,10 @@ class DynamicQuerySpecifier:
         return variant
 
     def find_end_filter(self, string) -> Callable:
+        ego_node = self.graph.get_ego_node()
         mapping = dict(
             count=count,
-            locate=locate_wrapper(self.graph.get_ego_node()),
+            locate=locate_wrapper(ego_node),
             count_equal=CountEqual,
             count_more=CountGreater,
             extract_color=extract_color,
@@ -98,9 +100,9 @@ class DynamicQuerySpecifier:
             is_turning=is_turning,
             accelerated=accelerated,
             identify_speed=identify_speed,
-            identify_heading=identify_heading,
-            identify_head_toward=identify_head_toward(self.graph.get_ego_node()),
-            predict_trajectory=predict_trajectory(self.key_frame)
+            identify_heading=identify_heading(ego_node.pos, ego_node.heading),
+            identify_head_toward=identify_head_toward(ego_node),
+            predict_trajectory=predict_trajectory(self.key_frame, ego_node.pos, ego_node.heading)
 
             # TODO add end filter for safety questions
         )
@@ -110,14 +112,14 @@ class DynamicQuerySpecifier:
         assert self.parameters is not None, "No parameters"
         param_answers = []
         for param, info in self.parameters.items():
-            if info["signature"] in CACHE.keys():
-                answers = CACHE[info["signature"]]
+            if info["signature"] in DynamicQuerySpecifier.CACHE.keys():
+                answers = DynamicQuerySpecifier.CACHE[info["signature"]]
             else:
                 query = info["prog"]
                 query.set_reference(self.graph.get_ego_node().heading)
                 query.set_egos([self.graph.get_ego_node()])
                 answers = query.proceed()
-                CACHE[info["signature"]] = answers
+                DynamicQuerySpecifier.CACHE[info["signature"]] = answers
 
             self.parameters[param]["answer"] = answers
             param_answers.append(answers)
@@ -269,8 +271,6 @@ def try_pipeline(episode):
 
     for token in remove_key:
         new_grammar.pop(token)
-    # print(grammar)
-    # print(remove_key)
     for token in remove_key:
         for lhs, rules in new_grammar.items():
             new_rule = []
@@ -279,17 +279,15 @@ def try_pipeline(episode):
                     continue
                 new_rule.append(rhs)
             new_grammar[lhs] = new_rule
-    # print(new_grammar)
-    # print(grammar)
     templates = templates["dynamic"]  # templates["generic"]
     templates = {
         # "identify_stationary": templates["identify_stationary"]
         # "identify_turning": templates["identify_turning"]
-        #"identify_acceleration": templates["identify_acceleration"]
-        #"identify_speed": templates["identify_speed"]
-        #"identify_heading": templates["identify_heading"]
-        #"identify_head_toward": templates["identify_head_toward"]
-        "predict_trajectory": templates["predict_trajectory"]
+         "identify_acceleration": templates["identify_acceleration"]
+        # "identify_speed": templates["identify_speed"]
+        # "identify_heading": templates["identify_heading"]
+        # "identify_head_toward": templates["identify_head_toward"]
+        #"predict_trajectory": templates["predict_trajectory"]
     }
     for question_type, specification in templates.items():
         q = DynamicQuerySpecifier(
@@ -302,12 +300,14 @@ def try_pipeline(episode):
                 type=question_type, template=specification, parameters=None,
                 graph=graph, grammar=new_grammar, debug=False, stats=False
             )
+            print(q.translate())
             result = q.export_qa()
-
+            print(result)
 
 if __name__ == "__main__":
-    #EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_150_179/**/world*.json"
+    # EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_150_179/**/world*.json"
     EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
-    try_graph(EPISODE)
+    #try_graph(EPISODE)
     try_pipeline(EPISODE)
     # sample_tree()
+

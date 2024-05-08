@@ -27,10 +27,10 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
     record = {}
     counts = 0
     valid_questions = set()
-    """templates = {
+    templates = {
         # "color_identification_unique": templates["color_identification_unique"]
         "type_identification_unique": templates["type_identification_unique"]
-    }"""
+    }
     for question_type, specification in templates.items():
         type_count = 0
         if question_type == "color_identification" or question_type == "color_identification_unique":

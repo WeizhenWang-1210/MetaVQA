@@ -1,221 +1,262 @@
+# find_all_episodes
+# for each episode:
+#   for each question type:
+#       try for x times, get at most N valid questions
+#       sample 4 out of N valid questions
+#
 import json
 import os
-
-from vqa.grammar import STATIC_GRAMMAR
-from vqa.object_node import nodify
-from vqa.question_generator import GRAMMAR, QuerySpecifier
-from vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
-from vqa.scene_graph import SceneGraph
-from vqa.question_generator import CACHE
+import re
+import glob
+from vqa.scene_graph import TemporalGraph
+from vqa.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.object_node import transform
+import random
+from vqa.question_generator import CACHE
+from collections import defaultdict
 
 
-def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False) -> dict:
-    '''
-    Take in a path to a world.json file(a single frame), generate all
-    static questions
-    '''
-    try:
-        with open(frame, 'r') as file:
-            scene_dict = json.load(file)
-    except Exception as e:
-        raise e
-    print("Working on scene {}".format(frame))
-    ego_id, nodelist = nodify(scene_dict)
-    graph = SceneGraph(ego_id, nodelist, frame)
-    # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
-    record = {}
-    counts = 0
-    valid_questions = set()
-    """templates = {
-        # "color_identification_unique": templates["color_identification_unique"]
-        "type_identification_unique": templates["type_identification_unique"]
-    }"""
-    for question_type, specification in templates.items():
-        type_count = 0
-        if question_type == "color_identification" or question_type == "color_identification_unique":
-            grammar = NO_COLOR_STATIC
-            for lhs, rhs in graph.statistics.items():
+def find_episodes(session_folder):
+    pattern = re.compile(r'\d+_\d+_\d+')
+    folders = [f for f in os.listdir(session_folder) if os.path.isdir(os.path.join(session_folder, f))]
+    matched_folders = [os.path.join(session_folder, folder) for folder in folders if pattern.match(folder)]
+    return matched_folders
+
+
+def extract_observations(episode, debug=False):
+    observations = {}
+    perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+    for perspective in perspectives:
+        rgb_path_template = f"{episode}/**/rgb_{perspective}**.png"
+        sorted_rgb = sorted(glob.glob(rgb_path_template, recursive=True))
+        observations[perspective] = sorted_rgb
+    lidar_template = f"{episode}/**/lidar_**.json"
+    sorted_lidar = sorted(glob.glob(lidar_template, recursive=True))
+    observations["lidar"] = sorted_lidar
+    if debug:
+        length = len(observations["lidar"])
+        for value in observations.values():
+            assert len(value) == length
+    return observations
+
+
+def generate_trimmed_grammar(graph, tense, template):
+    from vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR
+    import copy
+    # type, color, action, interaction
+    statistics = graph.statistics
+    # in the first static settng: type, color
+    # in the dynamic setting: type, color, action, interaction.
+    if tense == "static":
+        if "no_color" in template["constraint"]:
+            grammar = copy.deepcopy(NO_COLOR_STATIC)
+            for lhs, rhs in statistics.items():
                 if lhs == "<p>":
                     grammar["<px>"] = [[item] for item in rhs + ["nil"]]
                 else:
                     grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
-        elif question_type == "type_identification" or question_type == "type_identification_unique":
-            grammar = NO_TYPE_STATIC
-            for lhs, rhs in graph.statistics.items():
+        elif "no_type" in template["constraint"]:
+            grammar = copy.deepcopy(NO_TYPE_STATIC)
+            for lhs, rhs in statistics.items():
                 if lhs == "<t>":
                     grammar["<tx>"] = [[item] for item in rhs + ["vehicle"]]
                 else:
                     grammar[lhs] = [[item] for item in rhs + ["nil"]]
         else:
-            grammar = STATIC_GRAMMAR
-            for lhs, rhs in graph.statistics.items():
+            grammar = copy.deepcopy(STATIC_GRAMMAR)
+            for lhs, rhs in statistics.items():
                 if lhs == "<p>":
                     grammar[lhs] = [[item] for item in rhs + ["nil"]]
                 else:
                     grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
-        for idx in range(attempts):
+    else:
+        if "no_state" in template["constraint"]:
+            grammar = copy.deepcopy(NO_STATE_CFG)
+            for lhs, rhs in statistics.items():
+                if lhs == "<t>":
+                    grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
+                elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+                    grammar[lhs] = [[item] for item in rhs]
+                elif lhs != "<s>":
+                    grammar[lhs] = [[item] for item in rhs + ["nil"]]
+        else:
+            grammar = copy.deepcopy(CFG_GRAMMAR)
+            for lhs, rhs in statistics.items():
+                if lhs == "<t>":
+                    grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
+                elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+                    grammar[lhs] = [[item] for item in rhs]
+                else:
+                    grammar[lhs] = [[item] for item in rhs + ["nil"]]
+    # finally, remove non-terminal token that can'tbe grounded in our particular scene.
+    remove_key = set()
+    for lhs, rhs in grammar.items():
+        if len(rhs) == 0:
+            remove_key.add(lhs)
+    new_grammar = copy.deepcopy(grammar)
+    for token in remove_key:
+        new_grammar.pop(token)
+    for token in remove_key:
+        for lhs, rules in new_grammar.items():
+            new_rule = []
+            for rhs in rules:
+                if token in rhs:
+                    continue
+                new_rule.append(rhs)
+            new_grammar[lhs] = new_rule
+    return new_grammar
+
+
+def not_degenerate(question_type, q, result):
+    def refer_exist(q):
+        degenerate_refer = True
+        for param, info in q.parameters.items():
+            if len(q.parameters[param]["answer"]) > 0:
+                degenerate_refer = False
+                break
+        return degenerate_refer
+
+    func_map = dict(
+        localization=lambda x: len(x[1]) > 0,
+        counting=lambda x: len(x[1]) > 0,
+        count_equal_binary=lambda x: refer_exist(q),
+        count_more_binary=lambda x: refer_exist(q),
+        color_identification=lambda x: len(x[1]) > 0,
+        type_identification=lambda x: len(x[1]) > 0,
+        color_identification_unique=lambda x: len(x) > 0,
+        type_identification_unique=lambda x: len(x) > 0,
+        identify_stationary=lambda x: len(x) > 0,
+        identify_turning=lambda x: len(x) > 0,
+        identify_acceleration=lambda x: len(x) > 0,
+        identify_speed=lambda x: len(x) > 0,
+        identify_heading=lambda x: len(x) > 0,
+        identify_head_toward=lambda x: len(x) > 0,
+        predict_trajectory=lambda x: len(x) > 0
+    )
+    return func_map[question_type](result)
+
+
+def add_to_record(question_type, q, result, candidates):
+    if question_type in ["color_identification_unique", "type_identification_unique", ]:
+        for question, answer_record in result:
+            obj_id, answer = answer_record
+            data_point = dict(
+                question=question, answer=answer, answer_form="str", question_type=question_type,
+                type_statistics=[q.graph.get_node(obj_id).type],
+                pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos]),
+                key_frame=0, obj_id=obj_id
+            )
+            candidates[question_type].append(data_point)
+
+    elif question_type in ["identify_stationary", "identify_turning", "identify_acceleration", "identify_speed",
+                           "identify_heading", "identify_head_toward", "predict_trajectory"]:
+        for question, answer_record in result:
+            obj_id, answer = answer_record
+            data_point = dict(
+                question=question, answer=answer, answer_form="str", question_type=question_type,
+                type_statistics=[q.graph.get_node(obj_id).type],
+                pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos]),
+                key_frame=q.graph.idx_key_frame, obj_id=obj_id
+            )
+            candidates[question_type].append(data_point)
+
+    else:
+        question, answer = result
+        data_point = dict(
+            question=question, answer=answer, answer_form="str", question_type=question_type,
+            type_statistics=[q.statistics["types"]], pos_statistics=[q.statistics["pos"]],
+            key_frame=0
+        )
+        candidates[question_type].append(data_point)
+    return candidates
+
+
+def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
+    annotation_template = f"{episode}/**/world*.json"
+    frame_files = sorted(glob.glob(annotation_template, recursive=True))
+    graph = TemporalGraph(frame_files)
+    print(f"Generating dynamic questions for {episode}...")
+    print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
+    print(f"Key frame is {graph.idx_key_frame}")
+    print(f"Total frame number {len(graph.frames)}")
+    candidates, counts, valid_questions = defaultdict(list), 0, set()
+
+    for question_type, question_template in templates.items():
+        grammar = generate_trimmed_grammar(graph, "dynamic", question_template)
+        countdown, generated = attempts_per_type, 0
+        while countdown > 0 and generated < max_per_type:
             if verbose:
-                print("Attempt {} of {} for {}".format(idx, attempts, question_type))
-            q = QuerySpecifier(type=question_type, template=specification, parameters=None, graph=graph,
-                               grammar=grammar, debug=False, stats=True)
+                print("Attempt {} of {} for {}".format(attempts_per_type - countdown, attempts_per_type, question_type))
+            q = DynamicQuerySpecifier(
+                type=question_type, template=question_template, parameters=None, graph=graph,
+                grammar=grammar, debug=False, stats=False,
+            )
             if q.signature in valid_questions:
                 if verbose:
                     print("Skip <{}> since the equivalent question has been asked before".format(q.translate()))
                 continue
-            # question = q.translate()
-            # answer = q.answer()
             result = q.export_qa()
             if verbose:
                 print(result)
-            for question, answer in result:
-                """                if verbose:
-                                    print(question, answer)"""
-                if question_type == "counting":
-
-                    if answer[0] > 0:
-                        record[id_start + counts + type_count] = dict(
-                            question=question,
-                            answer=answer,
-                            answer_form="str",
-                            question_type=question_type,
-                            type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
-                            # already in ego's coordinate, with ego's heading as the +y direction
-                        )
-                        type_count += 1
-                        valid_questions.add(q.signature)
-                        if type_count >= max:
-                            break
-                            # return record
-                elif question_type == "localization":
-                    if len(answer) != 0:
-                        record[id_start + counts + type_count] = dict(
-                            question=question,
-                            answer=answer,
-                            answer_form="bboxs",
-                            question_type=question_type,
-                            type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
-                            # already in ego's coordinate, with ego's heading as the +y direction
-                        )
-                        type_count += 1
-                        valid_questions.add(q.signature)
-                        if type_count >= max:
-                            break
-                            # return record
-                elif question_type == "count_equal_binary" or question_type == "count_more_binary":
-                    degenerate = True
-                    for param, info in q.parameters.items():
-                        if len(q.parameters[param]["answer"]) > 0:
-                            degenerate = False
-                            break
-                    if not degenerate:
-                        record[id_start + counts + type_count] = dict(
-                            question=question,
-                            answer=answer,
-                            answer_form="str",
-                            question_type=question_type,
-                            type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
-                            # already in ego's coordinate, with ego's heading as the +y direction
-                        )
-                        type_count += 1
-                        valid_questions.add(q.signature)
-                        if type_count >= max:
-                            break
-                            # return record
-                elif question_type in ["color_identification", "type_identification"]:
-                    if len(answer) > 0:
-                        record[id_start + counts + type_count] = dict(
-                            question=question,
-                            answer=answer,
-                            answer_form="str",
-                            question_type=question_type,
-                            type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
-                            # already in ego's coordinate, with ego's heading as the +y direction
-                        )
-                        type_count += 1
-                        valid_questions.add(q.signature)
-                        if type_count >= max:
-                            break
-                elif question_type in ["color_identification_unique", "type_identification_unique"]:
-                    obj_id, answer = answer
-                    record[id_start + counts + type_count] = dict(
-                        question=question,
-                        answer=answer,
-                        answer_form="str",
-                        question_type=question_type,
-                        type_statistics=[q.graph.get_node(obj_id).type],
-                        pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos])
-                        # already in ego's coordinate, with ego's heading as the +y direction
-                    )
-                    type_count += 1
-                    valid_questions.add(q.signature)
-                    if type_count >= max:
-                        break
-                else:
-                    print("Unknown question type!")
-            if type_count >= max:
-                break
-        counts += type_count
-    if verbose:
-        print("{} questions generated for {}".format(counts, frame))
-    return record, counts
+            if not_degenerate(question_type, q, result):
+                candidates = add_to_record(question_type, q, result, candidates)
+                print(candidates)
+                valid_questions.add(q.signature)
+                generated += 1
+            countdown -= 1
+        if generated > choose:
+            candidate = candidates[question_type]
+            final_selected = random.sample(candidate, choose)
+            candidates[question_type] = final_selected
+            counts += len(final_selected)
+        else:
+            counts += len(candidates[question_type])
+    return candidates, counts,
 
 
-def dynamic_all(root_folder, source, summary_path, verbose=False):
-    # TODO Debug so that all static questions can be generated efficiently
-    def find_world_json_paths(root_dir):
-        world_json_paths = []  # List to hold paths to all world_{id}.json files
-        for root, dirs, files in os.walk(root_dir):
-            # Extract the last part of the current path, which should be the frame folder's name
-            frame_folder_name = os.path.basename(root)
-            expected_json_filename = f'world_{frame_folder_name}.json'  # Construct expected filename
-            if expected_json_filename in files:
-                path = os.path.join(root, expected_json_filename)  # Construct full path
-                world_json_paths.append(path)
-        return world_json_paths
-
+def generate():
+    session_name = "test_collision"
+    episode_folders = find_episodes(session_name)
     current_directory = os.path.dirname(os.path.abspath(__file__))
-    paths = find_world_json_paths(root_folder)
-    template_path = os.path.join(current_directory, "question_templates.json")
-    try:
-        with open(template_path, "r") as f:
-            templates = json.load(f)
-    except Exception as e:
-        raise e
-    records = {}
-    count = 0
-    for path in paths:
-        assert len(CACHE) == 0, f"Non empty cache for {path}"
-        folder_name = os.path.dirname(path)
-        identifier = os.path.basename(folder_name)
-        perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
-        # rgb = os.path.join(folder_name, f"rgb_{identifier}.png")
-        lidar = os.path.join(folder_name, f"lidar_{identifier}.json")
-        record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose)
-        for id, info in record.items():
-            records[id] = dict(
-                question=info["question"],
-                answer=info["answer"],
-                question_type=info["question_type"],
-                answer_form=info["answer_form"],
-                type_statistics=info["type_statistics"],
-                pos_statistics=info["pos_statistics"],
-                rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in perspectives},
-                lidar=lidar,
-                source=source,
-            )
-        count += num_data
-        CACHE.clear()
-    try:
-        with open(summary_path, "w") as f:
-            json.dump(records, f, indent=4),
-    except Exception as e:
-        raise e
+    storage_folder = "test_temporal"
+    abs_storage_folder = os.path.join(current_directory, storage_folder)
+    os.makedirs(abs_storage_folder, exist_ok=True)
+    source = "CAT"
+    name = "dynamic_all"
+    templates_path = os.path.join(current_directory, "question_templates.json")
+    templates = json.load(open(templates_path, "r"))
+    templates = templates["dynamic"]
+    """ templates = {
+        "identify_stationary": templates["identify_stationary"]
+    }"""
+    qa_tuples = {}
+    idx = 0
+    for episode in episode_folders[:3]:
+        assert len(DynamicQuerySpecifier.CACHE) == 0, f"Non empty cache for {episode}"
+        observations = extract_observations(episode)
+        records, num_questions = generate_dynamic_questions(
+            episode, templates, max_per_type=3, choose=2, attempts_per_type=100, verbose=True)
+        for question_type, record_list in records.items():
+            for record in record_list:
+                qa_tuples[idx] = dict(
+                    question=record["question"], answer=record["answer"],
+                    question_type=question_type, answer_form=record["answer_form"],
+                    type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
+                    rgb={
+                        perspective: observations[perspective][:record["key_frame"] + 1] for perspective in
+                        ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                    },
+                    lidar=observations["lidar"][:record["key_frame"] + 1],
+                    obj_id = record["obj_id"],
+                    source=source,
+                    metadrive_scene = episode,
+
+                )
+
+                idx += 1
+        DynamicQuerySpecifier.CACHE.clear()
+    json.dump(qa_tuples, open(os.path.join(abs_storage_folder, f"{name}.json"), "w"), indent=2)
 
 
 if __name__ == "__main__":
-    dynamic_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)
+    generate()

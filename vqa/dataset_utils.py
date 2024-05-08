@@ -197,7 +197,6 @@ def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_pos
     else:
         return "overlap"
 
-
 def norm(point):
     return math.sqrt(point[0] ** 2 + point[1] ** 2)
 
@@ -233,3 +232,14 @@ def majority_true(things, creterion=lambda x: x, threshold=0.8):
         if creterion(thing):
             num_true += 1
     return num_true / num_things >= threshold
+
+def transform_heading(v, center, heading_vector):
+    # Calculate the angle of the heading vector from the X-axis
+    heading_angle = np.arctan2(heading_vector[1], heading_vector[0])
+    #print("ego_heading", np.rad2deg(heading_angle))
+    v_angle = np.arctan2(v[1], v[0])
+    #print("v_heading:", np.rad2deg(v_angle))
+    angle_differential = v_angle - heading_angle
+    #print("differential:", np.rad2deg(angle_differential))
+    ## rotated_vector = rotate_vector(v, angle_differential)
+    return [np.cos(angle_differential), np.sin(angle_differential)]  # rotated_vector
