@@ -16,7 +16,7 @@ from metadrive.component.sensors.instance_camera import InstanceCamera
 
 
 def find_collision_step(env):
-    step = 0
+    step = -1
     for i in range(10000):
         env.step([0,0])
         if len(env.agent.crashed_objects)>0:
@@ -214,6 +214,13 @@ def generate_safe_data(env, seeds, folder):
         env.reset(seed)
         collision_step = find_collision_step(env)
         print(collision_step)
+        if collision_step < 0:
+            #there can be no collision in cated scenario
+            print("No collision in this seed {}".format(env.current_seed))
+            env.reset()
+            inception = False
+            annotation_buffer.flush()
+            continue
         env.reset(seed)
         for _ in range(1, collision_step - offset):
             env.step([0, 0])
