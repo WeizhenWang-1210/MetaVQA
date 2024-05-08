@@ -3,7 +3,6 @@ from typing import Iterable, Tuple
 from metadrive.base_class.base_object import BaseObject
 import numpy as np
 from scipy.interpolate import CubicSpline
-from object_node import transform_vec
 
 
 def dot(v1: Iterable[float], v2: Iterable[float]) -> float:

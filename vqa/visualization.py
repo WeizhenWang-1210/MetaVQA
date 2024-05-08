@@ -50,8 +50,9 @@ def multiview_visualization(images, output_path):
     grid_img.save(output_path)
     # grid_img.show()"""
     imgs = [Image.open(img_path) for img_path in images]
-    grid_array= gridify_imarrays(imgs)
+    grid_array = gridify_imarrays(imgs)
     Image.fromarray(grid_array).save(output_path)
+
 
 def create_video(frame_arrays, filename):
     """
@@ -59,14 +60,15 @@ def create_video(frame_arrays, filename):
     output_path should be str
     create a mp4 video file implied
     """
-    output_path = filename #f'{filename}.mp4'
+    output_path = filename  # f'{filename}.mp4'
     fps = 10
     writer = imageio.get_writer(output_path, fps=fps)
     for frame in frame_arrays:
         writer.append_data(frame)
     writer.close()
 
-def gridify_imarrays(imarrays, orders=None)->np.ndarray:
+
+def gridify_imarrays(imarrays, orders=None) -> np.ndarray:
     """
     Convert 6 images into 6 3 * 2 grid.
     lf f rf          ^ +x
@@ -111,20 +113,22 @@ if __name__ == "__main__":
         "verification_multiview/95_210_239/95_210/mask_rightb_95_210.png",
     ]"""
 
-    #multiview_visualization(images, "verification_multiview/95_210_239/95_210/multiview_rgb_95_210.png")
-    #multiview_visualization(masks, "verification_multiview/95_210_239/95_210/multiview_mask_95_210.png")
+    # multiview_visualization(images, "verification_multiview/95_210_239/95_210/multiview_rgb_95_210.png")
+    # multiview_visualization(masks, "verification_multiview/95_210_239/95_210/multiview_mask_95_210.png")
     import glob
 
-    #episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_30_59/**/rgb_back*.json"
+    # f"C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**"
 
-    perspectives = ["leftf","front", "rightf","leftb","back", "rightb"]
+    # episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_30_59/**/rgb_back*.json"
+
+    perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
     imarrays = {
-        perspective:[] for perspective in perspectives
+        perspective: [] for perspective in perspectives
     }
     for perspective in perspectives:
-        path_template = f"C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_90_119/**/rgb_{perspective}*.png"
+        path_template = f"C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/rgb_{perspective}*.png"
         frame_files = sorted(glob.glob(path_template, recursive=True))
-        #print(frame_files)
+        # print(frame_files)
         imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
     num_frames = len(imarrays[perspectives[0]])
     print(num_frames)
@@ -134,17 +138,12 @@ if __name__ == "__main__":
         for perspective in perspectives:
             arrays.append(imarrays[perspective][frame])
         concatenated_arrays.append(gridify_imarrays(arrays))
-    create_video(concatenated_arrays, "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_90_119/episode_rgb.mp4")
+    create_video(concatenated_arrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/episode_rgb.mp4")
 
-
-    top_down_template = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_90_119/**/top_down*.png"
+    top_down_template = "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/top_down*.png"
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
-    create_video(imarrays, "C:/school/Bolei/Merging/metaVQA/verification_multiview/95_90_119/episode_top_down.mp4")
-
-
-
-
+    create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/episode_top_down.mp4")
 
 # chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
 # control signal/context inserted as text.

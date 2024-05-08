@@ -161,7 +161,7 @@ class TemporalGraph:
         return self.nodes[node_id]
 
     def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
-        print(len(frames))
+        #print(len(frames))
         positions = defaultdict(list)
         headings = defaultdict(list)
         colors = defaultdict(str)

@@ -579,33 +579,41 @@ def distance(node1: ObjectNode, node2: ObjectNode) -> float:
     return np.sqrt(dx ** 2 + dy ** 2)
 
 
-def overlap(box1, box2):
-    # Unpack the coordinates
-    x1_1, y1_1, x2_1, y2_1 = box1
-    x1_2, y1_2, x2_2, y2_2 = box2
+def box_overlap(box1, box2):
+    def project_polygon(axis, polygon):
+        """ Project a polygon onto an axis and return the minimum and maximum points of projection. """
+        dots = [np.dot(vertex, axis) for vertex in polygon]
+        return min(dots), max(dots)
 
-    # Normalize the coordinates to always have (min_x, min_y) as the top-left
-    # and (max_x, max_y) as the bottom-right
-    x1_1, x2_1 = sorted([x1_1, x2_1])
-    y1_1, y2_1 = sorted([y1_1, y2_1])
-    x1_2, x2_2 = sorted([x1_2, x2_2])
-    y1_2, y2_2 = sorted([y1_2, y2_2])
+    def overlap_on_axis(axis, poly1, poly2):
+        """ Check if projections of two polygons on a given axis overlap. """
+        min1, max1 = project_polygon(axis, poly1)
+        min2, max2 = project_polygon(axis, poly2)
+        return max(min1, min2) <= min(max1, max2)
 
-    # Check if one box is to the left of the other
-    if x1_1 >= x2_2 or x1_2 >= x2_1:
-        return False
+    def separating_axis_theorem(poly1, poly2):
+        """ Use the Separating Axis Theorem to determine if two polygons overlap. """
+        # Get the list of axes to check
+        num_vertices = len(poly1)
+        axes = [np.subtract(poly1[(i + 1) % num_vertices], poly1[i]) for i in range(num_vertices)]
+        num_vertices = len(poly2)
+        axes += [np.subtract(poly2[(i + 1) % num_vertices], poly2[i]) for i in range(num_vertices)]
 
-    # Check if one box is above the other
-    if y1_1 >= y2_2 or y1_2 >= y2_1:
-        return False
+        # Normalize the axes
+        axes = [np.array([-axis[1], axis[0]]) for axis in axes]  # Perpendicular vector
 
-    # Boxes overlap
-    return True
+        # Check overlap for all axes
+        for axis in axes:
+            if not overlap_on_axis(axis, poly1, poly2):
+                return False  # Found a separating axis
+        return True  # No separating axis found, polygons must overlap
+
+    return separating_axis_theorem(np.array(box1), np.array(box2))
 
 
 def box_trajectories_overlap(bboxes1, bboxes2):
     for box1, box2 in zip(bboxes1, bboxes2):
-        if overlap(box1, box2):
+        if box_overlap(box1, box2):
             return True
     return False
 
@@ -647,7 +655,7 @@ def extrapolate_bounding_boxes(centers, initial_angle, initial_box):
         origin, heading = coordinate
         # find the rotated angle
         translation_vector = waypoint[0] - origin[0], waypoint[1] - origin[1]
-        diff = transform_vec(origin, [np.cos(heading), np.sin(heading)], waypoint)
+        diff = transform_vec(origin, [np.cos(heading), np.sin(heading)], [waypoint])[0]
         # print(np.rad2deg(np.arctan2(diff[1], )))
         delta_angle = np.arctan2(diff[1], diff[0])
         cur_box = bounding_boxes[-1]
