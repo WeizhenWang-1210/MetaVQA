@@ -5,6 +5,8 @@ from collections import defaultdict
 from vqa.object_node import ObjectNode, nodify, TemporalNode
 import os
 import json
+from vqa.dataset_utils import transform_heading
+from vqa.object_node import transform_vec
 class RoadGraph:
     def __init__(self,ids:Iterable) -> None:
         graph = defaultdict(lambda:"")
@@ -307,31 +309,46 @@ class TemporalGraph:
             "<active_deed>": list(active_deeds)
         }
 
-    def export_trajectories(self):
+    def export_trajectories(self, ego = False):
         from vqa.object_node import transform
         center_traj = {}
         bbox_traj = {}
+        heading_traj = {}
         origin = self.get_ego_node().positions[0]
         positive_x = self.get_ego_node().headings[0]
         for id in self.nodes.keys():
+
             assert len(self.nodes[id].positions) == len(self.frames)
-            transformed_positions = []
-            for position in self.nodes[id].positions:
-                transformed_positions.append(
-                    transform(origin, positive_x,
-                              [position])[0]
-                )
-            transformed_bboxes = []
-            for bbox in self.nodes[id].bboxes:
-                transformed_bboxes.append(
-                    transform(origin, positive_x,
-                    bbox)
-                )
-            center_traj[id] = transformed_positions#self.nodes[id].positions
-            bbox_traj[id] = transformed_bboxes
+            if ego:
+                transformed_positions = []
+                for position in self.nodes[id].positions:
+                    transformed_positions.append(
+                        transform_vec(origin, positive_x,
+                                  [position])[0]
+                    )
+                transformed_bboxes = []
+                for bbox in self.nodes[id].bboxes:
+                    transformed_bboxes.append(
+                        transform_vec(origin, positive_x,
+                        bbox)
+                    )
+                transformed_headings = []
+                for heading in self.nodes[id].headings:
+                    transformed_headings.append(
+                        transform_heading(
+                            heading, origin, positive_x
+                        )
+                    )
+                center_traj[id] = transformed_positions#self.nodes[id].positions
+                bbox_traj[id] = transformed_bboxes
+                heading_traj[id] = transformed_headings
+            else:
+                center_traj[id] = self.nodes[id].positions  # self.nodes[id].positions
+                bbox_traj[id] = self.nodes[id].bboxes
+                heading_traj[id] = self.nodes[id].headings
         json.dump(center_traj, open(f"center.json","w"))
         json.dump(bbox_traj, open(f"bbox.json","w"))
-
+        json.dump(heading_traj, open(f"heading.json","w"))
 
 
 
@@ -345,5 +362,5 @@ if __name__ == "__main__":
     frame_files = sorted(glob.glob(episode_folder, recursive=True))
     #print(len(frame_files))
     graph = TemporalGraph(frame_files)
-    #graph.export_trajectories()
+    graph.export_trajectories()
 

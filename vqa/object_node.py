@@ -601,3 +601,61 @@ def overlap(box1, box2):
 
     # Boxes overlap
     return True
+
+
+def box_trajectories_overlap(bboxes1, bboxes2):
+    for box1, box2 in zip(bboxes1, bboxes2):
+        if overlap(box1, box2):
+            return True
+    return False
+
+
+def rotate_point(point, origin, angle):
+    """
+  rotate clockwise by angle around origin
+  """
+    relative_point = point - origin
+    relative_point_rotated = np.dot(relative_point,
+                                    np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]))
+    return (relative_point_rotated + origin).tolist()
+
+
+def rotate_box(vertices, origin, angle):
+    """
+  rotate clockwise by angle around origin.
+  Vertices in world cooridnate.
+  Origin in world coordinate.
+  Return in world coordinate.
+  """
+    return [rotate_point(np.array(vertex), np.array(origin), -angle) for vertex in vertices]
+
+
+def translate_box(box, offset):
+    new_box = []
+    for vertice in box:
+        x, y = vertice
+        new_x = x + offset[0]
+        new_y = y + offset[1]
+        new_box.append([new_x, new_y])
+    return new_box
+
+
+def extrapolate_bounding_boxes(centers, initial_angle, initial_box):
+    bounding_boxes = [initial_box]
+    coordinate = centers[0], initial_angle
+    for i, waypoint in enumerate(centers[1:]):
+        origin, heading = coordinate
+        # find the rotated angle
+        translation_vector = waypoint[0] - origin[0], waypoint[1] - origin[1]
+        diff = transform_vec(origin, [np.cos(heading), np.sin(heading)], waypoint)
+        # print(np.rad2deg(np.arctan2(diff[1], )))
+        delta_angle = np.arctan2(diff[1], diff[0])
+        cur_box = bounding_boxes[-1]
+        # rotate_box
+        rotated_box = rotate_box(cur_box, origin, delta_angle)
+        # translate_box
+        translated_box = translate_box(rotated_box, translation_vector)
+        bounding_boxes.append(translated_box)
+        # update coordinate
+        coordinate = waypoint, coordinate[1] + delta_angle
+    return bounding_boxes

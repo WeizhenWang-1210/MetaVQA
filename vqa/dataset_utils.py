@@ -1,7 +1,9 @@
-from typing import Iterable, Tuple
-import numpy as np
-from metadrive.base_class.base_object import BaseObject
 import math
+from typing import Iterable, Tuple
+from metadrive.base_class.base_object import BaseObject
+import numpy as np
+from scipy.interpolate import CubicSpline
+from object_node import transform_vec
 
 
 def dot(v1: Iterable[float], v2: Iterable[float]) -> float:
@@ -133,7 +135,7 @@ def position_frontback_relative_to_obj1(obj1_heading: Iterable[float], obj1_posi
     # Check the positions of obj2's extremes relative to obj1
     behind_count, front_count = 0, 0
     for point in obj2_extremes:
-        relative_position = point[0]-obj1_position[0], point[1]-obj1_position[1]
+        relative_position = point[0] - obj1_position[0], point[1] - obj1_position[1]
         relative_position = dot(relative_position, obj1_heading)
         if relative_position < 0:
             behind_count += 1
@@ -197,6 +199,7 @@ def position_left_right_relative_to_obj1(obj1_heading: Iterable[float], obj1_pos
     else:
         return "overlap"
 
+
 def norm(point):
     return math.sqrt(point[0] ** 2 + point[1] ** 2)
 
@@ -233,13 +236,65 @@ def majority_true(things, creterion=lambda x: x, threshold=0.8):
             num_true += 1
     return num_true / num_things >= threshold
 
+
 def transform_heading(v, center, heading_vector):
     # Calculate the angle of the heading vector from the X-axis
     heading_angle = np.arctan2(heading_vector[1], heading_vector[0])
-    #print("ego_heading", np.rad2deg(heading_angle))
+    # print("ego_heading", np.rad2deg(heading_angle))
     v_angle = np.arctan2(v[1], v[0])
-    #print("v_heading:", np.rad2deg(v_angle))
+    # print("v_heading:", np.rad2deg(v_angle))
     angle_differential = v_angle - heading_angle
-    #print("differential:", np.rad2deg(angle_differential))
+    # print("differential:", np.rad2deg(angle_differential))
     ## rotated_vector = rotate_vector(v, angle_differential)
     return [np.cos(angle_differential), np.sin(angle_differential)]  # rotated_vector
+
+
+def generate_smooth_spline(waypoints, num_points=100):
+    """
+    Generate smooth splines through the given waypoints.
+
+    :param waypoints: List of (x, y) tuples representing waypoints.
+    :param num_points: Number of points to sample along the spline.
+    :return: x and y coordinates of the sampled points.
+    """
+    waypoints = np.array(waypoints)
+    x = waypoints[:, 0]
+    y = waypoints[:, 1]
+
+    # Fit cubic splines
+    cs_x = CubicSpline(np.arange(len(x)), x, bc_type='natural')
+    cs_y = CubicSpline(np.arange(len(y)), y, bc_type='natural')
+
+    # Generate new points
+    t = np.linspace(0, len(waypoints) - 1, num_points)
+    x_spline = cs_x(t)
+    y_spline = cs_y(t)
+
+    return x_spline, y_spline
+
+
+def sample_keypoints(original_trajectory, num_points=2, sqrt_std_max = 2):
+    """
+    Will generate a smooth trajectory that lands roughly at the original end.
+
+    """
+    size = len(original_trajectory)
+    freq = int(np.floor(size / num_points))
+    waypoints = original_trajectory[::freq]
+    last = original_trajectory[-1]
+    last = last[np.newaxis, ...]
+    waypoints = np.vstack([waypoints, last])
+    num_points = len(waypoints)
+    noise = np.zeros_like(waypoints)
+    for i in range(num_points):
+        std = np.sqrt(sqrt_std_max * (i / (num_points - 1)))
+        noise[i, :] = np.random.normal(0, std, (1, 2))
+    waypoints += noise
+    new_trajectory = generate_smooth_spline(waypoints, size)
+    return new_trajectory
+
+
+def generate_stopped_trajectory(stop_step, original_trajectory):
+    leftover = len(original_trajectory) - stop_step
+    tails = [original_trajectory[stop_step]] * (leftover - 1)
+    return original_trajectory[:stop_step + 1] + tails
