@@ -129,6 +129,133 @@
         }
     },
     "dynamic": {
+        "localization":{
+            "text": [
+                "Locate all <o>.",
+                "Give me the bounding boxes of all <o>.",
+                "Please localize all <o>.",
+                "Locate all <o> immediately.",
+                "Identify the positions of all <o>.",
+                "Pinpoint the whereabouts of all <o>.",
+                "Determine the positions of all <o>.",
+                "Find and report the locations of all <o>."
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"locate",
+            "constraint":[]
+        },
+        "counting": {
+            "text":[
+                "How many <o> are observed?",
+                "How many <o> are there in observation?",
+                "Give me the number of <o>.",
+                "Count the number of observed <o>.",
+                "Determine how many <o> are observed.",
+                "Record the quantity of <o> observed."
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+        "count_equal_binary":{
+            "text":[
+                "Are there an equal number of the following things: <o1>,<o2>?. Answer True or False",
+                "Do we have the same number of <o1> and <o2>?. Answer True or False",
+                "Do <o1> match <o2> in number?. Answer True or False",
+                "Are the quantities of <o1> and <o2> equal?. Answer True or False",
+                "Determine if <o1> and <o2> are equal in number. Answer True or False",
+                "Check if the quantities of <o1> and <o2> are the same. Answer True or False"
+            ],
+            "params":[
+                "<o1>","<o2>"
+            ],
+            "end_filter":"count_equal",
+            "constraint":[]
+        },
+        "count_more_binary":{
+            "text":[
+                "Are there more <o1> than <o2>? Answer True or False",
+                "Does <o1> exceed <o2> in quantity? Answer True or False",
+                "Are there less <o2> than <o1>? Answer True or False",
+                "Are <o2> outnumbered by <o1>? Answer True or False",
+                "Determine if there are more <o1> than <o2>. Answer True or False",
+                "Answer True if <o1> outnumber <o2> and False otherwise."
+            ],
+            "params":[
+                "<o1>","<o2>"
+            ],
+            "end_filter":"count_more",
+            "constraint":[]
+        },
+        "color_identification": {
+            "text": [
+                "What colors are observed for <o>?",
+                "What are the observed colors of <o>?",
+                "Which colors can be seen in <o>?",
+                "Which colors are associated with <o>?",
+                "Find the colors for <o>.",
+                "Describe the colors of <o>.",
+                "Identify the colors seen on <o>.",
+                "Specify the colors associated with <o>."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "extract_color",
+            "constraint": ["no_color"]
+        },
+        "type_identification": {
+            "text": [
+                "What types of <o> are observable?",
+                "For the <o>, what are their types?",
+                "What types do <o> fall into?",
+                "Can you list the types of <o>?",
+                "Name the types of <o>.",
+                "Identify the types of <o>.",
+                "List the types of <o>.",
+                "State the categories of <o>."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "extract_type",
+            "constraint": ["no_type"]
+        },
+        "color_identification_unique": {
+            "text": [
+                "What's the color for <o>?",
+                "What's the color of <o>?",
+                "Which color can be seen for <o>?",
+                "Which color is associated with <o>?",
+                "Find the color for <o>.",
+                "Describe the color of <o>.",
+                "Identify the color seen on <o>.",
+                "Specify the color associated with <o>."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "extract_color_unique",
+            "constraint": ["no_color","unique"]
+        },
+        "type_identification_unique": {
+            "text": [
+                "For the <o>, what is its type?",
+                "What type does <o> fall into?",
+                "Name the type of <o>.",
+                "Identify the type of <o>.",
+                "State the category of <o>."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "extract_type_unique",
+            "constraint": ["no_type", "unique"]
+        },
         "identify_stationary": {
             "text": [
                 "Is the <o> stationary?",
@@ -205,7 +332,7 @@
         },
         "predict_trajectory": {
             "text": [
-                "Predict the trajectories of <o> in the 0.5 second at 10hz frequency."
+                "Predict the trajectories of <o> in the next second at 10hz frequency."
             ],
             "params": [
                 "<o>"
@@ -226,35 +353,35 @@
             "end_filter":"predict_collision",
             "constraint":["before_collision"]
         },
-        "blame_collision": {
+        "counterfactual_trajectory": {
             "text":[
-                "Which object is responsible for the collision?"
+                "If instead of what happened, we stared moving in <traj> at <t>. Will there be any collision? All coordinates are in our current frame, and we are at <tnow>"
             ],
-            "params":[
+            "params": [
+                "<traj>", "<t>", "<tnow>"
             ],
             "end_filter":"blame_collision",
             "constraint":["after_collision"]
         },
         "stop_safe": {
             "text": [
-                "Will collisions be avoided if we stop all-together now?"
+                "Will collisions be avoided if we stop all-together at <t>? All coordinates are in our current frame, and we are at time <tnow>"
             ],
             "params":[
+                "<t>", "<tnow>"
             ],
             "end_filter":"counterfactual_stop",
-            "constraint":["immediate_before_collision"]
+            "constraint":["after_collision"]
         },
         "move_around": {
             "text": [
-                "If we wre <d> away from our current position, will the collision still happen?"
+                "If we were <d> away at time of impact, will there still be any collision? All coordinates are in our current frame, <tnow>"
             ],
             "params": [
-                "<d>"
+                "<d>", "<tnow>"
             ],
             "end_filter": "counterfactual_displacement",
-            "constraint": ["at_collision"]
+            "constraint": ["after_collision"]
         }
-
-
     }
 }
