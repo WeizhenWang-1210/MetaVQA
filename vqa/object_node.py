@@ -357,7 +357,8 @@ class TemporalNode:
 
     def leftORright(self, node, ref_heading: Iterable[float]) -> int:
         """
-        return 1 for right, -1 for left, and 0 for in the middle
+        return 1 for right, -1 for left, and 0 for in the middle.
+        By using the decorator, we are always referring to the key frame.
         """
         # Decide Left or Right relationships base on the bounding box of the tested object and the left/right boundary
         # of the compared object. If all vertices are to the left of the front boundary, then we way the tested object
@@ -395,7 +396,8 @@ class TemporalNode:
 
     def frontORback(self, node, ref_heading: Iterable[float]) -> int:
         """
-        return 1 for front, -1 for back, and 0 for in the middle
+        return 1 for front, -1 for back, and 0 for in the middle.
+        By using the decorator, we are always referring to the key frame.
         """
         # Decide Front or Back relationships base on the bounding box of the tested object and the front/back boundary
         # of the compared object. If all vertices are in front of the front boundary, then we way the tested object
@@ -438,6 +440,7 @@ class TemporalNode:
         Indicators:
             Left  | Right | colinear:  -1 | 1 | 0
             Back  | Front | colinear:  -1 | 1 | 0
+        This relation is only true for the key frame.
         """
         assert node is not None, "node is None in agent_node.AgentNode.compute_relation"
         relation = {
@@ -498,10 +501,10 @@ def find_extremities(ref_heading: Iterable[float],
     return left_bbox, right_bbox
 
 
-def nodify(scene_dict: dict) -> Tuple[str, List[ObjectNode]]:
+def nodify(scene_dict: dict, ) -> Tuple[str, List[ObjectNode]]:
     """
     Read world JSON file into nodes. 
-    Return <ego id, list of AgentNodes>
+    Return <ego id, list of ObjectNodes>
     """
     ego_dict = scene_dict['ego']
     ego_id = scene_dict['ego']['id']

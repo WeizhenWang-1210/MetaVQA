@@ -35,7 +35,7 @@ def merge_ba(folder, destination, base_name):
         raise e
 
 
-def splitting(qa, path, ps=[0.65, 0.15, 0.2]):
+def splitting(qa, path, ps=[0.75, 0.15, 0.1]):
     def generate_categorical_list(n, categories, probabilities):
         return np.random.choice(categories, size=n, p=probabilities).tolist()
 

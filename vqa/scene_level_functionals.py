@@ -5,12 +5,19 @@ from vqa.dataset_utils import sample_keypoints
 from vqa.object_node import extrapolate_bounding_boxes
 import numpy as np
 
-def predict_collision(graph: TemporalGraph) -> Tuple[bool, Iterable[TemporalNode]]:
+
+def predict_collision(graph: TemporalGraph) -> Tuple[bool, Iterable[TemporalNode], int]:
     collided_objects = set()
+    collided_steps = set()
     ego = graph.get_ego_node()
+
     for collision_record in ego.collisions:
         collided_objects.add(collision_record[1])
-    return len(collided_objects) > 0, collided_objects
+        collided_steps.add(collision_record[0])
+    collide_step = min(collided_steps) if len(collided_steps)>0 else -1
+    return len(collided_objects) > 0, list(collided_objects), collide_step
+
+
 def move_around(original_trajectory, offset, inject_step):
     original_box = original_trajectory[inject_step]
     new_box = [(vertex[0] + offset[0], vertex[1] + offset[1]) for vertex in original_box]
@@ -40,6 +47,8 @@ def counterfactual_stop(graph, stop_step):
         if box_trajectories_overlap(stopped_ego_bboxes, other.bboxes):
             return False
     return True
+
+
 def try_counterfactual_stop(episode):
     import glob
     frame_files = sorted(glob.glob(episode, recursive=True))
@@ -52,7 +61,6 @@ def try_predict_collision(episode):
     frame_files = sorted(glob.glob(episode, recursive=True))
     graph = TemporalGraph(frame_files)
     return predict_collision(graph)
-
 
 
 def try_counterfactual_trajectory(episode):
@@ -74,11 +82,12 @@ def try_counterfactual_trajectory(episode):
         assert len(box) == 4, box
     return counterfactual_trajectory(graph, injected_ego_bboxes)
 
+
 def locate_crash_timestamp(graph: TemporalGraph):
     ego = graph.get_ego_node()
     time = 1024
     for i, collision_record in enumerate(ego.collisions):
-        time = min(time,collision_record[0])
+        time = min(time, collision_record[0])
     return time
 
 
@@ -100,16 +109,13 @@ def try_move_around(episode):
     return True
 
 
-
 if __name__ == "__main__":
     EPISODE = "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/world*.json"
-    #EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
+    # EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
     # print(try_predict_collision(EPISODE))
-    #print(try_counterfactual_stop(EPISODE))
+    # print(try_counterfactual_stop(EPISODE))
     """count = 0
     while count < 100 and not try_counterfactual_trajectory(episode=EPISODE):
         print(count)
         count += 1"""
     print(try_move_around(episode=EPISODE))
-
-
