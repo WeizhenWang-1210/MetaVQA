@@ -272,7 +272,7 @@ def generate_smooth_spline(waypoints, num_points=100):
     return x_spline, y_spline
 
 
-def sample_keypoints(original_trajectory, num_points=2, sqrt_std_max = 2):
+def sample_keypoints(original_trajectory, num_points=2, sqrt_std_max=2):
     """
     Will generate a smooth trajectory that lands roughly at the original end.
 
