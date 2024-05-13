@@ -17,7 +17,27 @@ import json
 import yaml
 
 
-def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
+def try_load_observations(observations_path):
+    import json
+    from PIL import Image
+    base = os.path.dirname(observations_path)
+    obseravations = json.load(open(observations_path, "r"))
+    for modality in obseravations.keys():
+        if modality == "lidar":
+            try_read_pickle(os.path.join(base, obseravations[modality]))
+        else:
+            # rgb then
+            for perspective in obseravations[modality]:
+                Image.open(os.path.join(base, obseravations[modality][perspective]))
+                print(modality, perspective)
+
+
+def try_read_pickle(filepath):
+    content = pickle.load(open(filepath, 'rb'))
+    print(content)
+
+
+def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
     def preprocess_topdown(image):
         # flip topdown  then change channel.
         image = np.fliplr(np.flipud(image))
@@ -39,17 +59,17 @@ def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False)
     if debug:
         # With name and history.
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                                    draw_contour=True, screen_record=False, show_agent_name=True)
+                              draw_contour=True, screen_record=False, show_agent_name=True)
         result["top_down"] = preprocess_topdown(top_down)
-        #front view image for debugging purpose.
+        # front view image for debugging purpose.
         result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
                                                                 [0, -0.5, 0])
     return result
 
 
-def episode_logging(buffer, root, IO):
+def save_episode(buffer, root, IO):
     def log_frame(data, frame_folder):
-        observations=dict()
+        observations = dict()
         for key in data.keys():
             if key in ["top_down", "front"]:
                 # Save the top-down observations in {top_down*}_{identifier}
@@ -61,7 +81,7 @@ def episode_logging(buffer, root, IO):
                 json.dump(data["world"], open(file_path, 'w'), indent=2)
             elif key in ["rgb", "mask"]:
                 # Save the rgb|instance observation in {rgb|lidar}_{perspective}_{id}.png
-                files = defaultdict(lambda:"")
+                files = defaultdict(lambda: "")
                 for perspective in data[key].keys():
                     file_path = os.path.join(frame_folder, f"{key}_{perspective}_{identifier}.png")
                     cv2.imwrite(file_path, data[key][perspective])
@@ -81,6 +101,7 @@ def episode_logging(buffer, root, IO):
         file_path = os.path.join(frame_folder, f"observations_{identifier}.json")
         json.dump(observations, open(file_path, "w"), indent=2)
         return 0
+
     env_seed, env_start, env_end = IO
     episode_folder = os.path.join(root, "{}_{}_{}".format(env_seed, env_start + 1, env_end))
     # env_start+1 since it is one step before the first frame.
@@ -177,12 +198,12 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                 objects=objects_annotations
             )
             # send all observations/information to saving function for deferred I/O(when the episode is completed)
-            buffer[identifier] = multiview_saving(env=env,
-                                                  lidar=cloud_points,
-                                                  rgb_dict=rgb_annotations,
-                                                  scene_dict=scene_annotation,
-                                                  log_mapping=Log_Mapping,
-                                                  debug=True)
+            buffer[identifier] = postprocess_annotation(env=env,
+                                                        lidar=cloud_points,
+                                                        rgb_dict=rgb_annotations,
+                                                        scene_dict=scene_annotation,
+                                                        log_mapping=Log_Mapping,
+                                                        debug=True)
         total_steps += 1
         if (tm or tc) and info["arrive_dest"]:
             '''
@@ -198,9 +219,9 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
     return total_steps, buffer, (env_id, env_start, env_end)  # this end is tail-inclusive
 
 
-def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
-                  IO_config: dict, episode_length: int,
-                  skip_length: int, job_range=None):
+def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
+                      IO_config: dict, episode_length: int,
+                      skip_length: int, job_range=None):
     """
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
@@ -250,7 +271,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
                                                      job_range=job_range)
             step += step_ran
             counter += len(records)
-            ret_code = episode_logging(records, folder, IO)
+            ret_code = save_episode(records, folder, IO)
             records.clear()  # recycling memory
             if ret_code == 0:
                 print("Successfully created episode {}:{}".format(episode_counter, IO))
@@ -261,7 +282,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
         env.close()
 
 
-def main():
+def annotate_scenarios():
     # TODO use deluxe rendering.
 
     # Set up the config
@@ -343,31 +364,12 @@ def main():
         env.reset()
         env.agent.expert_takeover = True
 
-    generate_data(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
-                  max_iterations=config["max_iterations"],
-                  IO_config=dict(batch_folder=config["storage_path"], log=True),
-                  episode_length=config["episode_length"], skip_length=config["skip_length"])
-
-def try_load_observations(observations_path):
-    import json
-    from PIL import Image
-    base = os.path.dirname(observations_path)
-    obseravations = json.load(open(observations_path,"r"))
-    for modality in obseravations.keys():
-        if modality == "lidar":
-            try_read_pickle(os.path.join(base, obseravations[modality]))
-        else:
-            #rgb then
-            for perspective in obseravations[modality]:
-                Image.open(os.path.join(base, obseravations[modality][perspective]))
-                print(modality,perspective)
-
-
-def try_read_pickle(filepath):
-    content = pickle.load(open(filepath, 'rb'))
-    print(content)
+    generate_episodes(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
+                      max_iterations=config["max_iterations"],
+                      IO_config=dict(batch_folder=config["storage_path"], log=True),
+                      episode_length=config["episode_length"], skip_length=config["skip_length"])
 
 
 if __name__ == "__main__":
-    main()
+    annotate_scenarios()
     try_load_observations("multiview_final/80_30_30/80_30/observations_80_30.json")

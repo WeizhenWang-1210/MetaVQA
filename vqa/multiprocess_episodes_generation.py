@@ -3,13 +3,14 @@ from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
-from vqa.scenario_generation import generate_data
+from vqa.episodes_generation import generate_episodes
 import os
 import yaml
 import multiprocessing as multp
 
-def main(data_directory, scenarios, headless, config, id, num_scenarios, job_range = None):
-    # Setup the gymnasium environment
+
+def main(data_directory, scenarios, headless, config, num_scenarios, job_range=None):
+    # Set up the gymnasium environment
     if headless:
         use_render = False
     else:
@@ -29,8 +30,8 @@ def main(data_directory, scenarios, headless, config, id, num_scenarios, job_ran
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 640),
-                instance=(InstanceCamera, 960, 640)
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540)
             ),
             "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
             "height_scale": 1,
@@ -38,7 +39,7 @@ def main(data_directory, scenarios, headless, config, id, num_scenarios, job_ran
         print("Finished reading")
         from metadrive.envs.scenario_env import ScenarioEnv
         env = ScenarioDiverseEnv(env_config)
-        env.reset(seed = job_range[0])
+        env.reset(seed=job_range[0])
     else:
         env_config = dict(
             use_render=use_render,
@@ -57,8 +58,8 @@ def main(data_directory, scenarios, headless, config, id, num_scenarios, job_ran
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 960, 640),
-                instance=(InstanceCamera, 960, 640)
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540)
             ),
             height_scale=1,
         )
@@ -68,10 +69,10 @@ def main(data_directory, scenarios, headless, config, id, num_scenarios, job_ran
         else:
             env.reset(seed=job_range[0])
         env.agent.expert_takeover = True
-    generate_data(env, config["num_samples"], config["sample_frequency"], config["max_iterations"],
-                  dict(batch_folder= config["storage_path"], log=True), config["map_setting"]["start_seed"],
-                  episode_length=config["episode_length"],
-                  skip_length=config["skip_length"], job_range = job_range)
+    generate_episodes(env, config["num_samples"], config["sample_frequency"], config["max_iterations"],
+                      dict(batch_folder=config["storage_path"], log=True),
+                      episode_length=config["episode_length"],
+                      skip_length=config["skip_length"], job_range=job_range)
 
 
 def divide_into_intervals_exclusive(total, n):
@@ -88,6 +89,7 @@ def divide_into_intervals_exclusive(total, n):
         # Update the start for the next interval
         start = end
     return intervals
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -113,6 +115,7 @@ if __name__ == "__main__":
 
     if args.data_directory:
         from metadrive.scenario import utils as sd_utils
+
         scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
         num_scenarios = len(scenario_summary.keys())
     else:
