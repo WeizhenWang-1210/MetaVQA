@@ -8,41 +8,25 @@ from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
-from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.engine_utils import get_engine
+import pickle
+from collections import defaultdict
 import cv2
 import os
 import json
 import yaml
 
 
-def saving(env, lidar, rgb, scene_dict, masks, log_mapping, debug=False):
-    """
-    This function will save all information regarding one frame into a single dict, and it can be saved into the buffer to log later.
-    """
-    result = dict()
-    result["world"] = scene_dict
-    result["lidar"] = lidar
-    result["rgb"] = rgb * 255
-    if debug:
-        top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                              draw_contour=True, screen_record=False, show_agent_name=True)
-
-        image = np.fliplr(np.flipud(top_down))
+def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
+    def preprocess_topdown(image):
+        # flip topdown  then change channel.
+        image = np.fliplr(np.flipud(top_down_debug))
         b, g, r = image[:, :, 0], image[:, :, 1], image[:, :, 2]
         rgb_image = np.dstack((r, g, b))
-        result["top_down"] = rgb_image
-        result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
-                                                                [0, -0.5, 0])  # cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
-    result["mask"] = masks * 255
-    result["log_mapping"] = log_mapping
-    return result
+        return rgb_image
 
-
-def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
-    """
-    This function will save all information regarding one frame into a single dict, and it can be saved into the buffer to log later.
-    """
+    """This function will save all information regarding one frame into a single dict, and it can be saved into the 
+    buffer to log later."""
     result = dict()
     result["world"] = scene_dict
     result["lidar"] = lidar
@@ -53,268 +37,178 @@ def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False)
         result["rgb"][perspective] = rgb_dict[perspective]["rgb"] * 255
         result["mask"][perspective] = rgb_dict[perspective]["mask"] * 255
     if debug:
+        # With name and history.
+        top_down_debug = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
+                                    draw_contour=True, screen_record=False, show_agent_name=True)
+        result["top_down_debug"] = preprocess_topdown(top_down_debug)
+        # ego head up.
+        top_down_ego = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
+                                  draw_contour=True, screen_record=False, show_agent_name=False,
+                                  target_agent_heading_up=True)
+        result["top_down_ego"] = preprocess_topdown(top_down_ego)
+        # no history
+        top_down_static = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
+                                     draw_contour=True, screen_record=False, show_agent_name=False, num_stack=1)
+        result["top_down_static"] = preprocess_topdown(top_down_static)
+        # without name, no ego head up, with history.
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                              draw_contour=True, screen_record=False, show_agent_name=True )
-        #TODO Add a top_down render not showing any other object's name
-        image = np.fliplr(np.flipud(top_down))
-        b, g, r = image[:, :, 0], image[:, :, 1], image[:, :, 2]
-        rgb_image = np.dstack((r, g, b))
-        result["top_down"] = rgb_image
+                              draw_contour=True, screen_record=False, show_agent_name=False)
+        result["top_down"] = preprocess_topdown(top_down)
+        #front view image for debugging purpose.
         result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
-                                                                [0, -0.5, 0])  # cv2.cvtColor(main, cv2.COLOR_BGR2RGB)
+                                                                [0, -0.5, 0])
     return result
 
 
-def episode_logging(buffer, root, IO, multiview=True):
+def episode_logging(buffer, root, IO):
+    def log_frame(data, frame_folder):
+        observations=dict()
+        for key in data.keys():
+            if key in ["top_down", "top_down_debug", "top_down_static", "top_down_ego", "front"]:
+                # Save the top-down observations in {top_down*}_{identifier}
+                file_path = os.path.join(frame_folder, f"{key}_{identifier}.png")
+                cv2.imwrite(file_path, data[key])
+            elif key == "world":
+                # Save the world annotation in world_{}.json
+                file_path = os.path.join(frame_folder, f"{key}_{identifier}.json")
+                json.dump(data["world"], open(file_path, 'w'), indent=2)
+            elif key in ["rgb", "mask"]:
+                # Save the rgb|instance observation in {rgb|lidar}_{perspective}_{id}.png
+                files = defaultdict(lambda:"")
+                for perspective in data[key].keys():
+                    file_path = os.path.join(frame_folder, f"{key}_{perspective}_{identifier}.png")
+                    cv2.imwrite(file_path, data[key][perspective])
+                    files[perspective] = f"{key}_{perspective}_{identifier}.png"
+                observations[key] = files
+            elif key == "lidar":
+                # Save the lidar observation in lidar{id}.json
+                file_path = os.path.join(frame_folder, f"lidar_{identifier}.pkl")
+                pickle.dump(data["lidar"], open(file_path, 'w'))
+                observations[key] = f"lidar_{identifier}.pkl"
+            elif key == "log_mapping":
+                # Save the mapping front ID to color for visualization purpose. in metainformation_{}.json
+                file_path = os.path.join(frame_folder, "id2c_{}.json".format(identifier))
+                json.dump(data["log_mapping"], open(file_path, 'w'), indent=2)
+            else:
+                raise Exception(f"{key} is not in the annotation!")
+        file_path = os.path.join(frame_folder, f"observations_{identifier}.json")
+        json.dump(observations, open(file_path, "w"), indent=2)
+        return 0
     env_seed, env_start, env_end = IO
     episode_folder = os.path.join(root, "{}_{}_{}".format(env_seed, env_start + 1, env_end))
+    # env_start+1 since it is one step before the first frame.
     # create the episode folder, which will contain each frame folder
     try:
         os.makedirs(episode_folder, exist_ok=True)
+        for identifier, data in buffer.items():
+            # create the frame folder
+            instance_folder = os.path.join(episode_folder, identifier)
+            os.makedirs(instance_folder, exist_ok=True)
+            log_frame(data, instance_folder)
     except Exception as e:
         raise e
-
-    def log_data(data, instance_folder):
-        try:
-            # Save the world annotation in world{}.json
-            file_path = os.path.join(instance_folder, "world_{}.json".format(identifier))
-            with open(file_path, 'w') as f:
-                json.dump(data["world"], f, indent=2)
-            # Save the lidar observation in lidar{}.json
-            file_path = os.path.join(instance_folder, "lidar_{}.json".format(identifier))
-            with open(file_path, 'w') as f:
-                observation = {}
-                observation['lidar'] = data["lidar"]
-                json.dump(observation, f, indent=2)
-            # Save the rgb observation in rgb{}.json
-            file_path = os.path.join(instance_folder, "rgb_{}.png".format(identifier))
-            cv2.imwrite(file_path, data["rgb"])
-            if "top_down" in data.keys():
-                # Save the top-down view in top_down{}.json
-                file_path = os.path.join(instance_folder, "top_down_{}.png".format(identifier))
-                cv2.imwrite(file_path, data["top_down"])
-            if "front" in data.keys():
-                # Save the rendering in front_{}.png
-                file_path = os.path.join(instance_folder, "front_{}.png".format(identifier))
-                cv2.imwrite(file_path, data["front"])
-            # Save the instance segmentation mask in mask.{}.png
-            file_path = os.path.join(instance_folder, "mask_{}.png".format(identifier))
-            cv2.imwrite(file_path, data["mask"])
-            # Save the mapping front ID to color for visualization purpose. in metainformation_{}.json
-            file_path = os.path.join(instance_folder, "metainformation_{}.json".format(identifier))
-            with open(file_path, 'w') as f:
-                # write the dictionary to the file in JSON format
-                json.dump(data["log_mapping"], f, indent=2)
-            return 0
-        except Exception as e:
-            raise e
-
-    def log_data_mult(data, instance_folder):
-        try:
-            # Save the world annotation in world{}.json
-            file_path = os.path.join(instance_folder, "world_{}.json".format(identifier))
-            with open(file_path, 'w') as f:
-                json.dump(data["world"], f, indent=2)
-            # Save the lidar observation in lidar{id}.json
-            file_path = os.path.join(instance_folder, "lidar_{}.json".format(identifier))
-            with open(file_path, 'w') as f:
-                observation = {}
-                observation['lidar'] = data["lidar"]
-                json.dump(observation, f, indent=2)
-            for perspective in data["rgb"].keys():
-                # Save the rgb observation in rgb_{perspective}_{id}.png
-                file_path = os.path.join(instance_folder, "rgb_{}_{}.png".format(perspective, identifier))
-                cv2.imwrite(file_path, data["rgb"][perspective])
-                # Save the instance segmentation mask in mask_{perspective}_{id}.png
-                file_path = os.path.join(instance_folder, "mask_{}_{}.png".format(perspective, identifier))
-                cv2.imwrite(file_path, data["mask"][perspective])
-            if "top_down" in data.keys():
-                # Save the top-down view in top_down{id}.json
-                file_path = os.path.join(instance_folder, "top_down_{}.png".format(identifier))
-                cv2.imwrite(file_path, data["top_down"])
-            if "front" in data.keys():
-                # Save the rendering in front_{id}.png
-                file_path = os.path.join(instance_folder, "front_{}.png".format(identifier))
-                cv2.imwrite(file_path, data["front"])
-            # Save the mapping front ID to color for visualization purpose. in metainformation_{}.json
-            file_path = os.path.join(instance_folder, "metainformation_{}.json".format(identifier))
-            with open(file_path, 'w') as f:
-                # write the dictionary to the file in JSON format
-                json.dump(data["log_mapping"], f, indent=2)
-            return 0
-        except Exception as e:
-            raise e
-
-    for identifier, data in buffer.items():
-        # create the frame folder
-        instance_folder = os.path.join(episode_folder, identifier)
-        try:
-            os.makedirs(instance_folder, exist_ok=True)
-        except Exception as e:
-            raise e
-        if multiview:
-            log_data_mult(data, instance_folder)
-        else:
-            log_data(data, instance_folder)
     return 0
 
 
-def run_episode(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, job_range=None,
-                multiview=True):
+def annotate_episode(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, job_range=None):
+    """
+    Record an episode of observations. Note that multiple episodes can be extracted from one seed. Moreover,
+    by setting episode_length to 1, you get single-frame observations.
+    """
     print("I'm in the episode! Starting at env{}, step{}".format(env.current_seed, env.episode_step))
-    total_steps = 0
-    buffer = dict()
+    total_steps = 0  # record how many steps have actually taken place in the current episode
+    buffer = dict()  # Store all frame annotations for the current episode.
     env_id = env.current_seed
     env_start = env.episode_step
-    if not multiview:
-        while total_steps < episode_length:
-            o, r, tm, tc, info = env.step([0, 0])
-            env.render(
-                text={
-                    "Auto-Drive (Switch mode: T)": "on" if env.current_track_agent.expert_takeover else "off",
-                }
+    while total_steps < episode_length:
+        o, r, tm, tc, info = env.step([0, 0])
+        env.render(
+            text={
+                "Auto-Drive (Switch mode: T)": "on" if env.current_track_agent.expert_takeover else "off",
+            }
+        )
+        if total_steps % sample_frequency == 0:
+            cloud_points, _ = lidar.perceive(
+                env.agent,
+                physics_world=env.engine.physics_world.dynamic_world,
+                num_lasers=env.agent.config["lidar"]["num_lasers"],
+                distance=env.agent.config["lidar"]["distance"],
+                show=False,
             )
-            if total_steps % sample_frequency == 0:
-                cloud_points, _ = lidar.perceive(
-                    env.agent,
-                    physics_world=env.engine.physics_world.dynamic_world,
-                    num_lasers=env.agent.config["lidar"]["num_lasers"],
-                    distance=env.agent.config["lidar"]["distance"],
-                    show=False,
+            identifier = "{}_{}".format(env.current_seed, env.episode_step)
+            positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
+                         (0., 0., 1.5)]
+            hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
+            names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            rgb_annotations = {}
+            for position, hpr, name in zip(positions, hprs, names):
+                mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
+                                                hpr=hpr)
+                rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                rgb_annotations[name] = dict(
+                    mask=mask,
+                    rgb=rgb
                 )
-                identifier = "{}_{}".format(env.current_seed, env.episode_step)
-                masks = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin,
-                                                 position=(0., 0.8, 1.5),
-                                                 hpr=[0, 0, 0])
-                rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=(0., 0.8, 1.5),
-                                      hpr=[0, 0, 0])
-                # Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
-                # is reserved for special purpose, and no objects will take this color.
-                mapping = engine.c_id
-                # to be consider observable, the object must not be black/white(reserved) and must have at least 32 pixels observable
-                filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
-                        r == 0 and g == 0 and b == 0) and (
-                                                    c > 128)
-                visible_ids, log_mapping = get_visible_object_ids(masks, mapping, filter)
-                # Record only if there are observable objects.
+            # Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
+            # is reserved for special purpose, and no objects will take this color.
+            mapping = engine.c_id
+            visible_ids_set = set()
+            # to be considered as observable, the object must not be black/white(reserved) and must have at least 240
+            # in any of the 960*540 resolution camera
+            filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
+                    r == 0 and g == 0 and b == 0) and (
+                                                c > 240)
+            Log_Mapping = dict()
+            for perspective in rgb_annotations.keys():
+                visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
+                visible_ids_set.update(visible_ids)
+                rgb_annotations[perspective]["visible_ids"] = visible_ids
+                Log_Mapping.update(log_mapping)
 
-                # log_mapping = {id: log_mapping[id] for id in visible_ids}
-
-                valid_objects = engine.get_objects(
-                    lambda x: l2_distance(x,
-                                          env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
-                                                                                                       BaseTrafficLight))  # get all objectes within 50m of the ego(except agent)
-
-                visible_mask = [True if x in visible_ids else False for x in valid_objects.keys()]
-                objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask)
-                ego_annotation = genearte_annotation(env.agent, env)
-                scene_dict = dict(
-                    ego=ego_annotation,
-                    objects=objects_annotations
-                )
-                # send all observations/informations to saving function for deferred I/O(when the episode is completed)
-                buffer[identifier] = saving(env=env,
-                                            lidar=cloud_points,
-                                            rgb=rgb,
-                                            scene_dict=scene_dict,
-                                            masks=masks,
-                                            log_mapping=log_mapping,
-                                            debug=True)
-            total_steps += 1
-            if (tm or tc) and info["arrive_dest"]:
-                if job_range is not None and env.current_seed + 1 >= job_range[-1]:
-                    break
-                env.reset(env.current_seed + 1)
-                env.current_track_agent.expert_takeover = True
-                break
-    else:
-        while total_steps < episode_length:
-            o, r, tm, tc, info = env.step([0, 0])
-            env.render(
-                text={
-                    "Auto-Drive (Switch mode: T)": "on" if env.current_track_agent.expert_takeover else "off",
-                }
+            # Record only if there are observable objects.
+            # get all objectes within 50m of the ego(except agent)
+            valid_objects = engine.get_objects(
+                lambda x: l2_distance(x,
+                                      env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
+                                                                                                   BaseTrafficLight))
+            observing_camera = []
+            for obj_id in valid_objects.keys():
+                final = []
+                for perspective in rgb_annotations.keys():
+                    if obj_id in rgb_annotations[perspective]["visible_ids"]:
+                        final.append(perspective)
+                observing_camera.append(final)
+            # We will determine visibility for all valid_objects set.
+            visible_mask = [True if x in visible_ids_set else False for x in valid_objects.keys()]
+            # we will annotate all objects within 50 meters with respective to ego.
+            # TODO unify annotation nomenclature with Chenda.
+            objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask,
+                                                       observing_camera)
+            ego_annotation = genearte_annotation(env.agent, env)
+            scene_annotation = dict(
+                ego=ego_annotation,
+                objects=objects_annotations
             )
-            if total_steps % sample_frequency == 0:
-                cloud_points, _ = lidar.perceive(
-                    env.agent,
-                    physics_world=env.engine.physics_world.dynamic_world,
-                    num_lasers=env.agent.config["lidar"]["num_lasers"],
-                    distance=env.agent.config["lidar"]["distance"],
-                    show=False,
-                )
-                identifier = "{}_{}".format(env.current_seed, env.episode_step)
-                positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                             (0., 0., 1.5)]
-                hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
-                names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
-                rgb_dict = {}
-                for position, hpr, name in zip(positions, hprs, names):
-                    mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
-                                                    hpr=hpr)
-                    rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
-                    rgb_dict[name] = dict(
-                        mask=mask,
-                        rgb=rgb
-                    )
-                # Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
-                # is reserved for special purpose, and no objects will take this color.
-                mapping = engine.c_id
-                visible_ids_set = set()
-                # to be consider observable, the object must not be black/white(reserved) and must have at least 240
-                # in any of the 960*540 resolution camera
-                filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
-                        r == 0 and g == 0 and b == 0) and (
-                                                    c > 240)
-                Log_Mapping = dict()
-                for perspective in rgb_dict.keys():
-                    visible_ids, log_mapping = get_visible_object_ids(rgb_dict[perspective]["mask"], mapping, filter)
-                    visible_ids_set.update(visible_ids)
-                    rgb_dict[perspective]["visible_ids"] = visible_ids
-                    Log_Mapping.update(log_mapping)
-
-                # Record only if there are observable objects.
-                # get all objectes within 50m of the ego(except agent)
-                valid_objects = engine.get_objects(
-                    lambda x: l2_distance(x,
-                                          env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
-                                                                                                       BaseTrafficLight))
-                observing_camera = []
-                for obj_id in valid_objects.keys():
-                    final = []
-                    for perspective in rgb_dict.keys():
-                        if obj_id in rgb_dict[perspective]["visible_ids"]:
-                            final.append(perspective)
-                    observing_camera.append(final)
-                # We will determine visibility for all valid_objects set.
-                visible_mask = [True if x in visible_ids_set else False for x in valid_objects.keys()]
-                # we will annotate all objects within 50 meters with respective to ego.
-                # TODO unify annotation nomenclature with Chenda.
-                objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask,
-                                                           observing_camera)
-                ego_annotation = genearte_annotation(env.agent, env)
-                scene_dict = dict(
-                    ego=ego_annotation,
-                    objects=objects_annotations
-                )
-                # send all observations/informations to saving function for deferred I/O(when the episode is completed)
-                buffer[identifier] = multiview_saving(env=env,
-                                                      lidar=cloud_points,
-                                                      rgb_dict=rgb_dict,
-                                                      scene_dict=scene_dict,
-                                                      log_mapping=Log_Mapping,
-                                                      debug=True)
-            total_steps += 1
-            if (tm or tc) and info["arrive_dest"]:
-                if job_range is not None and env.current_seed + 1 >= job_range[-1]:
-                    break
-                env.reset(env.current_seed + 1)
-                env.current_track_agent.expert_takeover = True
+            # send all observations/information to saving function for deferred I/O(when the episode is completed)
+            buffer[identifier] = multiview_saving(env=env,
+                                                  lidar=cloud_points,
+                                                  rgb_dict=rgb_annotations,
+                                                  scene_dict=scene_annotation,
+                                                  log_mapping=Log_Mapping,
+                                                  debug=True)
+        total_steps += 1
+        if (tm or tc) and info["arrive_dest"]:
+            '''
+            Don't go into the save environment twice.
+            '''
+            if job_range is not None and env.current_seed + 1 >= job_range[-1]:
                 break
-
+            env.reset(env.current_seed + 1)
+            env.current_track_agent.expert_takeover = True
+            break
     env_end = env.episode_step
     print("exist episode")
-    return total_steps, buffer, (env_id, env_start, env_end)
+    return total_steps, buffer, (env_id, env_start, env_end)  # this end is tail-inclusive
 
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
@@ -323,20 +217,20 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
     """
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
     IO_config.
+            Create the folder in which you will save your data. The structure would be of:
+                root/{episode}_{begin_step}_{end_step}/{step}/[name]_{episode}_{step}.extensions
+                name := front|lidar|mask|metainformation|rgb|top_down|world
+                front: The image captured by the main_camera during rendering
+                lidar: The lidar observation in episode at specific step
+                mask: The instance segmentation mask according to the ego's rgb observation. This is used for illustration
+                        verification of the correctness of the generated ground truth
+                top_down: The top-down image in episode at specific step
+                wolrd: The annotation of this step in the episode. Utilized to create the scene graphs for dataset generation
     """
+
     try:
         # o, _ = env.reset(seed)
-        """
-        Create the folder in which you will save your data. The structure would be of:
-            root/{episode}_{begin_step}_{end_step}/{step}/[name]_{episode}_{step}.extensions
-            name := front|lidar|mask|metainformation|rgb|top_down|world
-            front: The image captured by the main_camera during rendering
-            lidar: The lidar observation in episode at specific step
-            mask: The instance segmentation mask according to the ego's rgb observation. This is used for illustration
-                    verification of the correctness of the generated ground truth
-            top_down: The top-down image in episode at specific step
-            wolrd: The annotation of this step in the episode. Utilized to create the scene graphs for dataset generation
-        """
+
         folder = os.path.join(IO_config["batch_folder"])
         os.makedirs(folder, exist_ok=True)
         print("This session is stored in folder: {}".format(folder))
@@ -359,20 +253,20 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
                 env.step([0, 0])
                 step += 1
                 continue
-            step_ran, records, IO = run_episode(env=env,
-                                                engine=engine,
-                                                sample_frequency=sample_frequency,
-                                                episode_length=episode_length,
-                                                camera=camera,
-                                                instance_camera=instance_camera,
-                                                lidar=lidar,
-                                                job_range=job_range)
+            step_ran, records, IO = annotate_episode(env=env,
+                                                     engine=engine,
+                                                     sample_frequency=sample_frequency,
+                                                     episode_length=episode_length,
+                                                     camera=camera,
+                                                     instance_camera=instance_camera,
+                                                     lidar=lidar,
+                                                     job_range=job_range)
             step += step_ran
             counter += len(records)
             ret_code = episode_logging(records, folder, IO)
             records.clear()  # recycling memory
             if ret_code == 0:
-                print("Successfully created episode {}".format(episode_counter))
+                print("Successfully created episode {}:{}".format(episode_counter, IO))
                 episode_counter += 1
     except Exception as e:
         raise e
@@ -381,7 +275,7 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
 
 
 def main():
-    #TODO use deluxe rendering.
+    # TODO use deluxe rendering.
 
     # Set up the config
     cwd = os.getcwd()
@@ -463,7 +357,8 @@ def main():
         env.agent.expert_takeover = True
 
     generate_data(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
-                  max_iterations=config["max_iterations"], IO_config=dict(batch_folder=config["storage_path"], log=True),
+                  max_iterations=config["max_iterations"],
+                  IO_config=dict(batch_folder=config["storage_path"], log=True),
                   episode_length=config["episode_length"], skip_length=config["skip_length"])
 
 
