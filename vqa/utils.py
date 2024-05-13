@@ -17,7 +17,7 @@ def annotate_type(object):
     """
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
     """
-    # TODO extend the function to work on Chenda's imported assets.
+    # TODO Fix Nomenclature
 
     if isinstance(object, TestObject) or isinstance(object, CustomizedCar):
         # print(object.get_asset_metainfo())
@@ -45,6 +45,8 @@ def annotate_type(object):
 
 
 def annotate_lane(object):
+    raise DeprecationWarning("This function is not useful")
+
     if isinstance(object, BaseVehicle) and object.navigation:
         return object.lane_index
     else:
@@ -79,6 +81,7 @@ def annotate_color(object):
 
 
 def annotate_states(object):
+    raise DeprecationWarning("This function is not useful")
     states = dict()
     if isinstance(object, CustomizedCar) or isinstance(object, BaseVehicle):
         states["acceleration"] = object.throttle_brake
@@ -103,53 +106,12 @@ def get_visible_object_ids(imgs: np.array, mapping: dict(), filter: Callable) ->
         {mapping[unique_colors_processed[i]]: unique_colors_filtered[i] for i in range(len(unique_colors_processed))}
 
 
-def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_mask: List[bool] = [True]) -> Iterable[
-    dict]:
-    result = []
-    for idx, obj in enumerate(objects):
-        g_min_point, g_max_point = obj.origin.getTightBounds()
-        height = g_max_point[2]
-        """ p4 = g_min_point[0],g_max_point[1]
-        p1 = g_max_point[0],g_max_point[1]
-        p2 = g_max_point[0],g_min_point[1]
-        p3 = g_min_point[0],g_min_point[1]
-        box = [p1,p2,p3,p4]"""
-        box = obj.bounding_box
-        box = [list(b) for b in box]
-        speed = -1
-        position = obj.position.tolist()
-        if isinstance(obj, BaseObject):
-            speed = obj.speed
-        annotation = dict(
-            id=obj.id,
-            color=annotate_color(obj),
-            heading=(obj.heading[0], obj.heading[1]),
-            speed=speed,
-            pos=position,
-            bbox=box,
-            type=annotate_type(obj),
-            height=height,
-            class_name=str(type(obj)),
-            lane=annotate_lane(obj),
-            visible=visible_mask[idx],
-            states=annotate_states(obj),
-            collisions=annotate_collision(obj)
-        )
-        result.append(annotation)
-    return result
-
-
 def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_mask: List[bool] = [False],
                          observing_camera=[[]]) -> Iterable[dict]:
     result = []
     for idx, obj in enumerate(objects):
         g_min_point, g_max_point = obj.origin.getTightBounds()
         height = g_max_point[2]
-        """ p4 = g_min_point[0],g_max_point[1]
-        p1 = g_max_point[0],g_max_point[1]
-        p2 = g_max_point[0],g_min_point[1]
-        p3 = g_min_point[0],g_min_point[1]
-        box = [p1,p2,p3,p4]"""
         box = obj.bounding_box
         box = [list(b) for b in box]
         speed = -1
@@ -167,10 +129,8 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
             type=annotate_type(obj),
             height=height,
             class_name=str(type(obj)),
-            lane=annotate_lane(obj),
             visible=visible_mask[idx],
             observing_camera=observing_camera[idx],
-            states=annotate_states(obj),
             collisions=annotate_collision(obj)
         )
         result.append(annotation)
