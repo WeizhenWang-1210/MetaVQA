@@ -54,7 +54,8 @@ def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False)
         result["mask"][perspective] = rgb_dict[perspective]["mask"] * 255
     if debug:
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                              draw_contour=True, screen_record=False, show_agent_name=True)
+                              draw_contour=True, screen_record=False, show_agent_name=True )
+        #TODO Add a top_down render not showing any other object's name
         image = np.fliplr(np.flipud(top_down))
         b, g, r = image[:, :, 0], image[:, :, 1], image[:, :, 2]
         rgb_image = np.dstack((r, g, b))
@@ -243,7 +244,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                     show=False,
                 )
                 identifier = "{}_{}".format(env.current_seed, env.episode_step)
-                positions = [(0., 0.2, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., -0.2, 1.5), (0., 0., 1.5),
+                positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
                              (0., 0., 1.5)]
                 hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
                 names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
@@ -260,36 +261,35 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
                 # is reserved for special purpose, and no objects will take this color.
                 mapping = engine.c_id
                 visible_ids_set = set()
-                # to be consider observable, the object must not be black/white(reserved) and must have at least 25600 pixels observable
+                # to be consider observable, the object must not be black/white(reserved) and must have at least 240
+                # in any of the 960*540 resolution camera
                 filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                         r == 0 and g == 0 and b == 0) and (
-                                                    c > 960)
+                                                    c > 240)
                 Log_Mapping = dict()
                 for perspective in rgb_dict.keys():
                     visible_ids, log_mapping = get_visible_object_ids(rgb_dict[perspective]["mask"], mapping, filter)
-                    # print(perspective,visible_ids)
                     visible_ids_set.update(visible_ids)
                     rgb_dict[perspective]["visible_ids"] = visible_ids
                     Log_Mapping.update(log_mapping)
 
                 # Record only if there are observable objects.
-
-                # log_mapping = {id: log_mapping[id] for id in visible_ids}
-
+                # get all objectes within 50m of the ego(except agent)
                 valid_objects = engine.get_objects(
                     lambda x: l2_distance(x,
                                           env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
-                                                                                                       BaseTrafficLight))  # get all objectes within 50m of the ego(except agent)
+                                                                                                       BaseTrafficLight))
                 observing_camera = []
-                #print(len(valid_objects), len(visible_ids_set))
                 for obj_id in valid_objects.keys():
                     final = []
                     for perspective in rgb_dict.keys():
                         if obj_id in rgb_dict[perspective]["visible_ids"]:
                             final.append(perspective)
                     observing_camera.append(final)
+                # We will determine visibility for all valid_objects set.
                 visible_mask = [True if x in visible_ids_set else False for x in valid_objects.keys()]
-                #print(visible_mask, observing_camera)
+                # we will annotate all objects within 50 meters with respective to ego.
+                # TODO unify annotation nomenclature with Chenda.
                 objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask,
                                                            observing_camera)
                 ego_annotation = genearte_annotation(env.agent, env)
@@ -318,7 +318,7 @@ def run_episode(env, engine, sample_frequency, episode_length, camera, instance_
 
 
 def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iterations: int,
-                  IO_config: dict, seed: int, episode_length: int,
+                  IO_config: dict, episode_length: int,
                   skip_length: int, job_range=None):
     """
     Initiate a data recording session with specified parameters. Works with any BaseEnv. Specify the data-saving folder in
@@ -374,7 +374,6 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
             if ret_code == 0:
                 print("Successfully created episode {}".format(episode_counter))
                 episode_counter += 1
-
     except Exception as e:
         raise e
     finally:
@@ -382,10 +381,11 @@ def generate_data(env: BaseEnv, num_points: int, sample_frequency: int, max_iter
 
 
 def main():
-    # Setup the config
+    #TODO use deluxe rendering.
+
+    # Set up the config
     cwd = os.getcwd()
     full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
-    from metadrive.engine.asset_loader import AssetLoader
     try:
         # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
         with open(full_path, 'r') as f:
@@ -410,7 +410,7 @@ def main():
         asset_path = AssetLoader.asset_path
         use_waymo = True
         from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-
+        # Load the dicrectory.
         if args.data_directory:
             from metadrive.scenario import utils as sd_utils
             scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
@@ -427,14 +427,12 @@ def main():
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1600, 1200),
-                instance=(InstanceCamera, 1600, 1200),
-                #semantic=(SemanticCamera, 1600, 1200)
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540),
             ),
-            "height_scale":1
+            "height_scale": 1
         }
         print("Finished reading")
-        from metadrive.envs.scenario_env import ScenarioEnv
         env = ScenarioDiverseEnv(env_config)
         env.reset(seed=0)
     else:
@@ -455,8 +453,8 @@ def main():
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 1600, 1200),
-                instance=(InstanceCamera, 1600, 1200)
+                rgb=(RGBCamera, 960, 540,),
+                instance=(InstanceCamera, 960, 540)
             ),
             height_scale=1
         )
@@ -464,10 +462,9 @@ def main():
         env.reset()
         env.agent.expert_takeover = True
 
-    generate_data(env, config["num_samples"], config["sample_frequency"], config["max_iterations"],
-                  dict(batch_folder=config["storage_path"], log=True), config["map_setting"]["start_seed"],
-                  episode_length=config["episode_length"],
-                  skip_length=config["skip_length"])
+    generate_data(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
+                  max_iterations=config["max_iterations"], IO_config=dict(batch_folder=config["storage_path"], log=True),
+                  episode_length=config["episode_length"], skip_length=config["skip_length"])
 
 
 if __name__ == "__main__":
