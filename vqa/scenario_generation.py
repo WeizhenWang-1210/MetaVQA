@@ -20,7 +20,7 @@ import yaml
 def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
     def preprocess_topdown(image):
         # flip topdown  then change channel.
-        image = np.fliplr(np.flipud(top_down_debug))
+        image = np.fliplr(np.flipud(image))
         b, g, r = image[:, :, 0], image[:, :, 1], image[:, :, 2]
         rgb_image = np.dstack((r, g, b))
         return rgb_image
@@ -38,21 +38,8 @@ def multiview_saving(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False)
         result["mask"][perspective] = rgb_dict[perspective]["mask"] * 255
     if debug:
         # With name and history.
-        top_down_debug = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                                    draw_contour=True, screen_record=False, show_agent_name=True)
-        result["top_down_debug"] = preprocess_topdown(top_down_debug)
-        # ego head up.
-        top_down_ego = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                                  draw_contour=True, screen_record=False, show_agent_name=False,
-                                  target_agent_heading_up=True)
-        result["top_down_ego"] = preprocess_topdown(top_down_ego)
-        # no history
-        top_down_static = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                                     draw_contour=True, screen_record=False, show_agent_name=False, num_stack=1)
-        result["top_down_static"] = preprocess_topdown(top_down_static)
-        # without name, no ego head up, with history.
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                              draw_contour=True, screen_record=False, show_agent_name=False)
+                                    draw_contour=True, screen_record=False, show_agent_name=True)
         result["top_down"] = preprocess_topdown(top_down)
         #front view image for debugging purpose.
         result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
@@ -64,7 +51,7 @@ def episode_logging(buffer, root, IO):
     def log_frame(data, frame_folder):
         observations=dict()
         for key in data.keys():
-            if key in ["top_down", "top_down_debug", "top_down_static", "top_down_ego", "front"]:
+            if key in ["top_down", "front"]:
                 # Save the top-down observations in {top_down*}_{identifier}
                 file_path = os.path.join(frame_folder, f"{key}_{identifier}.png")
                 cv2.imwrite(file_path, data[key])
@@ -83,7 +70,7 @@ def episode_logging(buffer, root, IO):
             elif key == "lidar":
                 # Save the lidar observation in lidar{id}.json
                 file_path = os.path.join(frame_folder, f"lidar_{identifier}.pkl")
-                pickle.dump(data["lidar"], open(file_path, 'w'))
+                pickle.dump(data["lidar"], open(file_path, 'wb'))
                 observations[key] = f"lidar_{identifier}.pkl"
             elif key == "log_mapping":
                 # Save the mapping front ID to color for visualization purpose. in metainformation_{}.json
@@ -361,6 +348,26 @@ def main():
                   IO_config=dict(batch_folder=config["storage_path"], log=True),
                   episode_length=config["episode_length"], skip_length=config["skip_length"])
 
+def try_load_observations(observations_path):
+    import json
+    from PIL import Image
+    base = os.path.dirname(observations_path)
+    obseravations = json.load(open(observations_path,"r"))
+    for modality in obseravations.keys():
+        if modality == "lidar":
+            try_read_pickle(os.path.join(base, obseravations[modality]))
+        else:
+            #rgb then
+            for perspective in obseravations[modality]:
+                Image.open(os.path.join(base, obseravations[modality][perspective]))
+                print(modality,perspective)
+
+
+def try_read_pickle(filepath):
+    content = pickle.load(open(filepath, 'rb'))
+    print(content)
+
 
 if __name__ == "__main__":
     main()
+    try_load_observations("multiview_final/80_30_30/80_30/observations_80_30.json")
