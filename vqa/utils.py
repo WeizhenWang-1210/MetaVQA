@@ -1,6 +1,5 @@
 from typing import Iterable, Callable, List
 import numpy as np
-from metadrive.engine.engine_utils import get_engine
 from metadrive.envs.base_env import BaseEnv
 from metadrive.base_class.base_object import BaseObject
 from metadrive.component.vehicle.vehicle_type import BaseVehicle, SVehicle, MVehicle, LVehicle, XLVehicle, \
@@ -10,7 +9,6 @@ from metadrive.component.traffic_light.scenario_traffic_light import ScenarioTra
 from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.component.traffic_participants.cyclist import Cyclist
 from metadrive.component.static_object.test_new_object import TestObject
-from vqa.dataset_utils import transform_to_world
 
 
 def annotate_type(object):
@@ -89,13 +87,21 @@ def annotate_states(object):
     return states
 
 
+def annotate_collision(obj):
+    result = []
+    if isinstance(obj, BaseVehicle):
+        result = list(obj.crashed_objects)
+    return result
+
+
 def get_visible_object_ids(imgs: np.array, mapping: dict(), filter: Callable) -> Iterable[str]:
     '''
     imgs: np.array(H,W,C), the observation by the instance segmentation camera, clipped between 0,1
     mapping: dictionary mapping (r,g,b) to object id. Note that each float is rounded to 5 points
     filter: boolean function to filter out certain colors. Takes a tuple (r,g,b) and an int c 
     
-    return an iterable containings the ids of all visible items
+    return an iterable containings the ids of all visible items, mapping of all objects to their respective colors
+    note that objects can be considered "invisible" by having few pixels observed.
     '''
     flattened = imgs.reshape(-1, imgs.shape[2])
     unique_colors, counts = np.unique(flattened, axis=0, return_counts=True)
@@ -137,34 +143,5 @@ def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_ma
     return result
 
 
-def annotate_collision(obj):
-    result = []
-    if isinstance(obj, BaseVehicle):
-        result = list(obj.crashed_objects)
-    return result
-
-
-def genearte_annotation(object: BaseObject, env: BaseEnv) -> dict:
-    return generate_annotations([object], env, [True])[0]
-
-
 def genearte_annotation(object: BaseObject, env: BaseEnv, visible_mask=[False], observing_camera=[[]]) -> dict:
     return generate_annotations([object], env, visible_mask, observing_camera)[0]
-
-
-def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, ) -> np.array:
-    """
-    Hight light imgs. If the color actually exists in the image, hightlight it into white
-    """
-    H, W, C = img.shape
-    img = img / 255  # needed as the r,g,b values in the mapping is clipped.
-    flattened = img.reshape(H * W, C)
-    for id, high_light in zip(ids, colors):
-        if id not in mapping.keys():
-            continue
-        color = mapping[id]
-        masks = np.all(np.isclose(flattened, color), axis=1)  # Robust against floating-point arithmetic
-        flattened[masks] = high_light
-    flattened = flattened * 255  # Restore into 0-255 so that cv2.imwrite can property write the image
-    flattened = flattened[:, [2, 1, 0]]  # Convert rgb back to bgr
-    return flattened.reshape(H, W, C)
