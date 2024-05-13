@@ -332,7 +332,7 @@
         },
         "predict_trajectory": {
             "text": [
-                "Predict the trajectories of <o> in the next second at 10hz frequency."
+                "Predict the trajectories of <o> in the next 0.5 seconds for 5 times. All coordinates are in our current frame."
             ],
             "params": [
                 "<o>"
@@ -355,7 +355,7 @@
         },
         "counterfactual_trajectory": {
             "text":[
-                "If instead of what happened, we stared moving in <traj> at <t>. Will there be any collision? All coordinates are in our current frame. The start of observations is at 0, and we are at <tnow>"
+                "If instead of what happened, we started moving in <traj> at <t>. Will there be any collision? All coordinates are in our current frame. The start of observations is at 0, and we are at <tnow>"
             ],
             "params": [
                 "<traj>", "<t>", "<tnow>"

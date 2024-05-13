@@ -3,24 +3,25 @@ from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from collections import deque
-import numpy as np
 import cv2
-import imageio
 import os
 import json
-from metadrive.component.vehicle.base_vehicle import BaseVehicle
+
 from vqa.utils import get_visible_object_ids, genearte_annotation, generate_annotations
 from vqa.dataset_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.sensors.instance_camera import InstanceCamera
+from vqa.episodes_generation import postprocess_annotation
 
 
 def find_collision_step(env):
     step = -1
     for i in range(10000):
-        env.step([0,0])
+        o, r, tm, tc, info = env.step([0,0])
         if len(env.agent.crashed_objects)>0:
             step = env.engine.episode_step
+            break
+        if (tm or tc) and info["arrive_dest"]:
             break
     return step
 
@@ -88,38 +89,15 @@ class Buffer:
         os.makedirs(episode_folder, exist_ok=True)
         for item in self.dq:
             identifier, frame_summary = item
-            print(identifier, type(frame_summary))
             frame_folder = os.path.join(episode_folder, identifier)
             os.makedirs(frame_folder, exist_ok=True)
             log_data_mult(frame_summary, frame_folder)
 
-def postprocess_frame(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
-    """
-    This function will save all information regarding one frame into a single dict, and it can be saved into the buffer to log later.
-    """
-    result = dict()
-    result["world"] = scene_dict
-    result["lidar"] = lidar
-    result["rgb"] = dict()
-    result["mask"] = dict()
-    result["log_mapping"] = log_mapping
-    for perspective in rgb_dict:
-        result["rgb"][perspective] = rgb_dict[perspective]["rgb"] * 255
-        result["mask"][perspective] = rgb_dict[perspective]["mask"] * 255
-    if debug:
-        top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                              draw_contour=True, screen_record=False, show_agent_name=True)
-        image = np.fliplr(np.flipud(top_down))
-        b, g, r = image[:, :, 0], image[:, :, 1], image[:, :, 2]
-        rgb_image = np.dstack((r, g, b))
-        result["top_down"] = rgb_image
-        result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
-                                                                [0, -0.5, 0])
-    return result
+
 
 def record_frame(env, lidar, camera, instance_camera):
     engine = env.engine
-    positions = [(0., 0.2, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., -0.2, 1.5), (0., 0., 1.5),
+    positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
                  (0., 0., 1.5)]
     hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
     names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
@@ -142,11 +120,10 @@ def record_frame(env, lidar, camera, instance_camera):
     mapping = engine.c_id
     visible_ids_set = set()
     filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
-            r == 0 and g == 0 and b == 0) and (c > 640)
+            r == 0 and g == 0 and b == 0) and (c > 240)
     Log_Mapping = dict()
     for perspective in rgb_dict.keys():
         visible_ids, log_mapping = get_visible_object_ids(rgb_dict[perspective]["mask"], mapping, filter)
-        # print(perspective,visible_ids)
         visible_ids_set.update(visible_ids)
         rgb_dict[perspective]["visible_ids"] = visible_ids
         Log_Mapping.update(log_mapping)
@@ -169,7 +146,7 @@ def record_frame(env, lidar, camera, instance_camera):
         ego=ego_annotation,
         objects=objects_annotations
     )
-    final_summary = postprocess_frame(
+    final_summary = postprocess_annotation(
         env = env, lidar = cloud_points, rgb_dict = rgb_dict,
         scene_dict = scene_dict, log_mapping= Log_Mapping, debug=True
 
@@ -201,9 +178,9 @@ def generate_safe_data(env, seeds, folder):
     os.makedirs(folder, exist_ok=True)
     print("This session is saved in folder {}".format(folder))
     env.agent.expert_takeover = True
-    offset = 5
-    history = 2
-    future = 1
+    offset = 23
+    history = 20
+    future = 5
     annotation_buffer = Buffer(history + future)
     engine = env.engine
     camera = engine.get_sensor("rgb")
@@ -213,7 +190,6 @@ def generate_safe_data(env, seeds, folder):
     for seed in seeds:
         env.reset(seed)
         collision_step = find_collision_step(env)
-        print(collision_step)
         if collision_step < 0:
             #there can be no collision in cated scenario
             print("No collision in this seed {}".format(env.current_seed))
@@ -236,18 +212,17 @@ def generate_safe_data(env, seeds, folder):
                     tm, tc = record_accident(env, annotation_buffer, future, folder)
             if tm or tc:
                 break
-        env.reset()
         inception = False
         annotation_buffer.flush()
 
 if __name__ == "__main__":
-    scenario_summary, _, _ = sd_utils.read_dataset_summary("c:/school/Bolei/two/another_cat/cat")
+    scenario_summary, _, _ = sd_utils.read_dataset_summary("E:/Bolei/cat")
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
             "reactive_traffic": True,
-            "use_render": False,
-            "data_directory": "c:/school/Bolei/two/another_cat/cat",
+            "use_render": True,
+            "data_directory": "E:/Bolei/cat",
             "num_scenarios": len(scenario_summary),
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
@@ -259,7 +234,7 @@ if __name__ == "__main__":
         }
     )
     seeds = [i for i in range(len(scenario_summary))]
-    generate_safe_data(env, seeds[:4], "test_collision")
+    generate_safe_data(env, seeds, "test_collision")
 
 
 

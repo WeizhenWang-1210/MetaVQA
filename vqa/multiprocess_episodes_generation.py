@@ -7,6 +7,10 @@ from vqa.episodes_generation import generate_episodes
 import os
 import yaml
 import multiprocessing as multp
+from metadrive.scenario import utils as sd_utils
+from vqa.collision_episodes_generation import generate_safe_data
+from metadrive.engine.asset_loader import AssetLoader
+from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 
 
 def main(data_directory, scenarios, headless, config, num_scenarios, job_range=None):
@@ -16,9 +20,7 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
     else:
         use_render = True
     if scenarios:
-        from metadrive.engine.asset_loader import AssetLoader
         asset_path = AssetLoader.asset_path
-        from metadrive.policy.replay_policy import ReplayEgoCarPolicy
         assert job_range is not None
         env_config = {
             "sequential_seed": True,
@@ -75,6 +77,24 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                       skip_length=config["skip_length"], job_range=job_range)
 
 
+def safety(data_directory, headless, config, num_scenarios, job_range=None):
+    env = ScenarioDiverseEnv(
+        {
+            "sequential_seed": True,
+            "reactive_traffic": True,
+            "use_render": not headless,
+            "data_directory": data_directory,
+            "num_scenarios": num_scenarios,
+            "agent_policy": ReplayEgoCarPolicy,
+            "sensors": dict(
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540)
+            ),
+            "height_scale": 1
+        }
+    )
+    generate_safe_data(env, job_range, config["storage_path"])
+
 def divide_into_intervals_exclusive(total, n):
     # Calculate the basic size of each interval and the remainder
     interval_size, remainder = divmod(total, n)
@@ -91,7 +111,7 @@ def divide_into_intervals_exclusive(total, n):
     return intervals
 
 
-if __name__ == "__main__":
+def normal():
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -112,10 +132,7 @@ if __name__ == "__main__":
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
-
     if args.data_directory:
-        from metadrive.scenario import utils as sd_utils
-
         scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
         num_scenarios = len(scenario_summary.keys())
     else:
@@ -123,7 +140,6 @@ if __name__ == "__main__":
 
     if not args.scenarios:
         num_scenarios = config["map_setting"]["num_scenarios"]
-
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
@@ -135,7 +151,6 @@ if __name__ == "__main__":
                 args.scenarios,
                 args.headless,
                 config,
-                str(proc_id),
                 num_scenarios,
                 job_intervals[proc_id]
             )
@@ -145,3 +160,59 @@ if __name__ == "__main__":
     for p in processes:
         p.join()
     print("All processes finished.")
+
+def safety_critical():
+    parser = argparse.ArgumentParser()
+    cwd = os.getcwd()
+    default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
+    parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate data")
+    parser.add_argument("--headless", action='store_true', help="Rendering in headless mode")
+    parser.add_argument("--scenarios", action='store_true', help="Use ScenarioNet environment")
+    parser.add_argument("--data_directory", type=str, default=None,
+                        help="the paths that stores the ScenarioNet data")
+    parser.add_argument("--config", type=str, default=default_config_path,
+                        help="path to the data generation configuration file")
+    args = parser.parse_args()
+    print("Running with the following parameters")
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    try:
+        # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
+        with open(default_config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        raise e
+    if args.data_directory:
+        scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
+        num_scenarios = len(scenario_summary.keys())
+    else:
+        num_scenarios = 10
+
+    if not args.scenarios:
+        num_scenarios = config["map_setting"]["num_scenarios"]
+    job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
+    print(job_intervals[0])
+    job_intervals = [list(range(*job_interval)) for job_interval in job_intervals]
+    processes = []
+    for proc_id in range(args.num_proc):
+        print("Sending job{}".format(proc_id))
+        p = multp.Process(
+            target=safety,
+            args=(
+                args.data_directory,
+                args.headless,
+                config,
+                num_scenarios,
+                job_intervals[proc_id],
+            )
+        )
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+    print("All processes finished.")
+
+
+if __name__ == "__main__":
+    safety_critical()
+
