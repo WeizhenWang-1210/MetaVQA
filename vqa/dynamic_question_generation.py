@@ -228,8 +228,8 @@ def generate_context_string(graph):
     cur_speed = round(ego_node.speed,1)
     start_pos = transform(ego_node, [start_pos])[0]
     start_pos = [round(start_pos[0], 1), round(start_pos[1], 1)]
-    context = (f"We moved from {start_pos} to where we are with an average speed of {avg_speed} "
-               f"for the past period. We {dv_string} and {action_string}, and our current speed is {cur_speed}")
+    context = (f"We moved from {start_pos} to where we are now with an average speed of {avg_speed} "
+               f"for the past period. We {dv_string} and {action_string}, and our current speed is {cur_speed}.")
     return context
 
 
@@ -310,7 +310,7 @@ def generate():
         for question_type, record_list in records.items():
             for record in record_list:
                 qa_tuples[idx] = dict(
-                    question=". ".join([record["question"], context]), answer=record["answer"],
+                    question=" ".join([record["question"], context]), answer=record["answer"],
                     question_type="|".join(["dynamic", question_type]), answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
                     color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
