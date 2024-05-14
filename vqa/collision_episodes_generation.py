@@ -7,7 +7,7 @@ import cv2
 import os
 import json
 
-from vqa.utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 from vqa.dataset_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.sensors.instance_camera import InstanceCamera

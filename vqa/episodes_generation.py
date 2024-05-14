@@ -1,5 +1,5 @@
 from metadrive.envs.base_env import BaseEnv
-from vqa.utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import argparse
 import numpy as np
 from vqa.dataset_utils import l2_distance
