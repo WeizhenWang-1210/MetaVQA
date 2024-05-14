@@ -1,9 +1,8 @@
 from collections import defaultdict
-
 import numpy as np
 from vqa.dataset_utils import dot, get_distance, norm, position_frontback_relative_to_obj1, \
     position_left_right_relative_to_obj1, majority_true
-from typing import Iterable, Tuple, List
+from typing import Iterable, Tuple, List, Union
 
 
 class ObjectNode:
@@ -199,7 +198,7 @@ class TemporalNode:
         else:
             return self.bboxes[now_frame + 1: now_frame + 1 + pred_frames]
 
-    def summarize_action(self, now_frame):
+    def summarize_action(self, now_frame) -> list[str]:
         """
         Apparently, in real envs, we don't have any second-order information. We only have speed.
         So, all actions must be summarized leveraging speed/positions
@@ -328,6 +327,13 @@ class TemporalNode:
         if alongside_flag:
             self.interactions["accompanied_by"].append(other.id)
             other.interactions["move_alongside"].append(self.id)
+
+    def get_all_interactions(self):
+        all_interaction = []
+        for interaction, value in self.interactions.items():
+            if interaction in ["pass_by", "head_toward", "follow", "move_alongside"] and len(value) > 0:
+                all_interaction.append(interaction)
+        return all_interaction
 
     @property
     def visible(self):
@@ -539,7 +545,7 @@ def nodify(scene_dict: dict, multiview=True) -> Tuple[str, List[ObjectNode]]:
     return ego_id, nodes
 
 
-def transform(ego: ObjectNode, bbox: Iterable[Iterable[float]]) -> Iterable:
+def transform(ego: Union[ObjectNode|TemporalNode], bbox: Iterable[Iterable[float]]) -> Iterable:
     """
     Coordinate system transformation from world coordinate to ego's coordinate.
     +x being ego's heading, +y being +x rotate 90 degrees counterclockwise.
