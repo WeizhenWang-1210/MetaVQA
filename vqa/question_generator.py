@@ -214,12 +214,14 @@ class Tree:
                 exit()
 
         def color_token_string_converter(token):
+            # TODO Unify nomenclature with chenda
             if token != "nil":
                 return token.lower()
             else:
                 return ""
 
         def type_token_string_converter(token, form):
+            #TODO Unify nomenclature with chenda
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -243,6 +245,7 @@ class Tree:
                 return token.lower()
 
         def state_token_string_converter(token):
+            # TODO Unify nomenclature with chenda
             map = {
                 "nil": "",
                 "parked": "parked",
@@ -256,6 +259,7 @@ class Tree:
             return map[token]
 
         def action_token_string_converter(token, form, agency):
+            # TODO Unify nomenclature with chenda
             if agency == "passive":
                 map = {
                     "followed": dict(singular="is followed by", plural="are followed by"),
@@ -432,7 +436,7 @@ class SubQuery:
         The tricky part here is that when we keep the entire node space in mind when we do the filtering based on the spatial relationships,
         and consecutive filterings on types and colors are selected from all such nodes.
         """
-        # TODO then, is candidates really necessary?
+        # then, is candidates really necessary?
         """
          If self.us, then we always return the ego of the graph. Else, we always use all_nodes to to the position filtering.
         """
@@ -534,10 +538,11 @@ class Query:
         return self.ans
 
 
-CACHE = dict()
+
 
 
 class QuerySpecifier:
+    CACHE = dict()
     def __init__(self, type: str, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
         self.type = type
@@ -612,7 +617,6 @@ class QuerySpecifier:
             extract_color_unique=extract_color_unique,
             extract_type=extract_type,
             extract_type_unique=extract_type_unique,
-
         )
         return mapping[string]
 
@@ -620,19 +624,24 @@ class QuerySpecifier:
         assert self.parameters is not None, "No parameters"
         param_answers = []
         for param, info in self.parameters.items():
-            if info["signature"] in CACHE.keys():
-                answers = CACHE[info["signature"]]
+            if info["signature"] in QuerySpecifier.CACHE.keys():
+                answers = QuerySpecifier.CACHE[info["signature"]]
             else:
                 query = info["prog"]
                 query.set_reference(self.graph.get_ego_node().heading)
                 # query.set_searchspace(self.graph.get_nodes())
                 query.set_egos([self.graph.get_ego_node()])
                 answers = query.proceed()
-                CACHE[info["signature"]] = answers
+                QuerySpecifier.CACHE[info["signature"]] = answers
 
             self.parameters[param]["answer"] = answers
             param_answers.append(answers)
         end_filter = self.find_end_filter(self.template["end_filter"])
+
+        ids = []
+        for param_answer in param_answers:
+            for obj in param_answer:
+                ids.append(obj.id)
         if self.debug and len(param_answers[0]) > 0:
             objects = []
             ids = []
@@ -657,7 +666,7 @@ class QuerySpecifier:
         if self.stats:
             self.generate_statistics(param_answers)
 
-        return end_filter(param_answers)
+        return end_filter(param_answers), ids
 
     def generate_statistics(self, params):
         for objects in params:
@@ -665,23 +674,16 @@ class QuerySpecifier:
                 self.statistics["types"][obj.type] += 1
                 self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
 
-    def generate_mask(self, id):
+    def generate_mask(self, ids):
         """
         Create a mask corresponding to the answer of a problem
 
         """
         parent_folder = os.path.dirname(self.graph.folder)
         identifier = os.path.basename(parent_folder)
-        path_to_mask = os.path.join(parent_folder, f"mask_{id}.png")
+        path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
         path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
         folder = parent_folder
-        ids = []
-        param_answers = []
-        for param, info in self.parameters.items():
-            param_answers.append(self.parameters[param]["answer"])
-        for param_answer in param_answers:
-            for obj in param_answer:
-                ids.append(obj.id)
         colors = [(1, 1, 1) for _ in range(len(ids))]
         generate_highlighted(
             path_to_mask,
@@ -693,6 +695,7 @@ class QuerySpecifier:
 
     def export_qa(self):
         def type_token_string_converter(token, form):
+            #TODO Unify Nomenclature with Chenda.
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -716,7 +719,12 @@ class QuerySpecifier:
 
         if "unique" not in self.template["constraint"]:
             question = self.translate()
-            answer = self.answer()
+            answer, ids = self.answer()
+
+            if self.stats:
+                self.generate_statistics(ids)
+            if self.debug:
+                self.generate_mask(ids)
             if self.type == "type_identification":
                 answer = [type_token_string_converter(token, "singular").capitalize() for token in answer]
             return [(question, answer)]
@@ -727,10 +735,11 @@ class QuerySpecifier:
             for obj_id, answer in answer.items():
                 concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
                 rounded = (int(concrete_location[0]), int(concrete_location[1]))
-                question = self.translate("located at {} ".format(
-                    rounded
-                )
-                )
+                question = self.translate("located at {} ".format(rounded))
+                if self.stats:
+                    self.generate_statistics(obj_id)
+                if self.debug:
+                    self.generate_mask([obj_id])
                 if self.type == "type_identification_unique":
                     answer = type_token_string_converter(answer, "singular").capitalize()
                 qas.append((question, (obj_id, answer)))
@@ -961,7 +970,4 @@ def some_tree(file):
 
 
 if __name__ == "__main__":
-    # print("hello")
-    # main()
-    # some_tree("verification/9_41_80/9_41/world_9_41.json")
     try_instantiation()

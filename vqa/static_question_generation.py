@@ -6,7 +6,6 @@ from vqa.object_node import nodify
 from vqa.question_generator import GRAMMAR, QuerySpecifier
 from vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
 from vqa.scene_graph import SceneGraph
-from vqa.question_generator import CACHE
 from vqa.object_node import transform
 
 
@@ -27,10 +26,6 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
     record = {}
     counts = 0
     valid_questions = set()
-    templates = {
-        # "color_identification_unique": templates["color_identification_unique"]
-        "type_identification_unique": templates["type_identification_unique"]
-    }
     for question_type, specification in templates.items():
         type_count = 0
         if question_type == "color_identification" or question_type == "color_identification_unique":
@@ -63,8 +58,6 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                 if verbose:
                     print("Skip <{}> since the equivalent question has been asked before".format(q.translate()))
                 continue
-            # question = q.translate()
-            # answer = q.answer()
             result = q.export_qa()
             if verbose:
                 print(result)
@@ -189,7 +182,7 @@ def static_all(root_folder, source, summary_path, verbose=False):
     records = {}
     count = 0
     for path in paths:
-        assert len(CACHE) == 0, f"Non empty cache for {path}"
+        assert len(QuerySpecifier.CACHE) == 0, f"Non empty cache for {path}"
         folder_name = os.path.dirname(path)
         identifier = os.path.basename(folder_name)
         perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
@@ -209,7 +202,7 @@ def static_all(root_folder, source, summary_path, verbose=False):
                 source=source,
             )
         count += num_data
-        CACHE.clear()
+        QuerySpecifier.CACHE.clear()
     try:
         with open(summary_path, "w") as f:
             json.dump(records, f, indent=4),
@@ -218,4 +211,5 @@ def static_all(root_folder, source, summary_path, verbose=False):
 
 
 if __name__ == "__main__":
-    static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)
+    #static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)
+    static_all("multiview", "NuScenes", "multiview/final.json", verbose=True)

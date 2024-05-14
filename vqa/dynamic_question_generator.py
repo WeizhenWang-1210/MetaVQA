@@ -103,8 +103,6 @@ class DynamicQuerySpecifier:
             identify_heading=identify_heading(ego_node.pos, ego_node.heading),
             identify_head_toward=identify_head_toward(ego_node),
             predict_trajectory=predict_trajectory(self.key_frame, ego_node.pos, ego_node.heading)
-
-            # TODO add end filter for safety questions
         )
         return mapping[string]
 
