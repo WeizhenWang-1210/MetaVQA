@@ -708,7 +708,7 @@ class QuerySpecifier:
             # assume that for unique-constrained questions, the answer a dictionary of form {obj_id: answer}
             for obj_id, answer in answer.items():
                 concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
-                rounded = (int(concrete_location[0]), int(concrete_location[1]))
+                rounded = [int(concrete_location[0]), int(concrete_location[1])]
                 question = self.translate("located at {} ".format(rounded))
                 if self.stats:
                     self.generate_statistics([obj_id])
