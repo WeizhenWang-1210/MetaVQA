@@ -4,14 +4,14 @@ from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_w
     extract_type_unique
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import ObjectNode
-from vqa.grammar import STATIC_GRAMMAR, NO_COLOR_STATIC
+from vqa.grammar import STATIC_GRAMMAR
 import random
 import json
 import argparse
 import os
 from vqa.visualization import generate_highlighted
 from collections import defaultdict
-from vqa.object_node import transform
+from vqa.object_node import transform, nodify
 
 GRAMMAR = STATIC_GRAMMAR
 
@@ -221,7 +221,7 @@ class Tree:
                 return ""
 
         def type_token_string_converter(token, form):
-            #TODO Unify nomenclature with chenda
+            # TODO Unify nomenclature with chenda
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -538,11 +538,9 @@ class Query:
         return self.ans
 
 
-
-
-
 class QuerySpecifier:
     CACHE = dict()
+
     def __init__(self, type: str, template: dict, parameters: Union[dict, None], graph: SceneGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
         self.type = type
@@ -629,50 +627,23 @@ class QuerySpecifier:
             else:
                 query = info["prog"]
                 query.set_reference(self.graph.get_ego_node().heading)
-                # query.set_searchspace(self.graph.get_nodes())
                 query.set_egos([self.graph.get_ego_node()])
                 answers = query.proceed()
                 QuerySpecifier.CACHE[info["signature"]] = answers
-
             self.parameters[param]["answer"] = answers
             param_answers.append(answers)
         end_filter = self.find_end_filter(self.template["end_filter"])
-
         ids = []
         for param_answer in param_answers:
             for obj in param_answer:
                 ids.append(obj.id)
-        if self.debug and len(param_answers[0]) > 0:
-            objects = []
-            ids = []
-            for param_answer in param_answers:
-                for obj in param_answer:
-                    objects.append(f"{obj.type}:{obj.id}")
-                    ids.append(obj.id)
-            # print(ids)
-            parent_folder = os.path.dirname(self.graph.folder)
-            identifier = os.path.basename(parent_folder)
-            path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
-            path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
-            folder = parent_folder
-            colors = [(1, 1, 1) for _ in range(len(ids))]
-            generate_highlighted(
-                path_to_mask,
-                path_to_mapping,
-                folder,
-                ids,
-                colors
-            )
-        if self.stats:
-            self.generate_statistics(param_answers)
-
         return end_filter(param_answers), ids
 
-    def generate_statistics(self, params):
-        for objects in params:
-            for obj in objects:
-                self.statistics["types"][obj.type] += 1
-                self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
+    def generate_statistics(self, ids):
+        for id in ids:
+            obj = self.graph.get_node(id)
+            self.statistics["types"][obj.type] += 1
+            self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
 
     def generate_mask(self, ids):
         """
@@ -695,7 +666,7 @@ class QuerySpecifier:
 
     def export_qa(self):
         def type_token_string_converter(token, form):
-            #TODO Unify Nomenclature with Chenda.
+            # TODO Unify Nomenclature with Chenda.
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -720,24 +691,23 @@ class QuerySpecifier:
         if "unique" not in self.template["constraint"]:
             question = self.translate()
             answer, ids = self.answer()
-
             if self.stats:
                 self.generate_statistics(ids)
             if self.debug:
                 self.generate_mask(ids)
             if self.type == "type_identification":
                 answer = [type_token_string_converter(token, "singular").capitalize() for token in answer]
-            return [(question, answer)]
+            return [(question, (ids,answer))]
         else:
             qas = []
-            answer = self.answer()
+            answer, ids = self.answer()
             # assume that for unique-constrained questions, the answer a dictionary of form {obj_id: answer}
             for obj_id, answer in answer.items():
                 concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
                 rounded = (int(concrete_location[0]), int(concrete_location[1]))
                 question = self.translate("located at {} ".format(rounded))
                 if self.stats:
-                    self.generate_statistics(obj_id)
+                    self.generate_statistics([obj_id])
                 if self.debug:
                     self.generate_mask([obj_id])
                 if self.type == "type_identification_unique":
@@ -761,7 +731,6 @@ def try_instantiation():
             scene_dict = json.load(scene_file)
     except Exception as e:
         raise e
-    from vqa.scene_graph import nodify
     agent_id, nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id, nodes, folder="some/5_80_119/5_100/world_5_100")
 
@@ -772,7 +741,7 @@ def try_instantiation():
         type=["vehicle"],
         action=["head_toward"],
         prev={
-            "action":subq1
+            "action": subq1
         }
     )
     subq2.instantiate(
@@ -944,7 +913,6 @@ def main():
 def some_tree(file):
     with open(file, 'r') as scene_file:
         scene_dict = json.load(scene_file)
-    from vqa.scene_graph import nodify
     agent_id, nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id, nodes, folder=file)
     grammar = GRAMMAR
@@ -965,9 +933,6 @@ def some_tree(file):
     query.set_egos([graph.get_ego_node()])
     answer = query.proceed()
     print(answer)
-    generate_highlighted('SOME.png', "verification/9_41_80/9_41/metainformation_5_100.json",
-                         )
-
-
+    generate_highlighted('SOME.png', "verification/9_41_80/9_41/metainformation_5_100.json",)
 if __name__ == "__main__":
     try_instantiation()
