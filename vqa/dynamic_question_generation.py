@@ -49,8 +49,8 @@ def extract_observations(episode, debug=False):
 
 
 def generate_trimmed_grammar(graph, tense, template):
-    from vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR,\
-        NO_COLOR_CFG,NO_TYPE_CFG
+    from vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR, \
+        NO_COLOR_CFG, NO_TYPE_CFG
     import copy
     # type, color, action, interaction
     statistics = graph.statistics
@@ -191,7 +191,7 @@ def add_to_record(question_type, q, result, candidates):
                 pos_statistics=transform(q.graph.get_ego_node(), [obj_node.pos]),
                 color_statistics=[obj_node.color], action_statistics=[obj_node.actions],
                 interaction_statistics=[obj_node.get_all_interactions()], ids=[obj_id],
-                key_frame=q.graph.idx_key_frame # key_frame will be used to determine the observation.
+                key_frame=q.graph.idx_key_frame  # key_frame will be used to determine the observation.
             )
             candidates[question_type].append(data_point)
 
@@ -203,10 +203,34 @@ def add_to_record(question_type, q, result, candidates):
             type_statistics=q.statistics["types"], pos_statistics=q.statistics["pos"],
             color_statistics=q.statistics["colors"], action_statistics=q.statistics["actions"],
             interaction_statistics=q.statistics["interactions"], ids=ids,
-            key_frame=q.graph.idx_key_frame # key_frame will be used to determine the observation.
+            key_frame=q.graph.idx_key_frame  # key_frame will be used to determine the observation.
         )
         candidates[question_type].append(data_point)
     return candidates
+
+
+def generate_context_string(graph):
+    ego_node = graph.get_ego_node()
+    start_pos, end_pos, speed = ego_node.positions[0], ego_node.positions[graph.idx_key_frame], ego_node.speed
+    if "accelerating" in ego_node.actions:
+        dv_string = "accelerated"
+    elif "decelerating" in ego_node.actions:
+        dv_string = "decelerated"
+    else:
+        dv_string = "maintained speed"
+    if "turn_left" in ego_node.actions:
+        action_string = "turned left"
+    elif "turn_right" in ego_node.actions:
+        action_string = "turned right"
+    else:
+        action_string = "maintained direction"
+    avg_speed = round(sum(ego_node.speeds[:graph.idx_key_frame + 1]) / graph.idx_key_frame,1)
+    cur_speed = round(ego_node.speed,1)
+    start_pos = transform(ego_node, [start_pos])[0]
+    start_pos = [round(start_pos[0], 1), round(start_pos[1], 1)]
+    context = (f"We moved from {start_pos} to where we are with an average speed of {avg_speed} "
+               f"for the past period. We {dv_string} and {action_string}, and our current speed is {cur_speed}")
+    return context
 
 
 def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
@@ -217,8 +241,9 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
     print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
     print(f"Key frame is {graph.idx_key_frame}")
     print(f"Total frame number {len(graph.frames)}")
+    context_string = generate_context_string(graph)
+    print(f"Context: {context_string}")
     candidates, counts, valid_questions = defaultdict(list), 0, set()
-
     for question_type, question_template in templates.items():
         grammar = generate_trimmed_grammar(graph, "dynamic", question_template)
         countdown, generated = attempts_per_type, 0
@@ -238,7 +263,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
                 print(result)
             if not_degenerate(question_type, q, result):
                 candidates = add_to_record(question_type, q, result, candidates)
-                #print(candidates)
+                # print(candidates)
                 valid_questions.add(q.signature)
                 generated += 1
             countdown -= 1
@@ -249,7 +274,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
             counts += len(final_selected)
         else:
             counts += len(candidates[question_type])
-    return candidates, counts
+    return candidates, counts, context_string
 
 
 def generate():
@@ -265,14 +290,14 @@ def generate():
     templates = json.load(open(templates_path, "r"))
     templates = templates["dynamic"]
     templates = {
-        #"localization": templates["localization"]
-        #"counting": templates["counting"],
-        #"count_equal_binary": templates["count_equal_binary"]
-        #"count_more_binary": templates["count_more_binary"],
-        #"color_identification": templates["color_identification"]
-        #"type_identification": templates["type_identification"],
-        #"color_identification_unique": templates["color_identification_unique"]
-        #"identify_stationary": templates["identify_stationary"]
+        "localization": templates["localization"]
+        # "counting": templates["counting"],
+        # "count_equal_binary": templates["count_equal_binary"]
+        # "count_more_binary": templates["count_more_binary"],
+        # "color_identification": templates["color_identification"]
+        # "type_identification": templates["type_identification"],
+        # "color_identification_unique": templates["color_identification_unique"]
+        # "identify_stationary": templates["identify_stationary"]
 
     }
     qa_tuples = {}
@@ -280,13 +305,13 @@ def generate():
     for episode in episode_folders:
         assert len(DynamicQuerySpecifier.CACHE) == 0, f"Non empty cache for {episode}"
         observations = extract_observations(episode)
-        records, num_questions = generate_dynamic_questions(
+        records, num_questions, context = generate_dynamic_questions(
             episode, templates, max_per_type=3, choose=2, attempts_per_type=100, verbose=True)
         for question_type, record_list in records.items():
             for record in record_list:
                 qa_tuples[idx] = dict(
-                    question=record["question"], answer=record["answer"],
-                    question_type="|".join(["dynamic",question_type]), answer_form=record["answer_form"],
+                    question=". ".join([record["question"], context]), answer=record["answer"],
+                    question_type="|".join(["dynamic", question_type]), answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
                     color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
                     interaction_statistics=record["interaction_statistics"], ids=record["ids"],
