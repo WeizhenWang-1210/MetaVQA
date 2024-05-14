@@ -1,66 +1,50 @@
 import math
 from typing import Iterable
 from collections import defaultdict
-
-from vqa.object_node import ObjectNode, nodify, TemporalNode
-import os
+from vqa.object_node import ObjectNode, TemporalNode
 import json
 from vqa.dataset_utils import transform_heading
 from vqa.object_node import transform_vec
-class RoadGraph:
-    def __init__(self,ids:Iterable) -> None:
-        graph = defaultdict(lambda:"")
-        for start, end, _, in ids:
-            graph[start] = end
-        self.graph = graph
-    def reachable(self,start:str,end:str):
-        #print(start)
-        if start == '':
-            return False
-        if start == end:
-            return True
-        else:
-            return self.reachable(self.graph[start],end)
-        
+
+
 class SceneGraph:
-    def __init__(self, 
-                 ego_id:str,
-                 nodes:list = [],
+    def __init__(self,
+                 ego_id: str,
+                 nodes: list = [],
                  folder: str = "./"
                  ):
-        self.nodes:dict[str,ObjectNode] = {}
+        self.nodes: dict[str, ObjectNode] = {}
         for node in nodes:
             self.nodes[node.id] = node
-        self.ego_id:str = ego_id
-        self.spatial_graph:dict = self.compute_spatial_graph()
-        #self.road_graph:RoadGraph = RoadGraph([node.lane for node in nodes])
+        self.ego_id: str = ego_id
+        self.spatial_graph: dict = self.compute_spatial_graph()
         self.folder = folder
         self.statistics = self.generate_statistics()
 
-    def refocus(self,new_ego_id:str) -> None:
+    def refocus(self, new_ego_id: str) -> None:
         """
         Change to ego_id to the new ego_id
         """
         self.ego_id = new_ego_id
-    
+
     def compute_spatial_graph(self) -> dict:
-        def compute_spatial_edges(ego_id:str,ref_id:str)->dict:
+        def compute_spatial_edges(ego_id: str, ref_id: str) -> dict:
             edges = {
-                        'l':[],
-                        'r':[],
-                        'f':[],
-                        'b':[],
-                        'lf':[],
-                        'rf':[],
-                        'lb':[],
-                        'rb':[],
-                        's':[]
-                    }
-            ego_node =self.nodes[ego_id]
+                'l': [],
+                'r': [],
+                'f': [],
+                'b': [],
+                'lf': [],
+                'rf': [],
+                'lb': [],
+                'rb': [],
+                's': []
+            }
+            ego_node = self.nodes[ego_id]
             ref_node = self.nodes[ref_id]
             for node_id, node in self.nodes.items():
                 if node_id != ego_id:
-                    relation = ego_node.compute_relation(node,ref_node.heading)
+                    relation = ego_node.compute_relation(node, ref_node.heading)
                     side, front = relation['side'], relation['front']
                     if side == -1 and front == 0:
                         edges['l'].append(node.id)
@@ -79,44 +63,36 @@ class SceneGraph:
                     elif side == 1 and front == 1:
                         edges['rf'].append(node.id)
                     else:
-                        #print("Erroenous Relations!\n{}:{},\n{}:{}".format(ego_node.id, ego_node.pos, node.id, node.pos))
-                        #exit()
+                        # print("Erroenous Relations!\n{}:{},\n{}:{}".format(ego_node.id, ego_node.pos, node.id, node.pos))
+                        # exit()
                         edges['s'].append(node.id)
             return edges
+
         graph = {}
         for node_id in self.nodes.keys():
-            graph[node_id] = compute_spatial_edges(node_id,self.ego_id)
+            graph[node_id] = compute_spatial_edges(node_id, self.ego_id)
         return graph
-
-    def check_ambigious(self, origin:ObjectNode, dir:str)->int:
-        candidates = self.graph[origin.id][dir]
-        #-1 being UNSAT, 0 being Unambigious, 1 being ambigious
-        if len(candidates)==0:
-            return -1
-        elif len(candidates)==1:
-            return 0
-        else:
-            return 1
 
     def get_nodes(self) -> Iterable[ObjectNode]:
         return list(self.nodes.values())
 
-    def get_ego_node(self)->ObjectNode:
+    def get_ego_node(self) -> ObjectNode:
         return self.nodes[self.ego_id]
-    
-    def get_node(self, id:str)->ObjectNode:
+
+    def get_node(self, id: str) -> ObjectNode:
         return self.nodes[id]
 
     def generate_statistics(self) -> dict:
-        colors,types = set(),set()
+        colors, types = set(), set()
         for node in self.nodes.values():
             if node.visible:
                 colors.add(node.color)
                 types.add(node.type)
         return {
-            "<p>":list(colors),
-            "<t>":list(types)
+            "<p>": list(colors),
+            "<t>": list(types)
         }
+
 
 class TemporalGraph:
     def __init__(self, framepaths, observable_at_key=True, tolerance=0.8):
@@ -161,7 +137,7 @@ class TemporalGraph:
         return self.nodes[node_id]
 
     def build_nodes(self, node_ids, frames) -> dict[str, TemporalNode]:
-        #print(len(frames))
+        # print(len(frames))
         positions = defaultdict(list)
         headings = defaultdict(list)
         colors = defaultdict(str)
@@ -185,7 +161,7 @@ class TemporalGraph:
                     bboxes[object["id"]].append(object["bbox"])
                     heights[object["id"]].append(object["height"])
                     states[object["id"]].append(object["states"])
-                    collisions[object["id"]] += [(timestamp,id) for (_, id) in object["collisions"]]
+                    collisions[object["id"]] += [(timestamp, id) for (_, id) in object["collisions"]]
             positions[self.ego_id].append(frame["ego"]["pos"])
             headings[self.ego_id].append(frame["ego"]["heading"])
             colors[self.ego_id] = frame["ego"]["color"]
@@ -195,7 +171,7 @@ class TemporalGraph:
             bboxes[self.ego_id].append(frame["ego"]["bbox"])
             heights[self.ego_id].append(frame["ego"]["height"])
             states[self.ego_id].append(frame["ego"]["states"])
-            collisions[self.ego_id] += [(timestamp,id) for (_, id) in frame["ego"]["collisions"]]
+            collisions[self.ego_id] += [(timestamp, id) for (_, id) in frame["ego"]["collisions"]]
         for node_id in node_ids:
             temporal_node = TemporalNode(
                 id=node_id, now_frame=self.idx_key_frame, type=types[node_id], height=heights[node_id],
@@ -297,7 +273,7 @@ class TemporalGraph:
             for action in node.actions:
                 actions.add(action)
             for interaction in node.interactions.keys():
-                if interaction in ["followed","passed_by","headed_toward","accompanied_by"]:
+                if interaction in ["followed", "passed_by", "headed_toward", "accompanied_by"]:
                     passive_deeds.add(interaction)
                 else:
                     active_deeds.add(interaction)
@@ -309,7 +285,7 @@ class TemporalGraph:
             "<active_deed>": list(active_deeds)
         }
 
-    def export_trajectories(self, ego = False):
+    def export_trajectories(self, ego=False):
         from vqa.object_node import transform
         center_traj = {}
         bbox_traj = {}
@@ -324,13 +300,13 @@ class TemporalGraph:
                 for position in self.nodes[id].positions:
                     transformed_positions.append(
                         transform_vec(origin, positive_x,
-                                  [position])[0]
+                                      [position])[0]
                     )
                 transformed_bboxes = []
                 for bbox in self.nodes[id].bboxes:
                     transformed_bboxes.append(
                         transform_vec(origin, positive_x,
-                        bbox)
+                                      bbox)
                     )
                 transformed_headings = []
                 for heading in self.nodes[id].headings:
@@ -339,28 +315,25 @@ class TemporalGraph:
                             heading, origin, positive_x
                         )
                     )
-                center_traj[id] = transformed_positions#self.nodes[id].positions
+                center_traj[id] = transformed_positions  # self.nodes[id].positions
                 bbox_traj[id] = transformed_bboxes
                 heading_traj[id] = transformed_headings
             else:
                 center_traj[id] = self.nodes[id].positions  # self.nodes[id].positions
                 bbox_traj[id] = self.nodes[id].bboxes
                 heading_traj[id] = self.nodes[id].headings
-        json.dump(center_traj, open(f"center.json","w"))
-        json.dump(bbox_traj, open(f"bbox.json","w"))
-        json.dump(heading_traj, open(f"heading.json","w"))
-
-
-
+        json.dump(center_traj, open(f"center.json", "w"))
+        json.dump(bbox_traj, open(f"bbox.json", "w"))
+        json.dump(heading_traj, open(f"heading.json", "w"))
 
 
 if __name__ == "__main__":
     EPISODE = "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/world*.json"
     import glob
+
     episode_folder = EPISODE
     # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
     frame_files = sorted(glob.glob(episode_folder, recursive=True))
-    #print(len(frame_files))
+    # print(len(frame_files))
     graph = TemporalGraph(frame_files)
     graph.export_trajectories()
-
