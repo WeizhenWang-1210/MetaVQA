@@ -104,7 +104,6 @@ class TemporalGraph:
         Each graph will store the path to the original annotation("For statistics purpose") and also the loaded information
 
         """
-
         self.observation_phase = 0.8  # This is the percentage of frames belonging into observation. The last frame
         # is "present"
         self.prediction_phase = 1.0 - self.observation_phase
@@ -238,9 +237,8 @@ class TemporalGraph:
             bbox=ego_dict['bbox'],
             height=ego_dict['height'],
             type=ego_dict['type'],
-            lane=ego_dict['lane'],
-            visible=ego_dict["visible"],
-            states=ego_dict["states"],
+            observing_cameras=ego_dict["observing_camera"],
+            visible_criteria= lambda x: len(x) > 0,
             collisions=ego_dict["collisions"]
         )
         nodes.append(ego_node)
@@ -255,9 +253,8 @@ class TemporalGraph:
                     bbox=info['bbox'],
                     height=info['height'],
                     type=info['type'],
-                    lane=info['lane'],
-                    visible=info['visible'],
-                    states=info["states"],
+                    observing_cameras=info["observing_camera"],
+                    visible_criteria= lambda x: len(x) > 0,
                     collisions=info["collisions"])
                 )
         key_graph = SceneGraph(
