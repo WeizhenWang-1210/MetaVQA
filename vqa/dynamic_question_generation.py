@@ -228,7 +228,7 @@ def generate_context_string(graph):
     cur_speed = round(ego_node.speed,1)
     start_pos = transform(ego_node, [start_pos])[0]
     start_pos = [round(start_pos[0], 1), round(start_pos[1], 1)]
-    context = (f"For the past period,we moved from {start_pos} to where we are now with an average speed of {avg_speed}."
+    context = (f"For the past period, we moved from {start_pos} to where we are now with an average speed of {avg_speed}."
                f" We {dv_string} and {action_string}, and our current speed is {cur_speed}.")
     return context
 
@@ -289,7 +289,7 @@ def generate():
     templates_path = os.path.join(current_directory, "question_templates.json")
     templates = json.load(open(templates_path, "r"))
     templates = templates["dynamic"]
-    templates = {
+    """templates = {
         # "localization": templates["localization"]
         # "counting": templates["counting"],
         # "count_equal_binary": templates["count_equal_binary"]
@@ -299,9 +299,8 @@ def generate():
         # "color_identification_unique": templates["color_identification_unique"]
         # "identify_stationary": templates["identify_stationary"]
         # "identify_heading": templates["identify_heading"]
-        "predict_trajectory": templates["predict_trajectory"]
-
-    }
+        # "predict_trajectory": templates["predict_trajectory"]
+    }"""
     qa_tuples = {}
     idx = 0
     for episode in episode_folders:
