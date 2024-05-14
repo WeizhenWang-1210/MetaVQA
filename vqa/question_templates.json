@@ -163,12 +163,11 @@
         },
         "count_equal_binary":{
             "text":[
-                "Are there an equal number of the following things: <o1>, <o2>?. Answer True or False.",
-                "Do we have the same number of <o1> and <o2>?. Answer True or False.",
-                "Do <o1> match <o2> in number?. Answer True or False.",
-                "Are the quantities of <o1> and <o2> equal?. Answer True or False.",
-                "Determine if <o1> and <o2> are equal in number. Answer True or False.",
-                "Check if the quantities of <o1> and <o2> are the same. Answer True or False."
+                "At this moment, are there an equal number of the following things: <o1>, <o2>?. Answer True or False.",
+                "At this moment, do we have the same number of <o1> and <o2>?. Answer True or False.",
+                "At this moment, do <o1> match <o2> in number?. Answer True or False.",
+                "Determine if <o1> and <o2> are equal in number at this moment. Answer True or False.",
+                "Check if the quantities of <o1> and <o2> are the same at this moment. Answer True or False."
             ],
             "params":[
                 "<o1>","<o2>"
@@ -258,8 +257,8 @@
         },
         "identify_stationary": {
             "text": [
-                "Is the <o> stationary?",
-                "Is the <o> parked?",
+                "Given the past observations, is the <o> stationary?",
+                "Given the past observations, is the <o> parked?",
                 "Is the <o> not moving?"
             ],
             "params": [
@@ -284,7 +283,7 @@
         },
         "identify_acceleration": {
             "text": [
-                "Did the <o> acclerated?"
+                "Did the <o> accelerated?"
             ],
             "params": [
                 "<o>"
@@ -308,7 +307,7 @@
         },
         "identify_heading":{
             "text":[
-                "Where is <o> heading?"
+                "Using our current coordinate, what's the heading of <o> in clock position?"
             ],
             "params":[
                 "<o>"
@@ -332,7 +331,7 @@
         },
         "predict_trajectory": {
             "text": [
-                "Predict the trajectories of <o> in the next 0.5 seconds for 5 times. All coordinates are in our current frame."
+                "Using our current coordinates, predict the trajectories of <o> in the next 0.5 seconds for 5 times."
             ],
             "params": [
                 "<o>"
