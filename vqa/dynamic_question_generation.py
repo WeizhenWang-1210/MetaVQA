@@ -116,7 +116,7 @@ def generate_trimmed_grammar(graph, tense, template):
 
 
 def not_degenerate(question_type, q, result):
-    def refer_exist(q):
+    def degenerate_compare(q):
         degenerate_refer = True
         for param, info in q.parameters.items():
             if len(q.parameters[param]["answer"]) > 0:
@@ -126,9 +126,9 @@ def not_degenerate(question_type, q, result):
 
     func_map = dict(
         localization=lambda x: len(x[0][1][1]) > 0,
-        counting=lambda x: len(x[0][1][1]) > 0,
-        count_equal_binary=lambda x: refer_exist(q),
-        count_more_binary=lambda x: refer_exist(q),
+        counting=lambda x: x[0][1][1][0] > 0,
+        count_equal_binary=lambda x: not degenerate_compare(q),
+        count_more_binary=lambda x: not degenerate_compare(q),
         color_identification=lambda x: len(x[0][1][1]) > 0,
         type_identification=lambda x: len(x[0][1][1]) > 0,
         color_identification_unique=lambda x: len(x) > 0,
@@ -141,7 +141,6 @@ def not_degenerate(question_type, q, result):
         identify_head_toward=lambda x: len(x) > 0,
         predict_trajectory=lambda x: len(x) > 0
     )
-    # print(result[0])
     return func_map[question_type](result)
 
 
@@ -218,7 +217,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
                 print(result)
             if not_degenerate(question_type, q, result):
                 candidates = add_to_record(question_type, q, result, candidates)
-                print(candidates)
+                #print(candidates)
                 valid_questions.add(q.signature)
                 generated += 1
             countdown -= 1
@@ -245,8 +244,12 @@ def generate():
     templates = json.load(open(templates_path, "r"))
     templates = templates["dynamic"]
     templates = {
-        "localization": templates["localization"]
+        #"localization": templates["localization"]
+        #"counting": templates["counting"],
+        #"count_equal_binary": templates["count_equal_binary"]
+        #"count_more_binary": templates["count_more_binary"],
         #"identify_stationary": templates["identify_stationary"]
+
     }
     qa_tuples = {}
     idx = 0
@@ -259,7 +262,7 @@ def generate():
             for record in record_list:
                 qa_tuples[idx] = dict(
                     question=record["question"], answer=record["answer"],
-                    question_type=question_type, answer_form=record["answer_form"],
+                    question_type="_".join(["dynamic",question_type]), answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
                     color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
                     interaction_statistics=record["interaction_statistics"], ids=record["ids"],

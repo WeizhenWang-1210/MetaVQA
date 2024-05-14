@@ -24,7 +24,7 @@
                 "Give me the number of <o>.",
                 "Count the number of observed <o>.",
                 "Determine how many <o> are observed.",
-                "Record the quantity of <o> observed."
+                "Record the quantity of <o>."
             ],
             "params":[
                 "<o>"
@@ -131,14 +131,14 @@
     "dynamic": {
         "localization":{
             "text": [
-                "Locate all <o>. Give me the bounding boxes expressed in our coordinates.",
+                "Locate all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
                 "Give me the bounding boxes of all <o> in our coordinates.",
-                "Please localize all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Locate all <o> immediately. Give me the bounding boxes expressed in our coordinates.",
-                "Identify the positions of all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Pinpoint the whereabouts of all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Determine the positions of all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Find and report the locations of all <o>. Give me the bounding boxes expressed in our coordinates."
+                "Please localize all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
+                "Locate all <o> immediately. Give me the bounding boxes expressed in our coordinates at this moment.",
+                "Identify the positions of all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
+                "Pinpoint the whereabouts of all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
+                "Determine the positions of all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
+                "Find and report the locations of all <o>. Give me the bounding boxes expressed in our coordinates at this moment."
             ],
             "params":[
                 "<o>"
@@ -148,12 +148,12 @@
         },
         "counting": {
             "text":[
-                "How many <o> are observed?",
-                "How many <o> are there in observation?",
-                "Give me the number of <o>.",
-                "Count the number of observed <o>.",
-                "Determine how many <o> are observed.",
-                "Record the quantity of <o> observed."
+                "At this moment, how many <o> are observed?",
+                "At this moment, how many <o> are there in observation?",
+                "Give me the number of <o> at this moment.",
+                "Count the number of observed <o> at current moment",
+                "Determine how many <o> are observed at current moment.",
+                "Record the quantity of <o> at current moment."
             ],
             "params":[
                 "<o>"

@@ -204,7 +204,7 @@ def static_all(root_folder, source, summary_path, verbose=False, multiview=True)
             records[id] = dict(
                 question=info["question"],
                 answer=info["answer"],
-                question_type=info["question_type"],
+                question_type="_".join(["static", info["question_type"]]),
                 answer_form=info["answer_form"],
                 type_statistics=info["type_statistics"],
                 pos_statistics=info["pos_statistics"],
