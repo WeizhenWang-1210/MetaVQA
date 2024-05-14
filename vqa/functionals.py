@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import Iterable, Callable
 from vqa.object_node import ObjectNode, transform, TemporalNode, transform_vec
+from vqa.dataset_utils import transform_heading
+import numpy as  np
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
@@ -295,17 +297,37 @@ def identify_speed(search_spaces):
     return result
 
 
-from vqa.dataset_utils import transform_heading
+
 
 
 def identify_heading(origin_pos, origin_heading):
+
+
+
     def helper(search_spaces):
+        def angle_to_clock_bin(angle):
+            # Total radians in a circle
+            total_radians = 2 * np.pi
+            # Number of bins (hours on a clock)
+            num_bins = 12
+            # Calculate each bin width in radians
+            bin_width = total_radians / num_bins
+            # Normalize the angle to be within [0, 2*pi]
+            angle = angle % total_radians
+            # Calculate the bin number
+            bin_number = int(angle / bin_width) + 1
+            return bin_number
         result = {}
         for search_space in search_spaces:
             for object in search_space:
-                result[object.id] = transform_heading(
+                heading_transformed = transform_heading(
                     object.heading, origin_pos, origin_heading
                 )
+                angle = np.arctan2(heading_transformed[1], heading_transformed[0])
+                angle = angle + 2 * np.pi #so the range is now 0 to 360.
+                clockness = angle_to_clock_bin(angle)
+                result[object.id] = clockness
+
         return result
 
     return helper
