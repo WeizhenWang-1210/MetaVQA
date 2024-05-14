@@ -1,33 +1,36 @@
+# TODO Unify Nomenclature with Chenda.
 CFG_GRAMMAR = {
-    "<o>":[
+    "<o>": [
         ["<s>", "<p>", "<t>", "<dir>", "<a>"],
         ["us"]
     ],
-    "<s>":[
-        ["nil"],["parked"],["accelerating"], ["decelerating"], ["turn_left"], ["turn_right"]
+    "<s>": [
+        ["nil"], ["parked"], ["accelerating"], ["decelerating"], ["turn_left"], ["turn_right"]
     ],
-    "<a>":[
-        ["nil"], ["<passive_deed>","<o>"],["<active_deed>","<o>"]
+    "<a>": [
+        ["nil"], ["<passive_deed>", "<o>"], ["<active_deed>", "<o>"]
     ],
-    "<passive_deed>":[
-        ["followed"],["passed_by"],["headed_toward"],["accompanied_by"]
+    "<passive_deed>": [
+        ["followed"], ["passed_by"], ["headed_toward"], ["accompanied_by"]
     ],
-    "<active_deed>":[
-        ["follow"],["pass_by"],["head_toward"],["move_alongside"],
+    "<active_deed>": [
+        ["follow"], ["pass_by"], ["head_toward"], ["move_alongside"],
     ],
-    "<p>":[
-        ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],
-        ["Cyan"],["Lime"],["Pink"],["Gold"],["Teal"],["Maroon"],["Navy"],["Olive"],["Silver"],["Violet"]
+    "<p>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
-    "<t>":[
-        ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"],["Pedestrian"], ["vehicle"]
+    "<t>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
     ],
-    "<dir>":[
-        ["nil"],["<tdir>", "<o>"]
+    "<dir>": [
+        ["nil"], ["<tdir>", "<o>"]
     ],
-    "<tdir>":[
-        ["l"], ["r"], ["f"], ["b"], ["lf"],["rf"],["lb"], ["rb"],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
     ]
 }
 
@@ -64,100 +67,192 @@ NO_STATE_CFG = {
     "<tdir>": [
         ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
     ]
-
 }
 
-STATIC_GRAMMAR = {
-    "<o>":[
+NO_COLOR_CFG = {
+    "<o>": [
         ["<s>", "<p>", "<t>", "<dir>", "<a>"],
         ["us"]
     ],
-    "<s>":[
-        ["nil"]
-    ],
-    "<p>":[
-        ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],
-        ["Cyan"],["Lime"],["Pink"],["Gold"],["Teal"],["Maroon"],["Navy"],["Olive"],["Silver"],["Violet"]
-    ],
-    "<t>":[
-        ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"],["Pedestrian"], ["vehicle"]
-    ],
-    "<dir>":[
-        ["nil"],["<tdir>", "<o>"]
-    ],
-    "<tdir>":[
-        ["l"], ["r"], ["f"], ["b"], ["lf"],["rf"],["lb"], ["rb"],
-    ],
-    "<a>":[
-        ["nil"]
-    ],
-}
-
-NO_COLOR_STATIC = {
-    "<o>":[
-        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
-        ["us"]
-    ],
-    "<s>":[
-        ["nil"]
-    ],
-    "<p>":[
-        ["nil"]
-    ],
-    "<t>":[
-        ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"],["Pedestrian"], ["vehicle"]
-    ],
-    "<dir>":[
-        ["nil"],["<tdir>", "<ox>"]
-    ],
-    "<ox>":[
+    "<ox>": [
         ["<s>", "<px>", "<t>", "<dir>", "<a>"],
         ["us"]
     ],
-    "<px>":[
-        ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],
-        ["Cyan"],["Lime"],["Pink"],["Gold"],["Teal"],["Maroon"],["Navy"],["Olive"],["Silver"],["Violet"]
+    "<s>": [
+        ["nil"], ["parked"], ["accelerating"], ["decelerating"], ["turn_left"], ["turn_right"]
     ],
-    "<tdir>":[
-        ["l"], ["r"], ["f"], ["b"], ["lf"],["rf"],["lb"], ["rb"],
+    "<a>": [
+        ["nil"], ["<passive_deed>", "<ox>"], ["<active_deed>", "<ox>"]
     ],
-    "<a>":[
+    "<passive_deed>": [
+        ["followed"], ["passed_by"], ["headed_toward"], ["accompanied_by"]
+    ],
+    "<active_deed>": [
+        ["follow"], ["pass_by"], ["head_toward"], ["move_alongside"],
+    ],
+    "<p>": [
         ["nil"]
     ],
+    "<px>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
+    ],
+    "<t>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<ox>"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ]
 }
 
-NO_TYPE_STATIC = {
-     "<o>":[
+
+
+NO_TYPE_CFG = {
+    "<o>": [
         ["<s>", "<p>", "<t>", "<dir>", "<a>"],
         ["us"]
-    ],
-    "<s>":[
-        ["nil"]
-    ],
-    "<p>":[
-        ["nil"],["Red"],["Blue"],["Green"],["Yellow"],["Black"],["White"],["Purple"],["Orange"],["Brown"],["Gray"],
-        ["Cyan"],["Lime"],["Pink"],["Gold"],["Teal"],["Maroon"],["Navy"],["Olive"],["Silver"],["Violet"]
-    ],
-    "<t>":[
-        ["nil"]
-    ],
-    "<dir>":[
-        ["nil"],["<tdir>", "<ox>"]
     ],
     "<ox>": [
         ["<s>", "<p>", "<tx>", "<dir>", "<a>"],
         ["us"]
     ],
-    "<tx>":[
-        ["nil"], ["Bus"],["Caravan"],["Coupe"],["FireTruck"],["Hatchback"],["Jeep"],["Pickup"],["Policecar"],["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"],["Truck"],["Pedestrian"], ["vehicle"]
+    "<s>": [
+        ["nil"], ["parked"], ["accelerating"], ["decelerating"], ["turn_left"], ["turn_right"]
     ],
-    "<tdir>":[
-        ["l"], ["r"], ["f"], ["b"], ["lf"],["rf"],["lb"], ["rb"],
+    "<a>": [
+        ["nil"], ["<passive_deed>", "<ox>"], ["<active_deed>", "<ox>"]
     ],
-    "<a>":[
+    "<passive_deed>": [
+        ["followed"], ["passed_by"], ["headed_toward"], ["accompanied_by"]
+    ],
+    "<active_deed>": [
+        ["follow"], ["pass_by"], ["head_toward"], ["move_alongside"],
+    ],
+    "<p>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
+    ],
+    "<t>": [
+        ["nil"]
+    ],
+    "<tx>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<ox>"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ]
+}
+
+
+STATIC_GRAMMAR = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"]
+    ],
+    "<p>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
+    ],
+    "<t>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<o>"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ],
+    "<a>": [
+        ["nil"]
+    ],
+}
+
+NO_COLOR_STATIC = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"]
+    ],
+    "<p>": [
+        ["nil"]
+    ],
+    "<t>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<ox>"]
+    ],
+    "<ox>": [
+        ["<s>", "<px>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<px>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ],
+    "<a>": [
+        ["nil"]
+    ],
+}
+
+NO_TYPE_STATIC = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"]
+    ],
+    "<p>": [
+        ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
+        ["Gray"],
+        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
+    ],
+    "<t>": [
+        ["nil"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<ox>"]
+    ],
+    "<ox>": [
+        ["<s>", "<p>", "<tx>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<tx>": [
+        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
+        ["SUV"],
+        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ],
+    "<a>": [
         ["nil"]
     ],
 }

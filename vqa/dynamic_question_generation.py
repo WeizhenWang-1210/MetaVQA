@@ -49,7 +49,8 @@ def extract_observations(episode, debug=False):
 
 
 def generate_trimmed_grammar(graph, tense, template):
-    from vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR
+    from vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR,\
+        NO_COLOR_CFG,NO_TYPE_CFG
     import copy
     # type, color, action, interaction
     statistics = graph.statistics
@@ -86,6 +87,26 @@ def generate_trimmed_grammar(graph, tense, template):
                 elif lhs == "<active_deed>" or lhs == "<passive_deed>":
                     grammar[lhs] = [[item] for item in rhs]
                 elif lhs != "<s>":
+                    grammar[lhs] = [[item] for item in rhs + ["nil"]]
+        elif "no_color" in template["constraint"]:
+            grammar = copy.deepcopy(NO_COLOR_CFG)
+            for lhs, rhs in statistics.items():
+                if lhs == "<t>":
+                    grammar[lhs] = [[item] for item in rhs + ["vehicle"]]
+                elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+                    grammar[lhs] = [[item] for item in rhs]
+                elif lhs == "<p>":
+                    grammar["<px>"] = [[item] for item in rhs + ["nil"]]
+                else:
+                    grammar[lhs] = [[item] for item in rhs + ["nil"]]
+        elif "no_type" in template["constraint"]:
+            grammar = copy.deepcopy(NO_TYPE_CFG)
+            for lhs, rhs in statistics.items():
+                if lhs == "<t>":
+                    grammar["<tx>"] = [[item] for item in rhs + ["vehicle"]]
+                elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+                    grammar[lhs] = [[item] for item in rhs]
+                else:
                     grammar[lhs] = [[item] for item in rhs + ["nil"]]
         else:
             grammar = copy.deepcopy(CFG_GRAMMAR)
@@ -248,12 +269,15 @@ def generate():
         #"counting": templates["counting"],
         #"count_equal_binary": templates["count_equal_binary"]
         #"count_more_binary": templates["count_more_binary"],
+        #"color_identification": templates["color_identification"]
+        #"type_identification": templates["type_identification"],
+        #"color_identification_unique": templates["color_identification_unique"]
         #"identify_stationary": templates["identify_stationary"]
 
     }
     qa_tuples = {}
     idx = 0
-    for episode in episode_folders[:3]:
+    for episode in episode_folders:
         assert len(DynamicQuerySpecifier.CACHE) == 0, f"Non empty cache for {episode}"
         observations = extract_observations(episode)
         records, num_questions = generate_dynamic_questions(
@@ -262,7 +286,7 @@ def generate():
             for record in record_list:
                 qa_tuples[idx] = dict(
                     question=record["question"], answer=record["answer"],
-                    question_type="_".join(["dynamic",question_type]), answer_form=record["answer_form"],
+                    question_type="|".join(["dynamic",question_type]), answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
                     color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
                     interaction_statistics=record["interaction_statistics"], ids=record["ids"],
