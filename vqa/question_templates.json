@@ -2,14 +2,14 @@
     "generic":{
         "localization":{
             "text": [
-                "Locate all <o>.",
-                "Give me the bounding boxes of all <o>.",
-                "Please localize all <o>.",
-                "Locate all <o> immediately.",
-                "Identify the positions of all <o>.",
-                "Pinpoint the whereabouts of all <o>.",
-                "Determine the positions of all <o>.",
-                "Find and report the locations of all <o>."
+                "Locate all <o>. Give me the bounding boxes expressed in our coordinates.",
+                "Give me the bounding boxes of all <o> in our coordinates.",
+                "Please localize all <o>. Give me the bounding boxes expressed in our coordinates.",
+                "Locate all <o> immediately. Give me the bounding boxes expressed in our coordinates.",
+                "Identify the positions of all <o>. Give me the bounding boxes expressed in our coordinates.",
+                "Pinpoint the whereabouts of all <o>. Give me the bounding boxes expressed in our coordinates.",
+                "Determine the positions of all <o>. Give me the bounding boxes expressed in our coordinates.",
+                "Find and report the locations of all <o>. Give me the bounding boxes expressed in our coordinates."
             ],
             "params":[
                 "<o>"
@@ -34,12 +34,12 @@
         },
         "count_equal_binary":{
             "text":[
-                "Are there an equal number of the following things: <o1>,<o2>?. Answer True or False",
-                "Do we have the same number of <o1> and <o2>?. Answer True or False",
-                "Do <o1> match <o2> in number?. Answer True or False",
-                "Are the quantities of <o1> and <o2> equal?. Answer True or False",
-                "Determine if <o1> and <o2> are equal in number. Answer True or False",
-                "Check if the quantities of <o1> and <o2> are the same. Answer True or False"
+                "Are there an equal number of the following things: <o1>, <o2>?. Answer True or False.",
+                "Do we have the same number of <o1> and <o2>?. Answer True or False.",
+                "Do <o1> match <o2> in number?. Answer True or False.",
+                "Are the quantities of <o1> and <o2> equal?. Answer True or False.",
+                "Determine if <o1> and <o2> are equal in number. Answer True or False.",
+                "Check if the quantities of <o1> and <o2> are the same. Answer True or False."
             ],
             "params":[
                 "<o1>","<o2>"
@@ -49,11 +49,11 @@
         },
         "count_more_binary":{
             "text":[
-                "Are there more <o1> than <o2>? Answer True or False",
-                "Does <o1> exceed <o2> in quantity? Answer True or False",
-                "Are there less <o2> than <o1>? Answer True or False",
-                "Are <o2> outnumbered by <o1>? Answer True or False",
-                "Determine if there are more <o1> than <o2>. Answer True or False",
+                "Are there more <o1> than <o2>? Answer True or False.",
+                "Does <o1> exceed <o2> in quantity? Answer True or False.",
+                "Are there less <o2> than <o1>? Answer True or False.",
+                "Are <o2> outnumbered by <o1>? Answer True or False.",
+                "Determine if there are more <o1> than <o2>. Answer True or False.",
                 "Answer True if <o1> outnumber <o2> and False otherwise."
             ],
             "params":[
