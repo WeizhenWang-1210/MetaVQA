@@ -9,7 +9,7 @@ from vqa.scene_graph import SceneGraph
 from vqa.object_node import transform
 
 
-def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False) -> dict:
+def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False, multiview: bool = True) -> dict:
     '''
     Take in a path to a world.json file(a single frame), generate all
     static questions
@@ -20,7 +20,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
     except Exception as e:
         raise e
     print("Working on scene {}".format(frame))
-    ego_id, nodelist = nodify(scene_dict)
+    ego_id, nodelist = nodify(scene_dict, multiview=multiview)
     graph = SceneGraph(ego_id, nodelist, frame)
     # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
     record = {}
@@ -212,4 +212,4 @@ def static_all(root_folder, source, summary_path, verbose=False):
 
 if __name__ == "__main__":
     #static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)
-    static_all("multiview", "NuScenes", "multiview/final.json", verbose=True)
+    static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/final.json", verbose=True)
