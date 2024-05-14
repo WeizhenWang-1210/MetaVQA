@@ -16,9 +16,8 @@ class ObjectNode:
                  bbox,
                  type,
                  height,
-                 lane,
-                 visible,
-                 states,
+                 observing_cameras,
+                 visible_criteria,
                  collisions):
         '''
         Apparently I need more comments
@@ -31,17 +30,15 @@ class ObjectNode:
         self.id = id  # as defined in the metadrive env
         self.bbox = bbox  # bounding box with
         self.type = type  # as annotated
-        self.height = height  # The height retrieved from the assert's convex hull.
-        self.lane = lane  # The id (s,e,3).This indicate the lane starts from s and end on e and
-        # is on the 4th lane from the center of the road
-        self.visible = visible
+        self.height = height  # The height retrieved from the asset's convex hull.
+        self.observing_cameras = observing_cameras
+        self.visible = visible_criteria(observing_cameras)
         self.collision = collisions
-        self.actions = {}
 
     def compute_relation(self, node, ref_heading: Iterable[float]) -> dict:
         """
-        node: AgentNode. The node you wish to examines its relation w.r.t. to this node
-        ref_heading: The direction of the +x axis of the coordinate you wish to examine the spatial relationships, expressed in world coordinate.
+        node: AgentNode. The node you wish to examine its relation w.r.t. to this node
+        ref_heading: The direction of the +x-axis of the coordinate you wish to examine the spatial relationships, expressed in world coordinate.
         Encode spatial relation with ints.
         Indicators:
             Left  | Right | colinear:  -1 | 1 | 0
@@ -501,7 +498,7 @@ def find_extremities(ref_heading: Iterable[float],
     return left_bbox, right_bbox
 
 
-def nodify(scene_dict: dict, ) -> Tuple[str, List[ObjectNode]]:
+def nodify(scene_dict: dict, multiview=True) -> Tuple[str, List[ObjectNode]]:
     """
     Read world JSON file into nodes. 
     Return <ego id, list of ObjectNodes>
@@ -509,6 +506,10 @@ def nodify(scene_dict: dict, ) -> Tuple[str, List[ObjectNode]]:
     ego_dict = scene_dict['ego']
     ego_id = scene_dict['ego']['id']
     nodes = []
+    if multiview:
+        visible_criteria = lambda x: len(x) > 0
+    else:
+        visible_criteria = lambda x: "front" in x
     for info in scene_dict['objects']:
         nodes.append(ObjectNode(
             pos=info["pos"],
@@ -519,11 +520,9 @@ def nodify(scene_dict: dict, ) -> Tuple[str, List[ObjectNode]]:
             bbox=info['bbox'],
             height=info['height'],
             type=info['type'],
-            lane=info['lane'],
-            visible=info['visible'],
-            states=info["states"],
+            observing_cameras=info["observing_camera"],
+            visible_criteria=visible_criteria,
             collisions=info["collisions"]
-
         )
         )
     nodes.append(
@@ -536,9 +535,8 @@ def nodify(scene_dict: dict, ) -> Tuple[str, List[ObjectNode]]:
             bbox=ego_dict['bbox'],
             height=ego_dict['height'],
             type=ego_dict['type'],
-            lane=ego_dict['lane'],
-            visible=ego_dict["visible"],
-            states=ego_dict["states"],
+            observing_cameras=ego_dict["observing_camera"],
+            visible_criteria=visible_criteria,
             collisions=ego_dict["collisions"])
     )
     return ego_id, nodes
@@ -623,8 +621,8 @@ def box_trajectories_overlap(bboxes1, bboxes2):
 
 def rotate_point(point, origin, angle):
     """
-  rotate clockwise by angle around origin
-  """
+    rotate clockwise by angle around origin
+    """
     relative_point = point - origin
     relative_point_rotated = np.dot(relative_point,
                                     np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]))
@@ -633,11 +631,11 @@ def rotate_point(point, origin, angle):
 
 def rotate_box(vertices, origin, angle):
     """
-  rotate clockwise by angle around origin.
-  Vertices in world cooridnate.
-  Origin in world coordinate.
-  Return in world coordinate.
-  """
+      rotate clockwise by angle around origin.
+      Vertices in world cooridnate.
+      Origin in world coordinate.
+      Return in world coordinate.
+      """
     return [rotate_point(np.array(vertex), np.array(origin), -angle) for vertex in vertices]
 
 
