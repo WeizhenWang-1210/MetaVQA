@@ -556,7 +556,8 @@ class QuerySpecifier:
             self.parameters = self.instantiate()
         self.statistics = dict(
             types=defaultdict(int),
-            pos=[]
+            pos=[],
+            colors=defaultdict(int)
         )
 
     def instantiate(self):
@@ -640,10 +641,15 @@ class QuerySpecifier:
         return end_filter(param_answers), ids
 
     def generate_statistics(self, ids):
+        """
+        Statistics based on current frame. Since we don't have any action/interaction
+        in static setting, we ignore action/interaction.
+        """
         for id in ids:
             obj = self.graph.get_node(id)
             self.statistics["types"][obj.type] += 1
             self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
+            self.statistics["colors"][obj.color] += 1
 
     def generate_mask(self, ids):
         """
@@ -693,11 +699,9 @@ class QuerySpecifier:
             answer, ids = self.answer()
             if self.stats:
                 self.generate_statistics(ids)
-            if self.debug:
-                self.generate_mask(ids)
             if self.type == "type_identification":
                 answer = [type_token_string_converter(token, "singular").capitalize() for token in answer]
-            return [(question, (ids,answer))]
+            return [(question, (ids, answer))]
         else:
             qas = []
             answer, ids = self.answer()
@@ -708,8 +712,6 @@ class QuerySpecifier:
                 question = self.translate("located at {} ".format(rounded))
                 if self.stats:
                     self.generate_statistics([obj_id])
-                if self.debug:
-                    self.generate_mask([obj_id])
                 if self.type == "type_identification_unique":
                     answer = type_token_string_converter(answer, "singular").capitalize()
                 qas.append((question, (obj_id, answer)))
@@ -933,6 +935,8 @@ def some_tree(file):
     query.set_egos([graph.get_ego_node()])
     answer = query.proceed()
     print(answer)
-    generate_highlighted('SOME.png', "verification/9_41_80/9_41/metainformation_5_100.json",)
+    generate_highlighted('SOME.png', "verification/9_41_80/9_41/metainformation_5_100.json", )
+
+
 if __name__ == "__main__":
     try_instantiation()
