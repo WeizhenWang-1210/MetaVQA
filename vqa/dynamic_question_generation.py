@@ -12,15 +12,23 @@ from vqa.scene_graph import TemporalGraph
 from vqa.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.object_node import transform
 import random
-from vqa.question_generator import CACHE
 from collections import defaultdict
 
 
 def find_episodes(session_folder):
+    """
+    Return subfolders representing an episode under a session folder.
+    """
     pattern = re.compile(r'\d+_\d+_\d+')
     folders = [f for f in os.listdir(session_folder) if os.path.isdir(os.path.join(session_folder, f))]
     matched_folders = [os.path.join(session_folder, folder) for folder in folders if pattern.match(folder)]
     return matched_folders
+
+
+def extract_frames(episode, debug=False):
+    annotation_path_template = f"{episode}/**/world*.json"
+    sorted_rgb = sorted(glob.glob(annotation_path_template, recursive=True))
+    return sorted_rgb
 
 
 def extract_observations(episode, debug=False):
@@ -117,12 +125,12 @@ def not_degenerate(question_type, q, result):
         return degenerate_refer
 
     func_map = dict(
-        localization=lambda x: len(x[1]) > 0,
-        counting=lambda x: len(x[1]) > 0,
+        localization=lambda x: len(x[0][1][1]) > 0,
+        counting=lambda x: len(x[0][1][1]) > 0,
         count_equal_binary=lambda x: refer_exist(q),
         count_more_binary=lambda x: refer_exist(q),
-        color_identification=lambda x: len(x[1]) > 0,
-        type_identification=lambda x: len(x[1]) > 0,
+        color_identification=lambda x: len(x[0][1][1]) > 0,
+        type_identification=lambda x: len(x[0][1][1]) > 0,
         color_identification_unique=lambda x: len(x) > 0,
         type_identification_unique=lambda x: len(x) > 0,
         identify_stationary=lambda x: len(x) > 0,
@@ -133,18 +141,22 @@ def not_degenerate(question_type, q, result):
         identify_head_toward=lambda x: len(x) > 0,
         predict_trajectory=lambda x: len(x) > 0
     )
+    # print(result[0])
     return func_map[question_type](result)
 
 
 def add_to_record(question_type, q, result, candidates):
-    if question_type in ["color_identification_unique", "type_identification_unique", ]:
+    if question_type in ["color_identification_unique", "type_identification_unique"]:
         for question, answer_record in result:
             obj_id, answer = answer_record
+            obj_node = q.graph.get_node(obj_id)
             data_point = dict(
                 question=question, answer=answer, answer_form="str", question_type=question_type,
-                type_statistics=[q.graph.get_node(obj_id).type],
-                pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos]),
-                key_frame=0, obj_id=obj_id
+                type_statistics=[obj_node.type],
+                pos_statistics=transform(q.graph.get_ego_node(), [obj_node.pos]),
+                color_statistics=[obj_node.color], action_statistics=[obj_node.actions],
+                interaction_statistics=[obj_node.get_all_interactions()], ids=[obj_id],
+                key_frame=q.graph.idx_key_frame  # key_frame will be used to determine the observation.
             )
             candidates[question_type].append(data_point)
 
@@ -152,20 +164,26 @@ def add_to_record(question_type, q, result, candidates):
                            "identify_heading", "identify_head_toward", "predict_trajectory"]:
         for question, answer_record in result:
             obj_id, answer = answer_record
+            obj_node = q.graph.get_node(obj_id)
             data_point = dict(
                 question=question, answer=answer, answer_form="str", question_type=question_type,
-                type_statistics=[q.graph.get_node(obj_id).type],
-                pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos]),
-                key_frame=q.graph.idx_key_frame, obj_id=obj_id
+                type_statistics=[obj_node.type],
+                pos_statistics=transform(q.graph.get_ego_node(), [obj_node.pos]),
+                color_statistics=[obj_node.color], action_statistics=[obj_node.actions],
+                interaction_statistics=[obj_node.get_all_interactions()], ids=[obj_id],
+                key_frame=q.graph.idx_key_frame # key_frame will be used to determine the observation.
             )
             candidates[question_type].append(data_point)
 
     else:
-        question, answer = result
+        question, answer = result[0]
+        ids, answer = answer
         data_point = dict(
             question=question, answer=answer, answer_form="str", question_type=question_type,
-            type_statistics=[q.statistics["types"]], pos_statistics=[q.statistics["pos"]],
-            key_frame=0
+            type_statistics=q.statistics["types"], pos_statistics=q.statistics["pos"],
+            color_statistics=q.statistics["colors"], action_statistics=q.statistics["actions"],
+            interaction_statistics=q.statistics["interactions"], ids=ids,
+            key_frame=q.graph.idx_key_frame # key_frame will be used to determine the observation.
         )
         candidates[question_type].append(data_point)
     return candidates
@@ -189,7 +207,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
                 print("Attempt {} of {} for {}".format(attempts_per_type - countdown, attempts_per_type, question_type))
             q = DynamicQuerySpecifier(
                 type=question_type, template=question_template, parameters=None, graph=graph,
-                grammar=grammar, debug=False, stats=False,
+                grammar=grammar, debug=False, stats=True,
             )
             if q.signature in valid_questions:
                 if verbose:
@@ -211,7 +229,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
             counts += len(final_selected)
         else:
             counts += len(candidates[question_type])
-    return candidates, counts,
+    return candidates, counts
 
 
 def generate():
@@ -226,9 +244,10 @@ def generate():
     templates_path = os.path.join(current_directory, "question_templates.json")
     templates = json.load(open(templates_path, "r"))
     templates = templates["dynamic"]
-    """ templates = {
-        "identify_stationary": templates["identify_stationary"]
-    }"""
+    templates = {
+        "localization": templates["localization"]
+        #"identify_stationary": templates["identify_stationary"]
+    }
     qa_tuples = {}
     idx = 0
     for episode in episode_folders[:3]:
@@ -242,17 +261,17 @@ def generate():
                     question=record["question"], answer=record["answer"],
                     question_type=question_type, answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
+                    color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
+                    interaction_statistics=record["interaction_statistics"], ids=record["ids"],
                     rgb={
                         perspective: observations[perspective][:record["key_frame"] + 1] for perspective in
                         ["front", "leftb", "leftf", "rightb", "rightf", "back"]
                     },
                     lidar=observations["lidar"][:record["key_frame"] + 1],
-                    obj_id = record["obj_id"],
+                    metadrive_scene=extract_frames(episode),
+                    multiview=True,
                     source=source,
-                    metadrive_scene = episode,
-
                 )
-
                 idx += 1
         DynamicQuerySpecifier.CACHE.clear()
     json.dump(qa_tuples, open(os.path.join(abs_storage_folder, f"{name}.json"), "w"), indent=2)
