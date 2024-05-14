@@ -9,7 +9,8 @@ from vqa.scene_graph import SceneGraph
 from vqa.object_node import transform
 
 
-def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False, multiview: bool = True) -> dict:
+def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False,
+                       multiview: bool = True) -> dict:
     '''
     Take in a path to a world.json file(a single frame), generate all
     static questions
@@ -62,10 +63,8 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
             if verbose:
                 print(result)
             for question, answer in result:
-                """                if verbose:
-                                    print(question, answer)"""
                 if question_type == "counting":
-
+                    ids, answer = answer
                     if answer[0] > 0:
                         record[id_start + counts + type_count] = dict(
                             question=question,
@@ -73,7 +72,8 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             answer_form="str",
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
+                            pos_statistics=q.statistics["pos"],
+                            ids=ids
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
                         type_count += 1
@@ -82,14 +82,16 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             break
                             # return record
                 elif question_type == "localization":
+                    ids, answer = answer
                     if len(answer) != 0:
                         record[id_start + counts + type_count] = dict(
                             question=question,
                             answer=answer,
-                            answer_form="bboxs",
+                            answer_form="str",
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
+                            pos_statistics=q.statistics["pos"],
+                            ids=ids
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
                         type_count += 1
@@ -98,6 +100,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             break
                             # return record
                 elif question_type == "count_equal_binary" or question_type == "count_more_binary":
+                    ids, answer = answer
                     degenerate = True
                     for param, info in q.parameters.items():
                         if len(q.parameters[param]["answer"]) > 0:
@@ -110,7 +113,8 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             answer_form="str",
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
+                            pos_statistics=q.statistics["pos"],
+                            ids=ids
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
                         type_count += 1
@@ -119,6 +123,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             break
                             # return record
                 elif question_type in ["color_identification", "type_identification"]:
+                    ids, answer = answer
                     if len(answer) > 0:
                         record[id_start + counts + type_count] = dict(
                             question=question,
@@ -126,7 +131,8 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             answer_form="str",
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
-                            pos_statistics=q.statistics["pos"]
+                            pos_statistics=q.statistics["pos"],
+                            ids=ids,
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
                         type_count += 1
@@ -141,7 +147,8 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                         answer_form="str",
                         question_type=question_type,
                         type_statistics=[q.graph.get_node(obj_id).type],
-                        pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos])
+                        pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos]),
+                        ids=[obj_id]
                         # already in ego's coordinate, with ego's heading as the +y direction
                     )
                     type_count += 1
@@ -158,8 +165,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
     return record, counts
 
 
-def static_all(root_folder, source, summary_path, verbose=False):
-    # TODO Debug so that all static questions can be generated efficiently
+def static_all(root_folder, source, summary_path, verbose=False, multiview=True):
     def find_world_json_paths(root_dir):
         world_json_paths = []  # List to hold paths to all world_{id}.json files
         for root, dirs, files in os.walk(root_dir):
@@ -185,10 +191,10 @@ def static_all(root_folder, source, summary_path, verbose=False):
         assert len(QuerySpecifier.CACHE) == 0, f"Non empty cache for {path}"
         folder_name = os.path.dirname(path)
         identifier = os.path.basename(folder_name)
-        perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
-        # rgb = os.path.join(folder_name, f"rgb_{identifier}.png")
+        perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
         lidar = os.path.join(folder_name, f"lidar_{identifier}.json")
-        record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose)
+        record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose,
+                                              multiview=multiview)
         for id, info in record.items():
             records[id] = dict(
                 question=info["question"],
@@ -197,8 +203,12 @@ def static_all(root_folder, source, summary_path, verbose=False):
                 answer_form=info["answer_form"],
                 type_statistics=info["type_statistics"],
                 pos_statistics=info["pos_statistics"],
-                rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in perspectives},
-                lidar=lidar,
+                ids=info["ids"],
+                rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in
+                     perspectives},
+                lidar=[lidar],
+                scene=[path],
+                multiview=multiview,
                 source=source,
             )
         count += num_data
@@ -211,5 +221,7 @@ def static_all(root_folder, source, summary_path, verbose=False):
 
 
 if __name__ == "__main__":
-    #static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)
-    static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/final.json", verbose=True)
+    # static_all("verification_multiview_small", "NuScenes", "verification_multiview_small/static.json", verbose=True)
+    static_all("verification_multiview_small", "NuScenes",
+               "verification_multiview_small/final.json", verbose=True,
+               multiview=False)
