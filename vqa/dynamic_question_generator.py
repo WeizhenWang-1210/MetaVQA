@@ -1,12 +1,10 @@
 from typing import Union
 from vqa.scene_graph import TemporalGraph
-from question_generator import Tree, SubQuery, Query #CACHE
-from vqa.functionals import Identity
+from question_generator import Tree, Query
 from collections import defaultdict
 from vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
 import json
 import os
-from vqa.visualization import generate_highlighted
 import random
 
 from vqa.functionals import is_stationary, count, \
@@ -20,6 +18,7 @@ from vqa.object_node import transform
 
 class DynamicQuerySpecifier:
     CACHE = {}
+
     def __init__(self, type: str, template: dict, parameters: Union[dict, None], graph: TemporalGraph, grammar: dict,
                  debug: bool = False, stats: bool = True) -> None:
         self.type = type
@@ -36,7 +35,10 @@ class DynamicQuerySpecifier:
             self.parameters = self.instantiate()
         self.statistics = dict(
             types=defaultdict(int),
-            pos=[]
+            pos=[],
+            colors=defaultdict(int),
+            actions=defaultdict(int),
+            interactions=defaultdict(int),
         )
 
     def instantiate(self):
@@ -122,61 +124,29 @@ class DynamicQuerySpecifier:
             self.parameters[param]["answer"] = answers
             param_answers.append(answers)
         end_filter = self.find_end_filter(self.template["end_filter"])
-        if self.debug and len(param_answers[0]) > 0:
-            objects = []
-            ids = []
-            for param_answer in param_answers:
-                for obj in param_answer:
-                    objects.append(f"{obj.type}:{obj.id}")
-                    ids.append(obj.id)
-            # print(ids)
-            parent_folder = os.path.dirname(self.graph.folder)
-            identifier = os.path.basename(parent_folder)
-            path_to_mask = os.path.join(parent_folder, f"mask_{identifier}.png")
-            path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
-            folder = parent_folder
-            colors = [(1, 1, 1) for _ in range(len(ids))]
-            generate_highlighted(
-                path_to_mask,
-                path_to_mapping,
-                folder,
-                ids,
-                colors
-            )
-        if self.stats:
-            self.generate_statistics(param_answers)
-        return end_filter(param_answers)
-
-    def generate_statistics(self, params):
-        for objects in params:
-            for obj in objects:
-                self.statistics["types"][obj.type] += 1
-                self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
-
-    def generate_mask(self, id):
-        parent_folder = os.path.dirname(self.graph.folder)
-        identifier = os.path.basename(parent_folder)
-        path_to_mask = os.path.join(parent_folder, f"mask_{id}.png")
-        path_to_mapping = os.path.join(parent_folder, f"metainformation_{identifier}.json")
-        folder = parent_folder
         ids = []
-        param_answers = []
-        for param, info in self.parameters.items():
-            param_answers.append(self.parameters[param]["answer"])
         for param_answer in param_answers:
             for obj in param_answer:
                 ids.append(obj.id)
-        colors = [(1, 1, 1) for _ in range(len(ids))]
-        generate_highlighted(
-            path_to_mask,
-            path_to_mapping,
-            folder,
-            ids,
-            colors
-        )
+        return end_filter(param_answers), ids
+
+    def generate_statistics(self, ids):
+        """
+        The statistics are based on current frame.
+        """
+        for id in ids:
+            obj = self.graph.get_node(id)
+            self.statistics["types"][obj.type] += 1
+            self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
+            for action in obj.actions:
+                self.statistics["actions"][action] += 1
+            self.statistics["colors"][obj.color] += 1
+            for interaction in obj.get_all_interactions():
+                self.statistics["interactions"][interaction] += 1
 
     def export_qa(self):
         def type_token_string_converter(token, form):
+            # TODO Unify Nomenclature with Chenda.
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -200,18 +170,22 @@ class DynamicQuerySpecifier:
 
         if "unique" not in self.template["constraint"]:
             question = self.translate()
-            answer = self.answer()
+            answer, ids = self.answer()
+            if self.stats:
+                self.generate_statistics(ids)
             if self.type == "type_identification":
                 answer = [type_token_string_converter(token, "singular").capitalize() for token in answer]
-            return [(question, answer)]
+            return [(question, (ids, answer))]
         else:
             qas = []
-            answer = self.answer()
+            answer, ids = self.answer()
             # assume that for unique-constrained questions, the answer a dictionary of form {obj_id: answer}
             for obj_id, answer in answer.items():
                 concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
                 rounded = (int(concrete_location[0]), int(concrete_location[1]))
                 question = self.translate("located at {} ".format(rounded))
+                if self.stats:
+                    self.generate_statistics([obj_id])
                 if self.type == "type_identification_unique":
                     answer = type_token_string_converter(answer, "singular").capitalize()
                 qas.append((question, (obj_id, answer)))
@@ -278,15 +252,15 @@ def try_pipeline(episode):
                 new_rule.append(rhs)
             new_grammar[lhs] = new_rule
     templates = templates["dynamic"]  # templates["generic"]
-    templates = {
-        # "identify_stationary": templates["identify_stationary"]
-        # "identify_turning": templates["identify_turning"]
-         "identify_acceleration": templates["identify_acceleration"]
-        # "identify_speed": templates["identify_speed"]
-        # "identify_heading": templates["identify_heading"]
-        # "identify_head_toward": templates["identify_head_toward"]
-        #"predict_trajectory": templates["predict_trajectory"]
-    }
+    # templates = {
+    # "identify_stationary": templates["identify_stationary"]
+    # "identify_turning": templates["identify_turning"]
+    # "identify_acceleration": templates["identify_acceleration"]
+    # "identify_speed": templates["identify_speed"]
+    # "identify_heading": templates["identify_heading"]
+    # "identify_head_toward": templates["identify_head_toward"]
+    # "predict_trajectory": templates["predict_trajectory"]
+    # }
     for question_type, specification in templates.items():
         q = DynamicQuerySpecifier(
             type=question_type, template=specification, parameters=None,
@@ -302,10 +276,10 @@ def try_pipeline(episode):
             result = q.export_qa()
             print(result)
 
+
 if __name__ == "__main__":
     # EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_150_179/**/world*.json"
     EPISODE = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_210_239/**/world*.json"
-    #try_graph(EPISODE)
+    # try_graph(EPISODE)
     try_pipeline(EPISODE)
     # sample_tree()
-
