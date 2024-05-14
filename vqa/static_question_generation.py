@@ -73,6 +73,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
                             pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
                             ids=ids
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
@@ -91,6 +92,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
                             pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
                             ids=ids
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
@@ -114,6 +116,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
                             pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
                             ids=ids
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
@@ -132,6 +135,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                             question_type=question_type,
                             type_statistics=q.statistics["types"],
                             pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
                             ids=ids,
                             # already in ego's coordinate, with ego's heading as the +y direction
                         )
@@ -148,6 +152,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                         question_type=question_type,
                         type_statistics=[q.graph.get_node(obj_id).type],
                         pos_statistics=transform(q.graph.get_ego_node(), [q.graph.get_node(obj_id).pos]),
+                        color_statistics=[q.graph.get_node(obj_id).color],
                         ids=[obj_id]
                         # already in ego's coordinate, with ego's heading as the +y direction
                     )
@@ -203,11 +208,12 @@ def static_all(root_folder, source, summary_path, verbose=False, multiview=True)
                 answer_form=info["answer_form"],
                 type_statistics=info["type_statistics"],
                 pos_statistics=info["pos_statistics"],
+                color_statistics=info["color_statistics"],
                 ids=info["ids"],
                 rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in
                      perspectives},
                 lidar=[lidar],
-                scene=[path],
+                metadrive_scene=[path],
                 multiview=multiview,
                 source=source,
             )
