@@ -165,8 +165,7 @@ class ObjectNode:
 
 class TemporalNode:
     def __init__(self, now_frame, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras,
-                 states,
-                 collisions, interaction=None):
+                 states, collisions, interaction=None):
         # time-invariant properties
         self.now_frame = now_frame  # 0-indexed.indicate when is "now". The past is history and inclusive of now.
         self.id = id  # as defined in the metadrive env
@@ -203,8 +202,7 @@ class TemporalNode:
     def summarize_action(self, now_frame):
         """
         Apparently, in real envs, we don't have any second-order information. We only have speed.
-        So, all actions must be summarized leveraging speed/positions.
-
+        So, all actions must be summarized leveraging speed/positions
         """
         actions = []
         front_vector = self.headings[0]
@@ -212,7 +210,6 @@ class TemporalNode:
         final_pos = self.positions[now_frame]
         init_pos = self.positions[0]
         displacement = final_pos[0] - init_pos[0], final_pos[1] - init_pos[1]
-        # print(self.id, dot(displacement, left_vector))
         if dot(displacement, left_vector) > 3:
             actions.append("turn_left")
         elif dot(displacement, left_vector) < -3:
