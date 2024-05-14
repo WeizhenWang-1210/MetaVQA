@@ -1,10 +1,9 @@
 from vqa.static_question_generation import generate_all_frame
-from vqa.grammar import STATIC_GRAMMAR
 import json
 import os
 import argparse
 import multiprocessing as multp
-from vqa.question_generator import CACHE
+from vqa.question_generator import QuerySpecifier
 
 
 def job(paths, source, summary_path, verbose=False):
@@ -18,7 +17,7 @@ def job(paths, source, summary_path, verbose=False):
     records = {}
     count = 0
     for path in paths:
-        assert len(CACHE) == 0, f"Non empty cache for {path}"
+        assert len(QuerySpecifier.CACHE) == 0, f"Non empty cache for {path}"
         folder_name = os.path.dirname(path)
         identifider = os.path.basename(folder_name)
         rgb = os.path.join(folder_name, f"rgb_{identifider}.png")
@@ -42,13 +41,16 @@ def job(paths, source, summary_path, verbose=False):
                 source=source
             )
         count += num_data
-        CACHE.clear()
+        QuerySpecifier.CACHE.clear()
     try:
         with open(summary_path, "w") as f:
             json.dump(records, f, indent=4),
     except Exception as e:
         raise e
 
+
+def episodic_job():
+    pass
 
 def divide_list_into_n_chunks(lst, n):
     """
@@ -94,8 +96,6 @@ if __name__ == "__main__":
                 path = os.path.join(root, expected_json_filename)  # Construct full path
                 world_json_paths.append(path)
         return world_json_paths
-
-
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
