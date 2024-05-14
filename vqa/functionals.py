@@ -4,9 +4,9 @@ from vqa.object_node import ObjectNode, transform, TemporalNode, transform_vec
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
-    '''
+    """
     Constructor for a function that return all nodes with color in colors
-    '''
+    """
 
     def color(candidates: Iterable[ObjectNode | TemporalNode]):
         results = []
@@ -20,9 +20,9 @@ def color_wrapper(colors: Iterable[str]) -> Callable:
 
 
 def type_wrapper(types: Iterable[str]) -> Callable:
-    '''
+    """
     Constructor for a function that return all nodes with type in types or is a subtype of type in types
-    '''
+    """
 
     def type(candidates: Iterable[ObjectNode | TemporalNode]):
         # print(candidates)
@@ -40,6 +40,27 @@ def type_wrapper(types: Iterable[str]) -> Callable:
         return results
 
     return type
+
+
+def pos_wrapper(egos: Iterable[ObjectNode], spatial_relationships: Iterable[str],
+                ref_heading: tuple = None) -> Callable:
+    """
+    A constructor for selecting all nodes that exhibit spatial_relationship with any ego in egos for
+    spatial_relationship in spatial_relationships. ref_heading is provided to define what's left v.s. right
+    """
+
+    def pos(candidates: Iterable[ObjectNode]):
+        results = []
+        for candidate in candidates:
+            if not candidate.visible:
+                continue
+            for ego in egos:
+                if ego.id != candidate.id and ego.compute_relation_string(candidate,
+                                                                          ref_heading) in spatial_relationships:
+                    results.append(candidate)
+        return results
+
+    return pos
 
 
 def subclass(class1: str, class2: str) -> bool:
@@ -117,39 +138,11 @@ def action_wrapper(egos: Iterable[TemporalNode], actions: Iterable[str]) -> Call
     return act
 
 
-def pos_wrapper(egos: Iterable[ObjectNode], spatial_relationships: Iterable[str],
-                ref_heading: tuple = None) -> Callable:
-    """
-    A constructor for selecting all nodes that exhibit spatial_relationship with any ego in egos for
-    spatial_relationship in spatial_relationships. ref_heading is provided to define what's left v.s. right
-    """
-
-    def pos(candidates: Iterable[ObjectNode]):
-
-        results = []
-        for candidate in candidates:
-            if not candidate.visible:
-                continue
-            for ego in egos:
-                if ego.id != candidate.id and ego.compute_relation_string(candidate,
-                                                                          ref_heading) in spatial_relationships:
-                    results.append(candidate)
-        return results
-
-    return pos
-
-
 def greater(A, B) -> bool:
-    '''
-    checker
-    '''
     return A > B
 
 
 def count(stuff: Iterable) -> int:
-    '''
-    checker
-    '''
     return [len(s) for s in stuff]
 
 
@@ -216,7 +209,7 @@ def Identity(search_spaces):
 def locate_wrapper(origin: ObjectNode) -> Callable:
     def locate(stuff: Iterable[ObjectNode]) -> Iterable:
         """
-        Return the bbox of all AgentNodes in stuff.
+        Return the bbox of all AgentNodes in stuff. In origin's coordinate.
         """
         result = []
         for s in stuff:
@@ -229,13 +222,19 @@ def locate_wrapper(origin: ObjectNode) -> Callable:
 
 
 def extract_color(search_spaces):
+    """
+    Return colors in-order
+    """
     result = set()
     for search_space in search_spaces:
         result.update([obj.color for obj in search_space])
-    return list(result)
+    return sorted(list(result))
 
 
 def extract_color_unique(search_spaces):
+    """
+    Return {id:color} pair
+    """
     result = {}
     for search_space in search_spaces:
         for obj in search_space:
@@ -244,25 +243,24 @@ def extract_color_unique(search_spaces):
 
 
 def extract_type(search_spaces):
+    """
+    Return sorted types.
+    """
     result = set()
     for search_space in search_spaces:
         result.update([obj.type for obj in search_space])
-    return list(result)
+    return sorted(list(result))
 
 
 def extract_type_unique(search_spaces):
+    """
+    Return {obj.id: type} pair.
+    """
     result = {}
     for search_space in search_spaces:
         for obj in search_space:
             result[obj.id] = obj.type
     return result
-
-
-def motion_Pred(search_spaces):
-    future_dict = {}
-    for search_space in search_spaces:
-        for obj in search_space:
-            future_dict[obj.id] = obj.get
 
 
 def is_stationary(search_spaces):
@@ -296,7 +294,10 @@ def identify_speed(search_spaces):
             result[object.id] = object.speed
     return result
 
+
 from vqa.dataset_utils import transform_heading
+
+
 def identify_heading(origin_pos, origin_heading):
     def helper(search_spaces):
         result = {}
@@ -306,6 +307,7 @@ def identify_heading(origin_pos, origin_heading):
                     object.heading, origin_pos, origin_heading
                 )
         return result
+
     return helper
 
 
@@ -331,5 +333,5 @@ def predict_trajectory(now_frame, origin_pos, origin_heading):
                     transformed += transform_vec(origin_pos, origin_heading, [pos])
                 result[object.id] = transformed
         return result
-    return helper
 
+    return helper
