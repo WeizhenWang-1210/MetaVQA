@@ -7,7 +7,22 @@ from PIL import Image
 import numpy as np
 import imageio
 
-
+def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, ) -> np.array:
+    """
+    Hight light imgs. If the color actually exists in the image, hightlight it into white
+    """
+    H, W, C = img.shape
+    img = img / 255  # needed as the r,g,b values in the mapping is clipped.
+    flattened = img.reshape(H * W, C)
+    for id, high_light in zip(ids, colors):
+        if id not in mapping.keys():
+            continue
+        color = mapping[id]
+        masks = np.all(np.isclose(flattened, color), axis=1)  # Robust against floating-point arithmetic
+        flattened[masks] = high_light
+    flattened = flattened * 255  # Restore into 0-255 so that cv2.imwrite can property write the image
+    flattened = flattened[:, [2, 1, 0]]  # Convert rgb back to bgr
+    return flattened.reshape(H, W, C)
 def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, prefix="highlighted"):
     """
     Take in an instance segmentation masks to recolor pixels that belong to 
@@ -110,10 +125,10 @@ def concatenate_frames(framepaths):
 if __name__ == "__main__":
     import glob
 
-    concatenate_frames(
+    """ concatenate_frames(
         ["E:/Bolei/MetaVQA/multiview_final/11_30_30/11_30"]
     )
-    """
+    
     path_to_mask = "some_folder/10_40/mask_10_40.png"
     path_to_mapping = "some_folder/10_40/metainformation_10_40.json"
     folder = "some_folder/10_40"
@@ -143,13 +158,13 @@ if __name__ == "__main__":
 
     # episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_30_59/**/rgb_back*.json"
 
-    """
+
     perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
     imarrays = {
         perspective: [] for perspective in perspectives
     }
     for perspective in perspectives:
-        path_template = f"C:/school/Bolei/Merging/MetaVQA/multiview_final/0_40_69/**/rgb_{perspective}*.png"
+        path_template = f"C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/**/rgb_{perspective}*.png"
         frame_files = sorted(glob.glob(path_template, recursive=True))
         # print(frame_files)
         imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
@@ -161,28 +176,13 @@ if __name__ == "__main__":
         for perspective in perspectives:
             arrays.append(imarrays[perspective][frame])
         concatenated_arrays.append(gridify_imarrays(arrays))
-    create_video(concatenated_arrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/episode_rgb.mp4")
+    create_video(concatenated_arrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_rgb.mp4")
 
-    top_down_template = "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/top_down*.png"
+    top_down_template = "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/**/top_down*.png"
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
-    create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/episode_top_down.mp4")"""
+    create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")
 
 # chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
 # control signal/context inserted as text.
-def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, ) -> np.array:
-    """
-    Hight light imgs. If the color actually exists in the image, hightlight it into white
-    """
-    H, W, C = img.shape
-    img = img / 255  # needed as the r,g,b values in the mapping is clipped.
-    flattened = img.reshape(H * W, C)
-    for id, high_light in zip(ids, colors):
-        if id not in mapping.keys():
-            continue
-        color = mapping[id]
-        masks = np.all(np.isclose(flattened, color), axis=1)  # Robust against floating-point arithmetic
-        flattened[masks] = high_light
-    flattened = flattened * 255  # Restore into 0-255 so that cv2.imwrite can property write the image
-    flattened = flattened[:, [2, 1, 0]]  # Convert rgb back to bgr
-    return flattened.reshape(H, W, C)
+
