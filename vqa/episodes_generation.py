@@ -196,7 +196,8 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             scene_annotation = dict(
                 ego=ego_annotation,
                 objects=objects_annotations,
-                world=env.engine.data_manager.current_scenario_file_name if isinstance(env, ScenarioDiverseEnv) else env.current_seed
+                world=env.engine.data_manager.current_scenario_file_name if isinstance(env, ScenarioDiverseEnv) else env.current_seed,
+                dataset_summary=env.config["data_directory"] if isinstance(env, ScenarioDiverseEnv) else "PG"
             )
             # send all observations/information to saving function for deferred I/O(when the episode is completed)
             buffer[identifier] = postprocess_annotation(env=env,

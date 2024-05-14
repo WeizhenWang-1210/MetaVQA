@@ -144,7 +144,8 @@ def record_frame(env, lidar, camera, instance_camera):
     scene_dict = dict(
         ego=ego_annotation,
         objects=objects_annotations,
-        world=env.engine.data_manager.current_scenario_file_name if isinstance(env,ScenarioDiverseEnv) else "PG"
+        world=env.engine.data_manager.current_scenario_file_name if isinstance(env,ScenarioDiverseEnv) else "PG",
+        dataset_summary=env.config["data_directory"] if isinstance(env, ScenarioDiverseEnv) else "PG"
     )
     final_summary = postprocess_annotation(
         env = env, lidar = cloud_points, rgb_dict = rgb_dict,
