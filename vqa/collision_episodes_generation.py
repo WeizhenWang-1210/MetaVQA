@@ -6,8 +6,9 @@ from collections import deque
 import cv2
 import os
 import json
-
 from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+import pickle
+from collections import defaultdict
 from vqa.dataset_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.sensors.instance_camera import InstanceCamera
@@ -51,47 +52,45 @@ class Buffer:
         self.dq.clear()
 
     def export(self, episode_folder):
-        def log_data_mult(data, instance_folder):
-            try:
-                # Save the world annotation in world{}.json
-                file_path = os.path.join(instance_folder, "world_{}.json".format(identifier))
-                with open(file_path, 'w') as f:
-                    json.dump(data["world"], f, indent=2)
-                # Save the lidar observation in lidar{id}.json
-                file_path = os.path.join(instance_folder, "lidar_{}.json".format(identifier))
-                with open(file_path, 'w') as f:
-                    observation = {}
-                    observation['lidar'] = data["lidar"]
-                    json.dump(observation, f, indent=2)
-                for perspective in data["rgb"].keys():
-                    # Save the rgb observation in rgb_{perspective}_{id}.png
-                    file_path = os.path.join(instance_folder, "rgb_{}_{}.png".format(perspective, identifier))
-                    cv2.imwrite(file_path, data["rgb"][perspective])
-                    # Save the instance segmentation mask in mask_{perspective}_{id}.png
-                    file_path = os.path.join(instance_folder, "mask_{}_{}.png".format(perspective, identifier))
-                    cv2.imwrite(file_path, data["mask"][perspective])
-                if "top_down" in data.keys():
-                    # Save the top-down view in top_down{id}.json
-                    file_path = os.path.join(instance_folder, "top_down_{}.png".format(identifier))
-                    cv2.imwrite(file_path, data["top_down"])
-                if "front" in data.keys():
-                    # Save the rendering in front_{id}.png
-                    file_path = os.path.join(instance_folder, "front_{}.png".format(identifier))
-                    cv2.imwrite(file_path, data["front"])
-                # Save the mapping front ID to color for visualization purpose. in metainformation_{}.json
-                file_path = os.path.join(instance_folder, "metainformation_{}.json".format(identifier))
-                with open(file_path, 'w') as f:
-                    # write the dictionary to the file in JSON format
-                    json.dump(data["log_mapping"], f, indent=2)
-                return 0
-            except Exception as e:
-                raise e
+        def log_frame(data, frame_folder):
+            observations = dict()
+            for key in data.keys():
+                if key in ["top_down", "front"]:
+                    # Save the top-down observations in {top_down*}_{identifier}
+                    file_path = os.path.join(frame_folder, f"{key}_{identifier}.png")
+                    cv2.imwrite(file_path, data[key])
+                elif key == "world":
+                    # Save the world annotation in world_{}.json
+                    file_path = os.path.join(frame_folder, f"{key}_{identifier}.json")
+                    json.dump(data["world"], open(file_path, 'w'), indent=2)
+                elif key in ["rgb", "mask"]:
+                    # Save the rgb|instance observation in {rgb|lidar}_{perspective}_{id}.png
+                    files = defaultdict(lambda: "")
+                    for perspective in data[key].keys():
+                        file_path = os.path.join(frame_folder, f"{key}_{perspective}_{identifier}.png")
+                        cv2.imwrite(file_path, data[key][perspective])
+                        files[perspective] = f"{key}_{perspective}_{identifier}.png"
+                    observations[key] = files
+                elif key == "lidar":
+                    # Save the lidar observation in lidar{id}.json
+                    file_path = os.path.join(frame_folder, f"lidar_{identifier}.pkl")
+                    pickle.dump(data["lidar"], open(file_path, 'wb'))
+                    observations[key] = f"lidar_{identifier}.pkl"
+                elif key == "log_mapping":
+                    # Save the mapping front ID to color for visualization purpose. in metainformation_{}.json
+                    file_path = os.path.join(frame_folder, "id2c_{}.json".format(identifier))
+                    json.dump(data["log_mapping"], open(file_path, 'w'), indent=2)
+                else:
+                    raise Exception(f"{key} is not in the annotation!")
+            file_path = os.path.join(frame_folder, f"observations_{identifier}.json")
+            json.dump(observations, open(file_path, "w"), indent=2)
+            return 0
         os.makedirs(episode_folder, exist_ok=True)
         for item in self.dq:
             identifier, frame_summary = item
             frame_folder = os.path.join(episode_folder, identifier)
             os.makedirs(frame_folder, exist_ok=True)
-            log_data_mult(frame_summary, frame_folder)
+            log_frame(frame_summary, frame_folder)
 
 
 
@@ -144,7 +143,8 @@ def record_frame(env, lidar, camera, instance_camera):
     ego_annotation = genearte_annotation(env.agent, env)
     scene_dict = dict(
         ego=ego_annotation,
-        objects=objects_annotations
+        objects=objects_annotations,
+        world=env.engine.data_manager.current_scenario_file_name if isinstance(env,ScenarioDiverseEnv) else "PG"
     )
     final_summary = postprocess_annotation(
         env = env, lidar = cloud_points, rgb_dict = rgb_dict,
@@ -234,7 +234,7 @@ if __name__ == "__main__":
         }
     )
     seeds = [i for i in range(len(scenario_summary))]
-    generate_safe_data(env, seeds, "test_collision")
+    generate_safe_data(env, seeds, "test_collision_final")
 
 
 
