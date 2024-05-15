@@ -15,6 +15,7 @@ import random
 from collections import defaultdict
 import math
 
+
 def find_episodes(session_folder):
     """
     Return subfolders representing an episode under a session folder.
@@ -30,21 +31,20 @@ def extract_frames(episode, debug=False):
     sorted_rgb = sorted(glob.glob(annotation_path_template, recursive=True))
     return sorted_rgb
 
-def select_key_frames(root_dir, frame_per_episode = 3):
+
+def select_key_frames(root_dir, frame_per_episode=3):
     key_frames = []
     for content in os.listdir(root_dir):
-        path = os.path.join(root_dir,content) #episode_folder
+        path = os.path.join(root_dir, content)  # episode_folder
         if os.path.isdir(path):
             frame_files = extract_frames(path)
-            if len(frame_files)<=1:
-                key_frames+=frame_files
+            if len(frame_files) <= 1:
+                key_frames += frame_files
             else:
-                freq = math.floor(len(frame_files)/frame_per_episode)
+                freq = math.floor(len(frame_files) / frame_per_episode)
                 selected = frame_files[::freq]
-                key_frames+=selected
+                key_frames += selected
     return key_frames
-
-
 
 
 def extract_observations(episode, debug=False):
@@ -244,7 +244,7 @@ def generate_context_string(graph, end=False):
         action_string = "turned right"
     else:
         action_string = "maintained direction"
-    avg_speed = round(sum(ego_node.speeds[:frame_idx + 1]) / frame_idx+1, 1)
+    avg_speed = round(sum(ego_node.speeds[:frame_idx + 1]) / frame_idx + 1, 1)
     cur_speed = round(ego_node.speed, 1)
     if end:
         start_pos = transform_vec(end_pos, ego_node.headings[frame_idx], [start_pos])[0]
@@ -355,4 +355,5 @@ def generate():
 
 
 if __name__ == "__main__":
+    #generate()
     generate()

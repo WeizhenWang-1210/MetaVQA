@@ -115,10 +115,7 @@ def static_setting():
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
-
-    all_paths = find_world_json_paths(args.root_directory)
-    all_paths = select_key_frames(args.root_directory,3)
-    print(all_paths)
+    all_paths = select_key_frames(args.root_directory,2)
     chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
