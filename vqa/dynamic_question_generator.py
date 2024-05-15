@@ -146,7 +146,7 @@ class DynamicQuerySpecifier:
 
     def export_qa(self):
         def type_token_string_converter(token, form):
-            # TODO Unify Nomenclature with Chenda.
+            # TODO Reference Here
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -162,6 +162,12 @@ class DynamicQuerySpecifier:
                 SportCar=dict(singular="sports car", plural="sports cars"),
                 Truck=dict(singular="truck", plural="trucks"),
                 Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+                Pedestrian=dict(singular="pedestrian", plural="pedestrians"),
+                vehicle=dict(singular="vehicle", plural="vehicles"),
+                Bike=dict(singular="bike", plural="bikes"),
+                Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
+                Warning=dict(singular="warning sign", plural="warning signs"),
+                Cone=dict(singular="traffic cone", plural="traffic cones")
             )
             if token in mapping.keys():
                 return mapping[token][form]
