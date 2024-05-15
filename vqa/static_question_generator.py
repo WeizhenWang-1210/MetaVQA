@@ -214,14 +214,13 @@ class Tree:
                 exit()
 
         def color_token_string_converter(token):
-            # TODO Unify nomenclature with chenda
             if token != "nil":
                 return token.lower()
             else:
                 return ""
 
         def type_token_string_converter(token, form):
-            # TODO Unify nomenclature with chenda
+            # TODO type cautious
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -237,7 +236,12 @@ class Tree:
                 SportCar=dict(singular="sports car", plural="sports cars"),
                 Truck=dict(singular="truck", plural="trucks"),
                 Hatchback=dict(singular="hatchback", plural="hatchbacks"),
-                vehicle=dict(singular="vehicle", plural="vehicles")
+                Pedestrian=dict(singular="pedestrian", plural="pedestrians"),
+                vehicle=dict(singular="vehicle", plural="vehicles"),
+                Bike=dict(singular="bike", plural="bikes"),
+                Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
+                Warning=dict(singular="warning sign", plural="warning signs"),
+                Cone=dict(singular="traffic cone", plural="traffic cones")
             )
             if token in mapping.keys():
                 return mapping[token][form]
@@ -245,7 +249,6 @@ class Tree:
                 return token.lower()
 
         def state_token_string_converter(token):
-            # TODO Unify nomenclature with chenda
             map = {
                 "nil": "",
                 "parked": "parked",
@@ -254,12 +257,10 @@ class Tree:
                 "turn_left": "left-turning",
                 "turn_right": "right-turning",
                 "moving": "moving"
-
             }
             return map[token]
 
         def action_token_string_converter(token, form, agency):
-            # TODO Unify nomenclature with chenda
             if agency == "passive":
                 map = {
                     "followed": dict(singular="is followed by", plural="are followed by"),
@@ -672,7 +673,7 @@ class QuerySpecifier:
 
     def export_qa(self):
         def type_token_string_converter(token, form):
-            # TODO Unify Nomenclature with Chenda.
+            #TODO Type Cautious
             mapping = dict(
                 nil=dict(singular="object", plural="objects"),
                 Bus=dict(singular="bus", plural="buses"),
@@ -688,6 +689,12 @@ class QuerySpecifier:
                 SportCar=dict(singular="sports car", plural="sports cars"),
                 Truck=dict(singular="truck", plural="trucks"),
                 Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+                Pedestrian=dict(singular="pedestrian", plural="pedestrians"),
+                vehicle=dict(singular="vehicle", plural="vehicles"),
+                Bike=dict(singular="bike", plural="bikes"),
+                Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
+                Warning=dict(singular="warning sign", plural="warning signs"),
+                Cone=dict(singular="traffic cone", plural="traffic cones")
             )
             if token in mapping.keys():
                 return mapping[token][form]
