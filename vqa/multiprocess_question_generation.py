@@ -89,9 +89,9 @@ def static_job(paths, source, summary_path, verbose=False, multiview=True):
     except Exception as e:
         raise e
 
-
+from vqa.dynamic_question_generation import select_key_frames
 def static_setting():
-    def find_world_json_paths(root_dir):
+    def find_world_json_paths(root_dir, frame_per_episode = 2):
         world_json_paths = []  # List to hold paths to all world_{id}.json files
         for root, dirs, files in os.walk(root_dir):
             # Extract the last part of the current path, which should be the frame folder's name
@@ -101,7 +101,6 @@ def static_setting():
                 path = os.path.join(root, expected_json_filename)  # Construct full path
                 world_json_paths.append(path)
         return world_json_paths
-
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -118,6 +117,8 @@ def static_setting():
         print("{}: {}".format(key, value))
 
     all_paths = find_world_json_paths(args.root_directory)
+    all_paths = select_key_frames(args.root_directory,3)
+    print(all_paths)
     chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
@@ -306,5 +307,6 @@ def safety_setting():
 
 
 if __name__ == "__main__":
+    static_setting()
     #dynamic_setting()
-    safety_setting()
+    #safety_setting()
