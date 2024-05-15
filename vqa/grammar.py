@@ -1,4 +1,4 @@
-# TODO Unify Nomenclature with Chenda.
+# TODO Cautious
 CFG_GRAMMAR = {
     "<o>": [
         ["<s>", "<p>", "<t>", "<dir>", "<a>"],
@@ -19,12 +19,9 @@ CFG_GRAMMAR = {
     "<p>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<t>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
     ],
     "<dir>": [
         ["nil"], ["<tdir>", "<o>"]
@@ -54,12 +51,10 @@ NO_STATE_CFG = {
     "<p>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<t>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"],
+        ["vehicle"]
     ],
     "<dir>": [
         ["nil"], ["<tdir>", "<o>"]
@@ -96,12 +91,9 @@ NO_COLOR_CFG = {
     "<px>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<t>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
     ],
     "<dir>": [
         ["nil"], ["<tdir>", "<ox>"]
@@ -137,15 +129,13 @@ NO_TYPE_CFG = {
     "<p>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<t>": [
         ["nil"]
     ],
     "<tx>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"],
+        ["vehicle"]
     ],
     "<dir>": [
         ["nil"], ["<tdir>", "<ox>"]
@@ -167,12 +157,9 @@ STATIC_GRAMMAR = {
     "<p>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<t>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
     ],
     "<dir>": [
         ["nil"], ["<tdir>", "<o>"]
@@ -197,9 +184,8 @@ NO_COLOR_STATIC = {
         ["nil"]
     ],
     "<t>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"],
+        ["vehicle"]
     ],
     "<dir>": [
         ["nil"], ["<tdir>", "<ox>"]
@@ -211,7 +197,6 @@ NO_COLOR_STATIC = {
     "<px>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<tdir>": [
         ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
@@ -232,7 +217,6 @@ NO_TYPE_STATIC = {
     "<p>": [
         ["nil"], ["Red"], ["Blue"], ["Green"], ["Yellow"], ["Black"], ["White"], ["Purple"], ["Orange"], ["Brown"],
         ["Gray"],
-        ["Cyan"], ["Lime"], ["Pink"], ["Gold"], ["Teal"], ["Maroon"], ["Navy"], ["Olive"], ["Silver"], ["Violet"]
     ],
     "<t>": [
         ["nil"]
@@ -245,9 +229,8 @@ NO_TYPE_STATIC = {
         ["us"]
     ],
     "<tx>": [
-        ["nil"], ["Bus"], ["Caravan"], ["Coupe"], ["FireTruck"], ["Hatchback"], ["Jeep"], ["Pickup"], ["Policecar"],
-        ["SUV"],
-        ["SchoolBus"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"], ["vehicle"]
+        ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"],
+        ["vehicle"]
     ],
     "<tdir>": [
         ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
