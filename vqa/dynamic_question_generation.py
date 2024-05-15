@@ -13,7 +13,7 @@ from vqa.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.object_node import transform, transform_vec
 import random
 from collections import defaultdict
-
+import math
 
 def find_episodes(session_folder):
     """
@@ -29,6 +29,22 @@ def extract_frames(episode, debug=False):
     annotation_path_template = f"{episode}/**/world*.json"
     sorted_rgb = sorted(glob.glob(annotation_path_template, recursive=True))
     return sorted_rgb
+
+def select_key_frames(root_dir, frame_per_episode = 3):
+    key_frames = []
+    for content in os.listdir(root_dir):
+        path = os.path.join(root_dir,content) #episode_folder
+        if os.path.isdir(path):
+            frame_files = extract_frames(path)
+            if len(frame_files)<=1:
+                key_frames+=frame_files
+            else:
+                freq = math.floor(len(frame_files)/frame_per_episode)
+                selected = frame_files[::freq]
+                key_frames+=selected
+    return key_frames
+
+
 
 
 def extract_observations(episode, debug=False):
