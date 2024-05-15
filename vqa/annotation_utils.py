@@ -16,11 +16,10 @@ def annotate_type(object):
     Return the predefined type annotation of an object. This only applies to metadrive-native classes.
     """
 
-
     if isinstance(object, TestObject) or isinstance(object, CustomizedCar):
         # print(object.get_asset_metainfo())
         return object.get_asset_metainfo()['general']["detail_type"]
-    #TODO Cautious Here
+    # TODO Cautious Here
     vehicle_type = {
         SVehicle: "Hatchback",
         MVehicle: "Sedan",

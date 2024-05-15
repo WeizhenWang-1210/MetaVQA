@@ -1,19 +1,19 @@
 ---
-storage_path : "/bigdata/weizhen/metavqa/100k"
+storage_path : "./collision_scenarios_25"
 map_setting:
   PG: True
   map_size: 5
   map_sequence: ""
-  traffic_density: 0.1
+  traffic_density: 0.2
   inverse_traffic: True
   structures_density: 0
   accident_prob: 0
   num_scenarios: 100
   start_seed: 0
-sample_frequency: 10
-num_samples: 6250
+sample_frequency: 1
+num_samples: 100
 max_iterations: 1000000000000000
 temporal_generation: True
-episode_length: 40
-skip_length: 30
+episode_length: 25
+skip_length: 40
 ...
