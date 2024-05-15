@@ -1,6 +1,6 @@
 from typing import Union
 from vqa.scene_graph import TemporalGraph
-from question_generator import Tree, Query
+from vqa.static_question_generator import Tree, Query
 from collections import defaultdict
 from vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
 import json

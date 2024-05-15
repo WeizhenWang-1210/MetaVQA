@@ -3,7 +3,7 @@ import os
 
 from vqa.grammar import STATIC_GRAMMAR
 from vqa.object_node import nodify
-from vqa.question_generator import GRAMMAR, QuerySpecifier
+from vqa.static_question_generator import GRAMMAR, QuerySpecifier
 from vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
 from vqa.scene_graph import SceneGraph
 from vqa.object_node import transform
@@ -197,7 +197,7 @@ def static_all(root_folder, source, summary_path, verbose=False, multiview=True)
         folder_name = os.path.dirname(path)
         identifier = os.path.basename(folder_name)
         perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
-        lidar = os.path.join(folder_name, f"lidar_{identifier}.json")
+        lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
         record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose,
                                               multiview=multiview)
         for id, info in record.items():

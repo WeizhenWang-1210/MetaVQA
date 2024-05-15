@@ -163,12 +163,10 @@ class ObjectNode:
 
 
 class TemporalNode:
-    def __init__(self, now_frame, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras,
-                 states, collisions, interaction=None):
+    def __init__(self, now_frame, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras, collisions, interaction=None):
         # time-invariant properties
         self.now_frame = now_frame  # 0-indexed.indicate when is "now". The past is history and inclusive of now.
         self.id = id  # as defined in the metadrive env
-        self.states = states  # accleration, thurning
         self.type = type  # as annotated
         self.height = height  # The height retrieved from the asset's convex hull.
         self.color = color  # as annotated

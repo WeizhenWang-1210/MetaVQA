@@ -354,7 +354,7 @@
         },
         "counterfactual_trajectory": {
             "text":[
-                "If instead of what happened, we started moving in <traj> at <t>. Will there be any collision? All coordinates are in our current frame. The start of observations is at 0, and we are at <tnow>"
+                "If we started moving in <traj> at <t>, can we avoid the collision? All coordinates are in our current frame. The start of observations is at time 0, and we are at <tnow>."
             ],
             "params": [
                 "<traj>", "<t>", "<tnow>"
@@ -364,7 +364,7 @@
         },
         "stop_safe": {
             "text": [
-                "Will collisions be avoided if we stop all-together at <t>? The start of observations is at 0, and we are at time <tnow>"
+                "Will collisions be avoided if we stop all-together at <t>? The start of observations is at time 0, and we are at time <tnow>."
             ],
             "params":[
                 "<t>", "<tnow>"
@@ -374,7 +374,7 @@
         },
         "move_around": {
             "text": [
-                "If we were <d> away at time of impact, will there still be any collision? All coordinates are in our current frame. The start of observations is at 0, and we are at <tnow>"
+                "If we were <d> away at time of impact, will there still be any collision? All coordinates are in our current frame. The start of observations is at time 0, and we are at <tnow>."
             ],
             "params": [
                 "<d>", "<tnow>"

@@ -95,7 +95,7 @@ class SceneGraph:
 
 
 class TemporalGraph:
-    def __init__(self, framepaths, observable_at_key=True, tolerance=0.8):
+    def __init__(self, framepaths, observable_at_key=True, tolerance=0.8, observation_percentage = 0.8):
         """
         We ask questions based on the observation_phase and return answr for the prediction phase
         Note that in MetaDrive each step is 0.1s
@@ -104,7 +104,7 @@ class TemporalGraph:
         Each graph will store the path to the original annotation("For statistics purpose") and also the loaded information
 
         """
-        self.observation_phase = 4/5  # This is the percentage of frames belonging into observation. The last frame
+        self.observation_phase = observation_percentage # This is the percentage of frames belonging into observation. The last frame
         # is "present"
         self.prediction_phase = 1.0 - self.observation_phase
         self.tolerance = tolerance  # The percentage(of observation phase) of being observable for objects to be
@@ -145,7 +145,6 @@ class TemporalGraph:
         speeds = defaultdict(list)
         bboxes = defaultdict(list)
         heights = defaultdict(list)
-        states = defaultdict(list)
         collisions = defaultdict(list)
         temporal_nodes = {}
         for timestamp, frame in enumerate(frames):
@@ -159,7 +158,6 @@ class TemporalGraph:
                     speeds[object["id"]].append(object["speed"])
                     bboxes[object["id"]].append(object["bbox"])
                     heights[object["id"]].append(object["height"])
-                    states[object["id"]].append(object["states"])
                     collisions[object["id"]] += [(timestamp, id) for (_, id) in object["collisions"]]
             positions[self.ego_id].append(frame["ego"]["pos"])
             headings[self.ego_id].append(frame["ego"]["heading"])
@@ -169,14 +167,12 @@ class TemporalGraph:
             speeds[self.ego_id].append(frame["ego"]["speed"])
             bboxes[self.ego_id].append(frame["ego"]["bbox"])
             heights[self.ego_id].append(frame["ego"]["height"])
-            states[self.ego_id].append(frame["ego"]["states"])
             collisions[self.ego_id] += [(timestamp, id) for (_, id) in frame["ego"]["collisions"]]
         for node_id in node_ids:
             temporal_node = TemporalNode(
                 id=node_id, now_frame=self.idx_key_frame, type=types[node_id], height=heights[node_id],
-                positions=positions[node_id],
-                color=colors[node_id], speeds=speeds[node_id], headings=headings[node_id], bboxes=bboxes[node_id],
-                observing_cameras=observing_cameras[node_id], states=states[node_id], collisions=collisions[node_id],
+                positions=positions[node_id], color=colors[node_id], speeds=speeds[node_id], headings=headings[node_id],
+                bboxes=bboxes[node_id], observing_cameras=observing_cameras[node_id], collisions=collisions[node_id],
             )
             temporal_nodes[node_id] = temporal_node
         return temporal_nodes

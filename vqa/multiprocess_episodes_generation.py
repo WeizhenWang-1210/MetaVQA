@@ -6,11 +6,12 @@ from metadrive.component.sensors.instance_camera import InstanceCamera
 from vqa.episodes_generation import generate_episodes
 import os
 import yaml
-import multiprocessing as multp
+import multiprocessing
 from metadrive.scenario import utils as sd_utils
 from vqa.collision_episodes_generation import generate_safe_data
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+import json
 
 
 def main(data_directory, scenarios, headless, config, num_scenarios, job_range=None):
@@ -95,6 +96,7 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None):
     )
     generate_safe_data(env, job_range, config["storage_path"])
 
+
 def divide_into_intervals_exclusive(total, n):
     # Calculate the basic size of each interval and the remainder
     interval_size, remainder = divmod(total, n)
@@ -111,6 +113,16 @@ def divide_into_intervals_exclusive(total, n):
     return intervals
 
 
+def session_summary(path, dataset_summary_path, source, split, collision):
+    summary_dict = dict(
+        dataset_summary=dataset_summary_path,
+        source=source,
+        split=split,
+        collision=collision
+    )
+    json.dump(summary_dict, open(path, 'w'), indent=2)
+
+
 def normal():
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
@@ -122,6 +134,8 @@ def normal():
                         help="the paths that stores the ScenarioNet data")
     parser.add_argument("--config", type=str, default=default_config_path,
                         help="path to the data generation configuration file")
+    parser.add_argument("--source", type=str, default="PG", help="Indicate the source of traffic.")
+    parser.add_argument("--split", type=str, default="train", help="Indicate the split of this session.")
     args = parser.parse_args()
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
@@ -144,7 +158,7 @@ def normal():
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))
-        p = multp.Process(
+        p = multiprocessing.Process(
             target=main,
             args=(
                 args.data_directory,
@@ -160,6 +174,11 @@ def normal():
     for p in processes:
         p.join()
     print("All processes finished.")
+    session_summary(path=os.path.join(config["storage_path"], "session_summary.json"),
+                    dataset_summary_path=os.path.join(args.data_directory, "dataset_summary.pkl"),
+                    source="_".join([args.source]), split=args.split, collision="False"
+                    )
+
 
 def safety_critical():
     parser = argparse.ArgumentParser()
@@ -172,6 +191,8 @@ def safety_critical():
                         help="the paths that stores the ScenarioNet data")
     parser.add_argument("--config", type=str, default=default_config_path,
                         help="path to the data generation configuration file")
+    parser.add_argument("--source", type=str, default="PG", help="Indicate the source of traffic.")
+    parser.add_argument("--split", type=str, default="train", help="Indicate the split of this session.")
     args = parser.parse_args()
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
@@ -187,7 +208,6 @@ def safety_critical():
         num_scenarios = len(scenario_summary.keys())
     else:
         num_scenarios = 10
-
     if not args.scenarios:
         num_scenarios = config["map_setting"]["num_scenarios"]
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
@@ -196,7 +216,8 @@ def safety_critical():
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))
-        p = multp.Process(
+
+        p = multiprocessing.Process(
             target=safety,
             args=(
                 args.data_directory,
@@ -211,8 +232,12 @@ def safety_critical():
     for p in processes:
         p.join()
     print("All processes finished.")
+    session_summary(path=os.path.join(config["storage_path"], "session_summary.json"),
+                    dataset_summary_path=os.path.join(args.data_directory, "dataset_summary.pkl"),
+                    source="_".join(["CAT", args.source]), split=args.split, collision="True"
+                    )
 
 
 if __name__ == "__main__":
+    # normal()
     safety_critical()
-

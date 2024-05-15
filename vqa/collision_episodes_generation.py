@@ -18,13 +18,15 @@ from vqa.episodes_generation import postprocess_annotation
 def find_collision_step(env):
     step = -1
     for i in range(10000):
-        o, r, tm, tc, info = env.step([0,0])
-        if len(env.agent.crashed_objects)>0:
+        o, r, tm, tc, info = env.step([0, 0])
+        if len(env.agent.crashed_objects) > 0:
+            print("Collision happened at step {} in rollout.".format(env.engine.episode_step))
             step = env.engine.episode_step
             break
         if (tm or tc) and info["arrive_dest"]:
             break
     return step
+
 
 class Buffer:
     def __init__(self, size=3, shape=(640, 960, 3)):
@@ -85,13 +87,13 @@ class Buffer:
             file_path = os.path.join(frame_folder, f"observations_{identifier}.json")
             json.dump(observations, open(file_path, "w"), indent=2)
             return 0
+
         os.makedirs(episode_folder, exist_ok=True)
         for item in self.dq:
             identifier, frame_summary = item
             frame_folder = os.path.join(episode_folder, identifier)
             os.makedirs(frame_folder, exist_ok=True)
             log_frame(frame_summary, frame_folder)
-
 
 
 def record_frame(env, lidar, camera, instance_camera):
@@ -144,17 +146,20 @@ def record_frame(env, lidar, camera, instance_camera):
     scene_dict = dict(
         ego=ego_annotation,
         objects=objects_annotations,
-        world=env.engine.data_manager.current_scenario_file_name if isinstance(env,ScenarioDiverseEnv) else "PG",
+        world=env.engine.data_manager.current_scenario_file_name if isinstance(env, ScenarioDiverseEnv) else "PG",
         dataset_summary=env.config["data_directory"] if isinstance(env, ScenarioDiverseEnv) else "PG"
     )
     final_summary = postprocess_annotation(
-        env = env, lidar = cloud_points, rgb_dict = rgb_dict,
-        scene_dict = scene_dict, log_mapping= Log_Mapping, debug=True
+        env=env, lidar=cloud_points, rgb_dict=rgb_dict,
+        scene_dict=scene_dict, log_mapping=Log_Mapping, debug=True
 
     )
     return final_summary
 
+
 def record_accident(env, buffer, countdown, session_folder):
+    if countdown <=0:
+        tm = tc = False
     engine = env.engine
     camera = engine.get_sensor("rgb")
     instance_camera = engine.get_sensor("instance")
@@ -163,7 +168,7 @@ def record_accident(env, buffer, countdown, session_folder):
         o, r, tm, tc, info = env.step([0, 0])
         identifier = f"{env.current_seed}_{engine.episode_step}"
         scene_summary = record_frame(env, lidar, camera, instance_camera)
-        buffer.insert((identifier,scene_summary))
+        buffer.insert((identifier, scene_summary))
         if tm or tc:
             break
         countdown -= 1
@@ -174,14 +179,15 @@ def record_accident(env, buffer, countdown, session_folder):
     buffer.export(folder)
     return tm, tc
 
+
 def generate_safe_data(env, seeds, folder):
     env.reset()
     os.makedirs(folder, exist_ok=True)
     print("This session is saved in folder {}".format(folder))
     env.agent.expert_takeover = True
-    offset = 30
+    offset = 28
     history = 25
-    future = 5
+    future = 0
     annotation_buffer = Buffer(history + future)
     engine = env.engine
     camera = engine.get_sensor("rgb")
@@ -192,8 +198,8 @@ def generate_safe_data(env, seeds, folder):
         env.reset(seed)
         collision_step = find_collision_step(env)
         if collision_step < 0:
-            #there can be no collision in cated scenario
-            print("No collision in this seed {}".format(env.current_seed))
+            # there can be no collision in cated scenario. In that case, we skip it.
+            print("No collision in this seed {}. Will not annotate it.".format(env.current_seed))
             env.reset()
             inception = False
             annotation_buffer.flush()
@@ -208,13 +214,14 @@ def generate_safe_data(env, seeds, folder):
                 scene_summary = record_frame(env, lidar, camera, instance_camera)
                 annotation_buffer.insert((identifier, scene_summary))
                 if len(env.agent.crashed_objects) > 0:
-                    print("Collision happened at step {}".format(env.engine.episode_step))
+                    print("Collision happened at step {} in annotation.".format(env.engine.episode_step))
                     inception = True
                     tm, tc = record_accident(env, annotation_buffer, future, folder)
             if tm or tc:
                 break
         inception = False
         annotation_buffer.flush()
+
 
 if __name__ == "__main__":
     scenario_summary, _, _ = sd_utils.read_dataset_summary("E:/Bolei/cat")
@@ -227,8 +234,8 @@ if __name__ == "__main__":
             "num_scenarios": len(scenario_summary),
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 720),
-                instance=(InstanceCamera, 960,720)
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540)
             ),
             "height_scale": 1
 
@@ -236,9 +243,3 @@ if __name__ == "__main__":
     )
     seeds = [i for i in range(len(scenario_summary))]
     generate_safe_data(env, seeds, "test_collision_final")
-
-
-
-
-
-

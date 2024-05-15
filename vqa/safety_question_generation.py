@@ -6,10 +6,8 @@
 #
 import json
 import os
-import re
 import glob
 from vqa.scene_graph import TemporalGraph
-from vqa.object_node import transform
 import random
 from vqa.dynamic_question_generation import find_episodes, extract_observations
 from collections import defaultdict
@@ -18,15 +16,20 @@ import numpy as np
 from vqa.scene_level_functionals import sample_keypoints, extrapolate_bounding_boxes, counterfactual_trajectory, \
     counterfactual_stop, locate_crash_timestamp, move_around, predict_collision
 from vqa.object_node import box_overlap, transform_vec
+from vqa.dynamic_question_generation import extract_frames, generate_context_string
 
 
 def choices(question_type, graph):
     if question_type == "counterfactual_trajectory":
-        t = random.choice([0, 9])
-        tnow = len(graph.frames)-1
+        """
+        Our episode contains from [0,19]
+        We observe [0,19]
+        we start injecting at step [0,10]
+        """
+        t = random.choice([0, 10])
+        tnow = len(graph.frames) - 1
         ego = graph.get_ego_node()
-        ego_trajectory = ego.positions[t+1:]
-
+        ego_trajectory = ego.positions[t:]
         sampled_ego_trajectory = sample_keypoints(np.array(ego_trajectory), num_points=2, sqrt_std_max=16)
         sampled_ego_trajectory = [(x, y) for x, y in zip(sampled_ego_trajectory[0], sampled_ego_trajectory[1])]
         sampled_ego_bboxes = extrapolate_bounding_boxes(sampled_ego_trajectory,
@@ -35,20 +38,20 @@ def choices(question_type, graph):
         injected_ego_bboxes = ego.bboxes[:t] + sampled_ego_bboxes
         answer = counterfactual_trajectory(graph, injected_ego_bboxes)
         config = {
-            "<t>": t, "<tnow>": tnow, "<traj>": sampled_ego_trajectory, "answer": answer
+            "<t>": t, "<tnow>": tnow, "<traj>": sampled_ego_trajectory[::2], "answer": answer
         }
     elif question_type == "stop_safe":
-        t = random.choice([0, 9])
-        tnow = len(graph.frames)-1
+        t = random.choice([0, 10])
+        tnow = len(graph.frames) - 1
         answer = counterfactual_stop(graph, t)
         config = {
             "<t>": t, "<tnow>": tnow, "answer": answer
         }
     elif question_type == "move_around":
-        tnow = len(graph.frames)-1
+        tnow = len(graph.frames) - 1
         first_impact_step = locate_crash_timestamp(graph)
         std = 4
-        offset = np.random.normal(0, std, (2)).tolist()
+        offset = np.random.normal(0, std, 2).tolist()
         ego = graph.get_ego_node()
         new_box_at_impact = move_around(ego.bboxes, offset, first_impact_step)
         answer = True
@@ -61,11 +64,11 @@ def choices(question_type, graph):
         }
     elif question_type == "predict_collision":
         flag, objects, collision_step = predict_collision(graph)
-        tnow = collision_step - 5
+        tnow = 19
         config = {
             "answer": flag,
             "collided_objects": objects,
-            "<tnow>": tnow
+            "<tnow>": tnow,
         }
     else:
         print("unknown question type")
@@ -79,6 +82,8 @@ def postprocess(question_type, template, record, origin, positive_x, graph):
     answer_string = "Yes." if answer else "No."
     tnow = record["<tnow>"]
     if question_type == "predict_collision":
+        context_string = generate_context_string(graph)
+        question_string = " ".join([question_string, context_string])
         object_collided = record["collided_objects"][0]
         if len(object_collided) > 0 and answer:
             collided_object = graph.get_node(object_collided)
@@ -87,7 +92,8 @@ def postprocess(question_type, template, record, origin, positive_x, graph):
             current_location = transform_vec(origin, positive_x, [collided_object.positions[tnow]])[0]
             current_location = [round(current_location[0], 1), round(current_location[1], 1)]
             answer_string = (
-                "Yes. We could collide with the {} {} that's at {}".format(color.lower(), type.lower(), current_location))
+                "Yes. We could collide with the {} {} that's at {} currently.".format(color.lower(), type.lower(),
+                                                                           current_location))
         else:
             answer_string = "No"
     elif question_type == "counterfactual_trajectory":
@@ -97,16 +103,23 @@ def postprocess(question_type, template, record, origin, positive_x, graph):
         question_string = question_string.replace("<traj>", str(final_trajectory))
         question_string = question_string.replace("<tnow>", str(tnow))
         question_string = question_string.replace("<t>", str(t))
+        context_string = generate_context_string(graph, end=True)
+        question_string = " ".join([question_string, context_string])
+
     elif question_type == "stop_safe":
         t = record["<t>"]
         question_string = question_string.replace("<tnow>", str(tnow))
         question_string = question_string.replace("<t>", str(t))
+        context_string = generate_context_string(graph, end=True)
+        question_string = " ".join([question_string, context_string])
     elif question_type == "move_around":
         d, tnow = record["<d>"], record["<tnow>"]
-        final_displacement = transform_vec(origin, positive_x, [d])[0]
+        final_displacement = d #transform_vec(origin, positive_x, [d])[0]
         final_displacement = [round(final_displacement[0], 1), round(final_displacement[1], 1)]
         question_string = question_string.replace("<d>", str(final_displacement))
         question_string = question_string.replace("<tnow>", str(tnow))
+        context_string = generate_context_string(graph, end=True)
+        question_string = " ".join([question_string, context_string])
     else:
         print("Unknown question")
         exit()
@@ -132,25 +145,32 @@ def postprocess_all(question_type, template, records, graph):
     return results
 
 
-def generate_safety_questions(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
+def generate_safety_questions(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False,
+                              only_predict=False):
     """
-Every positional information will be transformed to the ego coordinate at the time of the postmortem analysis
-
+    Every positional information will be transformed to the ego coordinate at the time of the postmortem analysis
     """
     annotation_template = f"{episode}/**/world*.json"
     frame_files = sorted(glob.glob(annotation_template, recursive=True))
-    graph = TemporalGraph(frame_files)
+    predict_files = frame_files
+    postmortem_files = frame_files[5:]
+    predict_graph = TemporalGraph(predict_files, tolerance=0.5)
+    postmortem_graph = TemporalGraph(postmortem_files, tolerance=0.5)
     print(f"Generating safety-critical questions for {episode}...")
-    print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
-    print(f"Key frame is {graph.idx_key_frame}")
-    print(f"Total frame number {len(graph.frames)}")
+    print(f"KEY FRAME at{predict_graph.framepaths[predict_graph.idx_key_frame]} for predict_graph")
+    print(f"Key frame is {predict_graph.idx_key_frame}")
+    print(f"Total frame number {len(predict_graph.frames)}")
     default_max_per_type = max_per_type
     candidates, counts, valid_questions = defaultdict(list), 0, set()
     for question_type, question_template in templates.items():
+        if only_predict and question_type != "predict_collision":
+            continue
         if question_type == "predict_collision":
             max_per_type = 1
+            graph = predict_graph
         else:
             max_per_type = default_max_per_type
+            graph = postmortem_graph
         countdown, generated = attempts_per_type, 0
         while countdown > 0 and generated < max_per_type:
             if verbose:
@@ -175,16 +195,15 @@ Every positional information will be transformed to the ego coordinate at the ti
             counts += len(candidates[question_type])
     return candidates, counts
 
-
 def generate_safety():
-    session_name = "test_collision"
+    session_name = "collision_scenarios_final"
     episode_folders = find_episodes(session_name)
     current_directory = os.path.dirname(os.path.abspath(__file__))
     storage_folder = "test_safety"
     abs_storage_folder = os.path.join(current_directory, storage_folder)
     os.makedirs(abs_storage_folder, exist_ok=True)
     source = "CAT"
-    name = "safety_all"
+    name = "safety_all_some"
     templates_path = os.path.join(current_directory, "question_templates.json")
     templates = json.load(open(templates_path, "r"))
     templates = templates["safety"]
@@ -193,21 +212,48 @@ def generate_safety():
     for episode in episode_folders:
         observations = extract_observations(episode)
         records, num_questions = generate_safety_questions(
-            episode, templates, max_per_type=100, choose=10, attempts_per_type=200, verbose=True)
+            episode, templates, max_per_type=100, choose=2, attempts_per_type=200, verbose=True)
         for question_type, record_list in records.items():
-            for record in record_list:
-                qa_tuples[idx] = dict(
-                    question=record["question"], answer=record["answer"],
-                    question_type=question_type, answer_form=record["answer_form"],
-                    rgb={
-                        perspective: observations[perspective][:record["key_frame"] + 1] for perspective in
-                        ["front", "leftb", "leftf", "rightb", "rightf", "back"]
-                    },
-                    lidar=observations["lidar"][:record["key_frame"] + 1],
-                    source=source,
-                    metadrive_scene=episode,
-                )
-                idx += 1
+            if question_type == "predict_collision":
+                """
+                Only in predict_collision question, we cannot see the full future.
+                [0,24] total, [0,19] for observations
+                """
+                for record in record_list:
+                    qa_tuples[idx] = dict(
+                        question=record["question"], answer=record["answer"],
+                        question_type="|".join(["safety", question_type]), answer_form=record["answer_form"],
+                        rgb={
+                            perspective: observations[perspective][:record["key_frame"] + 1] for perspective in
+                            ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                        },
+                        lidar=observations["lidar"][:record["key_frame"] + 1],
+                        metadrive_scene=extract_frames(episode),
+                        multiview=True,
+                        source=source
+                    )
+                    idx += 1
+            else:
+                """
+                In postmortem questions, we need to see the entire collision happening. Therefore, we cannot start from
+                the beginning of the episode. Instead, we start at the frame 10(0-indexed) inclusive till the collision.
+                [0,24], [5,24] for observations
+                """
+                for record in record_list:
+                    qa_tuples[idx] = dict(
+                        question=record["question"], answer=record["answer"],
+                        question_type="|".join(["safety", question_type]), answer_form=record["answer_form"],
+                        rgb={
+                            perspective: observations[perspective][5:] for perspective in
+                            ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                        },
+                        lidar=observations["lidar"][5:],
+                        metadrive_scene=extract_frames(episode)[5:],
+                        multiview=True,
+                        source=source
+                    )
+                    idx += 1
+        break
     json.dump(qa_tuples, open(os.path.join(abs_storage_folder, f"{name}.json"), "w"), indent=2)
 
 

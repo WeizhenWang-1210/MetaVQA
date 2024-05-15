@@ -10,7 +10,7 @@ import re
 import glob
 from vqa.scene_graph import TemporalGraph
 from vqa.dynamic_question_generator import DynamicQuerySpecifier
-from vqa.object_node import transform
+from vqa.object_node import transform, transform_vec
 import random
 from collections import defaultdict
 
@@ -38,7 +38,7 @@ def extract_observations(episode, debug=False):
         rgb_path_template = f"{episode}/**/rgb_{perspective}**.png"
         sorted_rgb = sorted(glob.glob(rgb_path_template, recursive=True))
         observations[perspective] = sorted_rgb
-    lidar_template = f"{episode}/**/lidar_**.json"
+    lidar_template = f"{episode}/**/lidar_**.pkl"
     sorted_lidar = sorted(glob.glob(lidar_template, recursive=True))
     observations["lidar"] = sorted_lidar
     if debug:
@@ -209,9 +209,13 @@ def add_to_record(question_type, q, result, candidates):
     return candidates
 
 
-def generate_context_string(graph):
+def generate_context_string(graph, end=False):
+    if end:
+        frame_idx = len(graph.frames) - 1
+    else:
+        frame_idx = graph.idx_key_frame
     ego_node = graph.get_ego_node()
-    start_pos, end_pos, speed = ego_node.positions[0], ego_node.positions[graph.idx_key_frame], ego_node.speed
+    start_pos, end_pos, speed = ego_node.positions[0], ego_node.positions[frame_idx], ego_node.speed
     if "accelerating" in ego_node.actions:
         dv_string = "accelerated"
     elif "decelerating" in ego_node.actions:
@@ -224,12 +228,16 @@ def generate_context_string(graph):
         action_string = "turned right"
     else:
         action_string = "maintained direction"
-    avg_speed = round(sum(ego_node.speeds[:graph.idx_key_frame + 1]) / graph.idx_key_frame,1)
-    cur_speed = round(ego_node.speed,1)
-    start_pos = transform(ego_node, [start_pos])[0]
+    avg_speed = round(sum(ego_node.speeds[:frame_idx + 1]) / frame_idx+1, 1)
+    cur_speed = round(ego_node.speed, 1)
+    if end:
+        start_pos = transform_vec(end_pos, ego_node.headings[frame_idx], [start_pos])[0]
+    else:
+        start_pos = transform(ego_node, [start_pos])[0]
     start_pos = [round(start_pos[0], 1), round(start_pos[1], 1)]
-    context = (f"For the past period, we moved from {start_pos} to where we are now with an average speed of {avg_speed}."
-               f" We {dv_string} and {action_string}, and our current speed is {cur_speed}.")
+    context = (
+        f"For the past period, we moved from {start_pos} to where we are now with an average speed of {avg_speed}."
+        f" We {dv_string} and {action_string}, and our current speed is {cur_speed}.")
     return context
 
 
@@ -278,7 +286,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
 
 
 def generate():
-    session_name = "test_collision"
+    session_name = "collision_scenarios_long"  # "test_collision"
     episode_folders = find_episodes(session_name)
     current_directory = os.path.dirname(os.path.abspath(__file__))
     storage_folder = "test_temporal"
@@ -299,7 +307,7 @@ def generate():
         # "color_identification_unique": templates["color_identification_unique"]
         # "identify_stationary": templates["identify_stationary"]
         # "identify_heading": templates["identify_heading"]
-        # "predict_trajectory": templates["predict_trajectory"]
+        #"predict_trajectory": templates["predict_trajectory"]
     }"""
     qa_tuples = {}
     idx = 0
