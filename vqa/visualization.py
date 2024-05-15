@@ -122,6 +122,40 @@ def concatenate_frames(framepaths):
         concatenate_frame(framepath)
 
 
+def visualize_session(root_dir):
+    contents = os.listdir(root_dir)
+    for content in contents:
+        if os.path.isdir(os.path.join(root_dir, content)):
+            print(content)
+            perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
+            imarrays = {
+                perspective: [] for perspective in perspectives
+            }
+            for perspective in perspectives:
+
+                path_template = f"{root_dir}/{content}/**/rgb_{perspective}*.png"
+                frame_files = sorted(glob.glob(path_template, recursive=True))
+                # print(frame_files)
+                imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
+            num_frames = len(imarrays[perspectives[0]])
+            print(num_frames)
+            concatenated_arrays = []
+            for frame in range(num_frames):
+                arrays = []
+                for perspective in perspectives:
+                    arrays.append(imarrays[perspective][frame])
+                concatenated_arrays.append(gridify_imarrays(arrays))
+            create_video(concatenated_arrays, f"{root_dir}/{content}/episode_rgb.mp4")
+
+            top_down_template = f"{root_dir}/{content}/**/top_down*.png"
+            frame_files = sorted(glob.glob(top_down_template, recursive=True))
+            imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
+            create_video(imarrays, f"{root_dir}/{content}/episode_top_down.mp4")
+
+
+
+
+
 if __name__ == "__main__":
     import glob
 
@@ -159,7 +193,12 @@ if __name__ == "__main__":
     # episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_30_59/**/rgb_back*.json"
 
 
-    perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
+
+
+
+
+
+    """perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
     imarrays = {
         perspective: [] for perspective in perspectives
     }
@@ -181,7 +220,8 @@ if __name__ == "__main__":
     top_down_template = "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/**/top_down*.png"
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
-    create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")
+    create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")"""
+    visualize_session("./multiview_final")
 
 # chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
 # control signal/context inserted as text.
