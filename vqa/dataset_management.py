@@ -164,28 +164,81 @@ def export_dataset_2(qa_path, src_data_directory, target_data_directory):
 
 def count_sub_subfolders(directory):
     sub_subfolder_count = 0
-
     # List all subfolders in the main directory
     for root, dirs, files in os.walk(directory):
         # For each directory in the current root
-        for dir in dirs:
+        dirs = sorted(dirs)
+        for dir in dirs[:10]:
             # Get the full path of the current subfolder
             subfolder_path = os.path.join(root, dir)
             # List all entries in the subfolder
             sub_entries = os.listdir(subfolder_path)
             # Count how many of these entries are directories (sub-subfolders)
             sub_subfolder_count += sum(os.path.isdir(os.path.join(subfolder_path, entry)) for entry in sub_entries)
-
     return sub_subfolder_count
 
 
 def count_envs(directory):
     seed = set()
-    for stuff in os.listdir(directory):
+    for stuff in os.listdir(directory[:]):
         if os.path.isdir(os.path.join(directory, stuff)):
             env_id = int(stuff.split("_")[0])
             seed.add(env_id)
     return len(seed)
+
+
+
+def count_frames(session_folder):
+    episodes = os.listdir(session_folder)
+    episodes = [os.path.join(session_folder, file) for file in episodes if os.path.isdir(os.path.join(session_folder,file))]
+    count = 0
+    for episode in episodes:
+        count += len(os.listdir(episode))
+    return count
+
+def count_proper_episode(session_folder):
+    episodes = os.listdir(session_folder)
+    episodes = [file for file in episodes if
+                os.path.isdir(os.path.join(session_folder, file))]
+    valid_count = 0
+    valid_episode = set()
+    for episode in episodes:
+        splitted = episode.split("_")
+        if int(splitted[-1])-int(splitted[1])==24:
+            valid_count += 1
+            valid_episode.add(episode)
+    return valid_count, list(valid_episode)
+
+def count_proper_seed(session_folder):
+    episodes = os.listdir(session_folder)
+    episodes = [file for file in episodes if
+                os.path.isdir(os.path.join(session_folder, file))]
+    valid_seed = set()
+    for episode in episodes:
+        splitted = episode.split("_")
+        valid_seed.add(splitted[0])
+    return len(valid_seed), list(valid_seed)
+
+def store_session_statistics(session_path):
+    print("Collecting number of frames")
+    num_frames = count_frames(session_path)
+    print(f"num_franmes={num_frames}")
+    print("Collecting number of 2.5s episodes")
+    num_valid_episodes, valid_episodes = count_proper_episode(session_path)
+    print(f"num_valid_episodes={num_valid_episodes}")
+    print("Collecting number of ScenarioNet Scenarios used")
+    num_valid_seeds, valid_seeds = count_proper_seed(session_path)
+    print(f"num_valid_seeds={num_valid_seeds}")
+    import json
+    summary = dict(
+        num_frames = num_frames, num_valid_episodes = num_valid_episodes, num_valid_seeds = num_valid_seeds,
+        valid_episodes = valid_episodes, valid_seeds = valid_seeds
+    )
+    print("Summary stored at {}".format(os.path.join(session_path, "session_statistics.json")))
+    json.dump(
+        summary, open(os.path.join(session_path, "session_statistics.json"), "w")
+    )
+
 
 
 if __name__ == '__main__':
@@ -195,5 +248,8 @@ if __name__ == '__main__':
     # delete_files_with_prefix("./multiprocess_demo", "highlighted")
     # export_dataset_2("/bigdata/weizhen/metavqa/100k/merged.json","/bigdata/weizhen/metavqa/100k","/bigdata/weizhen/metavqa/100k_export")
     # splitting("verification/static.json", "verification/split.json")
-    # print(count_sub_subfolders("../100k_export"))
-    print(count_envs("../100k_export"))
+    #print(count_sub_subfolders("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
+    #print(count_frames("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
+    #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
+    #print(count_envs("../100k_export"))
+    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0")

@@ -40,7 +40,6 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             "height_scale": 1,
         }
         print("Finished reading")
-        from metadrive.envs.scenario_env import ScenarioEnv
         env = ScenarioDiverseEnv(env_config)
         env.reset(seed=job_range[0])
     else:
@@ -178,7 +177,6 @@ def normal():
                     dataset_summary_path=os.path.join(args.data_directory, "dataset_summary.pkl"),
                     source="_".join([args.source]), split=args.split, collision="False"
                     )
-
 
 def safety_critical():
     parser = argparse.ArgumentParser()

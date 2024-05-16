@@ -1,6 +1,6 @@
 import wandb
 from vqa.models.baselines import Baseline
-from vqa.models.components import Bert_Encoder, MLP_Multilabel, Resnet50_Encoder, ViT_Encoder
+from vqa.models.components import Bert_Encoder, MLP_Multilabel, Resnet50_Encoder, ViT_Encoder, CLIP_ViT_Encoder
 from torch.utils.data import DataLoader
 from vqa.training.datasets import MultiChoiceDataset
 from vqa.qa_preprocessing import answer_space_reversed
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         split_dict = json.load(file)
 
     wandb_config = dict(
-        name="100k_ViT+BERT_2048_1"
+        name="CLIPViT+BERT+8_2048MLP_SUM+100K"
     )
 
     wandb.login()
@@ -185,8 +185,8 @@ if __name__ == "__main__":
     )
     network_config = dict(
         text_encoder=Bert_Encoder(),
-        rgb_encoder=ViT_Encoder(),
-        predictor=MLP_Multilabel(input_dim=1656, hidden_dim=2048, output_dim=5203, num_hidden=1),
+        rgb_encoder=CLIP_ViT_Encoder(),
+        predictor=MLP_Multilabel(input_dim=1400, hidden_dim=4096, output_dim=5203, num_hidden=1),
         name="baseline"
     )
     model = get_model(Baseline, **network_config)
@@ -201,7 +201,7 @@ if __name__ == "__main__":
             indices=indices,
             map=answer_space_reversed,
             base = base,
-            img_transform = ViT_Encoder.get_preprocessor()
+            img_transform = CLIP_ViT_Encoder.get_preprocessor()
         )
         dataset = get_dataset(MultiChoiceDataset, **dataset_config)
         loader_config = dict(
