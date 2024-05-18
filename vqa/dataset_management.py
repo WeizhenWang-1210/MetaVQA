@@ -239,6 +239,17 @@ def store_session_statistics(session_path):
         summary, open(os.path.join(session_path, "session_statistics.json"), "w")
     )
 
+def display_session_statistics(session_path):
+    print("Collecting number of frames")
+    num_frames = count_frames(session_path)
+    print(f"num_franmes={num_frames}")
+    print("Collecting number of 2.5s episodes")
+    num_valid_episodes, valid_episodes = count_proper_episode(session_path)
+    print(f"num_valid_episodes={num_valid_episodes}")
+    print("Collecting number of ScenarioNet Scenarios used")
+    num_valid_seeds, valid_seeds = count_proper_seed(session_path)
+    print(f"num_valid_seeds={num_valid_seeds}")
+
 
 
 if __name__ == '__main__':
@@ -252,4 +263,5 @@ if __name__ == '__main__':
     #print(count_frames("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
     #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
     #print(count_envs("../100k_export"))
-    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0")
+    #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0")
+    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/testing/normal/Waymo_testing_0")

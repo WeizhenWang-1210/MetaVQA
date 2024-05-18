@@ -6,7 +6,7 @@ import multiprocessing as multp
 from vqa.static_question_generator import QuerySpecifier
 from vqa.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.dynamic_question_generation import find_episodes, extract_observations, generate_dynamic_questions, \
-    extract_frames
+    extract_frames, load_valid_episodes
 from vqa.scene_graph import TemporalGraph
 from vqa.scene_level_functionals import predict_collision
 from vqa.safety_question_generation import generate_safety_questions
@@ -119,12 +119,13 @@ def static_setting():
     chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
+        print(f"Sent job {proc_id}")
         p = multp.Process(
             target=static_job,
             args=(
                 chunks[proc_id],
                 args.src,
-                os.path.join(args.output_base, f"qa{proc_id}.json"),
+                os.path.join(args.output_base, f"static_qa{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
@@ -146,7 +147,7 @@ def dynamic_job(episode_folders, source, summary_path, verbose=False):
         assert len(DynamicQuerySpecifier.CACHE) == 0, f"Non empty cache for {episode}"
         observations = extract_observations(episode)
         records, num_questions, context = generate_dynamic_questions(
-            episode, templates, max_per_type=3, choose=2, attempts_per_type=10, verbose=verbose)
+            episode, templates, max_per_type=50, choose=5, attempts_per_type=100, verbose=verbose)
         for question_type, record_list in records.items():
             for record in record_list:
                 qa_tuples[idx] = dict(
@@ -184,17 +185,18 @@ def dynamic_setting():
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
-
-    all_episodes = find_episodes(args.root_directory)
+    all_episodes = load_valid_episodes(args.root_directory)
+    print(f"Find {len(all_episodes)} valid episodes under session {args.root_directory}")
     chunks = divide_list_into_n_chunks(all_episodes, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
+        print(f"Sent job{proc_id}")
         p = multp.Process(
             target=dynamic_job,
             args=(
                 chunks[proc_id],
                 args.src,
-                os.path.join(args.output_base, f"qa{proc_id}.json"),
+                os.path.join(args.output_base, f"dynamic_qa{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
@@ -214,8 +216,7 @@ def safety_job(episode_folders, source, summary_path, verbose=False):
     idx = 0
     for episode in episode_folders:
         observations = extract_observations(episode)
-        annotation_template = f"{episode}/**/world*.json"
-        frame_files = sorted(glob.glob(annotation_template, recursive=True))
+        frame_files = extract_frames(episode)
         graph = TemporalGraph(frame_files, tolerance=0.5)
         collision_happend, _, first_impact = predict_collision(graph)
         if not collision_happend:
@@ -292,7 +293,7 @@ def safety_setting():
             args=(
                 chunks[proc_id],
                 args.src,
-                os.path.join(args.output_base, f"qa{proc_id}.json"),
+                os.path.join(args.output_base, f"safety_qa{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
@@ -304,6 +305,6 @@ def safety_setting():
 
 
 if __name__ == "__main__":
-    static_setting()
-    #dynamic_setting()
+    #static_setting()
+    dynamic_setting()
     #safety_setting()

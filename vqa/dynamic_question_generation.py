@@ -25,11 +25,23 @@ def find_episodes(session_folder):
     matched_folders = [os.path.join(session_folder, folder) for folder in folders if pattern.match(folder)]
     return matched_folders
 
+def load_valid_episodes(session_folder):
+    import json
+    statistics = json.load(open(os.path.join(session_folder, "session_statistics.json")))
+    valid_episodes = statistics["valid_episodes"]
+    return [os.path.join(session_folder, valid_episode) for valid_episode in valid_episodes]
+
+
 
 def extract_frames(episode, debug=False):
     annotation_path_template = f"{episode}/**/world*.json"
-    sorted_rgb = sorted(glob.glob(annotation_path_template, recursive=True))
-    return sorted_rgb
+    files = glob.glob(annotation_path_template, recursive=True)
+    def extract_numbers(filename):
+        identifier = filename.split("/")[-2]
+        x, y = identifier .split('_')
+        return (int(x), int(y))
+    sorted_files = sorted(files, key=extract_numbers)
+    return sorted_files
 
 
 def select_key_frames(root_dir, frame_per_episode=3):
@@ -48,14 +60,18 @@ def select_key_frames(root_dir, frame_per_episode=3):
 
 
 def extract_observations(episode, debug=False):
+    def extract_numbers(filename):
+        identifier = filename.split("/")[-2]
+        x, y = identifier .split('_')
+        return (int(x), int(y))
     observations = {}
     perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
     for perspective in perspectives:
         rgb_path_template = f"{episode}/**/rgb_{perspective}**.png"
-        sorted_rgb = sorted(glob.glob(rgb_path_template, recursive=True))
+        sorted_rgb = sorted(glob.glob(rgb_path_template, recursive=True), key=extract_numbers)
         observations[perspective] = sorted_rgb
     lidar_template = f"{episode}/**/lidar_**.pkl"
-    sorted_lidar = sorted(glob.glob(lidar_template, recursive=True))
+    sorted_lidar = sorted(glob.glob(lidar_template, recursive=True), key=extract_numbers)
     observations["lidar"] = sorted_lidar
     if debug:
         length = len(observations["lidar"])
@@ -258,8 +274,7 @@ def generate_context_string(graph, end=False):
 
 
 def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
-    annotation_template = f"{episode}/**/world*.json"
-    frame_files = sorted(glob.glob(annotation_template, recursive=True))
+    frame_files = extract_frames(episode)
     graph = TemporalGraph(frame_files)
     print(f"Generating dynamic questions for {episode}...")
     print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
