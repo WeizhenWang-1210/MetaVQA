@@ -223,8 +223,9 @@ def safety_job(episode_folders, source, summary_path, verbose=False):
             """
             No collision, no postmortem analysis.
             """
+            print(f"No collision for {episode}")
             records, num_questions = generate_safety_questions(
-                episode, templates, max_per_type=2, choose=1, attempts_per_type=10, verbose=True, only_predict=True)
+                episode, templates, max_per_type=2, choose=1, attempts_per_type=10, verbose=verbose, only_predict=True)
         else:
             #has collision, see if collision on in prediction period.
             if first_impact >= 20:
@@ -284,7 +285,9 @@ def safety_setting():
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
 
-    all_episodes = find_episodes(args.root_directory)
+    all_episodes = load_valid_episodes(args.root_directory)
+    print(f"Find {len(all_episodes)} valid episodes under session {args.root_directory}")
+    #exit()
     chunks = divide_list_into_n_chunks(all_episodes, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
@@ -306,5 +309,5 @@ def safety_setting():
 
 if __name__ == "__main__":
     #static_setting()
-    dynamic_setting()
-    #safety_setting()
+    #dynamic_setting()
+    safety_setting()

@@ -120,7 +120,7 @@ def export_dataset(qa_path, data_directory):
                 frame_id += 1
                 new_frames.append(new_path)
             metainfo["rgb"][angle] = new_frames
-        new_lidar_path = os.path.join(new_data_path, "lidar.json")
+        new_lidar_path = os.path.join(new_data_path, "lidar.pkl")
         shutil.copy2(metainfo["lidar"], new_lidar_path)
         metainfo["lidar"] = new_lidar_path
     export_path = os.path.join(data_directory, "exported.json")

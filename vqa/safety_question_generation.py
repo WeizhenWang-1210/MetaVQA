@@ -84,7 +84,8 @@ def postprocess(question_type, template, record, origin, positive_x, graph):
     if question_type == "predict_collision":
         context_string = generate_context_string(graph)
         question_string = " ".join([question_string, context_string])
-        object_collided = record["collided_objects"][0]
+        #print(record["collided_objects"])
+        object_collided = record["collided_objects"][0] if len(record["collided_objects"]) > 0 else []
         if len(object_collided) > 0 and answer:
             collided_object = graph.get_node(object_collided)
             color = collided_object.color
@@ -151,7 +152,7 @@ def generate_safety_questions(episode, templates, max_per_type=5, choose=3, atte
     Every positional information will be transformed to the ego coordinate at the time of the postmortem analysis
     """
     annotation_template = f"{episode}/**/world*.json"
-    frame_files = sorted(glob.glob(annotation_template, recursive=True))
+    frame_files = extract_frames(episode)#sorted(glob.glob(annotation_template, recursive=True))
     predict_files = frame_files
     postmortem_files = frame_files[5:]
     predict_graph = TemporalGraph(predict_files, tolerance=0.5)
