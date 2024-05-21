@@ -37,10 +37,8 @@ def choices(question_type, graph):
                                                         ego.bboxes[0])
         injected_ego_bboxes = ego.bboxes[:t] + sampled_ego_bboxes
         answer = counterfactual_trajectory(graph, injected_ego_bboxes)
-        traj_str = [str(point) for point in sampled_ego_trajectory[::2]]
-        traj = ",".join(traj_str)
         config = {
-            "<t>": t, "<tnow>": tnow, "<traj>": traj, "answer": answer
+            "<t>": t, "<tnow>": tnow, "<traj>": sampled_ego_trajectory[::2], "answer": answer
         }
     elif question_type == "stop_safe":
         t = random.choice([0, 10])
@@ -86,7 +84,6 @@ def postprocess(question_type, template, record, origin, positive_x, graph):
     if question_type == "predict_collision":
         context_string = generate_context_string(graph)
         question_string = " ".join([question_string, context_string])
-        #print(record["collided_objects"])
         object_collided = record["collided_objects"][0] if len(record["collided_objects"]) > 0 else []
         if len(object_collided) > 0 and answer:
             collided_object = graph.get_node(object_collided)
@@ -102,6 +99,7 @@ def postprocess(question_type, template, record, origin, positive_x, graph):
     elif question_type == "counterfactual_trajectory":
         final_trajectory = [transform_vec(origin, positive_x, [point])[0] for point in record["<traj>"]]
         final_trajectory = [[round(x, 1), round(y, 1)] for (x, y) in final_trajectory]
+        final_trajectory = ",".join([str(point) for point in final_trajectory])
         t = record["<t>"]
         question_string = question_string.replace("<traj>", str(final_trajectory))
         question_string = question_string.replace("<tnow>", str(tnow))
@@ -160,10 +158,11 @@ def generate_safety_questions(episode, templates, max_per_type=5, choose=3, atte
     predict_graph = TemporalGraph(predict_files, tolerance=0.5)
     postmortem_graph = TemporalGraph(postmortem_files, tolerance=0.5)
     print(f"Generating safety-critical questions for {episode}...")
-    print(f"KEY FRAME at{predict_graph.framepaths[predict_graph.idx_key_frame]} for predict_graph")
-    print(f"KEY frame is {predict_graph.idx_key_frame} for predict_graph")
-    print(f"Total frame number {len(predict_graph.frames)} for predict_graph")
-    print(f"Total frame number {len(postmortem_graph.frames)} for postmortem_graph")
+    if verbose:
+        print(f"KEY FRAME at{predict_graph.framepaths[predict_graph.idx_key_frame]} for predict_graph")
+        print(f"KEY frame is {predict_graph.idx_key_frame} for predict_graph")
+        print(f"Total frame number {len(predict_graph.frames)} for predict_graph")
+        print(f"Total frame number {len(postmortem_graph.frames)} for postmortem_graph")
     default_max_per_type = max_per_type
     candidates, counts, valid_questions = defaultdict(list), 0, set()
     for question_type, question_template in templates.items():
