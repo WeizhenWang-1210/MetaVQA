@@ -157,7 +157,7 @@ def record_frame(env, lidar, camera, instance_camera):
     return final_summary
 
 
-def record_accident(env, buffer, countdown, session_folder):
+def record_accident(env, buffer, countdown, session_folder, prefix=""):
     if countdown <=0:
         tm = tc = False
     engine = env.engine
@@ -175,12 +175,15 @@ def record_accident(env, buffer, countdown, session_folder):
     buffer_size = len(buffer.dq)
     final_step = engine.episode_step
     initial_step = final_step - buffer_size + 1
-    folder = os.path.join(session_folder, "{}_{}_{}".format(env.current_seed, initial_step, final_step))
+    if prefix != "":
+        folder = os.path.join(session_folder, "{}_{}_{}_{}".format(prefix, env.current_seed, initial_step, final_step))
+    else:
+        folder = os.path.join(session_folder, "{}_{}_{}".format( env.current_seed, initial_step, final_step))
     buffer.export(folder)
     return tm, tc
 
 
-def generate_safe_data(env, seeds, folder):
+def generate_safe_data(env, seeds, folder, prefix=""):
     env.reset()
     os.makedirs(folder, exist_ok=True)
     print("This session is saved in folder {}".format(folder))
@@ -216,7 +219,7 @@ def generate_safe_data(env, seeds, folder):
                 if len(env.agent.crashed_objects) > 0:
                     print("Collision happened at step {} in annotation.".format(env.engine.episode_step))
                     inception = True
-                    tm, tc = record_accident(env, annotation_buffer, future, folder)
+                    tm, tc = record_accident(env, annotation_buffer, future, folder, prefix)
             if tm or tc:
                 break
         inception = False

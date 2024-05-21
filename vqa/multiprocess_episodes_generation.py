@@ -77,7 +77,7 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                       skip_length=config["skip_length"], job_range=job_range)
 
 
-def safety(data_directory, headless, config, num_scenarios, job_range=None):
+def safety(data_directory, headless, config, num_scenarios, job_range=None, prefix=""):
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
@@ -93,7 +93,7 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None):
             "height_scale": 1
         }
     )
-    generate_safe_data(env, job_range, config["storage_path"])
+    generate_safe_data(env, job_range, config["storage_path"], prefix)
 
 
 def divide_into_intervals_exclusive(total, n):
@@ -209,8 +209,9 @@ def safety_critical():
     if not args.scenarios:
         num_scenarios = config["map_setting"]["num_scenarios"]
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
-    print(job_intervals[0])
+    prefix = os.path.basename(args.data_directory)
     job_intervals = [list(range(*job_interval)) for job_interval in job_intervals]
+    #exit()
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))
@@ -223,6 +224,7 @@ def safety_critical():
                 config,
                 num_scenarios,
                 job_intervals[proc_id],
+                prefix
             )
         )
         processes.append(p)
@@ -237,5 +239,5 @@ def safety_critical():
 
 
 if __name__ == "__main__":
-    normal()
-    # safety_critical()
+    #normal()
+    safety_critical()
