@@ -163,9 +163,9 @@
         },
         "count_equal_binary":{
             "text":[
-                "At this moment, are there an equal number of the following things: <o1>, <o2>?. Answer True or False.",
-                "At this moment, do we have the same number of <o1> and <o2>?. Answer True or False.",
-                "At this moment, do <o1> match <o2> in number?. Answer True or False.",
+                "At this moment, are there an equal number of the following things: <o1>, <o2>? Answer True or False.",
+                "At this moment, do we have the same number of <o1> and <o2>? Answer True or False.",
+                "At this moment, do <o1> match <o2> in number? Answer True or False.",
                 "Determine if <o1> and <o2> are equal in number at this moment. Answer True or False.",
                 "Check if the quantities of <o1> and <o2> are the same at this moment. Answer True or False."
             ],
@@ -354,7 +354,7 @@
         },
         "counterfactual_trajectory": {
             "text":[
-                "If we started moving in <traj> at <t>, can we avoid the collision? All coordinates are in our current frame. The start of observations is at time 0, and we are at <tnow>."
+                "We observed from time t=0 to t=<tnow>. Suppose we started moving along <traj> at t=<t>, can we avoid collision? The trajectory uses our current frame as the reference."
             ],
             "params": [
                 "<traj>", "<t>", "<tnow>"
@@ -364,7 +364,7 @@
         },
         "stop_safe": {
             "text": [
-                "Will collisions be avoided if we stop all-together at <t>? The start of observations is at time 0, and we are at time <tnow>."
+                "We observed from time t=0 to t=<tnow>. Will there be any collision if we stopped completely at time <t>?"
             ],
             "params":[
                 "<t>", "<tnow>"
@@ -374,7 +374,7 @@
         },
         "move_around": {
             "text": [
-                "If we were <d> away at time of impact, will there still be any collision? All coordinates are in our current frame. The start of observations is at time 0, and we are at <tnow>."
+                "We observed from time t=0 to t=<tnow>. If we were <d> away from where we are now, will there be any collision?"
             ],
             "params": [
                 "<d>", "<tnow>"

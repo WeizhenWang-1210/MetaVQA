@@ -204,7 +204,7 @@ def count_proper_episode(session_folder):
     valid_episode = set()
     for episode in episodes:
         splitted = episode.split("_")
-        if int(splitted[-1])-int(splitted[1])==24:
+        if int(splitted[-1])-int(splitted[-2])==24:
             valid_count += 1
             valid_episode.add(episode)
     return valid_count, list(valid_episode)
@@ -261,7 +261,7 @@ if __name__ == '__main__':
     # splitting("verification/static.json", "verification/split.json")
     #print(count_sub_subfolders("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
     #print(count_frames("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
-    print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
+    #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
     #print(count_envs("../100k_export"))
     #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0")
-    #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/testing/normal/Waymo_testing_0")
+    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/safety_critical")

@@ -218,7 +218,15 @@ def safety_job(episode_folders, source, summary_path, verbose=False):
         observations = extract_observations(episode)
         frame_files = extract_frames(episode)
         graph = TemporalGraph(frame_files, tolerance=0.5)
-        collision_happend, _, first_impact = predict_collision(graph)
+        collision_happend, collided_objects, first_impact = predict_collision(graph)
+        skip = False
+        for collided_object in collided_objects:
+            if collided_object not in graph.get_nodes().keys():
+                skip = True
+                break
+        if skip:
+            print(f"Skipping {episode} as collided objects is unobservable for 50% of of observation period.")
+            continue
         if not collision_happend:
             """
             No collision, no postmortem analysis.
@@ -286,6 +294,7 @@ def safety_setting():
         print("{}: {}".format(key, value))
 
     all_episodes = load_valid_episodes(args.root_directory)
+    #all_episodes = ["/bigdata/weizhen/metavqa_final/scenarios/validation/safety_critical/subdir_3_40_56_80"]
     print(f"Find {len(all_episodes)} valid episodes under session {args.root_directory}")
     #exit()
     chunks = divide_list_into_n_chunks(all_episodes, args.num_proc)
@@ -294,7 +303,7 @@ def safety_setting():
         p = multp.Process(
             target=safety_job,
             args=(
-                chunks[proc_id],
+                chunks[proc_id][:10],
                 args.src,
                 os.path.join(args.output_base, f"safety_qa{proc_id}.json"),
                 True if args.verbose else False,

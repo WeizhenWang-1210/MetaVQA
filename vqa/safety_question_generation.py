@@ -26,7 +26,7 @@ def choices(question_type, graph):
         We observe [0,19]
         we start injecting at step [0,10]
         """
-        t = random.choice([0, 10])
+        t = 10#random.choice([10])
         tnow = len(graph.frames) - 1
         ego = graph.get_ego_node()
         ego_trajectory = ego.positions[t:]
@@ -37,8 +37,10 @@ def choices(question_type, graph):
                                                         ego.bboxes[0])
         injected_ego_bboxes = ego.bboxes[:t] + sampled_ego_bboxes
         answer = counterfactual_trajectory(graph, injected_ego_bboxes)
+        traj_str = [str(point) for point in sampled_ego_trajectory[::2]]
+        traj = ",".join(traj_str)
         config = {
-            "<t>": t, "<tnow>": tnow, "<traj>": sampled_ego_trajectory[::2], "answer": answer
+            "<t>": t, "<tnow>": tnow, "<traj>": traj, "answer": answer
         }
     elif question_type == "stop_safe":
         t = random.choice([0, 10])
@@ -159,8 +161,9 @@ def generate_safety_questions(episode, templates, max_per_type=5, choose=3, atte
     postmortem_graph = TemporalGraph(postmortem_files, tolerance=0.5)
     print(f"Generating safety-critical questions for {episode}...")
     print(f"KEY FRAME at{predict_graph.framepaths[predict_graph.idx_key_frame]} for predict_graph")
-    print(f"Key frame is {predict_graph.idx_key_frame}")
-    print(f"Total frame number {len(predict_graph.frames)}")
+    print(f"KEY frame is {predict_graph.idx_key_frame} for predict_graph")
+    print(f"Total frame number {len(predict_graph.frames)} for predict_graph")
+    print(f"Total frame number {len(postmortem_graph.frames)} for postmortem_graph")
     default_max_per_type = max_per_type
     candidates, counts, valid_questions = defaultdict(list), 0, set()
     for question_type, question_template in templates.items():
