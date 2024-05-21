@@ -303,7 +303,7 @@ def safety_setting():
         p = multp.Process(
             target=safety_job,
             args=(
-                chunks[proc_id][:10],
+                chunks[proc_id],
                 args.src,
                 os.path.join(args.output_base, f"safety_qa{proc_id}.json"),
                 True if args.verbose else False,
