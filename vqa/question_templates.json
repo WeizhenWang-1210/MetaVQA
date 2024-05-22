@@ -34,10 +34,10 @@
         },
         "count_equal_binary":{
             "text":[
-                "Are there an equal number of the following things: <o1>, <o2>?. Answer True or False.",
-                "Do we have the same number of <o1> and <o2>?. Answer True or False.",
-                "Do <o1> match <o2> in number?. Answer True or False.",
-                "Are the quantities of <o1> and <o2> equal?. Answer True or False.",
+                "Are there an equal number of the following things: <o1>, <o2>? Answer True or False.",
+                "Do we have the same number of <o1> and <o2>? Answer True or False.",
+                "Do <o1> match <o2> in number? Answer True or False.",
+                "Are the quantities of <o1> and <o2> equal? Answer True or False.",
                 "Determine if <o1> and <o2> are equal in number. Answer True or False.",
                 "Check if the quantities of <o1> and <o2> are the same. Answer True or False."
             ],

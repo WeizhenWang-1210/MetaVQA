@@ -110,10 +110,13 @@ def qa_cleaning(qa_records):
     return processed_qa
 
 def postprocess_localization(raw_answer):
-    ordered_boxes = order_and_round(raw_answer)
+    #ordered_boxes = order_and_round(raw_answer)
     final_answer = []
-    for box in ordered_boxes:
-        stringed = str(tuple(box))
+    raw_answer.sort(key=lambda bbox: norm(centroid(bbox)))
+    for box in raw_answer:
+        center = centroid(box)
+        center = [round(center[0],1), round(center[1],1)]
+        stringed = str(center)
         final_answer.append(stringed)
     final_answer = ",".join(final_answer)
     return final_answer
@@ -177,6 +180,8 @@ def postprocess_qa(qa_records):
         if concrete_type == "localization":
             if len(record["answer"]) > 8:
                 continue
+            #convert to centers for manageable learning.
+            record["question"] = record["question"].replace("bounding boxes", "centers")
         postprocessor = processor_mapping[concrete_type]
         record["answer"] = postprocessor(record["answer"])
         processed_qa[count] = record
@@ -215,4 +220,4 @@ if __name__ == "__main__":
     #print(final_answer)
     #processed_sample = postprocess_qa(sample)
     #json.dump(processed_sample,open("/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame/processed_dynamic_qa0.json","w"), indent=2)
-    process_session("/bigdata/weizhen/metavqa_final/vqa/testing/multi_frame/", "/bigdata/weizhen/metavqa_final/vqa/testing/multi_frame_processed")
+    process_session("/bigdata/weizhen/metavqa_final/vqa/training/single_frame/", "/bigdata/weizhen/metavqa_final/vqa/training/single_frame_processed/")
