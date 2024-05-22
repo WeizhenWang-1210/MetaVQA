@@ -180,8 +180,6 @@ def postprocess_qa(qa_records):
         if concrete_type == "localization":
             if len(record["answer"]) > 8:
                 continue
-            #convert to centers for manageable learning.
-            record["question"] = record["question"].replace("bounding boxes", "centers")
         postprocessor = processor_mapping[concrete_type]
         record["answer"] = postprocessor(record["answer"])
         processed_qa[count] = record
