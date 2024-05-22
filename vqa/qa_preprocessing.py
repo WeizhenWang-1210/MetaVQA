@@ -177,11 +177,14 @@ def postprocess_qa(qa_records):
     for id, record in qa_records.items():
         type_string = record["question_type"]
         concrete_type = type_string.split("|")[-1]
-        if concrete_type == "localization":
-            if len(record["answer"]) > 8:
-                continue
-        postprocessor = processor_mapping[concrete_type]
-        record["answer"] = postprocessor(record["answer"])
+        if concrete_type in processor_mapping.keys():
+            if concrete_type == "localization":
+                if len(record["answer"]) > 8:
+                    continue
+                # convert to centers for manageable learning.
+                record["question"] = record["question"].replace("bounding boxes", "centers")
+            postprocessor = processor_mapping[concrete_type]
+            record["answer"] = postprocessor(record["answer"])
         processed_qa[count] = record
         count += 1
     print(f"Processed {count} valid tuples.")
@@ -218,4 +221,6 @@ if __name__ == "__main__":
     #print(final_answer)
     #processed_sample = postprocess_qa(sample)
     #json.dump(processed_sample,open("/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame/processed_dynamic_qa0.json","w"), indent=2)
-    process_session("/bigdata/weizhen/metavqa_final/vqa/training/single_frame/", "/bigdata/weizhen/metavqa_final/vqa/training/single_frame_processed/")
+    #process_session("/bigdata/weizhen/metavqa_final/vqa/training/single_frame/", "/bigdata/weizhen/metavqa_final/vqa/training/single_frame_processed/")
+    process_session("/bigdata/weizhen/metavqa_final/vqa/training/safety_critical/collision/",
+                    "/bigdata/weizhen/metavqa_final/vqa/training/safety_critical_processed/collision/")
