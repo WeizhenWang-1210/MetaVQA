@@ -108,10 +108,12 @@ def static_setting():
     parser.add_argument("--root_directory", type=str, default=None,
                         help="the paths to the recorded data")
     parser.add_argument("--output_base", type=str, default="./qa",
-                        help="directory to the generated QA files, each file will be extended with id ")
+                        help="directory to the generated QA files, each file will be extended with proc_id ")
     parser.add_argument("--src", type=str, default="PG", help="specify the data source of the driving scenarios")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+
+
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))

@@ -47,6 +47,7 @@ def extract_frames(episode, debug=False):
 def select_key_frames(root_dir, frame_per_episode=3):
     key_frames = []
     for content in os.listdir(root_dir):
+        print("Reading from content.")
         path = os.path.join(root_dir, content)  # episode_folder
         if os.path.isdir(path):
             frame_files = extract_frames(path)

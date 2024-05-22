@@ -197,9 +197,11 @@ def count_frames(session_folder):
     return count
 
 def count_proper_episode(session_folder):
+    print(session_folder)
     episodes = os.listdir(session_folder)
     episodes = [file for file in episodes if
                 os.path.isdir(os.path.join(session_folder, file))]
+    print(f'session at {session_folder}: {len(episodes)}')
     valid_count = 0
     valid_episode = set()
     for episode in episodes:
@@ -213,11 +215,15 @@ def count_proper_seed(session_folder):
     episodes = os.listdir(session_folder)
     episodes = [file for file in episodes if
                 os.path.isdir(os.path.join(session_folder, file))]
-    valid_seed = set()
+    valid_seeds = set()
     for episode in episodes:
         splitted = episode.split("_")
-        valid_seed.add(splitted[0])
-    return len(valid_seed), list(valid_seed)
+        if len(splitted) == 5:
+            valid_seed = "_".join(splitted[:3])
+        else:
+            valid_seed = splitted[0]
+        valid_seeds.add(valid_seed)
+    return len(valid_seeds), list(valid_seeds)
 
 def store_session_statistics(session_path):
     print("Collecting number of frames")
@@ -261,7 +267,7 @@ if __name__ == '__main__':
     # splitting("verification/static.json", "verification/split.json")
     #print(count_sub_subfolders("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
     #print(count_frames("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
-    #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"))
+    #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/nuscenes/sc_nusc_trainval_0"))
     #print(count_envs("../100k_export"))
     #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0")
-    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/safety_critical")
+    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/training/safety_critical")
