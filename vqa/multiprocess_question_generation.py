@@ -118,6 +118,8 @@ def static_setting():
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
     all_paths = select_key_frames(args.root_directory,2)
+    print(len(all_paths))
+    #exit()
     chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
@@ -319,6 +321,6 @@ def safety_setting():
 
 
 if __name__ == "__main__":
-    #static_setting()
+    static_setting()
     #dynamic_setting()
-    safety_setting()
+    #safety_setting()
