@@ -211,13 +211,9 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             '''
             Don't go into the save environment twice.
             '''
-            if job_range is not None and env.current_seed + 1 >= job_range[-1]:
-                break
-            env.reset(env.current_seed + 1)
-            env.current_track_agent.expert_takeover = True
             break
     env_end = env.episode_step
-    print("exist episode")
+    print(f"exist episode {env.current_seed}")
     return total_steps, buffer, (env_id, env_start, env_end)  # this end is tail-inclusive
 
 
@@ -239,8 +235,6 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
     """
 
     try:
-        # o, _ = env.reset(seed)
-
         folder = os.path.join(IO_config["batch_folder"])
         os.makedirs(folder, exist_ok=True)
         print("This session is stored in folder: {}".format(folder))
@@ -253,31 +247,65 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
         instance_camera = env.engine.get_sensor("instance")
         lidar = env.engine.get_sensor("lidar")
         # The main data recording loop.
-        while counter <= num_points and step <= max_iterations:
-            if job_range is not None:
-                # We've exhausted all the environments for process.
-                if env.current_seed not in range(job_range[0], job_range[-1]):
-                    break
-            # Skip steps logic: Skip the specified number of steps at the beginning of each episode
-            if step % (skip_length + episode_length) < skip_length:
-                env.step([0, 0])
-                step += 1
-                continue
-            step_ran, records, IO = annotate_episode(env=env,
-                                                     engine=engine,
-                                                     sample_frequency=sample_frequency,
-                                                     episode_length=episode_length,
-                                                     camera=camera,
-                                                     instance_camera=instance_camera,
-                                                     lidar=lidar,
-                                                     job_range=job_range)
-            step += step_ran
-            counter += len(records)
-            ret_code = save_episode(records, folder, IO)
-            records.clear()  # recycling memory
-            if ret_code == 0:
-                print("Successfully created episode {}:{}".format(episode_counter, IO))
-                episode_counter += 1
+        if job_range is not None:
+            terminate = False
+            seed = job_range[0]
+            while seed < job_range[1] and not terminate:
+                env.reset(seed)
+                print(f"Reset to seed {seed}")
+                flag = True
+                while flag: #while we have not exhaust the current scenario.
+                    step_ran, records, IO = annotate_episode(
+                        env=env, engine=engine, sample_frequency=sample_frequency,
+                        episode_length=episode_length, camera=camera, instance_camera=instance_camera,
+                        lidar=lidar, job_range=job_range)
+                    ret_code = save_episode(records, folder, IO)
+                    records.clear()
+                    counter += len(records)
+                    if ret_code == 0:
+                        print("Successfully created episode {}:{}".format(episode_counter, IO))
+                        episode_counter += 1
+                    if counter > num_points:
+                        terminate = True
+                        break
+                    #skipping some steps.
+                    for _ in range(skip_length):
+                        o, r, tm, tc, info = env.step([0, 0])
+                        if tm or tc and info["arrive_dest"]:
+                            print(f"Finished scenario {seed}.")
+                            flag = False
+                            break
+                seed += 1
+        else:
+            while counter <= num_points and step <= max_iterations:
+                if job_range is not None:
+                    # We've exhausted all the environments for process.
+                    if env.current_seed not in range(job_range[0], job_range[-1]):
+                        break
+                # Skip steps logic: Skip the specified number of steps at the beginning of each episode
+                if step % (skip_length + episode_length) < skip_length:
+                    o, r, tm, tc, info = env.step([0, 0])
+                    if tm or tc and info["arrive_dest"]:
+                        env.reset(env.current_seed+1)
+                        continue
+
+                    step += 1
+                    continue
+                step_ran, records, IO = annotate_episode(env=env,
+                                                         engine=engine,
+                                                         sample_frequency=sample_frequency,
+                                                         episode_length=episode_length,
+                                                         camera=camera,
+                                                         instance_camera=instance_camera,
+                                                         lidar=lidar,
+                                                         job_range=job_range)
+                step += step_ran
+                counter += len(records)
+                ret_code = save_episode(records, folder, IO)
+                records.clear()  # recycling memory
+                if ret_code == 0:
+                    print("Successfully created episode {}:{}".format(episode_counter, IO))
+                    episode_counter += 1
     except Exception as e:
         raise e
     finally:
@@ -312,7 +340,7 @@ def annotate_scenarios():
     if args.scenarios:
         from metadrive.engine.asset_loader import AssetLoader
         asset_path = AssetLoader.asset_path
-        use_waymo = True
+        use_waymo = False
         from metadrive.policy.replay_policy import ReplayEgoCarPolicy
         # Load the dicrectory.
         if args.data_directory:
@@ -369,9 +397,9 @@ def annotate_scenarios():
     generate_episodes(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
                       max_iterations=config["max_iterations"],
                       IO_config=dict(batch_folder=config["storage_path"], log=True),
-                      episode_length=config["episode_length"], skip_length=config["skip_length"])
+                      episode_length=config["episode_length"], skip_length=config["skip_length"], job_range=[2,5])
 
 
 if __name__ == "__main__":
     annotate_scenarios()
-    try_load_observations("multiview_final/80_30_30/80_30/observations_80_30.json")
+    #try_load_observations("multiview_final/80_30_30/80_30/observations_80_30.json")
