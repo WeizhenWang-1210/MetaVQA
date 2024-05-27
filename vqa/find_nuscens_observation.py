@@ -1,15 +1,15 @@
 PATH = "/bigdata/zhouyunsong/zhouys/Datasets/scenarionet/data_nusc_multiview_trainval.json"
-NUSCENES_PATH= "/bigdata/datasets/scenarionet/nuscenes/trainval"
+NUSCENES_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"
 
-
-
+import argparse
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.scenario import utils as sd_utils
 from vqa.dataset_utils import l2_distance
-from vqa.episodes_generation import get_visible_object_ids, generate_annotations,genearte_annotation, postprocess_annotation
+from vqa.episodes_generation import get_visible_object_ids, generate_annotations, genearte_annotation, \
+    postprocess_annotation
 import json
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 import re
@@ -17,23 +17,22 @@ from collections import defaultdict
 import os
 import cv2
 
-
-PAIRED_OBSERVATION = json.load(open(PATH,"r"))
+PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 from PIL import Image
 import numpy as np
 import pickle
 
 PERSPECTIVE_MAPPING = {
-    'CAM_FRONT':"front",
-    'CAM_FRONT_RIGHT':"rightf",
-    'CAM_FRONT_LEFT':"leftf",
-    'CAM_BACK':"back",
-    'CAM_BACK_LEFT':"leftb",
-    'CAM_BACK_RIGHT':"rightb"
+    'CAM_FRONT': "front",
+    'CAM_FRONT_RIGHT': "rightf",
+    'CAM_FRONT_LEFT': "leftf",
+    'CAM_BACK': "back",
+    'CAM_BACK_LEFT': "leftb",
+    'CAM_BACK_RIGHT': "rightb"
 }
 
 
-def save_episode_raw(buffer, raw_buffer,  root, IO):
+def save_episode_raw(buffer, raw_buffer, root, IO):
     def log_frame(data, frame_folder):
         observations = dict()
         for key in data.keys():
@@ -85,16 +84,12 @@ def save_episode_raw(buffer, raw_buffer,  root, IO):
 
         for identifier, data in raw_buffer.items():
             instance_folder = os.path.join(episode_folder, identifier)
-            os.makedirs(instance_folder, exist_ok = True)
+            os.makedirs(instance_folder, exist_ok=True)
             log_real(data, instance_folder)
 
     except Exception as e:
         raise e
     return 0
-
-
-
-
 
 
 def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, scene_id):
@@ -191,7 +186,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             if total_steps % 5 == 0:
                 #its a key frame
                 img_path_dict = PAIRED_OBSERVATION[scene_id]['img_path']
-                key_frame = total_steps//5
+                key_frame = total_steps // 5
                 collection = {}
                 for perspective, paths in img_path_dict.items():
                     path = paths[key_frame]
@@ -209,24 +204,39 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
     return total_steps, buffer, raw_buffer, (env_id, env_start, env_end)  # this end is tail-inclusive
 
 
+import yaml
+
 
 def paired_logging():
+    cwd = os.getcwd()
+    full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
+    try:
+        # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
+        with open(full_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        raise e
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
     root_folder = "./real"
     scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(NUSCENES_PATH)
     num_scenarios = len(scenario_summary)
     print(f"We have {num_scenarios} in total")
-    headless = True
+    args = parser.parse_args()
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    use_render = not args.headless
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
             "reactive_traffic": True,
-            "use_render": not headless,
+            "use_render": use_render,
             "data_directory": NUSCENES_PATH,
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 800, 600),
-                instance=(InstanceCamera, 800, 600)
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540)
             ),
             "height_scale": 1
         }
@@ -236,28 +246,30 @@ def paired_logging():
     instance_camera = env.engine.get_sensor("instance")
     lidar = env.engine.get_sensor("lidar")
     pattern = r'scene-\d+'
-
+    skip_length = config["skip_length"]
+    episode_length = config["episode_length"]
+    sample_frequency = config["sample_frequency"]
     for seed in range(2):
         env.reset(seed)
         print(env.engine.data_manager.current_scenario_file_name)
         id = re.findall(pattern, env.engine.data_manager.current_scenario_file_name)[0]
-        step_ran, buffer, raw_buffer, IO = \
-            annotate_episode_with_raw(env, env.engine, 1, 25, camera,instance_camera,lidar, id)
-        ret_code = save_episode_raw(buffer, raw_buffer, root_folder, IO)
-        for _ in range(skip_length):
-            o, r, tm, tc, info = env.step([0, 0])
-            if tm or tc and info["arrive_dest"]:
-                print(f"Finished scenario {seed}.")
-                flag = False
-                break
-
-        print(ret_code)
-
-
+        flag = True
+        while flag:
+            step_ran, buffer, raw_buffer, IO = \
+                annotate_episode_with_raw(env, env.engine, sample_frequency, episode_length, camera, instance_camera, lidar,
+                                          id)
+            ret_code = save_episode_raw(buffer, raw_buffer, root_folder, IO)
+            if ret_code == 0:
+                print("Successfully created episode {}:{}".format(id, IO))
+            buffer.clear()
+            raw_buffer.clear()
+            for _ in range(skip_length):
+                o, r, tm, tc, info = env.step([0, 0])
+                if tm or tc and info["arrive_dest"]:
+                    print(f"Finished scenario {id}.")
+                    flag = False
+                    break
 
 
 if __name__ == "__main__":
     paired_logging()
-
-
-
