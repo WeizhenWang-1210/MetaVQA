@@ -281,7 +281,8 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
     print(f"Key frame is {graph.idx_key_frame}")
     print(f"Total frame number {len(graph.frames)}")
     context_string = generate_context_string(graph)
-    print(f"Context: {context_string}")
+    if verbose:
+        print(f"Context: {context_string}")
     candidates, counts, valid_questions = defaultdict(list), 0, set()
     for question_type, question_template in templates.items():
         grammar = generate_trimmed_grammar(graph, "dynamic", question_template)
