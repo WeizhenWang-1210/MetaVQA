@@ -1,0 +1,9 @@
+---
+storage_path : "/bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed"
+sample_frequency: 1
+num_samples: 5000
+max_iterations: 1000000000000000
+temporal_generation: True
+episode_length: 25
+skip_length: 40
+...

@@ -16,6 +16,7 @@ import re
 from collections import defaultdict
 import os
 import cv2
+import multiprocessing
 
 PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 from PIL import Image
@@ -32,7 +33,7 @@ PERSPECTIVE_MAPPING = {
 }
 
 
-def save_episode_raw(buffer, raw_buffer, root, IO):
+def save_episode_raw(buffer, raw_buffer, root, IO, nuScene_name):
     def log_frame(data, frame_folder):
         observations = dict()
         for key in data.keys():
@@ -73,7 +74,7 @@ def save_episode_raw(buffer, raw_buffer, root, IO):
             data[perspective].save(file_path)
 
     env_seed, env_start, env_end = IO
-    episode_folder = os.path.join(root, "{}_{}_{}".format(env_seed, env_start + 1, env_end))
+    episode_folder = os.path.join(root, "{}_{}_{}".format(nuScene_name, env_start + 1, env_end))
     try:
         os.makedirs(episode_folder, exist_ok=True)
         for identifier, data in buffer.items():
@@ -92,7 +93,7 @@ def save_episode_raw(buffer, raw_buffer, root, IO):
     return 0
 
 
-def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, scene_id):
+def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, scene_id, offset):
     """
         Record an episode of observations. Note that multiple episodes can be extracted from one seed. Moreover,
         by setting episode_length to 1, you get single-frame observations.
@@ -183,10 +184,10 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                                                         scene_dict=scene_annotation,
                                                         log_mapping=Log_Mapping,
                                                         debug=True)
-            if total_steps % 5 == 0:
+            if (offset+total_steps) % 5 == 0:
                 #its a key frame
                 img_path_dict = PAIRED_OBSERVATION[scene_id]['img_path']
-                key_frame = total_steps // 5
+                key_frame = (offset + total_steps) // 5
                 collection = {}
                 for perspective, paths in img_path_dict.items():
                     path = paths[key_frame]
@@ -207,30 +208,12 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
 import yaml
 
 
-def paired_logging():
-    cwd = os.getcwd()
-    full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
-    try:
-        # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
-        with open(full_path, 'r') as f:
-            config = yaml.safe_load(f)
-    except Exception as e:
-        raise e
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
-    root_folder = "./real"
-    scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(NUSCENES_PATH)
-    num_scenarios = len(scenario_summary)
-    print(f"We have {num_scenarios} in total")
-    args = parser.parse_args()
-    for key, value in args.__dict__.items():
-        print("{}: {}".format(key, value))
-    use_render = not args.headless
+def paired_logging(headless, num_scenarios, config, seeds):
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
             "reactive_traffic": True,
-            "use_render": use_render,
+            "use_render": not headless,
             "data_directory": NUSCENES_PATH,
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
@@ -249,16 +232,20 @@ def paired_logging():
     skip_length = config["skip_length"]
     episode_length = config["episode_length"]
     sample_frequency = config["sample_frequency"]
-    for seed in range(2):
+    root_folder = config["storage_path"]
+    print(f"Will save to {root_folder}")
+    for seed in seeds:
         env.reset(seed)
-        print(env.engine.data_manager.current_scenario_file_name)
+        offset = 0
         id = re.findall(pattern, env.engine.data_manager.current_scenario_file_name)[0]
+        print(f"Working on NuScenes {id}")
         flag = True
         while flag:
             step_ran, buffer, raw_buffer, IO = \
                 annotate_episode_with_raw(env, env.engine, sample_frequency, episode_length, camera, instance_camera, lidar,
-                                          id)
-            ret_code = save_episode_raw(buffer, raw_buffer, root_folder, IO)
+                                          id, offset)
+            offset += step_ran
+            ret_code = save_episode_raw(buffer, raw_buffer, root_folder, IO, id)
             if ret_code == 0:
                 print("Successfully created episode {}:{}".format(id, IO))
             buffer.clear()
@@ -266,10 +253,52 @@ def paired_logging():
             for _ in range(skip_length):
                 o, r, tm, tc, info = env.step([0, 0])
                 if tm or tc and info["arrive_dest"]:
-                    print(f"Finished scenario {id}.")
+                    print(f"Finished NuScenes {id}.")
                     flag = False
                     break
+                offset += 1
+
+from vqa.multiprocess_question_generation import divide_list_into_n_chunks
+def main(scenarios = None):
+    cwd = os.getcwd()
+    full_path = os.path.join(cwd, "vqa", "configs", "mixed_up_scene.yaml")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
+    parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate QA data")
+    parser.add_argument("--config", type=str, default=full_path,
+                        help="path to the data generation configuration file")
+    scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(NUSCENES_PATH)
+    num_scenarios = len(scenario_summary)
+    print(f"We have {num_scenarios} NuScenes in total.")
+    print(f"We will process{len(scenarios)} out of them.")
+    args = parser.parse_args()
+    config = yaml.safe_load(open(args.config,'r'))
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    if not scenarios:
+        jobs = divide_list_into_n_chunks(scenario_ids, args.num_proc)
+    else:
+        jobs =divide_list_into_n_chunks(scenarios, args.num_proc)
+    processes = []
+    for proc_id in range(args.num_proc):
+        print("Sending job{}".format(proc_id))
+        p = multiprocessing.Process(
+            target=paired_logging,
+            args=(
+                args.headless,
+                num_scenarios,
+                config,
+                jobs[proc_id]
+            )
+        )
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+    print("Finished all processes.")
+
 
 
 if __name__ == "__main__":
-    paired_logging()
+    jobs = list(range(2,100))
+    main(jobs)
