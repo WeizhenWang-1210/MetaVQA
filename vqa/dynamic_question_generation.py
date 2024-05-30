@@ -69,7 +69,9 @@ def find_nuscene_frames(root_dir):
         path_template = os.path.join(path, "**/real*.png")
         frame_files = glob.glob(path_template, recursive=True)
         nuscenes_folders = list(set([os.path.dirname(frame_file) for frame_file in frame_files]))
-        result += nuscenes_folders
+        time_stamps = [os.path.basename(nuscenes_folder)  for nuscenes_folder in nuscenes_folders]
+        nuscenes_annotation = [os.path.join(nuscenes_folder, f"world_{time_stamp}.json") for nuscenes_folder, time_stamp in zip(nuscenes_folders,time_stamps)]
+        result += nuscenes_annotation
     return result
 
 
