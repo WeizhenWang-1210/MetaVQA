@@ -325,7 +325,7 @@ def dynamic_job_nuscene(episode_folders, source, summary_path, verbose=False):
                         ["front", "leftb", "leftf", "rightb", "rightf", "back"]
                     },
                     real={
-                        perspective: real_observations[perspective][:record["key_frame"] + 1] for perspective in
+                        perspective: real_observations[perspective][:4] for perspective in
                         ["front", "leftb", "leftf", "rightb", "rightf", "back"]
                     },
                     lidar=observations["lidar"][:record["key_frame"] + 1],
@@ -360,7 +360,7 @@ def dynamic_setting_nuscene():
     for proc_id in range(args.num_proc):
         print(f"Sent job{proc_id}")
         p = multp.Process(
-            target=dynamic_job,
+            target=dynamic_job_nuscene,
             args=(
                 chunks[proc_id],
                 args.src,
@@ -474,6 +474,123 @@ def safety_setting():
                 chunks[proc_id],
                 args.src,
                 os.path.join(args.output_base, f"safety_qa{proc_id}.json"),
+                True if args.verbose else False,
+            )
+        )
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+    print("All processes finished.")
+
+
+
+def safety_job_nuscene(episode_folders, source, summary_path, verbose=False):
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    templates_path = os.path.join(current_directory, "question_templates.json")
+    templates = json.load(open(templates_path, "r"))
+    templates = templates["safety"]
+    qa_tuples = {}
+    idx = 0
+    for episode in episode_folders:
+        observations = extract_observations(episode)
+        real_observations = extract_real_observations(episode)
+        frame_files = extract_frames(episode)
+        graph = TemporalGraph(frame_files, tolerance=0.5)
+        collision_happend, collided_objects, first_impact = predict_collision(graph)
+        skip = False
+        for collided_object in collided_objects:
+            if collided_object not in graph.get_nodes().keys():
+                skip = True
+                break
+        if skip:
+            print(f"Skipping {episode} as collided objects is unobservable for 50% of of observation period.")
+            continue
+        if not collision_happend:
+            """
+            No collision, no postmortem analysis.
+            """
+            print(f"No collision for {episode}")
+            records, num_questions = generate_safety_questions(
+                episode, templates, max_per_type=2, choose=1, attempts_per_type=10, verbose=verbose, only_predict=True)
+        else:
+            #has collision, see if collision on in prediction period.
+            if first_impact >= 20:
+                records, num_questions = generate_safety_questions(
+                    episode, templates, max_per_type=100, choose=10, attempts_per_type=200, verbose=verbose)
+            else:
+                if verbose:
+                    print(f"Skipping episode {episode} for premature collision")
+                continue
+        for question_type, record_list in records.items():
+            if question_type == "predict_collision":
+                for record in record_list:
+                    qa_tuples[idx] = dict(
+                        question=record["question"], answer=record["answer"],
+                        question_type="|".join(["safety", question_type]), answer_form=record["answer_form"],
+                        rgb={
+                            perspective: observations[perspective][:record["key_frame"] + 1] for perspective in
+                            ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                        },
+                        real={
+                            perspective: real_observations[perspective][:4] for perspective in
+                            ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                        },
+                        lidar=observations["lidar"][:record["key_frame"] + 1],
+                        metadrive_scene=extract_frames(episode),
+                        multiview=True,
+                        source=source
+                    )
+                    idx += 1
+            else:
+                for record in record_list:
+                    qa_tuples[idx] = dict(
+                        question=record["question"], answer=record["answer"],
+                        question_type="|".join(["safety", question_type]), answer_form=record["answer_form"],
+                        rgb={
+                            perspective: observations[perspective][5:] for perspective in
+                            ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                        },
+                        real={
+                            perspective: real_observations[perspective][1:] for perspective in
+                            ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+                        },
+                        lidar=observations["lidar"][5:],
+                        metadrive_scene=extract_frames(episode),
+                        multiview=True,
+                        source=source
+                    )
+                    idx += 1
+    json.dump(qa_tuples, open(summary_path, "w"), indent=2)
+
+
+def safety_setting_nuscene():
+    parser = argparse.ArgumentParser()
+    cwd = os.getcwd()
+    default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
+    parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate QA data")
+    parser.add_argument("--root_directory", type=str, default=None,
+                        help="the paths to the recorded data")
+    parser.add_argument("--output_base", type=str, default="./safety_qa",
+                        help="directory to the generated QA files, each file will be extended with id ")
+    parser.add_argument("--src", type=str, default="PG", help="specify the data source of the driving scenarios")
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
+    print("Running with the following parameters")
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+
+    all_episodes = load_valid_episodes(args.root_directory)
+    print(f"Find {len(all_episodes)} valid episodes under session {args.root_directory}")
+    chunks = divide_list_into_n_chunks(all_episodes, args.num_proc)
+    processes = []
+    for proc_id in range(args.num_proc):
+        p = multp.Process(
+            target=safety_job_nuscene,
+            args=(
+                chunks[proc_id],
+                args.src,
+                os.path.join(args.output_base, f"safety_qa_nuscene{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
