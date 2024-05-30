@@ -151,7 +151,7 @@ def static_job_nuscene(paths, source, summary_path, verbose=False, multiview=Tru
         identifier = os.path.basename(folder_name)
         perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
         lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
-        record, num_data = generate_all_frame_nuscene(templates["generic"], path, 20, 2, count, verbose=verbose,
+        record, num_data = generate_all_frame_nuscene(templates["generic"], path, 100, 10, count, verbose=verbose,
                                               multiview=multiview)
         for id, info in record.items():
             records[id] = dict(
@@ -209,7 +209,7 @@ def static_setting_nuscene():
         p = multp.Process(
             target=static_job_nuscene,
             args=(
-                chunks[proc_id][:1],
+                chunks[proc_id],
                 args.src,
                 os.path.join(args.output_base, f"static_qa_nuscene{proc_id}.json"),
                 True if args.verbose else False,
@@ -602,8 +602,25 @@ def safety_setting_nuscene():
 
 
 if __name__ == "__main__":
-    #static_setting()
-    #dynamic_setting()
-    #safety_setting()
-    #static_setting_nuscene()
-    safety_setting_nuscene()
+    """  parser = argparse.ArgumentParser()
+    parser.add_argument("--job", type=str, default="static",
+                        choices=["static", "dynamic", "safety",
+                                 "static_nuscene", "dynamic_nuscene", "safety_nuscene"],
+                        help="Whoose which job to run")
+    args = parser.parse_args()
+    print(f"Running {args.job}_job()!")
+    if args.job == "static":
+        static_setting()
+    elif args.job == "dynamic":
+        dynamic_setting()
+    elif args.job == "safety":
+        safety_setting()
+    elif args.job == "static_nuscene":
+        static_setting_nuscene()
+    elif args.job == "dynamic_nuscene":
+        dynamic_setting_nuscene()
+    elif args.job == "safety_nuscene":
+        safety_setting_nuscene()
+    else:
+        print(f"Unkown Job !{args.job}")"""
+    dynamic_setting_nuscene()
