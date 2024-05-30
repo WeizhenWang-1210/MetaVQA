@@ -59,6 +59,20 @@ def select_key_frames(root_dir, frame_per_episode=3):
     return key_frames
 
 
+
+def find_nuscene_frames(root_dir):
+    result = []
+    root_dir_content = os.listdir(root_dir)
+    episodes_folder = [content for content in root_dir_content if os.path.isdir(os.path.join(root_dir, content))]
+    for content in episodes_folder:
+        path = os.path.join(root_dir, content)
+        path_template = os.path.join(path, "**/real*.png")
+        frame_files = glob.glob(path_template, recursive=True)
+        nuscenes_folders = list(set([os.path.dirname(frame_file) for frame_file in frame_files]))
+        result += nuscenes_folders
+    return result
+
+
 def extract_observations(episode, debug=False):
     def extract_numbers(filename):
         identifier = filename.split("/")[-2]
@@ -371,5 +385,4 @@ def generate():
 
 
 if __name__ == "__main__":
-    #generate()
-    generate()
+    print(find_nuscene_frames("C:/Users/arnoe/Downloads/real"))
