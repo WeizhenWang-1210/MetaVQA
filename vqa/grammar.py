@@ -104,6 +104,40 @@ NO_COLOR_CFG = {
 }
 
 
+NO_COLOR_NO_TYPE = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"], ["parked"], ["accelerating"], ["decelerating"], ["turn_left"], ["turn_right"]
+    ],
+    "<a>": [
+        ["nil"], ["<passive_deed>", "<o>"], ["<active_deed>", "<o>"]
+    ],
+    "<passive_deed>": [
+        ["followed"], ["passed_by"], ["headed_toward"], ["accompanied_by"]
+    ],
+    "<active_deed>": [
+        ["follow"], ["pass_by"], ["head_toward"], ["move_alongside"],
+    ],
+    "<p>": [
+        ["nil"]
+    ],
+    "<t>": [
+        ["nil"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<o>"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ]
+
+
+
+}
+
 
 NO_TYPE_CFG = {
     "<o>": [
@@ -231,6 +265,31 @@ NO_TYPE_STATIC = {
     "<tx>": [
         ["nil"], ["Hatchback"], ["Pickup"], ["Policecar"], ["SUV"], ["Sedan"], ["SportCar"], ["Truck"], ["Pedestrian"],
         ["vehicle"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ],
+    "<a>": [
+        ["nil"]
+    ],
+}
+
+NO_COLOR_NO_TYPE_STATIC = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"]
+    ],
+    "<p>": [
+        ["nil"]
+    ],
+    "<t>": [
+        ["nil"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<o>"]
     ],
     "<tdir>": [
         ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
