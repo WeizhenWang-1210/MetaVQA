@@ -170,6 +170,132 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
     return record, counts
 
 
+
+
+def find_supertype(subname):
+    if subname in ["Hatchback","Pickup","Policecar","SUV","Sedan","SportCar"]:
+        return "vehicle"
+    else:
+        return subname
+
+
+from vqa.grammar import NO_COLOR_NO_TYPE_STATIC
+def generate_all_frame_nuscene(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False,
+                       multiview: bool = True) -> dict:
+    '''
+        Take in a path to a world.json file(a single frame), generate all
+        static questions
+        '''
+    try:
+        with open(frame, 'r') as file:
+            scene_dict = json.load(file)
+    except Exception as e:
+        raise e
+    print("Working on scene {}".format(frame))
+    ego_id, nodelist = nodify(scene_dict, multiview=multiview)
+    graph = SceneGraph(ego_id, nodelist, frame)
+    # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
+    record = {}
+    counts = 0
+    valid_questions = set()
+    for question_type, specification in templates.items():
+        if question_type in ["color_identification", "color_identification_unique", "type_identification", "type_identification_unique"]:
+            continue
+        type_count = 0
+        grammar = NO_COLOR_NO_TYPE_STATIC
+        for lhs, rhs in graph.statistics.items():
+            if lhs == "<p>":
+               continue
+            else:
+                names = list(set([find_supertype(stuff) for stuff in rhs]))
+                grammar[lhs] = [[name] for name in names]
+        for idx in range(attempts):
+            if verbose:
+                print("Attempt {} of {} for {}".format(idx, attempts, question_type))
+            q = QuerySpecifier(type=question_type, template=specification, parameters=None, graph=graph,
+                               grammar=grammar, debug=False, stats=True)
+            if q.signature in valid_questions:
+                if verbose:
+                    print("Skip <{}> since the equivalent question has been asked before".format(q.translate()))
+                continue
+            result = q.export_qa()
+            if verbose:
+                print(result)
+            for question, answer in result:
+                if question_type == "counting":
+                    ids, answer = answer
+                    if answer[0] > 0:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="str",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
+                            ids=ids
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                            # return record
+                elif question_type == "localization":
+                    ids, answer = answer
+                    if len(answer) != 0:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="str",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
+                            ids=ids
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                            # return record
+                elif question_type == "count_equal_binary" or question_type == "count_more_binary":
+                    ids, answer = answer
+                    degenerate = True
+                    for param, info in q.parameters.items():
+                        if len(q.parameters[param]["answer"]) > 0:
+                            degenerate = False
+                            break
+                    if not degenerate:
+                        record[id_start + counts + type_count] = dict(
+                            question=question,
+                            answer=answer,
+                            answer_form="str",
+                            question_type=question_type,
+                            type_statistics=q.statistics["types"],
+                            pos_statistics=q.statistics["pos"],
+                            color_statistics=q.statistics["colors"],
+                            ids=ids
+                            # already in ego's coordinate, with ego's heading as the +y direction
+                        )
+                        type_count += 1
+                        valid_questions.add(q.signature)
+                        if type_count >= max:
+                            break
+                            # return record
+                else:
+                    print(f"Unknown question type!:{question_type}")
+            if type_count >= max:
+                break
+        counts += type_count
+    if verbose:
+        print("{} questions generated for {}".format(counts, frame))
+    return record, counts
+
+
+
+
 def static_all(root_folder, source, summary_path, verbose=False, multiview=True):
     def find_world_json_paths(root_dir):
         world_json_paths = []  # List to hold paths to all world_{id}.json files
