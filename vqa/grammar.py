@@ -133,10 +133,41 @@ NO_COLOR_NO_TYPE = {
     "<tdir>": [
         ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
     ]
-
-
-
 }
+
+
+
+NO_COLOR_NO_TYPE_NO_STATE = {
+    "<o>": [
+        ["<s>", "<p>", "<t>", "<dir>", "<a>"],
+        ["us"]
+    ],
+    "<s>": [
+        ["nil"]
+    ],
+    "<a>": [
+        ["nil"], ["<passive_deed>", "<o>"], ["<active_deed>", "<o>"]
+    ],
+    "<passive_deed>": [
+        ["followed"], ["passed_by"], ["headed_toward"], ["accompanied_by"]
+    ],
+    "<active_deed>": [
+        ["follow"], ["pass_by"], ["head_toward"], ["move_alongside"],
+    ],
+    "<p>": [
+        ["nil"]
+    ],
+    "<t>": [
+        ["nil"]
+    ],
+    "<dir>": [
+        ["nil"], ["<tdir>", "<o>"]
+    ],
+    "<tdir>": [
+        ["l"], ["r"], ["f"], ["b"], ["lf"], ["rf"], ["lb"], ["rb"],
+    ]
+}
+
 
 
 NO_TYPE_CFG = {

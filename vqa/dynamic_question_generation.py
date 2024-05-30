@@ -32,7 +32,6 @@ def load_valid_episodes(session_folder):
     return [os.path.join(session_folder, valid_episode) for valid_episode in valid_episodes]
 
 
-
 def extract_frames(episode, debug=False):
     annotation_path_template = f"{episode}/**/world*.json"
     files = glob.glob(annotation_path_template, recursive=True)
@@ -93,6 +92,20 @@ def extract_observations(episode, debug=False):
         length = len(observations["lidar"])
         for value in observations.values():
             assert len(value) == length
+    return observations
+
+
+def extract_real_observations(episode, debug=False):
+    def extract_numbers(filename):
+        identifier = filename.split("/")[-2]
+        x, y = identifier.split('_')
+        return (int(x), int(y))
+    observations = {}
+    perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
+    for perspective in perspectives:
+        rgb_path_template = f"{episode}/**/real_{perspective}**.png"
+        sorted_rgb = sorted(glob.glob(rgb_path_template, recursive=True), key=extract_numbers)
+        observations[perspective] = sorted_rgb
     return observations
 
 
@@ -332,6 +345,105 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
             counts += len(candidates[question_type])
     return candidates, counts, context_string
 
+from vqa.grammar import  NO_COLOR_NO_TYPE
+from vqa.static_question_generation import find_supertype
+
+import copy
+def  generate_trimmed_grammar_nuscenes(graph, template):
+    from vqa.grammar import NO_COLOR_NO_TYPE_NO_STATE, NO_COLOR_NO_TYPE
+    statistics = graph.statistics
+    if "no_state" in template["constraint"]:
+        grammar = copy.deepcopy(NO_COLOR_NO_TYPE_NO_STATE)
+        for lhs, rhs in statistics.items():
+            if lhs == "<t>":
+                names = list(set([find_supertype(stuff) for stuff in rhs]))
+                grammar[lhs] = [[name] for name in names]
+            elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+                grammar[lhs] = [[item] for item in rhs]
+    else:
+        grammar = copy.deepcopy(NO_COLOR_NO_TYPE)
+        for lhs, rhs in statistics.items():
+            if lhs == "<t>":
+                names = list(set([find_supertype(stuff) for stuff in rhs]))
+                grammar[lhs] = [[name] for name in names]
+            elif lhs == "<active_deed>" or lhs == "<passive_deed>":
+                grammar[lhs] = [[item] for item in rhs]
+            elif lhs != "<p>":
+                grammar[lhs] = [[item] for item in rhs + ["nil"]]
+    # finally, remove non-terminal token that can'tbe grounded in our particular scene.
+    remove_key = set()
+    for lhs, rhs in grammar.items():
+        if len(rhs) == 0:
+            remove_key.add(lhs)
+    new_grammar = copy.deepcopy(grammar)
+    for token in remove_key:
+        new_grammar.pop(token)
+    for token in remove_key:
+        for lhs, rules in new_grammar.items():
+            new_rule = []
+            for rhs in rules:
+                if token in rhs:
+                    continue
+                new_rule.append(rhs)
+            new_grammar[lhs] = new_rule
+    return new_grammar
+
+
+
+
+
+
+
+
+
+
+
+
+def generate_dynamic_questions_nuscene(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
+    frame_files = extract_frames(episode)
+    graph = TemporalGraph(frame_files)
+    print(f"Generating dynamic questions for {episode}...")
+    print(f"KEY FRAME at{graph.framepaths[graph.idx_key_frame]}")
+    print(f"Key frame is {graph.idx_key_frame}")
+    print(f"Total frame number {len(graph.frames)}")
+    context_string = generate_context_string(graph)
+    if verbose:
+        print(f"Context: {context_string}")
+    candidates, counts, valid_questions = defaultdict(list), 0, set()
+    for question_type, question_template in templates.items():
+        if question_type in ["color_identification", "color_identification_unique", "type_identification",
+                             "type_identification_unique"]:
+            continue
+        grammar = generate_trimmed_grammar_nuscenes(graph, question_template)
+        countdown, generated = attempts_per_type, 0
+        while countdown > 0 and generated < max_per_type:
+            if verbose:
+                print("Attempt {} of {} for {}".format(attempts_per_type - countdown, attempts_per_type, question_type))
+            q = DynamicQuerySpecifier(
+                type=question_type, template=question_template, parameters=None, graph=graph,
+                grammar=grammar, debug=False, stats=True,
+            )
+            if q.signature in valid_questions:
+                if verbose:
+                    print("Skip <{}> since the equivalent question has been asked before".format(q.translate()))
+                continue
+            result = q.export_qa()
+            if verbose:
+                print(result)
+            if not_degenerate(question_type, q, result):
+                candidates = add_to_record(question_type, q, result, candidates)
+                # print(candidates)
+                valid_questions.add(q.signature)
+                generated += 1
+            countdown -= 1
+        if generated > choose:
+            candidate = candidates[question_type]
+            final_selected = random.sample(candidate, choose)
+            candidates[question_type] = final_selected
+            counts += len(final_selected)
+        else:
+            counts += len(candidates[question_type])
+    return candidates, counts, context_string
 
 def generate():
     session_name = "collision_scenarios_long"  # "test_collision"
