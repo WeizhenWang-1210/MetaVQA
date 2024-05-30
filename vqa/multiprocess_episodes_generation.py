@@ -223,7 +223,7 @@ def safety_critical():
                 args.headless,
                 config,
                 num_scenarios,
-                job_intervals[proc_id],
+                job_intervals[proc_id][3:6],
                 prefix
             )
         )
