@@ -135,7 +135,7 @@ def static_setting():
 
 from vqa.dynamic_question_generation import find_nuscene_frames
 from vqa.static_question_generation import generate_all_frame_nuscene
-def static_job_nuscenes(paths, source, summary_path, verbose=False, multiview=True):
+def static_job_nuscene(paths, source, summary_path, verbose=False, multiview=True):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(current_directory, "question_templates.json")
     try:
@@ -207,11 +207,11 @@ def static_setting_nuscene():
     for proc_id in range(args.num_proc):
         print(f"Sent job {proc_id}")
         p = multp.Process(
-            target=static_job_nuscenes,
+            target=static_job_nuscene,
             args=(
                 chunks[proc_id][:1],
                 args.src,
-                os.path.join(args.output_base, f"static_qa{proc_id}.json"),
+                os.path.join(args.output_base, f"static_qa_nuscene{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
@@ -364,7 +364,7 @@ def dynamic_setting_nuscene():
             args=(
                 chunks[proc_id],
                 args.src,
-                os.path.join(args.output_base, f"dynamic_qa{proc_id}.json"),
+                os.path.join(args.output_base, f"dynamic_qa_nuscene{proc_id}.json"),
                 True if args.verbose else False,
             )
         )
@@ -605,4 +605,5 @@ if __name__ == "__main__":
     #static_setting()
     #dynamic_setting()
     #safety_setting()
-    static_setting_nuscene()
+    #static_setting_nuscene()
+    safety_setting_nuscene()
