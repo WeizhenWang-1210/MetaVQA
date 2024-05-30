@@ -89,18 +89,11 @@ def static_job(paths, source, summary_path, verbose=False, multiview=True):
     except Exception as e:
         raise e
 
+
+
+
 from vqa.dynamic_question_generation import select_key_frames
 def static_setting():
-    def find_world_json_paths(root_dir, frame_per_episode = 2):
-        world_json_paths = []  # List to hold paths to all world_{id}.json files
-        for root, dirs, files in os.walk(root_dir):
-            # Extract the last part of the current path, which should be the frame folder's name
-            frame_folder_name = os.path.basename(root)
-            expected_json_filename = f'world_{frame_folder_name}.json'  # Construct expected filename
-            if expected_json_filename in files:
-                path = os.path.join(root, expected_json_filename)  # Construct full path
-                world_json_paths.append(path)
-        return world_json_paths
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -138,6 +131,97 @@ def static_setting():
     for p in processes:
         p.join()
     print("All processes finished.")
+
+
+from vqa.dynamic_question_generation import find_nuscene_frames
+from vqa.static_question_generation import generate_all_frame_nuscene
+def static_job_nuscenes(paths, source, summary_path, verbose=False, multiview=True):
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(current_directory, "question_templates.json")
+    try:
+        with open(template_path, "r") as f:
+            templates = json.load(f)
+    except Exception as e:
+        raise e
+    records = {}
+    count = 0
+    for path in paths:
+        assert len(QuerySpecifier.CACHE) == 0, f"Non empty cache for {path}"
+        folder_name = os.path.dirname(path)
+        identifier = os.path.basename(folder_name)
+        perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
+        lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
+        record, num_data = generate_all_frame_nuscene(templates["generic"], path, 20, 2, count, verbose=verbose,
+                                              multiview=multiview)
+        for id, info in record.items():
+            records[id] = dict(
+                question=info["question"],
+                answer=info["answer"],
+                question_type="|".join(["static", info["question_type"]]),
+                answer_form=info["answer_form"],
+                type_statistics=info["type_statistics"],
+                pos_statistics=info["pos_statistics"],
+                color_statistics=info["color_statistics"],
+                ids=info["ids"],
+                rgb={perspective: [os.path.join(folder_name, f'rgb_{perspective}_{identifier}.png')] for perspective in
+                     perspectives},
+                real={
+                    perspective: [os.path.join(folder_name, f'real_{perspective}_{identifier}.png')] for perspective in
+                    perspectives
+                },
+                lidar=[lidar],
+                metadrive_scene=[path],
+                multiview=multiview,
+                source=source,
+            )
+        count += num_data
+        QuerySpecifier.CACHE.clear()
+    try:
+        with open(summary_path, "w") as f:
+            json.dump(records, f, indent=2),
+    except Exception as e:
+        raise e
+
+
+def static_setting_nuscene():
+    parser = argparse.ArgumentParser()
+    cwd = os.getcwd()
+    default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
+    parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate QA data")
+    parser.add_argument("--root_directory", type=str, default=None,
+                        help="the paths to the recorded data")
+    parser.add_argument("--output_base", type=str, default="./qa",
+                        help="directory to the generated QA files, each file will be extended with proc_id ")
+    parser.add_argument("--src", type=str, default="PG", help="specify the data source of the driving scenarios")
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
+
+    print("Running with the following parameters")
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    all_paths = find_nuscene_frames(args.root_directory)
+    print(len(all_paths))
+    # exit()
+    chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
+    processes = []
+    for proc_id in range(args.num_proc):
+        print(f"Sent job {proc_id}")
+        p = multp.Process(
+            target=static_job_nuscenes,
+            args=(
+                chunks[proc_id][:1],
+                args.src,
+                os.path.join(args.output_base, f"static_qa{proc_id}.json"),
+                True if args.verbose else False,
+            )
+        )
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+    print("All processes finished.")
+
+
 
 
 def dynamic_job(episode_folders, source, summary_path, verbose=False):
@@ -321,6 +405,7 @@ def safety_setting():
 
 
 if __name__ == "__main__":
-    static_setting()
+    #static_setting()
     #dynamic_setting()
     #safety_setting()
+    static_setting_nuscene()
