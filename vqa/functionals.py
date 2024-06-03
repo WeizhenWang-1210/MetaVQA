@@ -297,9 +297,6 @@ def identify_speed(search_spaces):
     return result
 
 
-
-
-
 def identify_heading(origin_pos, origin_heading):
 
 
