@@ -3,7 +3,6 @@
 This script demonstrates how to use the environment where traffic and road map are loaded from Waymo dataset.
 """
 import argparse
-
 import PIL.Image
 from metadrive.constants import HELP_MESSAGE
 from metadrive.engine.asset_loader import AssetLoader
@@ -12,13 +11,9 @@ from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from collections import deque
-import numpy as np
-import cv2
-import imageio
-import os
-import json
 import torch
-def load_and_process_images(images_lists, vis_processor, device="cpu"):
+from online_eval import device
+def load_and_process_images(images_lists, vis_processor):
     # image paths: 6x20(view x time) list of paths
     # return: 5x6x3x364x364 tensor (5 is the select time)
     # Define the views
@@ -42,7 +37,16 @@ def load_and_process_images(images_lists, vis_processor, device="cpu"):
     return processed_images_tensor
 
 
+def vector_transform(origin, positive_x, point):
+    def change_bases(x, y):
+        relative_x, relative_y = x - origin[0], y - origin[1]
+        new_x = positive_x
+        new_y = (-new_x[1], new_x[0])
+        x = (relative_x * new_x[0] + relative_y * new_x[1])
+        y = (relative_x * new_y[0] + relative_y * new_y[1])
+        return [x, y]
 
+    return change_bases(*point)
 
 
 class Buffer:
@@ -71,11 +75,15 @@ class Buffer:
                 empty_img = np.zeros((3, 540, 960), dtype=np.uint8)
                 img = PIL.Image.fromarray(empty_img)
                 all_views_images[idx].append(img)"""
-        for item in self.dq:
-            for idx,  perspective in enumerate(views):
+        for item, _, _ in self.dq:
+            for idx, perspective in enumerate(views):
                 img = PIL.Image.fromarray(item[perspective])
                 all_views_images[idx].append(img)
-        return load_and_process_images(all_views_images, vis_processor)
+        old_position, now_position = self.dq[0][1], self.dq[-1][1]
+        now_heading = self.dq[-1][2]
+        change = [now_position[0] - old_position[0], now_position[1] - old_position[1]]
+        displacement = vector_transform(now_heading, now_heading, change)
+        return load_and_process_images(all_views_images, vis_processor), displacement, now_position
 
 
 
