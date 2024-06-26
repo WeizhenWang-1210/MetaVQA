@@ -40,14 +40,15 @@ def parse_args():
     args = parser.parse_args()
 
     return args
-def load_model():
+def load_model(trained = True):
     args = parse_args()
     cfg = Config(args)
     task = tasks.setup_task(cfg)
     print("Initialize the model...")
     model = task.build_model(cfg)
     print("Load Checkpoint...")
-    model = load_ckpt(model, model_path)
+    if trained:
+        model = load_ckpt(model, model_path)
     print('Success!')
     # vis_config =  cfg.get("vis_processor").get("eval")
     # text_config = cfg.get("text_processor").get("eval")
