@@ -1,5 +1,5 @@
 ---
-storage_path : "/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"
+storage_path : "C:/school/Bolei/Merging/MetaVQA/demo_top_down"
 map_setting:
   PG: True
   map_size: 5
@@ -14,6 +14,6 @@ sample_frequency: 1
 num_samples: 10000
 max_iterations: 1000000000000000
 temporal_generation: True
-episode_length: 25
-skip_length: 40
+episode_length: 1
+skip_length: 20
 ...

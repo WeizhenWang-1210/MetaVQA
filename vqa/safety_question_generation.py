@@ -45,7 +45,7 @@ def choices(question_type, graph):
         tnow = len(graph.frames) - 1
         answer = counterfactual_stop(graph, t)
         config = {
-            "<t>": t, "<tnow>": tnow, "answer": answer
+            "<t>": t, "<tnow>": tnow, "answer": not answer
         }
     elif question_type == "move_around":
         tnow = len(graph.frames) - 1
@@ -60,7 +60,7 @@ def choices(question_type, graph):
                 answer = False
                 break
         config = {
-            "<d>": offset, "<tnow>": tnow, "answer": answer
+            "<d>": offset, "<tnow>": tnow, "answer": not answer
         }
     elif question_type == "predict_collision":
         flag, objects, collision_step = predict_collision(graph)

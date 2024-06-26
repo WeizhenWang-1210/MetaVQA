@@ -7,6 +7,9 @@ import numpy as np
 
 
 def predict_collision(graph: TemporalGraph) -> Tuple[bool, Iterable[TemporalNode], int]:
+    '''
+    Return val[0] = true if have collision, and false otherwise.
+    '''
     collided_objects = set()
     collided_steps = set()
     ego = graph.get_ego_node()
@@ -25,6 +28,9 @@ def move_around(original_trajectory, offset, inject_step):
 
 
 def counterfactual_trajectory(graph, injected_trajectory):
+    '''
+    Return True if the injected trajectory will avoid the collision, and False otherwise.
+    '''
     ego = graph.get_ego_node()
     nodes = [graph.get_node(id) for id in graph.nodes.keys() if id != ego.id]
     for other in nodes:
@@ -37,6 +43,9 @@ from vqa.dataset_utils import generate_stopped_trajectory
 
 
 def counterfactual_stop(graph, stop_step):
+    '''
+    Return True if stop at stop_step will avoid the collision, and False otherwise.
+    '''
     # ego_trajectory = ego.positions
     ego = graph.get_ego_node()
     nodes = [graph.get_node(id) for id in graph.nodes.keys() if id != ego.id]

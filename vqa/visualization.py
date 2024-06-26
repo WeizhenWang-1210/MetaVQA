@@ -7,6 +7,7 @@ from PIL import Image
 import numpy as np
 import imageio
 
+
 def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict, ) -> np.array:
     """
     Hight light imgs. If the color actually exists in the image, hightlight it into white
@@ -23,6 +24,8 @@ def highlight(img: np.array, ids: Iterable[str], colors: Iterable, mapping: dict
     flattened = flattened * 255  # Restore into 0-255 so that cv2.imwrite can property write the image
     flattened = flattened[:, [2, 1, 0]]  # Convert rgb back to bgr
     return flattened.reshape(H, W, C)
+
+
 def generate_highlighted(path_to_mask, path_to_mapping, folder, ids, colors, prefix="highlighted"):
     """
     Take in an instance segmentation masks to recolor pixels that belong to 
@@ -70,7 +73,7 @@ def multiview_visualization(images, output_path):
     Image.fromarray(grid_array).save(output_path)
 
 
-def create_video(frame_arrays, filename, fps = 10):
+def create_video(frame_arrays, filename, fps=10):
     """
     frames in (h,w,c) numpy arrays, unint8
     output_path should be str
@@ -123,30 +126,30 @@ def concatenate_frames(framepaths):
 
 def visualize_session(root_dir):
     def extract_numbers(filename):
-        #print(os.path.basename(filename))
+        # print(os.path.basename(filename))
         basename = os.path.basename(filename)
         basename = basename.split(".")[0]
         basename = basename.split("_")
         x, y = int(basename[-2]), int(basename[-1])
-        #identifier = filename.split("/")[-2]
-        #x, y = identifier.split('_')
-        return x,y#(int(x), int(y))
+        # identifier = filename.split("/")[-2]
+        # x, y = identifier.split('_')
+        return x, y  # (int(x), int(y))
+
     contents = os.listdir(root_dir)
     for content in contents:
         if os.path.isdir(os.path.join(root_dir, content)):
-            #print(content)
+            # print(content)
             perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
             imarrays = {
                 perspective: [] for perspective in perspectives
             }
             for perspective in perspectives:
-
                 path_template = f"{root_dir}/{content}/**/rgb_{perspective}*.png"
-                frame_files = sorted(glob.glob(path_template, recursive=True),key=extract_numbers)
+                frame_files = sorted(glob.glob(path_template, recursive=True), key=extract_numbers)
                 # print(frame_files)
                 imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
             num_frames = len(imarrays[perspectives[0]])
-            #print(num_frames)
+            # print(num_frames)
             concatenated_arrays = []
             for frame in range(num_frames):
                 arrays = []
@@ -155,14 +158,13 @@ def visualize_session(root_dir):
                 concatenated_arrays.append(gridify_imarrays(arrays))
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_rgb.mp4")
 
-
             for perspective in perspectives:
                 path_template = f"{root_dir}/{content}/**/real_{perspective}*.png"
-                frame_files = sorted(glob.glob(path_template, recursive=True),key=extract_numbers)
+                frame_files = sorted(glob.glob(path_template, recursive=True), key=extract_numbers)
                 # print(frame_files)
                 imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
             num_frames = len(imarrays[perspectives[0]])
-            #print(num_frames)
+            # print(num_frames)
             concatenated_arrays = []
             for frame in range(num_frames):
                 arrays = []
@@ -171,14 +173,13 @@ def visualize_session(root_dir):
                 concatenated_arrays.append(gridify_imarrays(arrays))
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_real.mp4", fps=2)
 
-
             for perspective in perspectives:
                 path_template = f"{root_dir}/{content}/**/mask_{perspective}*.png"
-                frame_files = sorted(glob.glob(path_template, recursive=True),key=extract_numbers)
+                frame_files = sorted(glob.glob(path_template, recursive=True), key=extract_numbers)
                 # print(frame_files)
                 imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
             num_frames = len(imarrays[perspectives[0]])
-            #print(num_frames)
+            # print(num_frames)
             concatenated_arrays = []
             for frame in range(num_frames):
                 arrays = []
@@ -188,16 +189,60 @@ def visualize_session(root_dir):
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_mask.mp4")
 
             top_down_template = f"{root_dir}/{content}/**/top_down*.png"
-            frame_files = sorted(glob.glob(top_down_template, recursive=True),key=extract_numbers)
+            frame_files = sorted(glob.glob(top_down_template, recursive=True), key=extract_numbers)
             imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
             create_video(imarrays, f"{root_dir}/{content}/episode_top_down.mp4")
 
+def visualize_frames(root_dir):
+    perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
+    for content in os.listdir(root_dir):
+        if os.path.isdir(os.path.join(root_dir, content)):
+            # this is an episode folder
+            joined_path = os.path.join(root_dir, content)
+            frame_folders = os.listdir(joined_path)
+            frame_folders = [stuff for stuff in frame_folders if os.path.isdir(os.path.join(joined_path, stuff))]
+            for frame_folder in frame_folders:
+                print("Working on frame {}".format(frame_folder))
+                frame_path = os.path.join(joined_path, frame_folder)
+                img_paths = [os.path.join(frame_path, f"rgb_{perspective}_{frame_folder}.png") for perspective in
+                             perspectives]
+                multiview_rendering_path = os.path.join(frame_path, "multiview_rendering.png")
+                multiview_real_path = os.path.join(frame_path, "multiview_real.png")
+                multiview_visualization(img_paths, multiview_rendering_path)
+                path_template = os.path.join(frame_path, "real*.png")
+                have_real = len(glob.glob(path_template)) > 0
+                if have_real:
+                    real_paths = [os.path.join(frame_path, f"real_{perspective}_{frame_folder}.png") for perspective in
+                                  perspectives]
+                    multiview_visualization(real_paths, multiview_real_path)
 
 
+from collections import defaultdict
+def demo(directory):
+    def extract_numbers(filename):
+        # print(os.path.basename(filename))
+        basename = os.path.basename(filename)
+        basename = basename.split(".")[0]
+        basename = basename.split("_")
+        x, y = int(basename[-2]), int(basename[-1])
+        # identifier = filename.split("/")[-2]
+        # x, y = identifier.split('_')
+        return x, y  # (int(x), int(y))
 
+    perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
+    imgs = {perspective:[] for perspective in perspectives}
+    for perspective in perspectives:
+        perspective_folder = os.path.join(directory, perspective)
+        img_paths = sorted(glob.glob(os.path.join(perspective_folder, "*.png")), key=extract_numbers)
+        imgs[perspective] = img_paths
+    img_ordered_by_frames = {i:[] for i in range(20)}
+    for i in img_ordered_by_frames.keys():
+        for perspective in perspectives:
+            img_ordered_by_frames[i].append(imgs[perspective][i])
+        multiview_visualization(img_ordered_by_frames[i], os.path.join(directory, f"multiview_{i}.png"))
 
 if __name__ == "__main__":
-    import glob 
+    import glob
 
     """ concatenate_frames(
         ["E:/Bolei/MetaVQA/multiview_final/11_30_30/11_30"]
@@ -232,12 +277,6 @@ if __name__ == "__main__":
 
     # episode_folder = "C:/school/Bolei/Merging/MetaVQA/verification_multiview/95_30_59/**/rgb_back*.json"
 
-
-
-
-
-
-
     """perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
     imarrays = {
         perspective: [] for perspective in perspectives
@@ -261,8 +300,7 @@ if __name__ == "__main__":
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
     create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")"""
-    visualize_session("C:/Users/arnoe/Downloads/real")
+    #visualize_session("C:/Users/arnoe\Downloads/real")
+    #visualize_frames("C:/Users/arnoe/Downloads/nuscenes")
 
-# chain of thought true false: are ther more x than y? yes becaus we have a x and b y.
-# control signal/context inserted as text.
-
+    demo("C:/Users/arnoe/Downloads/QA_rgb/QA_rgb/ safety_obs")

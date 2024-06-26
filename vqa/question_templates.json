@@ -1,5 +1,5 @@
 {
-    "generic":{
+    "static":{
         "localization":{
             "text": [
                 "Locate all <o>. Give me the bounding boxes expressed in our coordinates.",
@@ -82,7 +82,7 @@
         "type_identification": {
             "text": [
                 "What types of <o> are observable?",
-                "For the <o>, what are their types?",
+                "For <o>, what are their types?",
                 "What types do <o> fall into?",
                 "Can you list the types of <o>?",
                 "Name the types of <o>.",
@@ -115,7 +115,7 @@
         },
         "type_identification_unique": {
             "text": [
-                "For the <o>, what is its type?",
+                "For <o>, what is its type?",
                 "What type does <o> fall into?",
                 "Name the type of <o>.",
                 "Identify the type of <o>.",
@@ -151,7 +151,7 @@
                 "At this moment, how many <o> are observed?",
                 "At this moment, how many <o> are there in observation?",
                 "Give me the number of <o> at this moment.",
-                "Count the number of observed <o> at current moment",
+                "Count the number of observed <o> at current moment.",
                 "Determine how many <o> are observed at current moment.",
                 "Record the quantity of <o> at current moment."
             ],
@@ -210,7 +210,7 @@
         "type_identification": {
             "text": [
                 "What types of <o> are observable?",
-                "For the <o>, what are their types?",
+                "For <o>, what are their types?",
                 "What types do <o> fall into?",
                 "Can you list the types of <o>?",
                 "Name the types of <o>.",
@@ -243,7 +243,7 @@
         },
         "type_identification_unique": {
             "text": [
-                "For the <o>, what is its type?",
+                "For <o>, what is its type?",
                 "What type does <o> fall into?",
                 "Name the type of <o>.",
                 "Identify the type of <o>.",
@@ -257,9 +257,9 @@
         },
         "identify_stationary": {
             "text": [
-                "Given the past observations, is the <o> stationary?",
-                "Given the past observations, is the <o> parked?",
-                "Is the <o> not moving?"
+                "Given the past observations, is <o> stationary?",
+                "Given the past observations, is <o> parked?",
+                "Is <o> not moving?"
             ],
             "params": [
                 "<o>"
@@ -271,7 +271,7 @@
         },
         "identify_turning": {
             "text": [
-                "Did the <o> turn?"
+                "Did <o> turn?"
             ],
             "params": [
                 "<o>"
@@ -283,7 +283,7 @@
         },
         "identify_acceleration": {
             "text": [
-                "Did the <o> accelerated?"
+                "Did <o> accelerated?"
             ],
             "params": [
                 "<o>"
@@ -295,7 +295,7 @@
         },
         "identify_speed": {
             "text":[
-                "What's speed of <o> now?"
+                "What's the speed of <o> now?"
             ],
             "params":[
                 "<o>"
@@ -319,7 +319,7 @@
         },
         "identify_head_toward": {
             "text":[
-                "Is the <o> heading toward us?"
+                "Is <o> heading toward us?"
             ],
             "params":[
                 "<o>"
@@ -350,17 +350,17 @@
             "params":[
             ],
             "end_filter":"predict_collision",
-            "constraint":["before_collision"]
+            "constraint":[]
         },
         "counterfactual_trajectory": {
             "text":[
-                "We observed from time t=0 to t=<tnow>. Suppose we started moving along <traj> at t=<t>, can we avoid collision? The trajectory uses our current frame as the reference."
+                "We observed from time t=0 to t=<tnow>. Suppose we started moving along <traj> at t=<t>; can we avoid the collision? The trajectory uses our current frame as the reference."
             ],
             "params": [
                 "<traj>", "<t>", "<tnow>"
             ],
             "end_filter":"blame_collision",
-            "constraint":["after_collision"]
+            "constraint":[]
         },
         "stop_safe": {
             "text": [
@@ -370,17 +370,17 @@
                 "<t>", "<tnow>"
             ],
             "end_filter":"counterfactual_stop",
-            "constraint":["after_collision"]
+            "constraint":[]
         },
         "move_around": {
             "text": [
-                "We observed from time t=0 to t=<tnow>. If we were <d> away from where we are now, will there be any collision?"
+                "We observed from time t=0 to t=<tnow>. If we were <d> away from where we are now, would there be any collision?"
             ],
             "params": [
                 "<d>", "<tnow>"
             ],
             "end_filter": "counterfactual_displacement",
-            "constraint": ["after_collision"]
+            "constraint": []
         }
     }
 }

@@ -134,7 +134,7 @@ def load_example(vis_processors, text_processors):
     annotation_keys = list(annotations.keys())
     id = annotation_keys[5]
     val = annotations[id]
-    image_path = process_image_path(val) # 6 x 20 list, 6 is view, 20 is timeframe 
+    image_path = process_image_path(val) # 6 x 20 list, 6 is view, 20 is timeframe
     print(image_path)
     print(len(image_path)) # 6
     print(len(image_path[0])) # 20
