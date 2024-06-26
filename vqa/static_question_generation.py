@@ -20,7 +20,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
             scene_dict = json.load(file)
     except Exception as e:
         raise e
-    print("Working on scene {}".format(frame))
+    #print("Working on scene {}".format(frame))
     ego_id, nodelist = nodify(scene_dict, multiview=multiview)
     graph = SceneGraph(ego_id, nodelist, frame)
     # Based on the objects/colors that actually exist in this frame, reduce the size of the CFG
