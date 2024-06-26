@@ -187,14 +187,15 @@ def count_envs(directory):
     return len(seed)
 
 
-
 def count_frames(session_folder):
     episodes = os.listdir(session_folder)
-    episodes = [os.path.join(session_folder, file) for file in episodes if os.path.isdir(os.path.join(session_folder,file))]
+    episodes = [os.path.join(session_folder, file) for file in episodes if
+                os.path.isdir(os.path.join(session_folder, file))]
     count = 0
     for episode in episodes:
         count += len(os.listdir(episode))
     return count
+
 
 def count_proper_episode(session_folder):
     print(session_folder)
@@ -206,10 +207,11 @@ def count_proper_episode(session_folder):
     valid_episode = set()
     for episode in episodes:
         splitted = episode.split("_")
-        if int(splitted[-1])-int(splitted[-2])==24 and int(splitted[-1]) < 400:
+        if int(splitted[-1]) - int(splitted[-2]) == 24 and int(splitted[-1]) < 400:
             valid_count += 1
             valid_episode.add(episode)
     return valid_count, list(valid_episode)
+
 
 def count_proper_seed(session_folder):
     episodes = os.listdir(session_folder)
@@ -225,6 +227,7 @@ def count_proper_seed(session_folder):
         valid_seeds.add(valid_seed)
     return len(valid_seeds), list(valid_seeds)
 
+
 def store_session_statistics(session_path):
     print("Collecting number of frames")
     num_frames = count_frames(session_path)
@@ -237,13 +240,14 @@ def store_session_statistics(session_path):
     print(f"num_valid_seeds={num_valid_seeds}")
     import json
     summary = dict(
-        num_frames = num_frames, num_valid_episodes = num_valid_episodes, num_valid_seeds = num_valid_seeds,
-        valid_episodes = valid_episodes, valid_seeds = valid_seeds
+        num_frames=num_frames, num_valid_episodes=num_valid_episodes, num_valid_seeds=num_valid_seeds,
+        valid_episodes=valid_episodes, valid_seeds=valid_seeds
     )
     print("Summary stored at {}".format(os.path.join(session_path, "session_statistics.json")))
     json.dump(
         summary, open(os.path.join(session_path, "session_statistics.json"), "w")
     )
+
 
 def display_session_statistics(session_path):
     print("Collecting number of frames")
@@ -256,6 +260,60 @@ def display_session_statistics(session_path):
     num_valid_seeds, valid_seeds = count_proper_seed(session_path)
     print(f"num_valid_seeds={num_valid_seeds}")
 
+
+def aggregated_statistics(merged_path):
+    '''
+    :param paths: path is a directory that contains a file called seesion_statistics.json
+    :return:
+    '''
+    result = dict(
+        num_frames=dict(
+            waymo=0, nuscenes=0, cat=0
+        ),
+        num_valid_episodes=dict(
+            waymo=0, nuscenes=0, cat=0
+        ),
+        num_valid_seeds=dict(
+            waymo=0, nuscenes=0, cat=0
+        )
+    )
+    waymo_paths = [
+        "/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0",
+        "/bigdata/weizhen/metavqa_final/scenarios/testing/normal/Waymo_testing_0",
+        "/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0",
+    ]
+    nuscenes_path = [
+        "/bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed",
+        "/bigdata/weizhen/metavqa_final/scenarios/validation/sc_nusc_trainval_7",
+        "/bigdata/weizhen/metavqa_final/scenarios/testing/normal/sc_nusc_trainval_5",
+        "/bigdata/weizhen/metavqa_final/scenarios/testing/normal/sc_nusc_trainval_6",
+    ]
+    cat_paths = [
+        "/bigdata/weizhen/metavqa_final/scenarios/training/safety_critical",
+        "/bigdata/weizhen/metavqa_final/scenarios/validation/safety_critical",
+        "/bigdata/weizhen/metavqa_final/scenarios/testing/safety_critical",
+    ]
+    for path in waymo_paths:
+        print(f"Loading statistics from {path}")
+        stat = os.path.join(path, "session_statistics.json")
+        stat = json.load(open(stat, 'r'))
+        result["num_frames"]["waymo"] += stat["num_frames"]
+        result["num_valid_episodes"]["waymo"] += stat["num_valid_episodes"]
+        result["num_valid_seeds"]["waymo"] += stat["num_valid_seeds"]
+    for path in nuscenes_path:
+        stat = os.path.join(path, "session_statistics.json")
+        stat = json.load(open(stat, 'r'))
+        result["num_frames"]["nuscenes"] += stat["num_frames"]
+        result["num_valid_episodes"]["nuscenes"] += stat["num_valid_episodes"]
+        result["num_valid_seeds"]["nuscenes"] += stat["num_valid_seeds"]
+    for path in cat_paths:
+        stat = os.path.join(path, "session_statistics.json")
+        stat = json.load(open(stat, 'r'))
+        result["num_frames"]["cat"] += stat["num_frames"]
+        result["num_valid_episodes"]["cat"] += stat["num_valid_episodes"]
+        result["num_valid_seeds"]["cat"] += stat["num_valid_seeds"]
+    json.dump(result, open(merged_path, "w"))
+    print(f"Merged statistics stored at {merged_path}")
 
 import glob
 from collections import defaultdict
@@ -355,3 +413,5 @@ if __name__ == '__main__':
         summary_path = os.path.join(summary_folder, f"{id}.json")
         annotation_statistics(path, summary_path)"""
     print(f"Utilized_frame {find_utilized_frame(test_paths)}")
+
+    aggregated_statistics("/bigdata/weizhen/metavqa_final/scenarios_statistics.json")
