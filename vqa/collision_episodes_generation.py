@@ -29,7 +29,7 @@ def find_collision_step(env):
 
 
 class Buffer:
-    def __init__(self, size=3, shape=(640, 960, 3)):
+    def __init__(self, size=3, shape=(540, 960, 3)):
         self.dq = deque(maxlen=size)
         self.size = size
         self.shape = shape
