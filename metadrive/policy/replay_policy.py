@@ -1,8 +1,7 @@
 import logging
-from vqa.dataset_utils import l2_distance
+
 from metadrive.policy.base_policy import BasePolicy
 from metadrive.scenario.parse_object_state import parse_object_state
-from metadrive.component.vehicle.base_vehicle import BaseVehicle
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
