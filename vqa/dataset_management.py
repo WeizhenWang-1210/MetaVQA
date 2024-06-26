@@ -270,4 +270,4 @@ if __name__ == '__main__':
     #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/nuscenes/sc_nusc_trainval_0"))
     #print(count_envs("../100k_export"))
     #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0")
-    store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/training/nuscenes/sc_nusc_trainval_0")
+    store_session_statistics("C:/Users/arnoe/Downloads/real")
