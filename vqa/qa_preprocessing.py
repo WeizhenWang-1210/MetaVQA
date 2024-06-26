@@ -221,4 +221,6 @@ if __name__ == "__main__":
     #print(final_answer)
     #processed_sample = postprocess_qa(sample)
     #json.dump(processed_sample,open("/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame/processed_dynamic_qa0.json","w"), indent=2)
-    process_session("/bigdata/weizhen/metavqa_final/vqa/NuScenes_Mixed/multi_frame", "/bigdata/weizhen/metavqa_final/vqa/NuScenes_Mixed/multi_frame_processed")
+    #process_session("/bigdata/weizhen/metavqa_final/vqa/training/single_frame/", "/bigdata/weizhen/metavqa_final/vqa/training/single_frame_processed/")
+    process_session("/bigdata/weizhen/metavqa_final/vqa/training/safety_critical/collision/",
+                    "/bigdata/weizhen/metavqa_final/vqa/training/safety_critical_processed/collision/")
