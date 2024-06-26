@@ -58,7 +58,7 @@ class DynamicQuerySpecifier:
                 while param_tree.depth <= 2:
                     param_tree = Tree(start_symbol, 4, self.grammar)
             else:
-                print("No fucking way I'm executed")
+                print("No way I'm executed")
                 start_symbol = param
                 param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
@@ -189,7 +189,7 @@ class DynamicQuerySpecifier:
             for obj_id, answer in answer.items():
                 concrete_location = transform(self.graph.get_ego_node(), [self.graph.get_node(obj_id).pos])[0]
                 rounded = [int(concrete_location[0]), int(concrete_location[1])]
-                question = self.translate("located at {} ".format(rounded))
+                question = self.translate("located at {}".format(rounded))
                 if self.stats:
                     self.generate_statistics([obj_id])
                 if self.type == "type_identification_unique":

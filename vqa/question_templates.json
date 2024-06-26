@@ -295,7 +295,7 @@
         },
         "identify_speed": {
             "text":[
-                "What's the speed of <o> now?"
+                "What's the current speed of <o>?"
             ],
             "params":[
                 "<o>"
@@ -331,7 +331,7 @@
         },
         "predict_trajectory": {
             "text": [
-                "Using our current coordinates, predict the trajectories of <o> in the next 0.5 seconds for 5 times."
+                "Using our current coordinates, predict the trajectory of <o> in the next 0.5 seconds for 5 times."
             ],
             "params": [
                 "<o>"
