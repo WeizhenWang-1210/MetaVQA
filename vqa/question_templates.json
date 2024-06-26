@@ -50,7 +50,7 @@
         "count_more_binary":{
             "text":[
                 "Are there more <o1> than <o2>? Answer True or False.",
-                "Does <o1> exceed <o2> in quantity? Answer True or False.",
+                "Do <o1> exceed <o2> in quantity? Answer True or False.",
                 "Are there less <o2> than <o1>? Answer True or False.",
                 "Are <o2> outnumbered by <o1>? Answer True or False.",
                 "Determine if there are more <o1> than <o2>. Answer True or False.",
@@ -178,7 +178,7 @@
         "count_more_binary":{
             "text":[
                 "Are there more <o1> than <o2>? Answer True or False.",
-                "Does <o1> exceed <o2> in quantity? Answer True or False.",
+                "Do <o1> exceed <o2> in quantity? Answer True or False.",
                 "Are there less <o2> than <o1>? Answer True or False.",
                 "Are <o2> outnumbered by <o1>? Answer True or False.",
                 "Determine if there are more <o1> than <o2>. Answer True or False.",
