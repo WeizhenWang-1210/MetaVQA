@@ -239,5 +239,5 @@ def safety_critical():
 
 
 if __name__ == "__main__":
-    #normal()
-    safety_critical()
+    normal()
+    #safety_critical()

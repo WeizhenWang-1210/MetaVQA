@@ -1,5 +1,5 @@
 ---
-storage_path : "C:/school/Bolei/Merging/MetaVQA/demo_top_down"
+storage_path : "/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"
 map_setting:
   PG: True
   map_size: 5
