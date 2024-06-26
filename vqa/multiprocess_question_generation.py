@@ -10,7 +10,8 @@ from vqa.dynamic_question_generation import find_episodes, extract_observations,
 from vqa.scene_graph import TemporalGraph
 from vqa.scene_level_functionals import predict_collision
 from vqa.safety_question_generation import generate_safety_questions
-import glob
+import yaml
+import tqdm
 
 
 def divide_list_into_n_chunks(lst, n):
@@ -46,7 +47,7 @@ def divide_list_into_n_chunks(lst, n):
     return chunks
 
 
-def static_job(paths, source, summary_path, verbose=False, multiview=True):
+def static_job(proc_id, paths, source, summary_path, verbose=False, multiview=True):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(current_directory, "question_templates.json")
     try:
@@ -56,7 +57,7 @@ def static_job(paths, source, summary_path, verbose=False, multiview=True):
         raise e
     records = {}
     count = 0
-    for path in paths:
+    for path in tqdm.tqdm(paths, desc=f"Process {proc_id}", position=proc_id):
         assert len(QuerySpecifier.CACHE) == 0, f"Non empty cache for {path}"
         folder_name = os.path.dirname(path)
         identifier = os.path.basename(folder_name)
@@ -90,40 +91,33 @@ def static_job(paths, source, summary_path, verbose=False, multiview=True):
         raise e
 
 
-
-
 from vqa.dynamic_question_generation import select_key_frames
-def static_setting():
-    parser = argparse.ArgumentParser()
-    cwd = os.getcwd()
-    default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
-    parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate QA data")
-    parser.add_argument("--root_directory", type=str, default=None,
-                        help="the paths to the recorded data")
-    parser.add_argument("--output_base", type=str, default="./qa",
-                        help="directory to the generated QA files, each file will be extended with proc_id ")
-    parser.add_argument("--src", type=str, default="PG", help="specify the data source of the driving scenarios")
-    parser.add_argument("--verbose", action="store_true")
-    args = parser.parse_args()
 
-
+def static_setting(config_path):
+    """
+    Job for generating static qas on metadriv-only rendering.
+    """
+    # load config
+    config = yaml.safe_load(open(config_path, 'r'))
     print("Running with the following parameters")
-    for key, value in args.__dict__.items():
+    for key, value in config.items():
         print("{}: {}".format(key, value))
-    all_paths = select_key_frames(args.root_directory,2)
-    print(len(all_paths))
-    #exit()
-    chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
+    # for each 25-frame-long episode, selct 2 frames.
+    all_paths = select_key_frames(config["root_directory"], 2)
+    print("Working on {} frames in total, divided among {} processes.".format(len(all_paths), config["num_proc"]))
+    chunks = divide_list_into_n_chunks(all_paths, config["num_proc"])
+    # send jobs
     processes = []
-    for proc_id in range(args.num_proc):
+    for proc_id in range(config["num_proc"]):
         print(f"Sent job {proc_id}")
         p = multp.Process(
             target=static_job,
             args=(
+                proc_id,
                 chunks[proc_id],
-                args.src,
-                os.path.join(args.output_base, f"static_qa{proc_id}.json"),
-                True if args.verbose else False,
+                config["src"],
+                os.path.join(config["output_directory"], f"static_qa{proc_id}.json"),
+                config["verbose"],
             )
         )
         processes.append(p)
@@ -135,6 +129,8 @@ def static_setting():
 
 from vqa.dynamic_question_generation import find_nuscene_frames
 from vqa.static_question_generation import generate_all_frame_nuscene
+
+
 def static_job_nuscene(paths, source, summary_path, verbose=False, multiview=True):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(current_directory, "question_templates.json")
@@ -152,7 +148,7 @@ def static_job_nuscene(paths, source, summary_path, verbose=False, multiview=Tru
         perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
         lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
         record, num_data = generate_all_frame_nuscene(templates["static"], path, 100, 10, count, verbose=verbose,
-                                              multiview=multiview)
+                                                      multiview=multiview)
         for id, info in record.items():
             records[id] = dict(
                 question=info["question"],
@@ -205,7 +201,7 @@ def static_setting_nuscene():
     chunks = divide_list_into_n_chunks(all_paths, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
-        print(f"Sent job {proc_id}")
+        #print(f"Sent job {proc_id}")
         p = multp.Process(
             target=static_job_nuscene,
             args=(
@@ -220,8 +216,6 @@ def static_setting_nuscene():
     for p in processes:
         p.join()
     print("All processes finished.")
-
-
 
 
 def dynamic_job(episode_folders, source, summary_path, verbose=False):
@@ -295,9 +289,8 @@ def dynamic_setting():
     print("All processes finished.")
 
 
-
-
 from vqa.dynamic_question_generation import extract_real_observations, generate_dynamic_questions_nuscene
+
 
 def dynamic_job_nuscene(episode_folders, source, summary_path, verbose=False):
     current_directory = os.path.dirname(os.path.abspath(__file__))
@@ -403,7 +396,7 @@ def safety_job(episode_folders, source, summary_path, verbose=False):
             records, num_questions = generate_safety_questions(
                 episode, templates, max_per_type=2, choose=1, attempts_per_type=10, verbose=verbose, only_predict=True)
         else:
-            #has collision, see if collision on in prediction period.
+            # has collision, see if collision on in prediction period.
             if first_impact >= 20:
                 records, num_questions = generate_safety_questions(
                     episode, templates, max_per_type=100, choose=10, attempts_per_type=200, verbose=verbose)
@@ -462,9 +455,9 @@ def safety_setting():
         print("{}: {}".format(key, value))
 
     all_episodes = load_valid_episodes(args.root_directory)
-    #all_episodes = ["/bigdata/weizhen/metavqa_final/scenarios/validation/safety_critical/subdir_3_40_56_80"]
+    # all_episodes = ["/bigdata/weizhen/metavqa_final/scenarios/validation/safety_critical/subdir_3_40_56_80"]
     print(f"Find {len(all_episodes)} valid episodes under session {args.root_directory}")
-    #exit()
+    # exit()
     chunks = divide_list_into_n_chunks(all_episodes, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
@@ -482,7 +475,6 @@ def safety_setting():
     for p in processes:
         p.join()
     print("All processes finished.")
-
 
 
 def safety_job_nuscene(episode_folders, source, summary_path, verbose=False):
@@ -514,7 +506,7 @@ def safety_job_nuscene(episode_folders, source, summary_path, verbose=False):
             records, num_questions = generate_safety_questions(
                 episode, templates, max_per_type=2, choose=1, attempts_per_type=10, verbose=verbose, only_predict=True)
         else:
-            #has collision, see if collision on in prediction period.
+            # has collision, see if collision on in prediction period.
             if first_impact >= 20:
                 records, num_questions = generate_safety_questions(
                     episode, templates, max_per_type=100, choose=10, attempts_per_type=200, verbose=verbose)
@@ -602,8 +594,17 @@ def safety_setting_nuscene():
 
 
 if __name__ == "__main__":
-    #static_setting()
-    #dynamic_setting()
-    #safety_setting()
-    #static_setting_nuscene()
-    safety_setting_nuscene()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--job", choices=["static", "dynamic", "safety", "static_nusc", "dynamic_nusc", "safety_nusc"],
+                        help="Choose the type of VQA gen job to run.")
+    parser.add_argument("--config", type=str, help="Specify the configuration of this VQA gen session.")
+    args = parser.parse_args()
+    job_mapping = {
+        "static": static_setting,
+        "dynamic": dynamic_setting,
+        "safety": safety_setting,
+        "static_nusc": static_setting_nuscene,
+        "dynamic_nusc": dynamic_setting_nuscene,
+        "safety_nusc": safety_setting_nuscene
+    }
+    job_mapping[args.job](args.config)
