@@ -58,7 +58,7 @@ class DynamicQuerySpecifier:
                 while param_tree.depth <= 2:
                     param_tree = Tree(start_symbol, 4, self.grammar)
             else:
-                print("No fucking way I'm executed")
+                print("No way I'm executed")
                 start_symbol = param
                 param_tree = Tree(start_symbol, 4, self.grammar)
             functional = param_tree.build_functional(self.template["constraint"])
