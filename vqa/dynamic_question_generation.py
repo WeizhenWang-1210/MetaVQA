@@ -33,12 +33,14 @@ def load_valid_episodes(session_folder):
 
 
 def extract_frames(episode, debug=False):
-    annotation_path_template = f"{episode}/**/world*.json"
+    sep = os.sep
+    annotation_path_template = f"{episode}{sep}**{sep}world*.json"
+    #annotation_path_template = f"{episode}/**/world*.json"
     files = glob.glob(annotation_path_template, recursive=True)
     def extract_numbers(filename):
-        identifier = filename.split("/")[-2]
-        x, y = identifier .split('_')
-        return (int(x), int(y))
+        identifier = filename.split(sep)[-2]
+        x, y = identifier.split('_')
+        return int(x), int(y)
     sorted_files = sorted(files, key=extract_numbers)
     return sorted_files
 
@@ -76,9 +78,10 @@ def find_nuscene_frames(root_dir):
 
 def extract_observations(episode, debug=False):
     def extract_numbers(filename):
-        identifier = filename.split("/")[-2]
-        x, y = identifier .split('_')
-        return (int(x), int(y))
+        sep = os.sep
+        identifier = filename.split(sep)[-2]
+        x, y = identifier.split('_')
+        return int(x), int(y)
     observations = {}
     perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
     for perspective in perspectives:
@@ -97,9 +100,10 @@ def extract_observations(episode, debug=False):
 
 def extract_real_observations(episode, debug=False):
     def extract_numbers(filename):
-        identifier = filename.split("/")[-2]
+        sep = os.sep
+        identifier = filename.split(sep)[-2]
         x, y = identifier.split('_')
-        return (int(x), int(y))
+        return int(x), int(y)
     observations = {}
     perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"]
     for perspective in perspectives:
