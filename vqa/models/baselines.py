@@ -19,3 +19,18 @@ class Baseline(nn.Module):
         text_feature = self.text_encoder(question, mask)
         nn_input = torch.cat((img_feature, text_feature, lidar), dim=1)
         return self.predictor(nn_input)
+
+
+class MultiView_Temporal_Baseline(nn.Module):
+    def __init__(self, text_encoder, rgb_encoder, predictor, name):
+        super(Baseline, self).__init__()
+        self.text_encoder = text_encoder
+        self.rgb_encoder = rgb_encoder
+        self.predictor = predictor
+        self.name = name
+
+    def forward(self, question, mask, img, lidar):
+        img_feature = self.rgb_encoder(img)
+        text_feature = self.text_encoder(question, mask)
+        nn_input = torch.cat((img_feature, text_feature, lidar), dim=1)
+        return self.predictor(nn_input)
