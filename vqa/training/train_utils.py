@@ -175,7 +175,7 @@ if __name__ == "__main__":
         split_dict = json.load(file)
 
     wandb_config = dict(
-        name="CLIPViT+BERT+8_2048MLP_SUM+100K"
+        name="100k_ViT+BERT_2048_1"
     )
 
     wandb.login()
@@ -185,8 +185,8 @@ if __name__ == "__main__":
     )
     network_config = dict(
         text_encoder=Bert_Encoder(),
-        rgb_encoder=CLIP_ViT_Encoder(),
-        predictor=MLP_Multilabel(input_dim=1400, hidden_dim=4096, output_dim=5203, num_hidden=1),
+        rgb_encoder=ViT_Encoder(),
+        predictor=MLP_Multilabel(input_dim=1656, hidden_dim=2048, output_dim=5203, num_hidden=1),
         name="baseline"
     )
     model = get_model(Baseline, **network_config)
