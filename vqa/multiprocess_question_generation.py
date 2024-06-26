@@ -62,7 +62,7 @@ def static_job(paths, source, summary_path, verbose=False, multiview=True):
         identifier = os.path.basename(folder_name)
         perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
         lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
-        record, num_data = generate_all_frame(templates["generic"], path, 100, 10, count, verbose=verbose,
+        record, num_data = generate_all_frame(templates["static"], path, 100, 10, count, verbose=verbose,
                                               multiview=multiview)
         for id, info in record.items():
             records[id] = dict(
@@ -151,7 +151,7 @@ def static_job_nuscene(paths, source, summary_path, verbose=False, multiview=Tru
         identifier = os.path.basename(folder_name)
         perspectives = ["front", "leftb", "leftf", "rightb", "rightf", "back"] if multiview else ["front"]
         lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
-        record, num_data = generate_all_frame_nuscene(templates["generic"], path, 20, 2, count, verbose=verbose,
+        record, num_data = generate_all_frame_nuscene(templates["static"], path, 100, 10, count, verbose=verbose,
                                               multiview=multiview)
         for id, info in record.items():
             records[id] = dict(
@@ -209,7 +209,7 @@ def static_setting_nuscene():
         p = multp.Process(
             target=static_job_nuscene,
             args=(
-                chunks[proc_id][:1],
+                chunks[proc_id],
                 args.src,
                 os.path.join(args.output_base, f"static_qa_nuscene{proc_id}.json"),
                 True if args.verbose else False,
