@@ -1,5 +1,5 @@
 ---
-storage_path : "/bigdata/weizhen/metavqa_final/scenarios/training/waymo/waymo_train_0"
+storage_path : "./real"
 map_setting:
   PG: True
   map_size: 5
@@ -11,7 +11,7 @@ map_setting:
   num_scenarios: 100
   start_seed: 0
 sample_frequency: 1
-num_samples: 10000
+num_samples: 1250
 max_iterations: 1000000000000000
 temporal_generation: True
 episode_length: 1
