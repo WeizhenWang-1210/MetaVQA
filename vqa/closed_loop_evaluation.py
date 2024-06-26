@@ -41,7 +41,7 @@ def preprocess_observation(destination, buffer, vis_processors, text_processors)
     destination = int(destination[0]), int(destination[1])
     #print(destination)
     question = text_processors(
-        "You are the driver, what is the safest action to do? Anwser in left|right|stop|none.")
+        "You are the driver, what is the safest action to do? Answer in left|right|stop|none.")
     im = torch.unsqueeze(im, 0)
     question = question
     return {
@@ -93,7 +93,7 @@ def generation_action(destination, buffer, model, vis_processors, text_processor
 
 
 def closed_loop(env: ScenarioDiverseEnv, seeds):
-    model, vis_processors, text_processors = load_model()
+    model, vis_processors, text_processors = load_model(False)
     model.to(device)
     num_src_collisions = 0
     num_collisions = 0
@@ -181,7 +181,7 @@ def main():
         action_statistics=ACTION_STATISTICS
     )
     import json
-    json.dump(summary, open("./online_eval.json", "w"), indent=2)
+    json.dump(summary, open("./online_eval_baseline.json", "w"), indent=2)
 
 
 if __name__ == "__main__":
