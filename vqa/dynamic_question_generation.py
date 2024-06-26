@@ -338,7 +338,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
                 candidates = add_to_record(question_type, q, result, candidates)
                 # print(candidates)
                 valid_questions.add(q.signature)
-                generated += 1
+                generated += len(result)
             countdown -= 1
         if generated > choose:
             candidate = candidates[question_type]
@@ -438,7 +438,7 @@ def generate_dynamic_questions_nuscene(episode, templates, max_per_type=5, choos
                 candidates = add_to_record(question_type, q, result, candidates)
                 # print(candidates)
                 valid_questions.add(q.signature)
-                generated += 1
+                generated += len(result)
             countdown -= 1
         if generated > choose:
             candidate = candidates[question_type]
