@@ -257,6 +257,60 @@ def display_session_statistics(session_path):
     print(f"num_valid_seeds={num_valid_seeds}")
 
 
+import glob
+from collections import defaultdict
+def annotation_statistics(folder, summary_path=None):
+    print(f"Summarizing {folder} \n to P{summary_path}")
+    template = os.path.join(folder, "*qa*.json")
+    contents = glob.glob(template)
+    frame_set = set()
+    question_type_distro = defaultdict(lambda:0)
+    object_type_distro = defaultdict(lambda:0)
+    source_distro = defaultdict(lambda:0)
+    num_questions = 0
+    for content in contents:
+        print(content)
+        annotations = json.load(open(content,'r'))
+        for q_id, info in annotations.items():
+            num_questions+=1
+            for frame in info["metadrive_scene"]:
+                frame_set.add(frame)
+            question_type_distro[info["question_type"]] += 1
+            if "type_statistics" in info.keys():
+                if isinstance(info["type_statistics"], list):
+                    for type in info["type_statistics"]:
+                        object_type_distro[type]+=1
+                else:
+                    for object_type, count in info["type_statistics"].items():
+                        object_type_distro[object_type] += count
+            source_distro[info["source"]] += 1
+    final_summary_path = os.path.join(folder, "statistics.json") if not summary_path else summary_path
+    summary = {
+        "num_questions": num_questions,
+        "num_frames": len(frame_set),
+        "question_type_distro": question_type_distro,
+        "object_type_distro": object_type_distro,
+        "source_distro": source_distro
+    }
+    json.dump(summary, open(final_summary_path,'w'),  indent=2)
+
+
+def find_utilized_frame(directories):
+    frame_set = set()
+    for directory in directories:
+        print(f"Looking for qas in {directory}")
+        template = os.path.join(directory, "*qa*.json")
+        qas = glob.glob(template)
+        for qa in qas:
+            print(f"Inspecting {qa}")
+            annotations = json.load(open(qa, 'r'))
+            for qid, info in annotations.items():
+                for frame in info["metadrive_scene"]:
+                    frame_set.add(frame)
+    return len(frame_set)
+
+
+
 
 if __name__ == '__main__':
     # merge_ba("/bigdata/weizhen/metavqa/100k", "/bigdata/weizhen/metavqa/100k/merged.json", "qa")
@@ -270,4 +324,34 @@ if __name__ == '__main__':
     #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/nuscenes/sc_nusc_trainval_0"))
     #print(count_envs("../100k_export"))
     #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0")
-    store_session_statistics("C:/Users/arnoe/Downloads/real")
+    #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/sc_nusc_trainval_7")
+    #annotation_statistics("/bigdata/weizhen/metavqa_final/vqa/NuScenes_Mixed/single_frame/")
+
+
+
+    train_paths = [
+             "/bigdata/weizhen/metavqa_final/vqa/training/multi_frame_processed/Waymo/",
+             "/bigdata/weizhen/metavqa_final/vqa/training/safety_critical_processed/Waymo/",
+             "/bigdata/weizhen/metavqa_final/vqa/training/single_frame_processed/Waymo/",
+             "/bigdata/weizhen/metavqa_final/vqa/training/safety_critical_processed/CAT/"]
+
+    val_paths = [
+        "/bigdata/weizhen/metavqa_final/vqa/validation/single_frame_processed/Waymo/",
+        "/bigdata/weizhen/metavqa_final/vqa/validation/single_frame_processed/NuScenes/",
+        "/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame_processed/Waymo/",
+        "/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame_processed/NuScenes/",
+        "/bigdata/weizhen/metavqa_final/vqa/validation/safety_critical_processed/CAT/",
+        "/bigdata/weizhen/metavqa_final/vqa/validation/safety_critical_processed/Waymo/",
+    ]
+    test_paths = [
+        "/bigdata/weizhen/metavqa_final/vqa/testing/multi_frame_processed/Waymo/",
+        "/bigdata/weizhen/metavqa_final/vqa/testing/safety_critical_processed/CAT/",
+        "/bigdata/weizhen/metavqa_final/vqa/testing/safety_critical_processed/Waymo/",
+        "/bigdata/weizhen/metavqa_final/vqa/testing/single_frame_processed/Waymo/",
+    ]
+
+    """summary_folder = "/bigdata/weizhen/metavqa_final/vqa/testing/"
+    for id, path in enumerate(test_paths):
+        summary_path = os.path.join(summary_folder, f"{id}.json")
+        annotation_statistics(path, summary_path)"""
+    print(f"Utilized_frame {find_utilized_frame(test_paths)}")
