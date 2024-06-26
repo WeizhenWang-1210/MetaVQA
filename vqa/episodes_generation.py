@@ -59,7 +59,7 @@ def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=
     if debug:
         # With name and history.
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
-                              draw_contour=True, screen_record=False, show_agent_name=True)
+                              draw_contour=True, screen_record=False, history_smooth=1, num_stack=10, show_agent_name =True)
         result["top_down"] = preprocess_topdown(top_down)
         # front view image for debugging purpose.
         result["front"] = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -6, 2],
@@ -340,7 +340,7 @@ def annotate_scenarios():
     if args.scenarios:
         from metadrive.engine.asset_loader import AssetLoader
         asset_path = AssetLoader.asset_path
-        use_waymo = False
+        use_waymo = True
         from metadrive.policy.replay_policy import ReplayEgoCarPolicy
         # Load the dicrectory.
         if args.data_directory:
