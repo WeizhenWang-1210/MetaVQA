@@ -1,0 +1,7 @@
+---
+num_proc: 32
+root_directory: "/bigdata/weizhen/metavqa_final/scenarios/training/safety_critical"
+output_directory: "/bigdata/weizhen/metavqa_demo/vqa_raw"
+src: "CAT"
+verbose: False
+...
