@@ -1,9 +1,5 @@
 
-<br>
 
-![](documentation/source/figs/metavqa_teaser.png)
-
-<br>
 
 # MetaVQA: A Benchmark for Embodied Scene Understanding of Vision-Language Models
 <!---
@@ -29,14 +25,29 @@
 ]
 </strong>
 </div>
+
+
+
+![](documentation/source/figs/metavqa_teaser.png)
+
 <br>
 
+[Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Yuxin Liu](https://github.com/Yuxin45), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yunsong Zhou](https://lion.sjtu.edu.cn/member/memberDetail?id=43), [Bolei Zhou](https://boleizhou.github.io/)
+
+
+## Highlights
 
 
 
 
+## News <a name="news"></a>
 
-### Repository Update Timeline
+- `[2024/06/27]` MetaVQA repository made public.
+
+
+
+
+## Repository Update Timeline
 - [ ] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
 - [ ] Release of MetaVQA-2M dataset
 - [ ] Demo for generating new VQA data
@@ -44,17 +55,17 @@
 - [ ] Release of benchmark training repository.
 - [ ] Setup of leaderboard website.
 
-### Data Preparation
+## Data Preparation
 
-You can find MetaVQA-2M in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>
+We will release MetaVQA-2M in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>
 
-### Benchmark Training and Testing
+## Benchmark Training and Testing
 
 We will release the training and evaluation script soon.
 
 
 
-### Acknowledgements
+## Acknowledgements
 MetaVQA is built on top of <a href="https://github.com/metadriverse/metadrive">MetaDrive</a> simulator. Safety-critical scenarios
 are generated using <a href="https://github.com/metadriverse/cat">CAT</a>. 
 
