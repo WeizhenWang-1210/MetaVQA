@@ -1,37 +1,71 @@
-<br>
-
-![](documentation/source/figs/logo-horizon.png)
 
 <br>
 
-# MetaDrive: Composing Diverse Driving Scenarios for Generalizable RL
+![](documentation/source/figs/metavqa_teaser.png)
 
+<br>
+
+# MetaVQA: A Benchmark for Embodied Scene Understanding of Vision-Language Models
+<!---
 [![build](https://github.com/metadriverse/metadrive/workflows/test/badge.svg)](http://github.com/metadriverse/metadrive/actions)
 [![Documentation](https://readthedocs.org/projects/metadrive-simulator/badge/?version=latest)](https://metadrive-simulator.readthedocs.io)
-[![GitHub license](https://img.shields.io/github/license/metadriverse/metadrive)](https://github.com/metadriverse/metadrive/blob/main/LICENSE.txt)
-[![GitHub contributors](https://img.shields.io/github/contributors/metadriverse/metadrive)](https://github.com/metadriverse/metadrive/graphs/contributors)
 [![Downloads](https://static.pepy.tech/badge/MetaDrive-simulator)](https://pepy.tech/project/MetaDrive-simulator)
+-->
+[![GitHub license](https://img.shields.io/github/license/metadriverse/metadrive)](https://github.com/metadriverse/metadrive/blob/main/LICENSE.txt)
+[![GitHub contributors](https://img.shields.io/github/contributors/metadriverse/metadrive)](https://github.com/WeizhenWang-1210/MetaVQA/graphs/contributors)
+
+
 
 <div style="text-align: center; width:100%; margin: 0 auto; display: inline-block">
 <strong>
 [
-<a href="https://metadrive-simulator.readthedocs.io">Documentation</a>
+<a href="https://metadriverse.github.io/metaVQA/">Website</a>
 |
-<a href="https://colab.research.google.com/github/metadriverse/metadrive/blob/main/metadrive/examples/Basic_MetaDrive_Usages.ipynb">Colab Examples</a>
+<a href="https://github.com/WeizhenWang-1210/MetaVQA">Demo Video | Coming Soon</a>
 |
-<a href="https://www.youtube.com/embed/3ziJPqC_-T4">Demo Video</a>
-|
-<a href="https://metadriverse.github.io/metadrive-simulator/">Website</a>
-|
-<a href="https://arxiv.org/pdf/2109.12674.pdf">Paper</a>
+<a href="https://github.com/WeizhenWang-1210/MetaVQA">Paper|Coming Soon</a>
 |
 <a href="https://metadriverse.github.io/">Relevant Projects</a>
 ]
 </strong>
 </div>
-
 <br>
 
+
+
+
+
+
+### Repository Update Timeline
+- [ ] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
+- [ ] Release of MetaVQA-2M dataset
+- [ ] Demo for generating new VQA data
+- [ ] Release of benchmark models and checkpoints.
+- [ ] Release of benchmark training repository.
+- [ ] Setup of leaderboard website.
+
+### Data Preparation
+
+You can find MetaVQA-2M in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>
+
+### Benchmark Training and Testing
+
+We will release the training and evaluation script soon.
+
+
+
+### Acknowledgements
+MetaVQA is built on top of <a href="https://github.com/metadriverse/metadrive">MetaDrive</a> simulator. Safety-critical scenarios
+are generated using <a href="https://github.com/metadriverse/cat">CAT</a>. 
+
+
+
+
+
+
+
+
+<!---
 MetaDrive is a driving simulator with the following key features:
 
 - **Compositional**: It supports generating infinite scenes with various road maps and traffic settings for the research of generalizable RL. 
@@ -235,3 +269,4 @@ The simulator can not be built without the help from Panda3D community and the f
 - procedural_panda3d_model_primitives: https://github.com/Epihaius/procedural_panda3d_model_primitives
 - DiamondSquare for terrain generation: https://github.com/buckinha/DiamondSquare
 - KITSUNETSUKI-Asset-Tools: https://github.com/kitsune-ONE-team/KITSUNETSUKI-Asset-Tools
+-->
