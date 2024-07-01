@@ -41,18 +41,18 @@
 
 
 ## News <a name="news"></a>
-
+- `[2024/07/1]` Training scripts for the benchmarks made public. Demo dataset is released(517 GB)
 - `[2024/06/27]` MetaVQA repository made public.
 
 
 
 
 ## Repository Update Timeline
-- [ ] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
+- [x] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
 - [ ] Release of MetaVQA-2M dataset
 - [ ] Demo for generating new VQA data
 - [ ] Release of benchmark models and checkpoints.
-- [ ] Release of benchmark training repository.
+- [x] Release of benchmark training repository.
 - [ ] Setup of leaderboard website.
 
 ## Data Preparation
@@ -61,7 +61,7 @@ We will release MetaVQA-2M in the <a href="https://metadriverse.github.io/metaVQ
 
 ## Benchmark Training and Testing
 
-We will release the training and evaluation script soon.
+The training and evaluation scripts are available at  <a href="https://github.com/Dadaism6/MetaVQA-Training">this repository</a>.
 
 
 
