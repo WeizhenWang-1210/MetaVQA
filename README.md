@@ -41,7 +41,7 @@
 
 
 ## News <a name="news"></a>
-- `[2024/07/1]` Training scripts for the benchmarks made public. Demo dataset is released(517 GB)
+- `[2024/07/01]` Training scripts for the benchmarks made public <a href="https://github.com/Dadaism6/MetaVQA-Training">here</a>. Demo dataset is released in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>(517 GB)
 - `[2024/06/27]` MetaVQA repository made public.
 
 
