@@ -17,9 +17,9 @@
 [
 <a href="https://metadriverse.github.io/metaVQA/">Website</a>
 |
-<a href="https://github.com/WeizhenWang-1210/MetaVQA">Demo Video | Coming Soon</a>
+<a href="https://metadriverse.github.io/metaVQA/">MetaVQA-2M Dataset</a>
 |
-<a href="https://github.com/WeizhenWang-1210/MetaVQA">Paper|Coming Soon</a>
+<a href="https://github.com/WeizhenWang-1210/MetaVQA">Paper(Coming Soon)</a>
 |
 <a href="https://metadriverse.github.io/">Relevant Projects</a>
 ]
