@@ -35,10 +35,15 @@
 [Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Yuxin Liu](https://github.com/Yuxin45), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yunsong Zhou](https://lion.sjtu.edu.cn/member/memberDetail?id=43), [Bolei Zhou](https://boleizhou.github.io/)
 
 
-## Highlights
 
+## Highlights <a name="highlights"></a>
+MetaVQA a visual question-answering benchmark for improving and evaluating the embodied scene understanding of VLMs.
+    
+* MetaVQA designs a scalable pipeline to generate visual question answer (VQA) pairs relating to traffic scenarios imported from various sources, including nuScenes dataset, Waymo Open Motion Dataset, and a synthetic dataset of safety-critical scenes.
 
+* MetaVQA provides a large-scale VQA dataset(MetaVQA-2M) containing 2.7M questions for 291K frames related to spatial, visual, dynamic, and safety-critical counterfactual scene understandings.
 
+* MetaVQA establishes the baseline performance of VLMs on the dataset and show that the VLMs achieve remarkable embodied scene understanding capabilities through instruction tuning, especially when handling safety-critical situations.
 
 ## News <a name="news"></a>
 - `[2024/07/01]` Training scripts for the benchmarks made public <a href="https://github.com/Dadaism6/MetaVQA-Training">here</a>. Demo dataset is released in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>(517 GB)
