@@ -208,19 +208,10 @@ def process_session(session_folder, destination_folder):
 
 
 
-
+import argparse
 if __name__ == "__main__":
-    # open_to_close_vocab("/bigdata/weizhen/metavqa/100k_export/exported.json", "/bigdata/weizhen/metavqa/100k_export/converted.json")
-    #qa_records = json.load(open("./verification_multiview_small/static.json", "r"))
-    #json.dump(qa_cleaning(qa_records), open("./verification_multiview_small/filterd.json", "w"), indent=2)
-    #import json
-    #sample = json.load(open("/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame/dynamic_qa0.json", "r"))
-    #print()
-    #print(sample["70"]["answer"])
-    #final_answer = postprocess_predict_trajectory(sample["70"]["answer"])
-    #print(final_answer)
-    #processed_sample = postprocess_qa(sample)
-    #json.dump(processed_sample,open("/bigdata/weizhen/metavqa_final/vqa/validation/multi_frame/processed_dynamic_qa0.json","w"), indent=2)
-    #process_session("/bigdata/weizhen/metavqa_final/vqa/training/single_frame/", "/bigdata/weizhen/metavqa_final/vqa/training/single_frame_processed/")
-    process_session("/bigdata/weizhen/metavqa_final/vqa/training/safety_critical/collision/",
-                    "/bigdata/weizhen/metavqa_final/vqa/training/safety_critical_processed/collision/")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--raw", type=str, help="Path to the directory containing raw vqa jsons")
+    parser.add_argument("--processed", type=str, help="Path to the directory containing processed vqa jsons")
+    args = parser.parse_args()
+    process_session(args.raw, args.processed)

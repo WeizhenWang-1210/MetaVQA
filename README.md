@@ -17,9 +17,9 @@
 [
 <a href="https://metadriverse.github.io/metaVQA/">Website</a>
 |
-<a href="https://github.com/WeizhenWang-1210/MetaVQA">Demo Video | Coming Soon</a>
+<a href="https://metadriverse.github.io/metaVQA/">MetaVQA-2M Dataset</a>
 |
-<a href="https://github.com/WeizhenWang-1210/MetaVQA">Paper|Coming Soon</a>
+<a href="https://github.com/WeizhenWang-1210/MetaVQA">Paper(Coming Soon)</a>
 |
 <a href="https://metadriverse.github.io/">Relevant Projects</a>
 ]
@@ -35,33 +35,116 @@
 [Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Yuxin Liu](https://github.com/Yuxin45), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yunsong Zhou](https://lion.sjtu.edu.cn/member/memberDetail?id=43), [Bolei Zhou](https://boleizhou.github.io/)
 
 
-## Highlights
 
+## Highlights <a name="highlights"></a>
+MetaVQA a visual question-answering benchmark for improving and evaluating the embodied scene understanding of VLMs.
+    
+* MetaVQA designs a scalable pipeline to generate visual question answer (VQA) pairs relating to traffic scenarios imported from various sources, including nuScenes dataset, Waymo Open Motion Dataset, and a synthetic dataset of safety-critical scenes.
 
+* MetaVQA provides a large-scale VQA dataset(MetaVQA-2M) containing 2.7M questions for 291K frames related to spatial, visual, dynamic, and safety-critical counterfactual scene understandings.
 
+* MetaVQA establishes the baseline performance of VLMs on the dataset and show that the VLMs achieve remarkable embodied scene understanding capabilities through instruction tuning, especially when handling safety-critical situations.
 
 ## News <a name="news"></a>
-
+- `[2024/07/02]` We provide an example for the holistic VQA generation pipeline in this [section](#vqa-generation).
+- `[2024/07/01]` Training scripts for the benchmarks made public <a href="https://github.com/Dadaism6/MetaVQA-Training">here</a>. Demo dataset is released in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>(517 GB)
 - `[2024/06/27]` MetaVQA repository made public.
 
 
 
 
 ## Repository Update Timeline
-- [ ] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
+- [x] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
 - [ ] Release of MetaVQA-2M dataset
-- [ ] Demo for generating new VQA data
+- [x] Demo for generating new VQA data
 - [ ] Release of benchmark models and checkpoints.
-- [ ] Release of benchmark training repository.
+- [x] Release of benchmark training repository.
 - [ ] Setup of leaderboard website.
 
-## Data Preparation
+## MetaVQA-2M Dataset
 
 We will release MetaVQA-2M in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>
 
-## Benchmark Training and Testing
 
-We will release the training and evaluation script soon.
+
+## Dataset Structure
+
+Dataset exported from MetaVQA will have the following file structure.
+```
+-root
+    -episodes
+        -episode0
+            -frame0
+                -front.png
+                -left.png
+                ...
+            -frame1
+            ...
+        -episode1
+            ...
+        ...
+    -data.json
+    -mapping.json
+```
+To load the dataset, simply load `data.json`. This json file have the following structure
+```
+-data
+    -1
+        -question: ...
+        -answer: ...
+        -rgb: ...
+    -2
+        -question: ...
+        -answer: ...
+    ...
+-split
+    -train: [1,2,3,...]
+    -val: ...
+    -test: ...
+```
+The `rgb` field contains a list of path to the observations(ordered chronologically) for each view angle.
+
+
+## VQA Generation
+By default, MetaVQA generates VQA data on real-world traffic in <a href="https://metadriverse.github.io/scenarionet/">ScenarioNet</a> format. Suppose
+you have the traffic data stored in `<traffic_folder>`, and you want the collected episodes to be stored in `<episodes_folder>` with `<num_proc>` processes.
+First, run
+```
+python -m vqa.multiprocess_episodes_generation \
+        --num_proc <num_proc>                  \
+        --scenarios <traffic_folder>           \
+        --data_directory <episodes_folder>
+```
+Optionally, you can set the `--headless` flag to boost performance. 
+
+To generate questions and store them in `<questions_folder>`, you first need to compose a config file(`<vqa_config.yaml>`). Here is an example:
+```
+num_proc: 32                               # number of process to use
+root_directory: <episodes_folder> 
+output_directory: <questions_folder> 
+src: "NuScenes"                              # traffic source
+verbose: False                             # Set true for verbose output.
+```
+Then, run
+```
+python -m vqa.multiprocess_question_generation --job <job> --config <vqa_config.yaml>
+```
+You can choose `<job>` from `[static, dynamic, safety, static_nusc, dynamic_nusc, safety_nusc]`. 
+Upon completion, `<question_folder>` will have `<num_proc>` jsons files with name in form `<job>_<proc_id>.json`
+
+Then, preprocess the json files containing vqa data from the previous steps and store the processed data into `<processed_folder>` by 
+```
+python -m vqa.qa_preprocessing --raw <questions_folder> --processed <processed_folder>
+```
+
+Finally, to export the dataset into a self-contained folder, with `export.py`. The exported dataset will have the same layout as in the [previous section](#dataset-structure).
+
+
+
+
+## Benchmark Training and Testing
+The training and evaluation scripts are available at  <a href="https://github.com/Dadaism6/MetaVQA-Training">this repository</a>. You can find the experiment
+results in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>.
 
 
 
@@ -76,208 +159,3 @@ are generated using <a href="https://github.com/metadriverse/cat">CAT</a>.
 
 
 
-<!---
-MetaDrive is a driving simulator with the following key features:
-
-- **Compositional**: It supports generating infinite scenes with various road maps and traffic settings for the research of generalizable RL. 
-- **Lightweight**: It is easy to install and run. It can run up to +1000 FPS on a standard PC.
-- **Realistic**: Accurate physics simulation and multiple sensory input including Lidar, RGB images, top-down semantic map and first-person view images. 
-
-
-## 🛠 Quick Start
-Install MetaDrive via:
-
-```bash
-git clone https://github.com/metadriverse/metadrive.git
-cd metadrive
-pip install -e .
-```
-
-or
-
-```bash
-pip install metadrive-simulator
-```
-*Note that the program is tested on both Linux and Windows. Some control and display issues in MacOS wait to be solved*
-
-You can verify the installation of MetaDrive via running the testing script:
-
-```bash
-# Go to a folder where no sub-folder calls metadrive
-python -m metadrive.examples.profile_metadrive
-```
-
-*Note that please do not run the above command in a folder that has a sub-folder called `./metadrive`.*
-
-## 🚕 Examples
-We provide [examples](https://github.com/metadriverse/metadrive/tree/main/metadrive/examples) to demonstrate features and basic usages of MetaDrive after the local installation.
-Or you can run some examples directly in Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/metadriverse/metadrive/blob/main/metadrive/examples/Basic_MetaDrive_Usages.ipynb) 
-
-### Single Agent Environment
-Run the following command to launch a simple driving scenario with auto-drive mode on. Press W, A, S, D to drive the vehicle manually.
-```bash
-python -m metadrive.examples.drive_in_single_agent_env
-```
-Run the following command to launch a safe driving scenario, which includes more complex obstacles and cost to be yielded. 
-
-```bash
-python -m metadrive.examples.drive_in_safe_metadrive_env
-```
-
-### Multi-Agent Environment
-
-You can also launch an instance of Multi-Agent scenario as follows
-
-```bash
-python -m metadrive.examples.drive_in_multi_agent_env --env roundabout
-```
-```--env```  accepts following parmeters: `roundabout` (default), `intersection`, `tollgate`, `bottleneck`, `parkinglot`, `pgmap`.
-Adding ```--top_down``` can launch top-down pygame renderer. 
-
-
-
-
-### Real Environment
-Running the following script enables driving in a scenario constructed from Waymo motion dataset.
-
-```bash
-python -m metadrive.examples.drive_in_waymo_env
-```
-
-Traffic vehicles can not response to surrounding vchicles if directly replaying them.
-Add argument ```--reactive_traffic``` to use an IDM policy control them and make them reactive.
-Press key ```r``` for loading a new scenario, and ```b``` or ```q``` for switching perspective. 
-
-[comment]: <> (### LQY: avoid introducing these trivial things )
-
-[comment]: <> (Run the example of procedural generation of a new map as:)
-
-[comment]: <> (```bash)
-
-[comment]: <> (python -m metadrive.examples.procedural_generation)
-
-[comment]: <> (```)
-
-[comment]: <> (*Note that the scripts above can not be run in a headless machine.*)
-
-[comment]: <> (*Please refer to the installation guideline in documentation for more information about how to launch runing in a headless machine.*)
-
-[comment]: <> (Run the following command to draw the generated maps from procedural generation:)
-
-[comment]: <> (```bash)
-
-[comment]: <> (python -m metadrive.examples.draw_maps)
-
-[comment]: <> (```)
-
-### Basic Usage
-To build the RL environment in python script, you can simply code in the Farama Gymnasium format as:
-
-```python
-import metadrive  # Import this package to register the environment!
-import gymnasium as gym
-
-env = gym.make("MetaDrive-validation-v0", config={"use_render": True})
-
-# Alternatively, you can instantiate using the class
-# env = metadrive.MetaDriveEnv(config={"use_render": True, "num_scenarios": 100})
-
-env.reset()
-for i in range(1000):
-    obs, reward, terminated, truncated, info = env.step(env.action_space.sample())  # Use random policy
-    if terminated or truncated:
-        env.reset()
-env.close()
-```
-
-
-## 🏫 Documentations
-
-Find more details in: [MetaDrive](https://metadrive-simulator.readthedocs.io)
-
-
-## 📎 References
-
-If you use MetaDrive in your own work, please cite:
-
-```latex
-@article{li2022metadrive,
-  title={Metadrive: Composing diverse driving scenarios for generalizable reinforcement learning},
-  author={Li, Quanyi and Peng, Zhenghao and Feng, Lan and Zhang, Qihang and Xue, Zhenghai and Zhou, Bolei},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2022}
-}
-```
-
-## 🎉 Relevant Projects
-
-**Learning to Simulate Self-driven Particles System with Coordinated Policy Optimization**
-\
-Zhenghao Peng, Quanyi Li, Chunxiao Liu, Bolei Zhou 
-\
-*NeurIPS 2021*
-\
-[<a href="https://arxiv.org/pdf/2110.13827.pdf" target="_blank">Paper</a>]
-[<a href="https://github.com/decisionforce/CoPO" target="_blank">Code</a>]
-[<a href="https://decisionforce.github.io/CoPO" target="_blank">Webpage</a>]
-[<a href="https://decisionforce.github.io/CoPO/copo_poster.pdf" target="_blank">Poster</a>]
-[<a href="https://youtu.be/sOw43l8lwxE" target="_blank">Talk</a>]
-[<a href="https://github.com/metadriverse/metadrive-benchmark/tree/main/MARL" target="_blank">Results&Models</a>]
-
-
-**Safe Driving via Expert Guided Policy Optimization**
-\
-Zhenghao Peng*, Quanyi Li*, Chunxiao Liu, Bolei Zhou
-\
-*Conference on Robot Learning (CoRL) 2021*
-\
-[<a href="https://arxiv.org/pdf/2110.06831.pdf" target="_blank">Paper</a>]
-[<a href="https://github.com/decisionforce/EGPO" target="_blank">Code</a>]
-[<a href="https://decisionforce.github.io/EGPO/" target="_blank">Webpage</a>]
-[<a href="https://decisionforce.github.io/EGPO/images/egpo_poster.png" target="_blank">Poster</a>]
-
-**Efficient Learning of Safe Driving Policy via Human-AI Copilot Optimization**
-\
-Quanyi Li*, Zhenghao Peng*, Bolei Zhou
-\
-*ICLR 2022*
-\
-[<a href="https://arxiv.org/pdf/2202.10341.pdf" target="_blank">Paper</a>]
-[<a href="https://github.com/decisionforce/HACO" target="_blank">Code</a>]
-[<a href="https://decisionforce.github.io/HACO/" target="_blank">Webpage</a>]
-[<a href="https://github.com/decisionforce/HACO/blob/main/docs/iclr_poster.pdf" target="_blank">Poster</a>]
-[<a href="https://youtu.be/PiJv4wtp8T8" target="_blank">Talk</a>]
-
-**Human-AI Shared Control via Policy Dissection**
-\
-Quanyi Li, Zhenghao Peng, Haibin Wu, Lan Feng, Bolei Zhou
-\
-*NeurIPS 2022*
-\
-[<a href="https://arxiv.org/pdf/2206.00152.pdf" target="_blank">Paper</a>]
-[<a href="https://github.com/metadriverse/policydissect" target="_blank">Code</a>]
-[<a href="https://metadriverse.github.io/policydissect/" target="_blank">Webpage</a>]
-
-
-And more:
-
-
-* Yang, Yujie, Yuxuan Jiang, Yichen Liu, Jianyu Chen, and Shengbo Eben Li. "Model-Free Safe Reinforcement Learning through Neural Barrier Certificate." IEEE Robotics and Automation Letters (2023).
-
-* Feng, Lan, Quanyi Li, Zhenghao Peng, Shuhan Tan, and Bolei Zhou. "TrafficGen: Learning to Generate Diverse and Realistic Traffic Scenarios." (**ICRA 2023**)
-
-* Zhenghai Xue, Zhenghao Peng, Quanyi Li, Zhihan Liu, Bolei Zhou. "Guarded Policy Optimization with Imperfect Online Demonstrations." (**ICLR 2023**)
-
-
-
-## Acknowledgement
-
-The simulator can not be built without the help from Panda3D community and the following open-sourced projects:
-- panda3d-simplepbr: https://github.com/Moguri/panda3d-simplepbr
-- panda3d-gltf: https://github.com/Moguri/panda3d-gltf
-- RenderPipeline (RP): https://github.com/tobspr/RenderPipeline
-- Water effect for RP: https://github.com/kergalym/RenderPipeline 
-- procedural_panda3d_model_primitives: https://github.com/Epihaius/procedural_panda3d_model_primitives
-- DiamondSquare for terrain generation: https://github.com/buckinha/DiamondSquare
-- KITSUNETSUKI-Asset-Tools: https://github.com/kitsune-ONE-team/KITSUNETSUKI-Asset-Tools
--->
