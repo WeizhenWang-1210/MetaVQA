@@ -3,6 +3,8 @@ from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
+from metadrive.component.sensors.depth_camera import DepthCamera
 from vqa.episodes_generation import generate_episodes
 import os
 import yaml
@@ -34,7 +36,9 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
                 rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540)
+                instance=(InstanceCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540),
+                depth=(DepthCamera, 960, 540)
             ),
             "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
             "height_scale": 1,
@@ -61,7 +65,9 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             debug=False,
             sensors=dict(
                 rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540)
+                instance=(InstanceCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540),
+                depth=(DepthCamera, 960, 540)
             ),
             height_scale=1,
         )
@@ -88,7 +94,9 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None, pref
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
                 rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540)
+                instance=(InstanceCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540),
+                depth=(DepthCamera, 960, 540)
             ),
             "height_scale": 1
         }
@@ -141,7 +149,7 @@ def normal():
         print("{}: {}".format(key, value))
     try:
         # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
-        with open(default_config_path, 'r') as f:
+        with open(args.config, 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
