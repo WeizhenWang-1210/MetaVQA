@@ -5,6 +5,8 @@ import argparse
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.depth_camera import DepthCamera
+from metadrive.component.sensors.semantic_camera import  SemanticCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.scenario import utils as sd_utils
 from vqa.dataset_utils import l2_distance
@@ -17,6 +19,7 @@ from collections import defaultdict
 import os
 import cv2
 import multiprocessing
+
 
 PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 from PIL import Image
@@ -45,8 +48,8 @@ def save_episode_raw(buffer, raw_buffer, root, IO, nuScene_name):
                 # Save the world annotation in world_{}.json
                 file_path = os.path.join(frame_folder, f"{key}_{identifier}.json")
                 json.dump(data["world"], open(file_path, 'w'), indent=2)
-            elif key in ["rgb", "mask"]:
-                # Save the rgb|instance observation in {rgb|lidar}_{perspective}_{id}.png
+            elif key in ["rgb", "mask", "depth", "semantic"]:
+                # Save the rgb|instance|depth|semantic observation in {rgb|lidar}_{perspective}_{id}.png
                 files = defaultdict(lambda: "")
                 for perspective in data[key].keys():
                     file_path = os.path.join(frame_folder, f"{key}_{perspective}_{identifier}.png")
@@ -93,7 +96,8 @@ def save_episode_raw(buffer, raw_buffer, root, IO, nuScene_name):
     return 0
 
 
-def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, scene_id, offset):
+def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, camera, instance_camera, lidar, scene_id,
+                              offset):
     """
         Record an episode of observations. Note that multiple episodes can be extracted from one seed. Moreover,
         by setting episode_length to 1, you get single-frame observations.
@@ -103,7 +107,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
     buffer = dict()  # Store all frame annotations for the current episode.
     env_id = env.current_seed
     env_start = env.episode_step
-
+    depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     raw_buffer = dict()
     while total_steps < episode_length:
         o, r, tm, tc, info = env.step([0, 0])
@@ -130,9 +134,14 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
+                                                 hpr=hpr)
                 rgb_annotations[name] = dict(
                     mask=mask,
-                    rgb=rgb
+                    rgb=rgb,
+                    depth=depth,
+                    semantic=semantic
                 )
             # Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
             # is reserved for special purpose, and no objects will take this color.
@@ -154,7 +163,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # get all objectes within 50m of the ego(except agent)
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
-                                      env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
+                                      env.agent) <= 100 and x.id != env.agent.id and not isinstance(x,
                                                                                                    BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
@@ -184,7 +193,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                                                         scene_dict=scene_annotation,
                                                         log_mapping=Log_Mapping,
                                                         debug=True)
-            if (offset+total_steps) % 5 == 0:
+            if (offset + total_steps) % 5 == 0:
                 #its a key frame
                 img_path_dict = PAIRED_OBSERVATION[scene_id]['img_path']
                 key_frame = (offset + total_steps) // 5
@@ -219,7 +228,9 @@ def paired_logging(headless, num_scenarios, config, seeds):
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
                 rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540)
+                instance=(InstanceCamera, 960, 540),
+                depth=(DepthCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540)
             ),
             "height_scale": 1
         }
@@ -242,7 +253,8 @@ def paired_logging(headless, num_scenarios, config, seeds):
         flag = True
         while flag:
             step_ran, buffer, raw_buffer, IO = \
-                annotate_episode_with_raw(env, env.engine, sample_frequency, episode_length, camera, instance_camera, lidar,
+                annotate_episode_with_raw(env, env.engine, sample_frequency, episode_length, camera, instance_camera,
+                                          lidar,
                                           id, offset)
             offset += step_ran
             ret_code = save_episode_raw(buffer, raw_buffer, root_folder, IO, id)
@@ -258,27 +270,33 @@ def paired_logging(headless, num_scenarios, config, seeds):
                     break
                 offset += 1
 
+
 from vqa.multiprocess_question_generation import divide_list_into_n_chunks
-def main(scenarios = None):
+
+
+def main(scenarios=None):
     cwd = os.getcwd()
     full_path = os.path.join(cwd, "vqa", "configs", "mixed_up_scene.yaml")
     parser = argparse.ArgumentParser()
+    parser.add_argument("--start", type=int, default=0, help="Starting index")
+    parser.add_argument("--end", type=int, default=400, help="non-inclusive ending index")
     parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
     parser.add_argument("--num_proc", type=int, default=1, help="Number of processes to generate QA data")
     parser.add_argument("--config", type=str, default=full_path,
                         help="path to the data generation configuration file")
     scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(NUSCENES_PATH)
     num_scenarios = len(scenario_summary)
+    args = parser.parse_args()
+    scenarios = list(range(args.start, args.end))
+    config = yaml.safe_load(open(args.config, 'r'))
     print(f"We have {num_scenarios} NuScenes in total.")
     print(f"We will process{len(scenarios)} out of them.")
-    args = parser.parse_args()
-    config = yaml.safe_load(open(args.config,'r'))
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
     if not scenarios:
         jobs = divide_list_into_n_chunks(scenario_ids, args.num_proc)
     else:
-        jobs =divide_list_into_n_chunks(scenarios, args.num_proc)
+        jobs = divide_list_into_n_chunks(scenarios, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))
@@ -298,7 +316,6 @@ def main(scenarios = None):
     print("Finished all processes.")
 
 
-
 if __name__ == "__main__":
-    jobs = list(range(2,100))
+    jobs = list(range(2, 100))
     main(jobs)
