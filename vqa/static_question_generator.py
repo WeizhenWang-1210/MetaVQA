@@ -669,11 +669,15 @@ class QuerySpecifier:
         Statistics based on current frame. Since we don't have any action/interaction
         in static setting, we ignore action/interaction.
         """
+        id_set = set()
         for id in ids:
+            if id in id_set:
+                continue
             obj = self.graph.get_node(id)
             self.statistics["types"][obj.type] += 1
             self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
             self.statistics["colors"][obj.color] += 1
+            id_set.add(id)
 
     def generate_mask(self, ids):
         """
