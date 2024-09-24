@@ -205,7 +205,7 @@ def safety_critical():
         print("{}: {}".format(key, value))
     try:
         # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
-        with open(default_config_path, 'r') as f:
+        with open(args.config, 'r') as f:
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
