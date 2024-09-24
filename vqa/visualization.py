@@ -73,7 +73,7 @@ def multiview_visualization(images, output_path):
     Image.fromarray(grid_array).save(output_path)
 
 
-def create_video(frame_arrays, filename, fps=10):
+def create_video(frame_arrays, filename, fps=5):
     """
     frames in (h,w,c) numpy arrays, unint8
     output_path should be str
@@ -187,6 +187,39 @@ def visualize_session(root_dir):
                     arrays.append(imarrays[perspective][frame])
                 concatenated_arrays.append(gridify_imarrays(arrays))
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_mask.mp4")
+            
+            
+            
+            for perspective in perspectives:
+                path_template = f"{root_dir}/{content}/**/depth_{perspective}*.png"
+                frame_files = sorted(glob.glob(path_template, recursive=True), key=extract_numbers)
+                # print(frame_files)
+                imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
+            num_frames = len(imarrays[perspectives[0]])
+            # print(num_frames)
+            concatenated_arrays = []
+            for frame in range(num_frames):
+                arrays = []
+                for perspective in perspectives:
+                    arrays.append(imarrays[perspective][frame])
+                concatenated_arrays.append(gridify_imarrays(arrays))
+            create_video(concatenated_arrays, f"{root_dir}/{content}/episode_depth.mp4")
+            
+            for perspective in perspectives:
+                path_template = f"{root_dir}/{content}/**/semantic_{perspective}*.png"
+                frame_files = sorted(glob.glob(path_template, recursive=True), key=extract_numbers)
+                # print(frame_files)
+                imarrays[perspective] = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
+            num_frames = len(imarrays[perspectives[0]])
+            # print(num_frames)
+            concatenated_arrays = []
+            for frame in range(num_frames):
+                arrays = []
+                for perspective in perspectives:
+                    arrays.append(imarrays[perspective][frame])
+                concatenated_arrays.append(gridify_imarrays(arrays))
+            create_video(concatenated_arrays, f"{root_dir}/{content}/episode_semantic.mp4")
+            
 
             top_down_template = f"{root_dir}/{content}/**/top_down*.png"
             frame_files = sorted(glob.glob(top_down_template, recursive=True), key=extract_numbers)
@@ -300,7 +333,7 @@ if __name__ == "__main__":
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
     create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")"""
-    #visualize_session("C:/Users/arnoe\Downloads/real")
+    visualize_session("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes")
     #visualize_frames("C:/Users/arnoe/Downloads/nuscenes")
 
-    demo("C:/Users/arnoe/Downloads/QA_rgb/QA_rgb/ safety_obs")
+    #demo("C:/Users/arnoe/Downloads/QA_rgb/QA_rgb/ safety_obs")
