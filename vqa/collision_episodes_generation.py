@@ -97,6 +97,13 @@ class Buffer:
             os.makedirs(frame_folder, exist_ok=True)
             log_frame(frame_summary, frame_folder)
 
+    def firstnlast(self):
+        first_identifier = self.dq[0][0]
+        last_identifier = self.dq[-1][0]
+        first_step = first_identifier.split("_")[-1]
+        last_step = last_identifier.split("_")[-1]
+        print(first_identifier, last_identifier)
+        return int(first_step), int(last_step)
 
 def record_frame(env, lidar, camera, instance_camera):
     engine = env.engine
@@ -165,7 +172,7 @@ def record_frame(env, lidar, camera, instance_camera):
 
 
 def record_accident(env, buffer, countdown, session_folder, prefix=""):
-    if countdown <=0:
+    if countdown <= 0:
         tm = tc = False
     engine = env.engine
     camera = engine.get_sensor("rgb")
@@ -180,12 +187,14 @@ def record_accident(env, buffer, countdown, session_folder, prefix=""):
             break
         countdown -= 1
     buffer_size = len(buffer.dq)
-    final_step = engine.episode_step
-    initial_step = final_step - 2*buffer_size + 2
+    initial_step,final_step = buffer.firstnlast()
+
+    #final_step = engine.episode_step
+    #initial_step = final_step - 2 * (buffer_size-1)
     if prefix != "":
         folder = os.path.join(session_folder, "{}_{}_{}_{}".format(prefix, env.current_seed, initial_step, final_step))
     else:
-        folder = os.path.join(session_folder, "{}_{}_{}".format( env.current_seed, initial_step, final_step))
+        folder = os.path.join(session_folder, "{}_{}_{}".format(env.current_seed, initial_step, final_step))
     buffer.export(folder)
     return tm, tc
 
@@ -195,7 +204,7 @@ def generate_safe_data(env, seeds, folder, prefix=""):
     os.makedirs(folder, exist_ok=True)
     print("This session is saved in folder {}".format(folder))
     env.agent.expert_takeover = True
-    offset = 56
+    offset = 52
     history = 25
     future = 0
     annotation_buffer = Buffer(history + future)
@@ -214,25 +223,31 @@ def generate_safe_data(env, seeds, folder, prefix=""):
             inception = False
             annotation_buffer.flush()
             continue
-        env.reset(seed)
         if collision_step - offset < 0:
             print("Collision is too early. Will not annotate it.".format(env.current_seed))
             env.reset()
             inception = False
             annotation_buffer.flush()
             continue
-        for _ in range(1, collision_step - offset):
+        env.reset(seed)
+        for _ in range(collision_step - offset):
             env.step([0, 0])
-        for i in range(collision_step-offset, 10000):
+        for i in range(10000):
             o, t, tm, tc, info = env.step([0, 0])
             if not inception:
-                if (i + collision_step + 1) % 2 == 0:
+                if (collision_step - env.episode_step) % 2 == 0:
                     print("here")
                     identifier = f"{env.current_seed}_{engine.episode_step}"
                     scene_summary = record_frame(env, lidar, camera, instance_camera)
                     annotation_buffer.insert((identifier, scene_summary))
                 if len(env.agent.crashed_objects) > 0:
                     print("Collision happened at step {} in annotation.".format(env.engine.episode_step))
+                    if collision_step != env.episode_step:
+                        print("Mismatch in two rollouts.")
+                        scene_summary = record_frame(env, lidar, camera, instance_camera)
+                        identifier = f"{env.current_seed}_{engine.episode_step}"
+                        annotation_buffer.insert((identifier, scene_summary))
+
                     inception = True
                     #not supposed to have an effect
                     print(len(annotation_buffer.dq))
@@ -244,7 +259,8 @@ def generate_safe_data(env, seeds, folder, prefix=""):
 
 
 if __name__ == "__main__":
-    scenario_summary, _, _ = sd_utils.read_dataset_summary("/bigdata/datasets/scenarionet/CAT_validation_interactive/train")
+    scenario_summary, _, _ = sd_utils.read_dataset_summary(
+        "/bigdata/datasets/scenarionet/CAT_validation_interactive/train")
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
