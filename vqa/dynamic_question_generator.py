@@ -134,7 +134,10 @@ class DynamicQuerySpecifier:
         """
         The statistics are based on current frame.
         """
+        id_set = set()
         for id in ids:
+            if id in id_set:
+                continue
             obj = self.graph.get_node(id)
             self.statistics["types"][obj.type] += 1
             self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
@@ -143,6 +146,7 @@ class DynamicQuerySpecifier:
             self.statistics["colors"][obj.color] += 1
             for interaction in obj.get_all_interactions():
                 self.statistics["interactions"][interaction] += 1
+            id_set.add(id)
 
     def export_qa(self):
         def type_token_string_converter(token, form):
