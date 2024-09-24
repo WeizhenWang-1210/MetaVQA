@@ -558,7 +558,7 @@ def static_all(root_folder, source, summary_path, verbose=False, multiview=True)
         lidar = os.path.join(folder_name, f"lidar_{identifier}.pkl")
 
         record, num_data = generate_all_frame(templates["static"], path, 100, 10, count, verbose=verbose,
-                                              multiview=multiview)
+                                                      multiview=multiview)
         for id, info in record.items():
             records[id] = dict(
                 question=info["question"],
