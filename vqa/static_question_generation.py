@@ -234,7 +234,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                                 distro_string_suffix = distro_strings[-1]
                                 distro_string = ", and ".join([distro_string_prefix, distro_string_suffix])
                             elif len(distro_strings) > 1:
-                                distro_string = " and".join(distro_strings)
+                                distro_string = " and ".join(distro_strings)
                             else:
                                 distro_string = distro_strings[0]
 
@@ -251,7 +251,7 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                                 distro_string_suffix = distro_strings[-1]
                                 distro_string = ", and ".join([distro_string_prefix, distro_string_suffix])
                             elif len(distro_strings) > 1:
-                                distro_string = " and".join(distro_strings)
+                                distro_string = " and ".join(distro_strings)
                             else:
                                 distro_string = distro_strings[0]
                             first_string = "are" if list(q.statistics["types"].values())[0] > 1 else "is"
@@ -265,10 +265,10 @@ def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start:
                                                                                                        referral_string)
                     else:
                         if question_type == "color_identification":
-                            explanation = "No color can be identified for {}, because they don't exist.".format(
+                            explanation = "No color can be identified for {} because they don't exist.".format(
                                 referral_string)
                         else:
-                            explanation = "No type can be identified for {}, because no such thing is observable.".format(
+                            explanation = "No type can be identified for {} because no such thing is observable.".format(
                                 referral_string)
                     if len(answer) > 0 or degenerate_allowance[question_type] > 0:
                         record[id_start + counts + type_count] = dict(
