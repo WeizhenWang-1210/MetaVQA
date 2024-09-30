@@ -204,7 +204,7 @@ def generate_safe_data(env, seeds, folder, prefix=""):
     os.makedirs(folder, exist_ok=True)
     print("This session is saved in folder {}".format(folder))
     env.agent.expert_takeover = True
-    offset = 52
+    offset = 56
     history = 25
     future = 0
     annotation_buffer = Buffer(history + future)
