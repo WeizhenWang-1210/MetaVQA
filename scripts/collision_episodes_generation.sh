@@ -28,7 +28,7 @@ paths=(
 for path in "${paths[@]}"; do
     if [ -d "$path" ]; then
         echo "Working on $path."
-        python -m vqa.multiprocess_episodes_generation --headless --num_proc 1 \
+        python -m vqa.multiprocess_episodes_generation --headless --num_proc 16 \
         --scenarios --data_directory "$path" --source "Waymo_CAT" --split "train" --config "./vqa/configs/cat_scene.yaml"
 
     else
