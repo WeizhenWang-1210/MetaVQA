@@ -216,6 +216,7 @@ def safety_critical():
         num_scenarios = 10
     if not args.scenarios:
         num_scenarios = config["map_setting"]["num_scenarios"]
+    print("{} total scenarios distributed across {} processed".format(num_scenarios, args.num_proc))
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
     prefix = os.path.basename(args.data_directory)
     job_intervals = [list(range(*job_interval)) for job_interval in job_intervals]
@@ -231,7 +232,7 @@ def safety_critical():
                 args.headless,
                 config,
                 num_scenarios,
-                job_intervals[proc_id][3:6],
+                job_intervals[proc_id],
                 prefix
             )
         )
@@ -247,5 +248,5 @@ def safety_critical():
 
 
 if __name__ == "__main__":
-    normal()
-    #safety_critical()
+    #normal()
+    safety_critical()
