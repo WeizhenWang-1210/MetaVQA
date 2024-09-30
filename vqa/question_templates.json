@@ -2,14 +2,13 @@
     "static":{
         "localization":{
             "text": [
-                "Locate all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Give me the bounding boxes of all <o> in our coordinates.",
-                "Please localize all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Locate all <o> immediately. Give me the bounding boxes expressed in our coordinates.",
-                "Identify the positions of all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Pinpoint the whereabouts of all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Determine the positions of all <o>. Give me the bounding boxes expressed in our coordinates.",
-                "Find and report the locations of all <o>. Give me the bounding boxes expressed in our coordinates."
+                "Locate all <o>. Denote the centers as [x, y], where the positive x-direction represents our current heading, the positive y-direction is rotated counterclockwise from x by 90 degrees, and the origin is our current location.",
+                "Identify all <o>. Represent the centers as [x, y], with the positive x-axis aligned with our current heading, and the positive y-axis rotated 90 degrees counterclockwise from x, using our current location as the origin.",
+                "Please locate all <o>. Denote the centers with [x, y], where the x-axis aligns with our heading and the y-axis is rotated 90 degrees counterclockwise, with our location at the origin.",
+                "Identify the positions of all <o>. Assign the centers as [x, y], where the positive x-direction points to our current heading and the positive y-direction is rotated 90 degrees counterclockwise from x, with our location as the origin.",
+                "Determine the positions of all <o>. Represent the centers as [x, y], where x points in our current heading and y is rotated 90 degrees counterclockwise from x, with the origin set to our current location.",
+                "Mark the positions of all <o>. Define the centers as [x, y], where x points in our heading direction and y is rotated 90 degrees counterclockwise, using our location as the origin.",
+                "Locate all <o> visible. Designate their centers with [x, y] coordinates, where x runs in the direction of our current heading, y is perpendicular and rotated 90 degrees counterclockwise from x, and our location is the origin."
             ],
             "params":[
                 "<o>"
@@ -34,12 +33,11 @@
         },
         "count_equal_binary":{
             "text":[
-                "Are there an equal number of the following things: <o1>, <o2>? Answer True or False.",
-                "Do we have the same number of <o1> and <o2>? Answer True or False.",
-                "Do <o1> match <o2> in number? Answer True or False.",
-                "Are the quantities of <o1> and <o2> equal? Answer True or False.",
-                "Determine if <o1> and <o2> are equal in number. Answer True or False.",
-                "Check if the quantities of <o1> and <o2> are the same. Answer True or False."
+                "Is there an equal number of the following things: <o1>, <o2>? Answer True or False and explain the reasoning.",
+                "Do we have the same number of <o1> and <o2>? Answer True or False and explain the reasoning.",
+                "Do <o1> match <o2> in number? Answer True or False and explain the reasoning",
+                "Determine if there is an identical number of <o1> and <o2>. Answer True or False and explain the reasoning.",
+                "Check if the quantities of <o1> and <o2> are the same. Answer True or False and explain the reasoning."
             ],
             "params":[
                 "<o1>","<o2>"
@@ -49,12 +47,12 @@
         },
         "count_more_binary":{
             "text":[
-                "Are there more <o1> than <o2>? Answer True or False.",
-                "Do <o1> exceed <o2> in quantity? Answer True or False.",
-                "Are there less <o2> than <o1>? Answer True or False.",
-                "Are <o2> outnumbered by <o1>? Answer True or False.",
-                "Determine if there are more <o1> than <o2>. Answer True or False.",
-                "Answer True if <o1> outnumber <o2> and False otherwise."
+                "Are there more <o1> than <o2>? Answer True or False and explain the reasoning.",
+                "Do <o1> exceed <o2> in quantity? Answer True or False and explain the reasoning.",
+                "Are there less <o2> than <o1>? Answer True or False and explain the reasoning.",
+                "Are <o2> outnumbered by <o1>? Answer True or False and explain the reasoning.",
+                "Determine if there are more <o1> than <o2>. Answer True or False and explain the reasoning.",
+                "Answer True if <o1> outnumber <o2> and False otherwise. Explain the reasoning."
             ],
             "params":[
                 "<o1>","<o2>"
@@ -131,14 +129,13 @@
     "dynamic": {
         "localization":{
             "text": [
-                "Locate all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
-                "Give me the bounding boxes of all <o> in our coordinates.",
-                "Please localize all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
-                "Locate all <o> immediately. Give me the bounding boxes expressed in our coordinates at this moment.",
-                "Identify the positions of all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
-                "Pinpoint the whereabouts of all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
-                "Determine the positions of all <o>. Give me the bounding boxes expressed in our coordinates at this moment.",
-                "Find and report the locations of all <o>. Give me the bounding boxes expressed in our coordinates at this moment."
+                "Locate all <o>. Denote the centers as [x, y], where the positive x-direction represents our current heading, the positive y-direction is rotated counterclockwise from x by 90 degrees, and the origin is our current location.",
+                "Identify all <o>. Represent the centers as [x, y], with the positive x-axis aligned with our current heading, and the positive y-axis rotated 90 degrees counterclockwise from x, using our current location as the origin.",
+                "Please locate all <o>. Denote the centers with [x, y], where the x-axis aligns with our heading and the y-axis is rotated 90 degrees counterclockwise, with our location at the origin.",
+                "Identify the positions of all <o>. Assign the centers as [x, y], where the positive x-direction points to our current heading and the positive y-direction is rotated 90 degrees counterclockwise from x, with our location as the origin.",
+                "Determine the positions of all <o>. Represent the centers as [x, y], where x points in our current heading and y is rotated 90 degrees counterclockwise from x, with the origin set to our current location.",
+                "Mark the positions of all <o>. Define the centers as [x, y], where x points in our heading direction and y is rotated 90 degrees counterclockwise, using our location as the origin.",
+                "Locate all <o> visible. Designate their centers with [x, y] coordinates, where x runs in the direction of our current heading, y is perpendicular and rotated 90 degrees counterclockwise from x, and our location is the origin."
             ],
             "params":[
                 "<o>"
@@ -148,8 +145,8 @@
         },
         "counting": {
             "text":[
-                "At this moment, how many <o> are observed?",
-                "At this moment, how many <o> are there in observation?",
+                "How many <o> can be observed at this moment?",
+                "How many <o> are there in observation currently?",
                 "Give me the number of <o> at this moment.",
                 "Count the number of observed <o> at current moment.",
                 "Determine how many <o> are observed at current moment.",
@@ -163,11 +160,11 @@
         },
         "count_equal_binary":{
             "text":[
-                "At this moment, are there an equal number of the following things: <o1>, <o2>? Answer True or False.",
-                "At this moment, do we have the same number of <o1> and <o2>? Answer True or False.",
-                "At this moment, do <o1> match <o2> in number? Answer True or False.",
-                "Determine if <o1> and <o2> are equal in number at this moment. Answer True or False.",
-                "Check if the quantities of <o1> and <o2> are the same at this moment. Answer True or False."
+                "Is there an equal number of the following things: <o1>, <o2>? Answer True or False and explain the reasoning.",
+                "Do we have the same number of <o1> and <o2>? Answer True or False and explain the reasoning.",
+                "Do <o1> match <o2> in number? Answer True or False and explain the reasoning",
+                "Determine if there is an identical number of <o1> and <o2>. Answer True or False and explain the reasoning.",
+                "Check if the quantities of <o1> and <o2> are the same. Answer True or False and explain the reasoning."
             ],
             "params":[
                 "<o1>","<o2>"
@@ -177,12 +174,12 @@
         },
         "count_more_binary":{
             "text":[
-                "Are there more <o1> than <o2>? Answer True or False.",
-                "Do <o1> exceed <o2> in quantity? Answer True or False.",
-                "Are there less <o2> than <o1>? Answer True or False.",
-                "Are <o2> outnumbered by <o1>? Answer True or False.",
-                "Determine if there are more <o1> than <o2>. Answer True or False.",
-                "Answer True if <o1> outnumber <o2> and False otherwise."
+                "Are there more <o1> than <o2>? Answer True or False and explain the reasoning.",
+                "Do <o1> exceed <o2> in quantity? Answer True or False and explain the reasoning.",
+                "Are there less <o2> than <o1>? Answer True or False and explain the reasoning.",
+                "Are <o2> outnumbered by <o1>? Answer True or False and explain the reasoning.",
+                "Determine if there are more <o1> than <o2>. Answer True or False and explain the reasoning.",
+                "Answer True if <o1> outnumber <o2> and False otherwise. Explain the reasoning."
             ],
             "params":[
                 "<o1>","<o2>"
