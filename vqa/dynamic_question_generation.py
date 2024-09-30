@@ -327,10 +327,12 @@ def add_to_record(question_type, q, result, candidates):
                 explanation = ("There are {} {} located at the aforementioned positions at this moment."
                                .format(len(answer), referral_string))
         elif question_type == "count_equal_binary" or question_type == "count_more_binary":
+            #print(ids, answer)
+            #exit()
             referral_string0, referral_string1 = q.parameters["<o1>"]["en"], q.parameters["<o2>"]["en"]
             count0, count1 = len(set([obj.id for obj in q.parameters["<o1>"]["answer"]])), len(
                 set([obj.id for obj in q.parameters["<o2>"]["answer"]]))
-            answer_string = "\"True\"" if answer[1] else "\"False\""
+            answer_string = "\"True\"" if answer else "\"False\""
             explanation = "The number of {} is {}, and there {} {} {}. Therefore, the answer is {}".format(
                 referral_string0, count0, "is" if count1 <= 1 else "are", "no" if count1 == 0 else count1,
                 referral_string1,
@@ -347,7 +349,7 @@ def add_to_record(question_type, q, result, candidates):
                         distro_string_suffix = distro_strings[-1]
                         distro_string = ", and ".join([distro_string_prefix, distro_string_suffix])
                     elif len(distro_strings) > 1:
-                        distro_string = " and".join(distro_strings)
+                        distro_string = " and ".join(distro_strings)
                     else:
                         distro_string = distro_strings[0]
 
@@ -364,7 +366,7 @@ def add_to_record(question_type, q, result, candidates):
                         distro_string_suffix = distro_strings[-1]
                         distro_string = ", and ".join([distro_string_prefix, distro_string_suffix])
                     elif len(distro_strings) > 1:
-                        distro_string = " and".join(distro_strings)
+                        distro_string = " and ".join(distro_strings)
                     else:
                         distro_string = distro_strings[0]
                     first_string = "are" if list(q.statistics["types"].values())[0] > 1 else "is"
@@ -378,10 +380,10 @@ def add_to_record(question_type, q, result, candidates):
                                                                                                referral_string)
             else:
                 if question_type == "color_identification":
-                    explanation = "No color can be identified for {}, because they don't exist.".format(
+                    explanation = "No color can be identified for {} because they don't exist.".format(
                         referral_string)
                 else:
-                    explanation = "No type can be identified for {}, because no such thing is observable.".format(
+                    explanation = "No type can be identified for {} because no such thing is observable.".format(
                         referral_string)
         data_point = dict(
             question=question, answer=answer, explanation=explanation,
@@ -533,18 +535,6 @@ def  generate_trimmed_grammar_nuscenes(graph, template):
                 new_rule.append(rhs)
             new_grammar[lhs] = new_rule
     return new_grammar
-
-
-
-
-
-
-
-
-
-
-
-
 def generate_dynamic_questions_nuscene(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
     frame_files = extract_frames(episode)
     graph = TemporalGraph(frame_files)
@@ -592,8 +582,10 @@ def generate_dynamic_questions_nuscene(episode, templates, max_per_type=5, choos
     return candidates, counts, context_string
 
 def generate():
-    session_name = "collision_scenarios_long"  # "test_collision"
-    episode_folders = find_episodes(session_name)
+    session_name = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/"  # "test_collision"
+    episode_folders = load_valid_episodes(session_name)
+    print(len(episode_folders))
+    #exit()
     current_directory = os.path.dirname(os.path.abspath(__file__))
     storage_folder = "test_temporal"
     abs_storage_folder = os.path.join(current_directory, storage_folder)
@@ -603,21 +595,22 @@ def generate():
     templates_path = os.path.join(current_directory, "question_templates.json")
     templates = json.load(open(templates_path, "r"))
     templates = templates["dynamic"]
-    """templates = {
+    templates = {
         # "localization": templates["localization"]
         # "counting": templates["counting"],
         # "count_equal_binary": templates["count_equal_binary"]
         # "count_more_binary": templates["count_more_binary"],
         # "color_identification": templates["color_identification"]
         # "type_identification": templates["type_identification"],
-        # "color_identification_unique": templates["color_identification_unique"]
+        # "color_identification_unique": templates["color_identification_unique"],
+        "type_identification_unique": templates["type_identification_unique"]
         # "identify_stationary": templates["identify_stationary"]
         # "identify_heading": templates["identify_heading"]
         #"predict_trajectory": templates["predict_trajectory"]
-    }"""
+    }
     qa_tuples = {}
     idx = 0
-    for episode in episode_folders:
+    for episode in episode_folders[:2]:
         assert len(DynamicQuerySpecifier.CACHE) == 0, f"Non empty cache for {episode}"
         observations = extract_observations(episode)
         records, num_questions, context = generate_dynamic_questions(
@@ -625,7 +618,8 @@ def generate():
         for question_type, record_list in records.items():
             for record in record_list:
                 qa_tuples[idx] = dict(
-                    question=" ".join([record["question"], context]), answer=record["answer"],
+                    context=context, #question=" ".join([record["question"], context])
+                    question=record["question"], answer=record["answer"], explanation=record["explanation"],
                     question_type="|".join(["dynamic", question_type]), answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
                     color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
@@ -645,4 +639,5 @@ def generate():
 
 
 if __name__ == "__main__":
-    print(find_nuscene_frames("C:/Users/arnoe/Downloads/real"))
+    generate()
+    #print(find_nuscene_frames("C:/Users/arnoe/Downloads/real"))
