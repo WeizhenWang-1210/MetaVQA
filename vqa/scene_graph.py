@@ -321,7 +321,7 @@ class TemporalGraph:
 
 
 if __name__ == "__main__":
-    EPISODE = "C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/world*.json"
+    EPISODE = "/bigdata/weizhen/metavqa_iclr/scenarios/waymo/0_1_50/**/world*.json"#"C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/world*.json"
     import glob
 
     episode_folder = EPISODE
@@ -329,4 +329,6 @@ if __name__ == "__main__":
     frame_files = sorted(glob.glob(episode_folder, recursive=True))
     # print(len(frame_files))
     graph = TemporalGraph(frame_files)
-    graph.export_trajectories()
+    print(graph.nodes.values())
+    print(graph)
+    #graph.export_trajectories()

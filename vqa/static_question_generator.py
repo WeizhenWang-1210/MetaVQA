@@ -15,6 +15,29 @@ from vqa.object_node import transform, nodify
 
 GRAMMAR = STATIC_GRAMMAR
 
+NAMED_MAPPING = dict(
+                nil=dict(singular="traffic object", plural="traffic objects"),
+                Bus=dict(singular="bus", plural="buses"),
+                Caravan=dict(singular="caravan", plural="caravans"),
+                Coupe=dict(singular="coupe", plural="coupes"),
+                FireTruck=dict(singular="fire engine", plural="fire engines"),
+                Jeep=dict(singular="jeep", plural="jeeps"),
+                Pickup=dict(singular="pickup", plural="pickups"),
+                Policecar=dict(singular="police car", plural="police cars"),
+                SUV=dict(singular="SUV", plural="SUVs"),
+                SchoolBus=dict(singular="school bus", plural="school buses"),
+                Sedan=dict(singular="sedan", plural="sedans"),
+                SportCar=dict(singular="sports car", plural="sports cars"),
+                Truck=dict(singular="truck", plural="trucks"),
+                Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+                Pedestrian=dict(singular="pedestrian", plural="pedestrians"),
+                vehicle=dict(singular="vehicle", plural="vehicles"),
+                Bike=dict(singular="bike", plural="bikes"),
+                Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
+                Warning=dict(singular="warning sign", plural="warning signs"),
+                Cone=dict(singular="traffic cone", plural="traffic cones")
+            )
+
 
 def is_terminal(token, grammar) -> bool:
     return token not in grammar.keys()
@@ -222,14 +245,14 @@ class Tree:
         def type_token_string_converter(token, form):
             # TODO type cautious
             mapping = dict(
-                nil=dict(singular="object", plural="objects"),
+                nil=dict(singular="traffic object", plural="traffic objects"),
                 Bus=dict(singular="bus", plural="buses"),
                 Caravan=dict(singular="caravan", plural="caravans"),
                 Coupe=dict(singular="coupe", plural="coupes"),
                 FireTruck=dict(singular="fire engine", plural="fire engines"),
                 Jeep=dict(singular="jeep", plural="jeeps"),
                 Pickup=dict(singular="pickup", plural="pickups"),
-                Policecar=dict(singular="police car", plural="policecars"),
+                Policecar=dict(singular="police car", plural="police cars"),
                 SUV=dict(singular="SUV", plural="SUVs"),
                 SchoolBus=dict(singular="school bus", plural="school buses"),
                 Sedan=dict(singular="sedan", plural="sedans"),
@@ -646,11 +669,15 @@ class QuerySpecifier:
         Statistics based on current frame. Since we don't have any action/interaction
         in static setting, we ignore action/interaction.
         """
+        id_set = set()
         for id in ids:
+            if id in id_set:
+                continue
             obj = self.graph.get_node(id)
             self.statistics["types"][obj.type] += 1
             self.statistics["pos"] += transform(self.graph.get_ego_node(), [obj.pos])
             self.statistics["colors"][obj.color] += 1
+            id_set.add(id)
 
     def generate_mask(self, ids):
         """
@@ -675,14 +702,14 @@ class QuerySpecifier:
         def type_token_string_converter(token, form):
             #TODO Type Cautious
             mapping = dict(
-                nil=dict(singular="object", plural="objects"),
+                nil=dict(singular="traffic object", plural="traffic objects"),
                 Bus=dict(singular="bus", plural="buses"),
                 Caravan=dict(singular="caravan", plural="caravans"),
                 Coupe=dict(singular="coupe", plural="coupes"),
                 FireTruck=dict(singular="fire engine", plural="fire engines"),
                 Jeep=dict(singular="jeep", plural="jeeps"),
                 Pickup=dict(singular="pickup", plural="pickups"),
-                Policecar=dict(singular="police car", plural="policecars"),
+                Policecar=dict(singular="police car", plural="police cars"),
                 SUV=dict(singular="SUV", plural="SUVs"),
                 SchoolBus=dict(singular="school bus", plural="school buses"),
                 Sedan=dict(singular="sedan", plural="sedans"),

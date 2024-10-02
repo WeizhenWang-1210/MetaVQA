@@ -2,6 +2,8 @@ from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.component.sensors.rgb_camera import RGBCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
+from metadrive.component.sensors.depth_camera import DepthCamera
 from collections import deque
 import cv2
 import os
@@ -65,7 +67,7 @@ class Buffer:
                     # Save the world annotation in world_{}.json
                     file_path = os.path.join(frame_folder, f"{key}_{identifier}.json")
                     json.dump(data["world"], open(file_path, 'w'), indent=2)
-                elif key in ["rgb", "mask"]:
+                elif key in ["rgb", "mask", "depth", "semantic"]:
                     # Save the rgb|instance observation in {rgb|lidar}_{perspective}_{id}.png
                     files = defaultdict(lambda: "")
                     for perspective in data[key].keys():
@@ -95,6 +97,13 @@ class Buffer:
             os.makedirs(frame_folder, exist_ok=True)
             log_frame(frame_summary, frame_folder)
 
+    def firstnlast(self):
+        first_identifier = self.dq[0][0]
+        last_identifier = self.dq[-1][0]
+        first_step = first_identifier.split("_")[-1]
+        last_step = last_identifier.split("_")[-1]
+        print(first_identifier, last_identifier)
+        return int(first_step), int(last_step)
 
 def record_frame(env, lidar, camera, instance_camera):
     engine = env.engine
@@ -102,6 +111,7 @@ def record_frame(env, lidar, camera, instance_camera):
                  (0., 0., 1.5)]
     hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
     names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+    depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     cloud_points, _ = lidar.perceive(
         env.agent,
         physics_world=env.engine.physics_world.dynamic_world,
@@ -114,9 +124,13 @@ def record_frame(env, lidar, camera, instance_camera):
         mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                         hpr=hpr)
         rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+        depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+        semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
         rgb_dict[name] = dict(
             mask=mask,
-            rgb=rgb
+            rgb=rgb,
+            depth=depth,
+            semantic=semantic
         )
     mapping = engine.c_id
     visible_ids_set = set()
@@ -129,7 +143,7 @@ def record_frame(env, lidar, camera, instance_camera):
         rgb_dict[perspective]["visible_ids"] = visible_ids
         Log_Mapping.update(log_mapping)
     valid_objects = engine.get_objects(
-        lambda x: l2_distance(x, env.agent) <= 50 and
+        lambda x: l2_distance(x, env.agent) <= 100 and
                   x.id != env.agent.id and
                   not isinstance(x, BaseTrafficLight))
     observing_camera = []
@@ -158,7 +172,7 @@ def record_frame(env, lidar, camera, instance_camera):
 
 
 def record_accident(env, buffer, countdown, session_folder, prefix=""):
-    if countdown <=0:
+    if countdown <= 0:
         tm = tc = False
     engine = env.engine
     camera = engine.get_sensor("rgb")
@@ -173,12 +187,14 @@ def record_accident(env, buffer, countdown, session_folder, prefix=""):
             break
         countdown -= 1
     buffer_size = len(buffer.dq)
-    final_step = engine.episode_step
-    initial_step = final_step - buffer_size + 1
+    initial_step,final_step = buffer.firstnlast()
+
+    #final_step = engine.episode_step
+    #initial_step = final_step - 2 * (buffer_size-1)
     if prefix != "":
         folder = os.path.join(session_folder, "{}_{}_{}_{}".format(prefix, env.current_seed, initial_step, final_step))
     else:
-        folder = os.path.join(session_folder, "{}_{}_{}".format( env.current_seed, initial_step, final_step))
+        folder = os.path.join(session_folder, "{}_{}_{}".format(env.current_seed, initial_step, final_step))
     buffer.export(folder)
     return tm, tc
 
@@ -188,7 +204,7 @@ def generate_safe_data(env, seeds, folder, prefix=""):
     os.makedirs(folder, exist_ok=True)
     print("This session is saved in folder {}".format(folder))
     env.agent.expert_takeover = True
-    offset = 28
+    offset = 56
     history = 25
     future = 0
     annotation_buffer = Buffer(history + future)
@@ -207,18 +223,34 @@ def generate_safe_data(env, seeds, folder, prefix=""):
             inception = False
             annotation_buffer.flush()
             continue
+        if collision_step - offset < 0:
+            print("Collision is too early. Will not annotate it.".format(env.current_seed))
+            env.reset()
+            inception = False
+            annotation_buffer.flush()
+            continue
         env.reset(seed)
-        for _ in range(1, collision_step - offset):
+        for _ in range(collision_step - offset):
             env.step([0, 0])
         for i in range(10000):
             o, t, tm, tc, info = env.step([0, 0])
             if not inception:
-                identifier = f"{env.current_seed}_{engine.episode_step}"
-                scene_summary = record_frame(env, lidar, camera, instance_camera)
-                annotation_buffer.insert((identifier, scene_summary))
+                if (collision_step - env.episode_step) % 2 == 0:
+                    print("here")
+                    identifier = f"{env.current_seed}_{engine.episode_step}"
+                    scene_summary = record_frame(env, lidar, camera, instance_camera)
+                    annotation_buffer.insert((identifier, scene_summary))
                 if len(env.agent.crashed_objects) > 0:
                     print("Collision happened at step {} in annotation.".format(env.engine.episode_step))
+                    if collision_step != env.episode_step:
+                        print("Mismatch in two rollouts.")
+                        scene_summary = record_frame(env, lidar, camera, instance_camera)
+                        identifier = f"{env.current_seed}_{engine.episode_step}"
+                        annotation_buffer.insert((identifier, scene_summary))
+
                     inception = True
+                    #not supposed to have an effect
+                    print(len(annotation_buffer.dq))
                     tm, tc = record_accident(env, annotation_buffer, future, folder, prefix)
             if tm or tc:
                 break
@@ -227,22 +259,26 @@ def generate_safe_data(env, seeds, folder, prefix=""):
 
 
 if __name__ == "__main__":
-    scenario_summary, _, _ = sd_utils.read_dataset_summary("E:/Bolei/cat")
+    scenario_summary, _, _ = sd_utils.read_dataset_summary(
+        "/bigdata/datasets/scenarionet/CAT_validation_interactive/train")
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
-            "reactive_traffic": True,
-            "use_render": True,
-            "data_directory": "E:/Bolei/cat",
+            "reactive_traffic": False,
+            "use_render": False,
+            "data_directory": "/bigdata/datasets/scenarionet/CAT_validation_interactive/train",
             "num_scenarios": len(scenario_summary),
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
                 rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540)
+                instance=(InstanceCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540),
+                depth=(DepthCamera, 960, 540)
             ),
             "height_scale": 1
 
         }
     )
     seeds = [i for i in range(len(scenario_summary))]
-    generate_safe_data(env, seeds, "test_collision_final")
+    print(len(seeds))
+    generate_safe_data(env, seeds[:100], "test_collision_final")

@@ -7,6 +7,8 @@ from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
+from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.engine_utils import get_engine
 import pickle
@@ -52,10 +54,14 @@ def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=
     result["lidar"] = lidar
     result["rgb"] = dict()
     result["mask"] = dict()
+    result["depth"] = dict()
+    result["semantic"] = dict()
     result["log_mapping"] = log_mapping
-    for perspective in rgb_dict:
+    for perspective in rgb_dict.keys():
         result["rgb"][perspective] = rgb_dict[perspective]["rgb"] * 255
         result["mask"][perspective] = rgb_dict[perspective]["mask"] * 255
+        result["depth"][perspective] = rgb_dict[perspective]["depth"] * 255
+        result["semantic"][perspective] = rgb_dict[perspective]["semantic"] * 255
     if debug:
         # With name and history.
         top_down = env.render(mode='top_down', film_size=(6000, 6000), screen_size=(1920, 1080), window=False,
@@ -79,8 +85,8 @@ def save_episode(buffer, root, IO):
                 # Save the world annotation in world_{}.json
                 file_path = os.path.join(frame_folder, f"{key}_{identifier}.json")
                 json.dump(data["world"], open(file_path, 'w'), indent=2)
-            elif key in ["rgb", "mask"]:
-                # Save the rgb|instance observation in {rgb|lidar}_{perspective}_{id}.png
+            elif key in ["rgb", "mask", "depth", "semantic"]:
+                # Save the rgb|instance|depth|semantic observation in {rgb|lidar}_{perspective}_{id}.png
                 files = defaultdict(lambda: "")
                 for perspective in data[key].keys():
                     file_path = os.path.join(frame_folder, f"{key}_{perspective}_{identifier}.png")
@@ -128,6 +134,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
     buffer = dict()  # Store all frame annotations for the current episode.
     env_id = env.current_seed
     env_start = env.episode_step
+    depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     while total_steps < episode_length:
         o, r, tm, tc, info = env.step([0, 0])
         env.render(
@@ -147,15 +154,19 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
                          (0., 0., 1.5)]
             hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
-            names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            perspectives = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
-            for position, hpr, name in zip(positions, hprs, names):
+            for position, hpr, perspective in zip(positions, hprs, perspectives):
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
-                rgb_annotations[name] = dict(
+                depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                rgb_annotations[perspective] = dict(
                     mask=mask,
-                    rgb=rgb
+                    rgb=rgb,
+                    depth=depth,
+                    semantic=semantic
                 )
             # Retrieve mapping from a color to the object it represents. This is used simulate z-buffering. (0,0,0)
             # is reserved for special purpose, and no objects will take this color.
@@ -174,10 +185,10 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                 Log_Mapping.update(log_mapping)
 
             # Record only if there are observable objects.
-            # get all objectes within 50m of the ego(except agent)
+            # get all objectes within 100m of the ego(except agent)
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
-                                      env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
+                                      env.agent) <= 100 and x.id != env.agent.id and not isinstance(x,
                                                                                                    BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
@@ -277,6 +288,7 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
                             break
                 seed += 1
         else:
+            '''Need rework'''
             while counter <= num_points and step <= max_iterations:
                 if job_range is not None:
                     # We've exhausted all the environments for process.
@@ -361,6 +373,8 @@ def annotate_scenarios():
             "sensors": dict(
                 rgb=(RGBCamera, 960, 540),
                 instance=(InstanceCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540),
+                depth=(DepthCamera, 960, 540)
             ),
             "height_scale": 1
         }
@@ -385,8 +399,10 @@ def annotate_scenarios():
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 960, 540,),
-                instance=(InstanceCamera, 960, 540)
+                rgb=(RGBCamera, 960, 540),
+                instance=(InstanceCamera, 960, 540),
+                semantic=(SemanticCamera, 960, 540),
+                depth=(DepthCamera, 960, 540)
             ),
             height_scale=1
         )
