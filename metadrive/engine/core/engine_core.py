@@ -30,6 +30,8 @@ from metadrive.engine.core.terrain import Terrain
 from metadrive.engine.logger import get_logger
 from metadrive.utils.utils import is_mac, setup_logger
 import logging
+import subprocess
+from metadrive.utils.utils import is_port_occupied
 
 logger = get_logger()
 
@@ -121,9 +123,21 @@ class EngineCore(ShowBase.ShowBase):
         self.pid = os.getpid()
         EngineCore.global_config = global_config
         self.mode = global_config["_render_mode"]
+        self.pstats_process = None
         if self.global_config["pstats"]:
             # pstats debug provided by panda3d
             loadPrcFileData("", "want-pstats 1")
+            if not is_port_occupied(5185):
+                self.pstats_process = subprocess.Popen(['pstats'])
+                logger.info(
+                    "pstats is launched successfully, tutorial is at: "
+                    "https://docs.panda3d.org/1.10/python/optimization/using-pstats"
+                )
+            else:
+                logger.warning(
+                    "pstats is already launched! tutorial is at: "
+                    "https://docs.panda3d.org/1.10/python/optimization/using-pstats"
+                )
 
         # Setup onscreen render
         if self.global_config["use_render"]:
@@ -141,7 +155,7 @@ class EngineCore(ShowBase.ShowBase):
                     # render-pipeline can not work with multi-thread rendering
                     loadPrcFileData("", "threading-model {}".format(self.global_config["multi_thread_render_mode"]))
             else:
-                #assert self.mode == RENDER_MODE_NONE, "Render mode error"
+                assert self.mode == RENDER_MODE_NONE, "Render mode error"
                 if self.global_config["show_interface"]:
                     # Disable useless camera capturing in none mode
                     self.global_config["show_interface"] = False
@@ -238,12 +252,12 @@ class EngineCore(ShowBase.ShowBase):
                 if self.mode == RENDER_MODE_ONSCREEN and (not self.global_config["debug"]):
                     if self.global_config["show_logo"]:
                         self._window_logo = attach_logo(self)
-                    self._loading_logo = attach_cover_image(
-                        window_width=self.get_size()[0], window_height=self.get_size()[1]
-                    )
-                    for i in range(5):
-                        self.graphicsEngine.renderFrame()
-                    self.taskMgr.add(self.remove_logo, "remove _loading_logo in first frame")
+                        self._loading_logo = attach_cover_image(
+                            window_width=self.get_size()[0], window_height=self.get_size()[1]
+                        )
+                        for i in range(5):
+                            self.graphicsEngine.renderFrame()
+                        self.taskMgr.add(self.remove_logo, "remove _loading_logo in first frame")
 
         self.closed = False
 
