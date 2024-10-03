@@ -227,10 +227,10 @@ def paired_logging(headless, num_scenarios, config, seeds):
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                depth=(DepthCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540)
+                rgb=(RGBCamera, 1600, 900),
+                instance=(InstanceCamera, 1600, 900),
+                depth=(DepthCamera, 1600, 900),
+                semantic=(SemanticCamera, 1600, 900)
             ),
             "height_scale": 1
         }

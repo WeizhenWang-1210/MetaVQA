@@ -141,9 +141,10 @@ def find_areas(img: np.array, colors: List, mode="RGB"):
 import glob
 
 
-def id2label(episode_path: str):
+def id2label(episode_path: str, perspective: str = "front"):
     """
     Find all front-visible objects in the episode and provide them with unique labels(within the scope of this episode).
+    :param perspective:
     :param episode_path: str. Path to an episode
     :return: None. Will write to the episode folder an "id2label.json" file.
     """
@@ -154,30 +155,41 @@ def id2label(episode_path: str):
     for scene_graph in scene_graphs:
         world = json.load(open(scene_graph, "r"))
         for obj in world["objects"]:
-            if "front" in obj["observing_camera"]:
+            if perspective in obj["observing_camera"]:
                 if obj["id"] in result.keys():
                     continue
                 result[obj["id"]] = currentlabel
                 currentlabel += 1
-    json.dump(result, open(os.path.join(episode_path, "id2label.json"), "w"))
+    json.dump(result, open(os.path.join(episode_path, "id2label_{}.json").format(perspective), "w"))
 
-def labelframe(frame_path: str):
+
+def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False):
+    """
+    :param frame_path:
+    :param perspective: choose from "front"|"leftf"|"leftb"|"rightf"|"rightb"|"back"
+    :param save_path:
+    :return:
+    """
+
     episode_path = os.path.dirname(frame_path)
     identifier = os.path.basename(frame_path)
     world = os.path.join(frame_path, "world_{}.json".format(identifier))
     id2c = os.path.join(frame_path, "id2c_{}.json".format(identifier))
-    instance_seg = os.path.join(frame_path, "mask_front_{}.png".format(identifier))
-    base_img = os.path.join(frame_path, "rgb_front_{}.png".format(identifier))
+    instance_seg = os.path.join(frame_path, "mask_{}_{}.png".format(perspective, identifier))
+    base_img = os.path.join(frame_path, "rgb_{}_{}.png".format(perspective, identifier))
     world = json.load(open(world))
     id2c = json.load(open(id2c))
-    id2l = json.load(open(os.path.join(episode_path, "id2label.json")))
+    id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
+    print(id2l.keys())
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
+    canvas = np.zeros_like(base_img)
     query_ids = []
     for obj in world["objects"]:
-        if "front" in obj["observing_camera"]:
+        if perspective in obj["observing_camera"]:
             query_ids.append(obj["id"])
+    print(query_ids)
     colors = [id2c[query_id] for query_id in query_ids]
     colors = [(round(color[0] * 255, 0), round(color[1] * 255, 0), round(color[2] * 255, 0)) for color in colors]
     areas, binary_masks = find_areas(mask, colors, "BGR")
@@ -196,8 +208,32 @@ def labelframe(frame_path: str):
         base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
         center, contours = find_center(legal_mask)
         put_text(base_img, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
+        if save_label:
+            put_text(canvas, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
         cv2.drawContours(base_img, contours, -1, area_ascending[i][1], 2)
-    cv2.imwrite(os.path.join(frame_path, "labeled_front_{}.png".format(identifier)), base_img)
+    if save_path is not None:
+        cv2.imwrite(save_path, base_img)
+    else:
+        cv2.imwrite(os.path.join(frame_path, "labeled_{}_{}.png".format(perspective, identifier)), base_img)
+        if save_label:
+            cv2.imwrite(os.path.join(frame_path, "label_{}_{}.png".format(perspective, identifier)), canvas)
+
+
+def label_transfer(nusc_img_path, label_img_path):
+    from PIL import Image
+    src = Image.open(nusc_img_path)
+    label = Image.open(label_img_path)
+    label = label.resize((1600, 900))
+
+    mask = Image.new('L', label.size, 0)  # Create a new grayscale image for the mask
+    for x in range(label.width):
+        for y in range(label.height):
+            r, g, b = label.getpixel((x, y))
+            if (r, g, b) != (0, 0, 0):  # Check if the pixel is not black
+                mask.putpixel((x, y), 255)  # Set mask pixel to white (fully opaque)
+
+    src.paste(label, mask=mask)
+    src.save("test_transfer.png")
 
 
 def scratch():
@@ -244,6 +280,8 @@ def scratch():
 
 
 if __name__ == "__main__":
-    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0005_1_50/4_7"
-    id2label(os.path.dirname(frame_path))
-    labelframe(frame_path)
+    #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96"
+    #id2label(os.path.dirname(frame_path), "front")
+    #labelframe(frame_path, "front", save_label=True)
+    label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
+                   "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
