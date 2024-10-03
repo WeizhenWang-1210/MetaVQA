@@ -19,17 +19,18 @@ import os
 def convert_path(pth):
     return Filename.from_os_specific(pth).get_fullpath()
 
+
 class CustomizedCar(BaseVehicle):
     PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
-    TIRE_RADIUS = 0.3305#0.313
+    TIRE_RADIUS = 0.3305  # 0.313
     CHASSIS_TO_WHEEL_AXIS = 0.2
-    TIRE_WIDTH = 0.255#0.25
-    MASS = 1595#1100
-    LATERAL_TIRE_TO_CENTER = 1#0.815
-    FRONT_WHEELBASE = 1.36#1.05234
-    REAR_WHEELBASE = 1.45#1.4166
-    #path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-    path = ['lambo/vehicle.glb', (0.5,0.5,0.5), (1.09, 0, 0.6), (0, 0, 0)]
+    TIRE_WIDTH = 0.255  # 0.25
+    MASS = 1595  # 1100
+    LATERAL_TIRE_TO_CENTER = 1  # 0.815
+    FRONT_WHEELBASE = 1.36  # 1.05234
+    REAR_WHEELBASE = 1.45  # 1.4166
+    # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
+    path = ['lambo/vehicle.glb', (0.5, 0.5, 0.5), (1.09, 0, 0.6), (0, 0, 0)]
 
     def __init__(
             self,
@@ -43,13 +44,15 @@ class CustomizedCar(BaseVehicle):
         # print("init!")
         self.asset_meta_info = test_asset_meta_info
         self.update_asset_metainfo(test_asset_meta_info)
-        super().__init__( vehicle_config,
-            name,
-            random_seed,
-            position,
-            heading)
+        super().__init__(vehicle_config,
+                         name,
+                         random_seed,
+                         position,
+                         heading)
+
     def get_asset_metainfo(self):
         return self.asset_meta_info
+
     @classmethod
     def update_asset_metainfo(cls, asset_metainfo: dict):
         # print(asset_metainfo)
@@ -76,6 +79,7 @@ class CustomizedCar(BaseVehicle):
         cls.CHASSIS_TO_WHEEL_AXIS = asset_metainfo["CHASSIS_TO_WHEEL_AXIS"]
         cls.TIRE_SCALE = asset_metainfo["TIRE_SCALE"]
         cls.TIRE_OFFSET = asset_metainfo["TIRE_OFFSET"]
+
     def _create_vehicle_chassis(self):
         # self.LENGTH = type(self).LENGTH
         # self.WIDTH = type(self).WIDTH
@@ -87,7 +91,8 @@ class CustomizedCar(BaseVehicle):
         chassis = BaseRigidBodyNode(self.name, MetaDriveType.VEHICLE)
         self._node_path_list.append(chassis)
 
-        chassis_shape = BulletBoxShape(Vec3(self.WIDTH / 2, self.LENGTH / 2, (self.HEIGHT-self.TIRE_RADIUS-self.CHASSIS_TO_WHEEL_AXIS) / 2))
+        chassis_shape = BulletBoxShape(
+            Vec3(self.WIDTH / 2, self.LENGTH / 2, (self.HEIGHT - self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS) / 2))
         ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS + self.CHASSIS_TO_WHEEL_AXIS))
         # ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS))
         chassis.addShape(chassis_shape, ts)
@@ -99,15 +104,19 @@ class CustomizedCar(BaseVehicle):
         vehicle_chassis.setCoordinateSystem(ZUp)
         self.dynamic_nodes.append(vehicle_chassis)
         return vehicle_chassis
+
     @classmethod
     def LENGTH(cls):
         return cls.LENGTH
+
     @classmethod
     def HEIGHT(cls):
         return cls.HEIGHT
+
     @classmethod
     def WIDTH(cls):
         return cls.WIDTH
+
     def _add_visualization(self):
         if self.render:
             [path, scale, offset, HPR] = self.path
@@ -136,6 +145,7 @@ class CustomizedCar(BaseVehicle):
                 material.setShininess(self.MATERIAL_SHININESS)
                 material.setTwoside(False)
                 self.origin.setMaterial(material, True)
+
     def _create_wheel(self):
         f_l = self.FRONT_WHEELBASE
         r_l = -self.REAR_WHEELBASE
@@ -148,6 +158,7 @@ class CustomizedCar(BaseVehicle):
             wheel = self._add_wheel(pos, radius, True if k < 2 else False, True if k == 0 or k == 2 else False)
             wheels.append(wheel)
         return wheels
+
     def _add_wheel(self, pos: Vec3, radius: float, front: bool, left):
         wheel_np = self.origin.attachNewNode("wheel")
         self._node_path_list.append(wheel_np)
@@ -158,7 +169,8 @@ class CustomizedCar(BaseVehicle):
             wheel_model = self.loader.loadModel(model_path)
             wheel_model.setTwoSided(self.TIRE_TWO_SIDED)
             wheel_model.reparentTo(wheel_np)
-            wheel_model.set_scale(1 * self.TIRE_SCALE * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_SCALE *self.TIRE_MODEL_CORRECT)
+            wheel_model.set_scale(
+                1 * self.TIRE_SCALE * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_SCALE * self.TIRE_MODEL_CORRECT)
         wheel = self.system.createWheel()
         wheel.setNode(wheel_np.node())
         wheel.setChassisConnectionPointCs(pos)
@@ -175,11 +187,6 @@ class CustomizedCar(BaseVehicle):
         wheel.setFrictionSlip(wheel_friction)
         wheel.setRollInfluence(0.5)
         return wheel
-
-
-
-
-
 
 
 class DefaultVehicle(BaseVehicle):
@@ -364,13 +371,13 @@ class VaryingDynamicsVehicle(DefaultVehicle):
         return self.config["mass"] if self.config["mass"] is not None else super(VaryingDynamicsVehicle, self).MASS
 
     def reset(
-        self,
-        random_seed=None,
-        vehicle_config=None,
-        position=None,
-        heading: float = 0.0,  # In degree!
-        *args,
-        **kwargs
+            self,
+            random_seed=None,
+            vehicle_config=None,
+            position=None,
+            heading: float = 0.0,  # In degree!
+            *args,
+            **kwargs
     ):
 
         assert "width" not in self.PARAMETER_SPACE
@@ -444,8 +451,13 @@ class VaryingDynamicsVehicle(DefaultVehicle):
 
 
 def random_vehicle_type(np_random, p=None):
-    prob = [1 / len(vehicle_type) for _ in range(len(vehicle_type))] if p is None else p
-    return vehicle_type[np_random.choice(list(vehicle_type.keys()), p=prob)]
+    v_type = vehicle_type
+    if p:
+        assert len(p) == len(v_type), \
+            "This function only allows to choose a vehicle from {} types: {}".format(len(list(v_type.keys())),
+                                                                                     v_type.keys())
+    prob = [1 / len(v_type) for _ in range(len(v_type))] if p is None else p
+    return v_type[np_random.choice(list(v_type.keys()), p=prob)]
 
 
 vehicle_type = {

@@ -197,7 +197,7 @@ def count_frames(session_folder):
     return count
 
 
-def count_proper_episode(session_folder):
+def count_proper_episode(session_folder, cat=False):
     print(session_folder)
     episodes = os.listdir(session_folder)
     episodes = [file for file in episodes if
@@ -206,10 +206,16 @@ def count_proper_episode(session_folder):
     valid_count = 0
     valid_episode = set()
     for episode in episodes:
-        splitted = episode.split("_")
-        if int(splitted[-1]) - int(splitted[-2]) == 24 and int(splitted[-1]) < 400:
-            valid_count += 1
-            valid_episode.add(episode)
+        if cat:
+            frames = os.listdir(os.path.join(session_folder, episode))
+            if len(frames) == 25:
+                valid_count += 1
+                valid_episode.add(episode)
+        else:
+            splitted = episode.split("_")
+            if int(splitted[-1]) - int(splitted[-2]) == 49 and int(splitted[-1]) < 400:
+                valid_count += 1
+                valid_episode.add(episode)
     return valid_count, list(valid_episode)
 
 
@@ -232,8 +238,8 @@ def store_session_statistics(session_path):
     print("Collecting number of frames")
     num_frames = count_frames(session_path)
     print(f"num_franmes={num_frames}")
-    print("Collecting number of 2.5s episodes")
-    num_valid_episodes, valid_episodes = count_proper_episode(session_path)
+    print("Collecting number of 5.0s, 5hz episodes")
+    num_valid_episodes, valid_episodes = count_proper_episode(session_path, True)
     print(f"num_valid_episodes={num_valid_episodes}")
     print("Collecting number of ScenarioNet Scenarios used")
     num_valid_seeds, valid_seeds = count_proper_seed(session_path)
@@ -382,11 +388,12 @@ if __name__ == '__main__':
     #print(count_proper_episode("/bigdata/weizhen/metavqa_final/scenarios/training/nuscenes/sc_nusc_trainval_0"))
     #print(count_envs("../100k_export"))
     #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/waymo_validation_0")
-    #store_session_statistics("/bigdata/weizhen/metavqa_final/scenarios/validation/sc_nusc_trainval_7")
+    #store_session_statistics("/bigdata/weizhen/metavqa_iclr/scenarios/waymo/training_0")
+    store_session_statistics("/bigdata/weizhen/metavqa_iclr/scenarios/cat")
     #annotation_statistics("/bigdata/weizhen/metavqa_final/vqa/NuScenes_Mixed/single_frame/")
 
 
-
+    """
     train_paths = [
              "/bigdata/weizhen/metavqa_final/vqa/training/multi_frame_processed/Waymo/",
              "/bigdata/weizhen/metavqa_final/vqa/training/safety_critical_processed/Waymo/",
@@ -408,10 +415,11 @@ if __name__ == '__main__':
         "/bigdata/weizhen/metavqa_final/vqa/testing/single_frame_processed/Waymo/",
     ]
 
-    """summary_folder = "/bigdata/weizhen/metavqa_final/vqa/testing/"
+    summary_folder = "/bigdata/weizhen/metavqa_final/vqa/testing/"
     for id, path in enumerate(test_paths):
         summary_path = os.path.join(summary_folder, f"{id}.json")
-        annotation_statistics(path, summary_path)"""
+        annotation_statistics(path, summary_path)
     print(f"Utilized_frame {find_utilized_frame(test_paths)}")
 
     aggregated_statistics("/bigdata/weizhen/metavqa_final/scenarios_statistics.json")
+    """

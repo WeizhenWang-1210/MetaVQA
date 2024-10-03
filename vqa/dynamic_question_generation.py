@@ -10,6 +10,7 @@ import re
 import glob
 from vqa.scene_graph import TemporalGraph
 from vqa.dynamic_question_generator import DynamicQuerySpecifier
+from vqa.static_question_generator import NAMED_MAPPING
 from vqa.object_node import transform, transform_vec
 import random
 from collections import defaultdict
@@ -234,9 +235,18 @@ def add_to_record(question_type, q, result, candidates):
     if question_type in ["color_identification_unique", "type_identification_unique"]:
         for question, answer_record in result:
             obj_id, answer = answer_record
+            if question_type == "color_identification_unique":
+                explanation = "The color of that {} is {}".format \
+                    (NAMED_MAPPING[q.graph.get_node(obj_id).type]["singular"], answer.lower())
+            else:
+                explanation = "The type of that {} thing is {}.".format \
+                    (q.graph.get_node(obj_id).color.lower(),
+                     NAMED_MAPPING[q.graph.get_node(obj_id).type]["singular"])
+
             obj_node = q.graph.get_node(obj_id)
             data_point = dict(
-                question=question, answer=answer, answer_form="str", question_type=question_type,
+                question=question, answer=answer, explanation=explanation,
+                answer_form="str", question_type=question_type,
                 type_statistics=[obj_node.type],
                 pos_statistics=transform(q.graph.get_ego_node(), [obj_node.pos]),
                 color_statistics=[obj_node.color], action_statistics=[obj_node.actions],
@@ -250,8 +260,44 @@ def add_to_record(question_type, q, result, candidates):
         for question, answer_record in result:
             obj_id, answer = answer_record
             obj_node = q.graph.get_node(obj_id)
+            if question_type == "identify_stationary":
+                color_string = obj_node.color
+                type_string = NAMED_MAPPING[obj_node.type]["singular"]
+                explanation = "The {} {} has been staying at {}(in our current reference system) for the past period.".format(
+                    color_string, type_string, transform(q.graph.get_ego_node(), [obj_node.pos])
+                )
+            elif question_type == "identify_turning":
+                if answer == True:
+                    turn_string = "turned left" if "turn_left" in obj_node.actions else "turned right"
+                    explanation= "The {} {} {} over the past period.".format(color_string, type_string, turn_string)
+                else:
+                    explanation= "The {} {} remained roughly on the same direction."
+            elif question_type == "identify_acceleration":
+                explanation = "The {} {}'s speed changd from {} to {}.".format(
+                    color_string, type_string, obj_node.speeds[0], obj_node.speed
+                )
+            elif question_type == "identify_speed":
+                explanation = "The current speed of the {} {} is {}.".format(
+                    color_string, type_string, answer
+                )
+            elif question_type == "identify_heading":
+                explanation = "The {} {} is currently heading toward our {} o'clock direction.".format(
+                    color_string, type_string, answer
+                )
+            elif question_type == "identify_head_toward":
+                ego_node = q.graph.get_node()
+                explanation = "The {} {} is heading toward us from our {}." \
+                               .format(color_string,type_string, ego_node.compute_relation_string(obj_node, ego_node.heading))
+            elif question_type == "predict_trajectory":
+                explanation = "The {} {} will move along this trajectory for the next second.".format(color_string, type_string)
+            else:
+                print("Encountered unseen question type! {}".format(question_type))
+                explanation = ""
+
+
             data_point = dict(
-                question=question, answer=answer, answer_form="str", question_type=question_type,
+                question=question, answer=answer, explanation=explanation,
+                answer_form="str", question_type=question_type,
                 type_statistics=[obj_node.type],
                 pos_statistics=transform(q.graph.get_ego_node(), [obj_node.pos]),
                 color_statistics=[obj_node.color], action_statistics=[obj_node.actions],
@@ -263,8 +309,85 @@ def add_to_record(question_type, q, result, candidates):
     else:
         question, answer = result[0]
         ids, answer = answer
+        if question_type=="counting":
+            referral_string = q.parameters["<o>"]["en"]
+            if answer[0] == 0:
+                explanation = "There is no {}.".format(referral_string)
+            elif answer[0] == 1:
+                explanation = "There is 1 {}.".format(referral_string)
+            else:
+                explanation = "There are {} {}.".format(answer[0], referral_string)
+        elif question_type=="localization":
+            referral_string = q.parameters["<o>"]["en"]
+            if len(answer) == 0:
+                explanation = "There is no {} at this moment.".format(referral_string)
+            elif len(answer) == 1:
+                explanation = "There is 1 {} located here at this moment.".format(referral_string)
+            else:
+                explanation = ("There are {} {} located at the aforementioned positions at this moment."
+                               .format(len(answer), referral_string))
+        elif question_type == "count_equal_binary" or question_type == "count_more_binary":
+            #print(ids, answer)
+            #exit()
+            referral_string0, referral_string1 = q.parameters["<o1>"]["en"], q.parameters["<o2>"]["en"]
+            count0, count1 = len(set([obj.id for obj in q.parameters["<o1>"]["answer"]])), len(
+                set([obj.id for obj in q.parameters["<o2>"]["answer"]]))
+            answer_string = "\"True\"" if answer else "\"False\""
+            explanation = "The number of {} is {}, and there {} {} {}. Therefore, the answer is {}".format(
+                referral_string0, count0, "is" if count1 <= 1 else "are", "no" if count1 == 0 else count1,
+                referral_string1,
+                answer_string
+            )
+        elif question_type == "color_identification" or question_type=="type_identification":
+            referral_string = q.parameters["<o>"]["en"]
+            if len(answer) > 1:
+                if question_type == "color_identification":
+                    distro_strings = ["{} in {}".format(count, color.lower()) for color, count in
+                                      q.statistics["colors"].items()]
+                    if len(distro_strings) > 2:
+                        distro_string_prefix = ", ".join(distro_strings[:-1])
+                        distro_string_suffix = distro_strings[-1]
+                        distro_string = ", and ".join([distro_string_prefix, distro_string_suffix])
+                    elif len(distro_strings) > 1:
+                        distro_string = " and ".join(distro_strings)
+                    else:
+                        distro_string = distro_strings[0]
+
+                    first_string = "are" if list(q.statistics["colors"].values())[0] > 1 else "is"
+                    explanation = "These are the colors seen on {}. To be more specific, there {} {}." \
+                        .format(referral_string, first_string, distro_string)
+                else:
+                    distro_strings = ["{} {}".format(count,
+                                                     NAMED_MAPPING[typee]["plural"]
+                                                     if count > 1 else NAMED_MAPPING[typee]["singular"])
+                                      for typee, count in q.statistics["types"].items()]
+                    if len(distro_strings) > 2:
+                        distro_string_prefix = ", ".join(distro_strings[:-1])
+                        distro_string_suffix = distro_strings[-1]
+                        distro_string = ", and ".join([distro_string_prefix, distro_string_suffix])
+                    elif len(distro_strings) > 1:
+                        distro_string = " and ".join(distro_strings)
+                    else:
+                        distro_string = distro_strings[0]
+                    first_string = "are" if list(q.statistics["types"].values())[0] > 1 else "is"
+                    explanation = "These are the types of {}. To be more specific, there {} {}." \
+                        .format(referral_string, first_string, distro_string)
+            elif len(answer) > 0:
+                if question_type == "color_identification":
+                    explanation = "This is the only color seen on all {} {}.".format(len(ids), referral_string)
+                else:
+                    explanation = "This is the type of thing that all {} {} belong to.".format(len(ids),
+                                                                                               referral_string)
+            else:
+                if question_type == "color_identification":
+                    explanation = "No color can be identified for {} because they don't exist.".format(
+                        referral_string)
+                else:
+                    explanation = "No type can be identified for {} because no such thing is observable.".format(
+                        referral_string)
         data_point = dict(
-            question=question, answer=answer, answer_form="str", question_type=question_type,
+            question=question, answer=answer, explanation=explanation,
+            answer_form="str", question_type=question_type,
             type_statistics=q.statistics["types"], pos_statistics=q.statistics["pos"],
             color_statistics=q.statistics["colors"], action_statistics=q.statistics["actions"],
             interaction_statistics=q.statistics["interactions"], ids=ids,
@@ -317,6 +440,25 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
     if verbose:
         print(f"Context: {context_string}")
     candidates, counts, valid_questions = defaultdict(list), 0, set()
+    degenerate_allowance = dict(
+        localization=2,
+        counting=2,
+        count_equal_binary=2,
+        count_more_binary=2,
+        color_identification=2,
+        type_identification=2,
+        color_identification_unique=0,
+        type_identification_unique=0,
+        identify_stationary=0,
+        identify_turning=0,
+        identify_acceleration=0,
+        identify_speed=0,
+        identify_heading=0,
+        identify_head_toward=0,
+        predict_trajectory=0
+    )
+
+
     for question_type, question_template in templates.items():
         grammar = generate_trimmed_grammar(graph, "dynamic", question_template)
         countdown, generated = attempts_per_type, 0
@@ -334,11 +476,13 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
             result = q.export_qa()
             if verbose:
                 print(result)
-            if not_degenerate(question_type, q, result):
+            if not_degenerate(question_type, q, result) or degenerate_allowance[question_type] > 0:
                 candidates = add_to_record(question_type, q, result, candidates)
                 # print(candidates)
                 valid_questions.add(q.signature)
                 generated += len(result)
+                if not not_degenerate(question_type,q,result):
+                    degenerate_allowance[question_type] -= 1
             countdown -= 1
         if generated > choose:
             candidate = candidates[question_type]
@@ -391,18 +535,6 @@ def  generate_trimmed_grammar_nuscenes(graph, template):
                 new_rule.append(rhs)
             new_grammar[lhs] = new_rule
     return new_grammar
-
-
-
-
-
-
-
-
-
-
-
-
 def generate_dynamic_questions_nuscene(episode, templates, max_per_type=5, choose=3, attempts_per_type=100, verbose=False):
     frame_files = extract_frames(episode)
     graph = TemporalGraph(frame_files)
@@ -450,8 +582,10 @@ def generate_dynamic_questions_nuscene(episode, templates, max_per_type=5, choos
     return candidates, counts, context_string
 
 def generate():
-    session_name = "collision_scenarios_long"  # "test_collision"
-    episode_folders = find_episodes(session_name)
+    session_name = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/"  # "test_collision"
+    episode_folders = load_valid_episodes(session_name)
+    print(len(episode_folders))
+    #exit()
     current_directory = os.path.dirname(os.path.abspath(__file__))
     storage_folder = "test_temporal"
     abs_storage_folder = os.path.join(current_directory, storage_folder)
@@ -461,21 +595,22 @@ def generate():
     templates_path = os.path.join(current_directory, "question_templates.json")
     templates = json.load(open(templates_path, "r"))
     templates = templates["dynamic"]
-    """templates = {
+    templates = {
         # "localization": templates["localization"]
         # "counting": templates["counting"],
         # "count_equal_binary": templates["count_equal_binary"]
         # "count_more_binary": templates["count_more_binary"],
         # "color_identification": templates["color_identification"]
         # "type_identification": templates["type_identification"],
-        # "color_identification_unique": templates["color_identification_unique"]
+        # "color_identification_unique": templates["color_identification_unique"],
+        "type_identification_unique": templates["type_identification_unique"]
         # "identify_stationary": templates["identify_stationary"]
         # "identify_heading": templates["identify_heading"]
         #"predict_trajectory": templates["predict_trajectory"]
-    }"""
+    }
     qa_tuples = {}
     idx = 0
-    for episode in episode_folders:
+    for episode in episode_folders[:2]:
         assert len(DynamicQuerySpecifier.CACHE) == 0, f"Non empty cache for {episode}"
         observations = extract_observations(episode)
         records, num_questions, context = generate_dynamic_questions(
@@ -483,7 +618,8 @@ def generate():
         for question_type, record_list in records.items():
             for record in record_list:
                 qa_tuples[idx] = dict(
-                    question=" ".join([record["question"], context]), answer=record["answer"],
+                    context=context, #question=" ".join([record["question"], context])
+                    question=record["question"], answer=record["answer"], explanation=record["explanation"],
                     question_type="|".join(["dynamic", question_type]), answer_form=record["answer_form"],
                     type_statistics=record["type_statistics"], pos_statistics=record["pos_statistics"],
                     color_statistics=record["color_statistics"], action_statistics=record["action_statistics"],
@@ -503,4 +639,5 @@ def generate():
 
 
 if __name__ == "__main__":
-    print(find_nuscene_frames("C:/Users/arnoe/Downloads/real"))
+    generate()
+    #print(find_nuscene_frames("C:/Users/arnoe/Downloads/real"))

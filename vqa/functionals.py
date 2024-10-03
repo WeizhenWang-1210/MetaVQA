@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Iterable, Callable
 from vqa.object_node import ObjectNode, transform, TemporalNode, transform_vec
 from vqa.dataset_utils import transform_heading
-import numpy as  np
+import numpy as np
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:
@@ -44,19 +44,30 @@ def type_wrapper(types: Iterable[str]) -> Callable:
     return type
 
 
-def pos_wrapper(egos: Iterable[ObjectNode], spatial_relationships: Iterable[str],
+def pos_wrapper(egos: Iterable[ObjectNode], spatial_relationships: list[str],
                 ref_heading: tuple = None) -> Callable:
     """
     A constructor for selecting all nodes that exhibit spatial_relationship with any ego in egos for
     spatial_relationship in spatial_relationships. ref_heading is provided to define what's left v.s. right
     """
+    if "f" in spatial_relationships:
+        spatial_relationships += ["lf", "rf"]
+    if "b" in spatial_relationships:
+        spatial_relationships += ["lb", "rb"]
+    if "l" in spatial_relationships:
+        spatial_relationships += ["lb", "lf"]
+    if "r" in spatial_relationships:
+        spatial_relationships += ["rb", "rf"]
 
     def pos(candidates: Iterable[ObjectNode]):
+        #print(spatial_relationships)
+        #exit()
         results = []
         for candidate in candidates:
             if not candidate.visible:
                 continue
             for ego in egos:
+
                 if ego.id != candidate.id and ego.compute_relation_string(candidate,
                                                                           ref_heading) in spatial_relationships:
                     results.append(candidate)
@@ -145,7 +156,13 @@ def greater(A, B) -> bool:
 
 
 def count(stuff: Iterable) -> int:
-    return [len(s) for s in stuff]
+    result = []
+    for s in stuff:
+        id_set = set()
+        for b in s:
+            id_set.add(b.id)
+        result.append(len(id_set))
+    return result
 
 
 def CountGreater(search_spaces) -> bool:
@@ -214,10 +231,14 @@ def locate_wrapper(origin: ObjectNode) -> Callable:
         Return the bbox of all AgentNodes in stuff. In origin's coordinate.
         """
         result = []
+        id_set = set()
         for s in stuff:
             for more_stuff in s:
+                if more_stuff.id in id_set:
+                    continue
                 transformed = transform(origin, more_stuff.bbox)
                 result.append(transformed)
+                id_set.add(more_stuff.id)
         return result
 
     return locate
@@ -298,9 +319,6 @@ def identify_speed(search_spaces):
 
 
 def identify_heading(origin_pos, origin_heading):
-
-
-
     def helper(search_spaces):
         def angle_to_clock_bin(angle):
             # Total radians in a circle
@@ -314,6 +332,7 @@ def identify_heading(origin_pos, origin_heading):
             # Calculate the bin number
             bin_number = int(angle / bin_width) + 1
             return bin_number
+
         result = {}
         for search_space in search_spaces:
             for object in search_space:
@@ -321,7 +340,7 @@ def identify_heading(origin_pos, origin_heading):
                     object.heading, origin_pos, origin_heading
                 )
                 angle = np.arctan2(heading_transformed[1], heading_transformed[0])
-                angle = angle + 2 * np.pi #so the range is now 0 to 360.
+                angle = angle + 2 * np.pi  #so the range is now 0 to 360.
                 clockness = angle_to_clock_bin(angle)
                 result[object.id] = clockness
 

@@ -355,8 +355,6 @@ class BaseObject(BaseRunnable, MetaDriveType, ABC):
         """
         return the speed in m/s
         """
-        if isinstance(self.body, BaseGhostBodyNode):
-            return 0
         velocity = self.body.get_linear_velocity()
         speed = norm(velocity[0], velocity[1])
         return clip(speed, 0.0, 100000.0)
