@@ -1,192 +1,12 @@
-from panda3d.core import Filename
-from panda3d.bullet import BulletVehicle, BulletBoxShape, ZUp
-from panda3d.core import Material, Vec3, TransformState
-from metadrive.engine.asset_loader import AssetLoader
-from metadrive.component.pg_space import ParameterSpace, VehicleParameterSpace
-from metadrive.component.vehicle.base_vehicle import BaseVehicle
 import platform
-from metadrive.constants import Semantics, MetaDriveType
-from metadrive.engine.engine_utils import get_engine, engine_initialized
-from metadrive.engine.physics_node import BaseRigidBodyNode
-from metadrive.utils import Config
-from typing import Union, Optional
-import os
 
+from panda3d.core import Material, Vec3, LVecBase4
 
-
-
-
-def convert_path(pth):
-    return Filename.from_os_specific(pth).get_fullpath()
-
-
-class CustomizedCar(BaseVehicle):
-    PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
-    TIRE_RADIUS = 0.3305  # 0.313
-    CHASSIS_TO_WHEEL_AXIS = 0.2
-    TIRE_WIDTH = 0.255  # 0.25
-    MASS = 1595  # 1100
-    LATERAL_TIRE_TO_CENTER = 1  # 0.815
-    FRONT_WHEELBASE = 1.36  # 1.05234
-    REAR_WHEELBASE = 1.45  # 1.4166
-    # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-    path = ['lambo/vehicle.glb', (0.5, 0.5, 0.5), (1.09, 0, 0.6), (0, 0, 0)]
-
-    def __init__(
-            self,
-            test_asset_meta_info: dict,
-            vehicle_config: Union[dict, Config] = None,
-            name: str = None,
-            random_seed=None,
-            position=None,
-            heading=None
-    ):
-        # print("init!")
-        self.asset_meta_info = test_asset_meta_info
-        self.update_asset_metainfo(test_asset_meta_info)
-        super().__init__(vehicle_config,
-                         name,
-                         random_seed,
-                         position,
-                         heading)
-
-    def get_asset_metainfo(self):
-        return self.asset_meta_info
-
-    @classmethod
-    def update_asset_metainfo(cls, asset_metainfo: dict):
-        # print(asset_metainfo)
-        cls.PARAMETER_SPACE = ParameterSpace(VehicleParameterSpace.BASE_VEHICLE)
-        cls.TIRE_RADIUS = asset_metainfo["TIRE_RADIUS"]  # 0.313
-        cls.TIRE_WIDTH = asset_metainfo["TIRE_WIDTH"]  # 0.25
-        cls.MASS = asset_metainfo["MASS"]  # 1100
-        cls.LATERAL_TIRE_TO_CENTER = asset_metainfo["LATERAL_TIRE_TO_CENTER"]  # 0.815
-        cls.FRONT_WHEELBASE = asset_metainfo["FRONT_WHEELBASE"]  # 1.05234
-        cls.REAR_WHEELBASE = asset_metainfo["REAR_WHEELBASE"]  # 1.4166
-        # path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
-        cls.path = [asset_metainfo["MODEL_PATH"], tuple(asset_metainfo["MODEL_SCALE"]),
-                    tuple(asset_metainfo["MODEL_OFFSET"]), tuple(asset_metainfo["MODEL_HPR"])]
-        cls.LENGTH = asset_metainfo["LENGTH"]
-        cls.HEIGHT = asset_metainfo["HEIGHT"]
-        cls.WIDTH = asset_metainfo["WIDTH"]
-        # print(asset_metainfo)
-        if "CHASSIS_TO_WHEEL_AXIS" not in asset_metainfo:
-            asset_metainfo["CHASSIS_TO_WHEEL_AXIS"] = 0.2
-        if "TIRE_SCALE" not in asset_metainfo:
-            asset_metainfo["TIRE_SCALE"] = 1
-        if "TIRE_OFFSET" not in asset_metainfo:
-            asset_metainfo["TIRE_OFFSET"] = 0
-        cls.CHASSIS_TO_WHEEL_AXIS = asset_metainfo["CHASSIS_TO_WHEEL_AXIS"]
-        cls.TIRE_SCALE = asset_metainfo["TIRE_SCALE"]
-        cls.TIRE_OFFSET = asset_metainfo["TIRE_OFFSET"]
-
-    def _create_vehicle_chassis(self):
-        # self.LENGTH = type(self).LENGTH
-        # self.WIDTH = type(self).WIDTH
-        # self.HEIGHT = type(self).HEIGHT
-
-        # assert self.LENGTH < BaseVehicle.MAX_LENGTH, "Vehicle is too large!"
-        # assert self.WIDTH < BaseVehicle.MAX_WIDTH, "Vehicle is too large!"
-
-        chassis = BaseRigidBodyNode(self.name, MetaDriveType.VEHICLE)
-        self._node_path_list.append(chassis)
-
-        chassis_shape = BulletBoxShape(
-            Vec3(self.WIDTH / 2, self.LENGTH / 2, (self.HEIGHT - self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS) / 2))
-        ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS + self.CHASSIS_TO_WHEEL_AXIS))
-        # ts = TransformState.makePos(Vec3(0, 0, self.TIRE_RADIUS))
-        chassis.addShape(chassis_shape, ts)
-        chassis.setDeactivationEnabled(False)
-        chassis.notifyCollisions(True)  # advance collision check, do callback in pg_collision_callback
-
-        physics_world = get_engine().physics_world
-        vehicle_chassis = BulletVehicle(physics_world.dynamic_world, chassis)
-        vehicle_chassis.setCoordinateSystem(ZUp)
-        self.dynamic_nodes.append(vehicle_chassis)
-        return vehicle_chassis
-
-    @classmethod
-    def LENGTH(cls):
-        return cls.LENGTH
-
-    @classmethod
-    def HEIGHT(cls):
-        return cls.HEIGHT
-
-    @classmethod
-    def WIDTH(cls):
-        return cls.WIDTH
-
-    def _add_visualization(self):
-        if self.render:
-            [path, scale, offset, HPR] = self.path
-            car_model = self.loader.loadModel(AssetLoader.file_path("models", path))
-            car_model.setTwoSided(False)
-            BaseVehicle.model_collection[path] = car_model
-            car_model.setScale(scale)
-            # model default, face to y
-            car_model.setHpr(*HPR)
-            car_model.setPos(offset[0], offset[1], offset[-1])
-            # car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + offset[-1])
-            car_model.instanceTo(self.origin)
-            if self.config["random_color"]:
-                material = Material()
-                material.setBaseColor(
-                    (
-                        self.panda_color[0] * self.MATERIAL_COLOR_COEFF,
-                        self.panda_color[1] * self.MATERIAL_COLOR_COEFF,
-                        self.panda_color[2] * self.MATERIAL_COLOR_COEFF, 0.2
-                    )
-                )
-                material.setMetallic(self.MATERIAL_METAL_COEFF)
-                material.setSpecular(self.MATERIAL_SPECULAR_COLOR)
-                material.setRefractiveIndex(1.5)
-                material.setRoughness(self.MATERIAL_ROUGHNESS)
-                material.setShininess(self.MATERIAL_SHININESS)
-                material.setTwoside(False)
-                self.origin.setMaterial(material, True)
-
-    def _create_wheel(self):
-        f_l = self.FRONT_WHEELBASE
-        r_l = -self.REAR_WHEELBASE
-        lateral = self.LATERAL_TIRE_TO_CENTER
-        axis_height = self.TIRE_OFFSET
-        radius = self.TIRE_RADIUS
-        wheels = []
-        for k, pos in enumerate([Vec3(lateral, f_l, axis_height), Vec3(-lateral, f_l, axis_height),
-                                 Vec3(lateral, r_l, axis_height), Vec3(-lateral, r_l, axis_height)]):
-            wheel = self._add_wheel(pos, radius, True if k < 2 else False, True if k == 0 or k == 2 else False)
-            wheels.append(wheel)
-        return wheels
-
-    def _add_wheel(self, pos: Vec3, radius: float, front: bool, left):
-        wheel_np = self.origin.attachNewNode("wheel")
-        self._node_path_list.append(wheel_np)
-
-        if self.render:
-            model = 'right_tire_front.gltf' if front else 'right_tire_back.gltf'
-            model_path = AssetLoader.file_path("models", os.path.dirname(self.path[0]), model)
-            wheel_model = self.loader.loadModel(model_path)
-            wheel_model.setTwoSided(self.TIRE_TWO_SIDED)
-            wheel_model.reparentTo(wheel_np)
-            wheel_model.set_scale(
-                1 * self.TIRE_SCALE * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_SCALE * self.TIRE_MODEL_CORRECT)
-        wheel = self.system.createWheel()
-        wheel.setNode(wheel_np.node())
-        wheel.setChassisConnectionPointCs(pos)
-        wheel.setFrontWheel(front)
-        wheel.setWheelDirectionCs(Vec3(0, 0, -1))
-        wheel.setWheelAxleCs(Vec3(1, 0, 0))
-
-        wheel.setWheelRadius(radius)
-        wheel.setMaxSuspensionTravelCm(self.SUSPENSION_LENGTH)
-        wheel.setSuspensionStiffness(self.SUSPENSION_STIFFNESS)
-        wheel.setWheelsDampingRelaxation(4.8)
-        wheel.setWheelsDampingCompression(1.2)
-        wheel_friction = self.config["wheel_friction"] if not self.config["no_wheel_friction"] else 0
-        wheel.setFrictionSlip(wheel_friction)
-        wheel.setRollInfluence(0.5)
-        return wheel
+from metadrive.component.pg_space import VehicleParameterSpace, ParameterSpace
+from metadrive.component.vehicle.base_vehicle import BaseVehicle
+from metadrive.constants import Semantics
+from metadrive.engine.asset_loader import AssetLoader
+from panda3d.core import TransparencyAttrib, LineSegs, NodePath, BoundingHexahedron
 
 
 class DefaultVehicle(BaseVehicle):
@@ -202,17 +22,21 @@ class DefaultVehicle(BaseVehicle):
     REAR_WHEELBASE = 1.4166
     path = ['ferra/vehicle.gltf', (1, 1, 1), (0, 0.075, 0.), (0, 0, 0)]
 
+    DEFAULT_LENGTH = 4.515  # meters
+    DEFAULT_HEIGHT = 1.19  # meters
+    DEFAULT_WIDTH = 1.852  # meters
+
     @property
     def LENGTH(self):
-        return 4.515  # meters
+        return self.DEFAULT_LENGTH
 
     @property
     def HEIGHT(self):
-        return 1.19  # meters
+        return self.DEFAULT_HEIGHT
 
     @property
     def WIDTH(self):
-        return 1.852  # meters
+        return self.DEFAULT_WIDTH
 
 
 # When using DefaultVehicle as traffic, please use this class.
@@ -243,17 +67,41 @@ class XLVehicle(BaseVehicle):
     SEMANTIC_LABEL = Semantics.TRUCK.label
     path = ['truck/vehicle.gltf', (1, 1, 1), (0, 0.25, 0.04), (0, 0, 0)]
 
+    DEFAULT_LENGTH = 5.74  # meters
+    DEFAULT_HEIGHT = 2.8  # meters
+    DEFAULT_WIDTH = 2.3  # meters
+
+    def __init__(
+        self, vehicle_config: dict = None, name: str = None, random_seed=None, position=None, heading=None, **kwargs
+    ):
+
+        # FIXME(2024-07-06): Hardcoded
+
+        # TODO: for @yunsong, change the rules here:
+        #  vehicle_config has 'width' 'length' and 'height'
+        if vehicle_config["length"] > 8.5:
+            self.SEMANTIC_LABEL = Semantics.BUS.label
+
+        super(XLVehicle, self).__init__(
+            vehicle_config=vehicle_config,
+            name=name,
+            random_seed=random_seed,
+            position=position,
+            heading=heading,
+            **kwargs
+        )
+
     @property
     def LENGTH(self):
-        return 5.74  # meters
+        return self.DEFAULT_LENGTH
 
     @property
     def HEIGHT(self):
-        return 2.8  # meters
+        return self.DEFAULT_HEIGHT
 
     @property
     def WIDTH(self):
-        return 2.3  # meters
+        return self.DEFAULT_WIDTH
 
 
 class LVehicle(BaseVehicle):
@@ -268,20 +116,23 @@ class LVehicle(BaseVehicle):
     TIRE_WIDTH = 0.35
     MASS = 1300
     LIGHT_POSITION = (-0.65, 2.13, 0.3)
+    DEFAULT_LENGTH = 4.87  # meters
+    DEFAULT_HEIGHT = 1.85  # meters
+    DEFAULT_WIDTH = 2.046  # meters
 
     path = ['lada/vehicle.gltf', (1.1, 1.1, 1.1), (0, -0.27, 0.07), (0, 0, 0)]
 
     @property
     def LENGTH(self):
-        return 4.87  # meters
+        return self.DEFAULT_LENGTH
 
     @property
     def HEIGHT(self):
-        return 1.85  # meters
+        return self.DEFAULT_HEIGHT
 
     @property
     def WIDTH(self):
-        return 2.046  # meters
+        return self.DEFAULT_WIDTH
 
 
 class MVehicle(BaseVehicle):
@@ -296,20 +147,22 @@ class MVehicle(BaseVehicle):
     TIRE_WIDTH = 0.3
     MASS = 1200
     LIGHT_POSITION = (-0.67, 1.86, 0.22)
-
+    DEFAULT_LENGTH = 4.6  # meters
+    DEFAULT_HEIGHT = 1.37  # meters
+    DEFAULT_WIDTH = 1.85  # meters
     path = ['130/vehicle.gltf', (1, 1, 1), (0, -0.05, 0.1), (0, 0, 0)]
 
     @property
     def LENGTH(self):
-        return 4.6  # meters
+        return self.DEFAULT_LENGTH
 
     @property
     def HEIGHT(self):
-        return 1.37  # meters
+        return self.DEFAULT_HEIGHT
 
     @property
     def WIDTH(self):
-        return 1.85  # meters
+        return self.DEFAULT_WIDTH
 
 
 class SVehicle(BaseVehicle):
@@ -325,6 +178,9 @@ class SVehicle(BaseVehicle):
     TIRE_WIDTH = 0.25
     MASS = 800
     LIGHT_POSITION = (-0.57, 1.86, 0.23)
+    DEFAULT_LENGTH = 4.3  # meters
+    DEFAULT_HEIGHT = 1.7  # meters
+    DEFAULT_WIDTH = 1.7  # meters
 
     @property
     def path(self):
@@ -338,15 +194,15 @@ class SVehicle(BaseVehicle):
 
     @property
     def LENGTH(self):
-        return 4.3  # meters
+        return self.DEFAULT_LENGTH
 
     @property
     def HEIGHT(self):
-        return 1.70  # meters
+        return self.DEFAULT_HEIGHT
 
     @property
     def WIDTH(self):
-        return 1.70  # meters
+        return self.DEFAULT_WIDTH
 
 
 class VaryingDynamicsVehicle(DefaultVehicle):
@@ -371,13 +227,13 @@ class VaryingDynamicsVehicle(DefaultVehicle):
         return self.config["mass"] if self.config["mass"] is not None else super(VaryingDynamicsVehicle, self).MASS
 
     def reset(
-            self,
-            random_seed=None,
-            vehicle_config=None,
-            position=None,
-            heading: float = 0.0,  # In degree!
-            *args,
-            **kwargs
+        self,
+        random_seed=None,
+        vehicle_config=None,
+        position=None,
+        heading: float = 0.0,  # In degree!
+        *args,
+        **kwargs
     ):
 
         assert "width" not in self.PARAMETER_SPACE
@@ -392,25 +248,25 @@ class VaryingDynamicsVehicle(DefaultVehicle):
             if vehicle_config["length"] is not None and vehicle_config["length"] != self.LENGTH:
                 should_force_reset = True
             if "max_engine_force" in vehicle_config and \
-                    vehicle_config["max_engine_force"] is not None and \
-                    vehicle_config["max_engine_force"] != self.config["max_engine_force"]:
+                vehicle_config["max_engine_force"] is not None and \
+                vehicle_config["max_engine_force"] != self.config["max_engine_force"]:
                 should_force_reset = True
             if "max_brake_force" in vehicle_config and \
-                    vehicle_config["max_brake_force"] is not None and \
-                    vehicle_config["max_brake_force"] != self.config["max_brake_force"]:
+                vehicle_config["max_brake_force"] is not None and \
+                vehicle_config["max_brake_force"] != self.config["max_brake_force"]:
                 should_force_reset = True
             if "wheel_friction" in vehicle_config and \
-                    vehicle_config["wheel_friction"] is not None and \
-                    vehicle_config["wheel_friction"] != self.config["wheel_friction"]:
+                vehicle_config["wheel_friction"] is not None and \
+                vehicle_config["wheel_friction"] != self.config["wheel_friction"]:
                 should_force_reset = True
             if "max_steering" in vehicle_config and \
-                    vehicle_config["max_steering"] is not None and \
-                    vehicle_config["max_steering"] != self.config["max_steering"]:
+                vehicle_config["max_steering"] is not None and \
+                vehicle_config["max_steering"] != self.config["max_steering"]:
                 self.max_steering = vehicle_config["max_steering"]
                 should_force_reset = True
             if "mass" in vehicle_config and \
-                    vehicle_config["mass"] is not None and \
-                    vehicle_config["mass"] != self.config["mass"]:
+                vehicle_config["mass"] is not None and \
+                vehicle_config["mass"] != self.config["mass"]:
                 should_force_reset = True
 
         # def process_memory():
@@ -450,12 +306,150 @@ class VaryingDynamicsVehicle(DefaultVehicle):
         return ret
 
 
+class VaryingDynamicsBoundingBoxVehicle(VaryingDynamicsVehicle):
+    def __init__(
+        self, vehicle_config: dict = None, name: str = None, random_seed=None, position=None, heading=None, **kwargs
+    ):
+        # FIXME(2024-07-06): Hardcoded
+
+        # TODO: for @yunsong, change the rules here:
+        #  vehicle_config has 'width' 'length' and 'height'
+        if vehicle_config["width"] < 0.0:
+            self.SEMANTIC_LABEL = Semantics.CAR.label
+        else:
+            self.SEMANTIC_LABEL = Semantics.BUS.label
+
+        super(VaryingDynamicsBoundingBoxVehicle, self).__init__(
+            vehicle_config=vehicle_config,
+            name=name,
+            random_seed=random_seed,
+            position=position,
+            heading=heading,
+            **kwargs
+        )
+
+    def _add_visualization(self):
+        if self.render:
+            [path, scale, offset, HPR] = self.path
+
+            # PZH: Note that we do not use model_collection as a buffer here.
+            # if path not in BaseVehicle.model_collection:
+
+            # PZH: Load a box model and resize it to the vehicle size
+            car_model = AssetLoader.loader.loadModel(AssetLoader.file_path("models", "box.bam"))
+
+            car_model.setTwoSided(False)
+            BaseVehicle.model_collection[path] = car_model
+            car_model.setScale((self.WIDTH, self.LENGTH, self.HEIGHT))
+            # car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + self.HEIGHT / 2)
+            car_model.setZ(0)
+            # model default, face to y
+            car_model.setHpr(*HPR)
+            car_model.instanceTo(self.origin)
+
+            show_contour = self.config["show_contour"] if "show_contour" in self.config else False
+            if show_contour:
+                # ========== Draw the contour of the bounding box ==========
+                # Draw the bottom of the car first
+                line_seg = LineSegs("bounding_box_contour1")
+                zoffset = car_model.getZ()
+                line_seg.setThickness(2)
+                line_color = [1.0, 0.0, 0.0]
+                out_offset = 0.02
+                w = self.WIDTH / 2 + out_offset
+                l = self.LENGTH / 2 + out_offset
+                h = self.HEIGHT / 2 + out_offset
+                line_seg.moveTo(w, l, h + zoffset)
+                line_seg.drawTo(-w, l, h + zoffset)
+                line_seg.drawTo(-w, l, -h + zoffset)
+                line_seg.drawTo(w, l, -h + zoffset)
+                line_seg.drawTo(w, l, h + zoffset)
+                line_seg.drawTo(-w, l, -h + zoffset)
+                line_seg.moveTo(-w, l, h + zoffset)
+                line_seg.drawTo(w, l, -h + zoffset)
+
+                line_seg.moveTo(w, -l, h + zoffset)
+                line_seg.drawTo(-w, -l, h + zoffset)
+                line_seg.drawTo(-w, -l, -h + zoffset)
+                line_seg.drawTo(w, -l, -h + zoffset)
+                line_seg.drawTo(w, -l, h + zoffset)
+                line_seg.moveTo(-w, -l, 0 + zoffset)
+                line_seg.drawTo(w, -l, 0 + zoffset)
+                line_seg.moveTo(0, -l, h + zoffset)
+                line_seg.drawTo(0, -l, -h + zoffset)
+
+                line_seg.moveTo(w, l, h + zoffset)
+                line_seg.drawTo(w, -l, h + zoffset)
+                line_seg.moveTo(-w, l, h + zoffset)
+                line_seg.drawTo(-w, -l, h + zoffset)
+                line_seg.moveTo(-w, l, -h + zoffset)
+                line_seg.drawTo(-w, -l, -h + zoffset)
+                line_seg.moveTo(w, l, -h + zoffset)
+                line_seg.drawTo(w, -l, -h + zoffset)
+                line_np = NodePath(line_seg.create(True))
+                line_material = Material()
+                line_material.setBaseColor(LVecBase4(*line_color[:3], 1))
+                line_np.setMaterial(line_material, True)
+                line_np.reparentTo(self.origin)
+
+            if self.config["random_color"]:
+                material = Material()
+                material.setBaseColor(
+                    (
+                        self.panda_color[0] * self.MATERIAL_COLOR_COEFF,
+                        self.panda_color[1] * self.MATERIAL_COLOR_COEFF,
+                        self.panda_color[2] * self.MATERIAL_COLOR_COEFF, 0.
+                    )
+                )
+                material.setMetallic(self.MATERIAL_METAL_COEFF)
+                material.setSpecular(self.MATERIAL_SPECULAR_COLOR)
+                material.setRefractiveIndex(1.5)
+                material.setRoughness(self.MATERIAL_ROUGHNESS)
+                material.setShininess(self.MATERIAL_SHININESS)
+                material.setTwoside(False)
+                self.origin.setMaterial(material, True)
+
+    def _add_wheel(self, pos: Vec3, radius: float, front: bool, left):
+        wheel_np = self.origin.attachNewNode("wheel")
+        self._node_path_list.append(wheel_np)
+
+        # PZH: Skip the wheel model
+        # if self.render:
+        #     model = 'right_tire_front.gltf' if front else 'right_tire_back.gltf'
+        #     model_path = AssetLoader.file_path("models", os.path.dirname(self.path[0]), model)
+        #     wheel_model = self.loader.loadModel(model_path)
+        #     wheel_model.setTwoSided(self.TIRE_TWO_SIDED)
+        #     wheel_model.reparentTo(wheel_np)
+        #     wheel_model.set_scale(1 * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_MODEL_CORRECT)
+        wheel = self.system.createWheel()
+        wheel.setNode(wheel_np.node())
+        wheel.setChassisConnectionPointCs(pos)
+        wheel.setFrontWheel(front)
+        wheel.setWheelDirectionCs(Vec3(0, 0, -1))
+        wheel.setWheelAxleCs(Vec3(1, 0, 0))
+
+        wheel.setWheelRadius(radius)
+        wheel.setMaxSuspensionTravelCm(self.SUSPENSION_LENGTH)
+        wheel.setSuspensionStiffness(self.SUSPENSION_STIFFNESS)
+        wheel.setWheelsDampingRelaxation(4.8)
+        wheel.setWheelsDampingCompression(1.2)
+        wheel_friction = self.config["wheel_friction"] if not self.config["no_wheel_friction"] else 0
+        wheel.setFrictionSlip(wheel_friction)
+        wheel.setRollInfluence(0.5)
+        return wheel
+
+
 def random_vehicle_type(np_random, p=None):
-    v_type = vehicle_type
+    v_type = {
+        "s": SVehicle,
+        "m": MVehicle,
+        "l": LVehicle,
+        "xl": XLVehicle,
+        "default": DefaultVehicle,
+    }
     if p:
         assert len(p) == len(v_type), \
-            "This function only allows to choose a vehicle from {} types: {}".format(len(list(v_type.keys())),
-                                                                                     v_type.keys())
+            "This function only allows to choose a vehicle from 6 types: {}".format(v_type.keys())
     prob = [1 / len(v_type) for _ in range(len(v_type))] if p is None else p
     return v_type[np_random.choice(list(v_type.keys()), p=prob)]
 
@@ -468,8 +462,8 @@ vehicle_type = {
     "default": DefaultVehicle,
     "static_default": StaticDefaultVehicle,
     "varying_dynamics": VaryingDynamicsVehicle,
-    "traffic_default": TrafficDefaultVehicle,
-    "test": CustomizedCar
+    "varying_dynamics_bounding_box": VaryingDynamicsBoundingBoxVehicle,
+    "traffic_default": TrafficDefaultVehicle
 }
 
 vehicle_class_to_type = inv_map = {v: k for k, v in vehicle_type.items()}

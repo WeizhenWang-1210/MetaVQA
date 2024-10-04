@@ -59,7 +59,6 @@ class BaseVehicleState:
         self.on_crosswalk = False
 
         # contact results, a set containing objects type name for rendering
-        self.crashed_objects = set()
         self.contact_results = set()
 
 
@@ -146,6 +145,15 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         self.add_body(vehicle_chassis.getChassis())
         self.system = vehicle_chassis
         self.chassis = self.origin
+
+        if self.config["scale"] is not None:
+            w, l, h = self.config["scale"]
+            self.FRONT_WHEELBASE *= l
+            self.REAR_WHEELBASE *= l
+            self.LATERAL_TIRE_TO_CENTER *= w
+            self.TIRE_RADIUS *= h
+            self.CHASSIS_TO_WHEEL_AXIS *= h
+
         self.wheels = self._create_wheel()
 
         # light experimental!
@@ -233,26 +241,9 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         return step_info
 
     def after_step(self):
+        step_info = {}
         if self.navigation and self.config["navigation_module"]:
             self.navigation.update_localization(self)
-        self._state_check()
-        self.update_dist_to_left_right()
-        step_energy, episode_energy = self._update_energy_consumption()
-        self.out_of_route = self._out_of_route()
-        step_info = self._update_overtake_stat()
-        my_policy = self.engine.get_policy(self.name)
-        step_info.update(
-            {
-                "velocity": float(self.speed),
-                "steering": float(self.steering),
-                "acceleration": float(self.throttle_brake),
-                "step_energy": step_energy,
-                "episode_energy": episode_energy,
-                "policy": my_policy.name if my_policy is not None else my_policy
-            }
-        )
-
-        if self.navigation is not None and hasattr(self.navigation, "navi_arrow_dir"):
             lanes_heading = self.navigation.navi_arrow_dir
             lane_0_heading = lanes_heading[0]
             lane_1_heading = lanes_heading[1]
@@ -276,7 +267,22 @@ class BaseVehicle(BaseObject, BaseVehicleState):
                     "navigation_right": navigation_turn_right
                 }
             )
-
+        self._state_check()
+        self.update_dist_to_left_right()
+        step_energy, episode_energy = self._update_energy_consumption()
+        self.out_of_route = self._out_of_route()
+        step_info.update(self._update_overtake_stat())
+        my_policy = self.engine.get_policy(self.name)
+        step_info.update(
+            {
+                "velocity": float(self.speed),
+                "steering": float(self.steering),
+                "acceleration": float(self.throttle_brake),
+                "step_energy": step_energy,
+                "episode_energy": episode_energy,
+                "policy": my_policy.name if my_policy is not None else my_policy
+            }
+        )
         return step_info
 
     def _out_of_route(self):
@@ -515,15 +521,14 @@ class BaseVehicle(BaseObject, BaseVehicleState):
     def update_dist_to_left_right(self):
         self.dist_to_left_side, self.dist_to_right_side = self._dist_to_route_left_right()
 
-    def _dist_to_route_left_right(self, navigation=None):
-        if navigation is None:
-            navigation = self.navigation
-        if navigation is None or navigation.current_ref_lanes is None:
+    def _dist_to_route_left_right(self):
+        # TODO
+        if self.navigation is None or self.navigation.current_ref_lanes is None:
             return 0, 0
-        current_reference_lane = navigation.current_ref_lanes[0]
+        current_reference_lane = self.navigation.current_ref_lanes[0]
         _, lateral_to_reference = current_reference_lane.local_coordinates(self.position)
-        lateral_to_left = lateral_to_reference + navigation.get_current_lane_width() / 2
-        lateral_to_right = navigation.get_current_lateral_range(self.position, self.engine) - lateral_to_left
+        lateral_to_left = lateral_to_reference + self.navigation.get_current_lane_width() / 2
+        lateral_to_right = self.navigation.get_current_lateral_range(self.position, self.engine) - lateral_to_left
         return lateral_to_left, lateral_to_right
 
     # @property
@@ -628,17 +633,55 @@ class BaseVehicle(BaseObject, BaseVehicleState):
     def _add_visualization(self):
         if self.render:
             [path, scale, offset, HPR] = self.path
-            if path not in BaseVehicle.model_collection:
-                car_model = self.loader.loadModel(AssetLoader.file_path("models", path))
-                car_model.setTwoSided(False)
-                BaseVehicle.model_collection[path] = car_model
-                car_model.setScale(scale)
-                # model default, face to y
-                car_model.setHpr(*HPR)
-                car_model.setPos(offset[0], offset[1], offset[-1])
-                car_model.setZ(-self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS + offset[-1])
-            else:
-                car_model = BaseVehicle.model_collection[path]
+            # print(self.path)
+            # if path not in BaseVehicle.model_collection:
+            car_model = self.loader.loadModel(AssetLoader.file_path("models", path))
+            car_model.setTwoSided(False)
+            BaseVehicle.model_collection[path] = car_model
+
+            extra_offset = -self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS
+            # print(scale, self.config['scale'])
+            # print(self.config['length'], self.config['width'], self.config['height'])
+            # print(offset)
+            # assert self.config['length'] > self.config['width'], "Please set the length and width in vehicle config"
+            # assert self.config['length'] > self.config['height'], "Please set the length and height in vehicle config"
+
+            assert self.config['scale'] is not None, "Please set the scale in vehicle config"
+            
+            if self.config['scale'] is not None:
+                # scale = (
+                #     scale[0] * self.config['scale'][0], scale[1] * self.config['scale'][1],
+                #     scale[2] * self.config['scale'][2]
+                # )
+                offset = (
+                    offset[0] * self.config['scale'][0], offset[1] * self.config['scale'][1],
+                    offset[2] * self.config['scale'][2]
+                )
+                scale = (   
+                    self.config['scale'][0], self.config['scale'][1], self.config['scale'][2]
+                )
+
+                # A quick workaround here.
+                # The model position is set to height/2 in ScenarioMapManager.
+                # Now we set this offset to -height/2, so that the model will be placed on the ground.
+                extra_offset = -self.config["height"] / 2
+                # print(extra_offset)
+
+            car_model.setScale(scale)
+            # model default, face to y
+            car_model.setHpr(*HPR)
+            car_model.setPos(offset[0], offset[1], offset[2])
+            # car_model.setPos(offset[0], 0, 0)
+
+            car_model.setZ(extra_offset + offset[2])
+            # car_model.setZ(extra_offset)
+
+            BaseVehicle.model_collection[path] = car_model                
+
+            # else:
+            #     car_model = BaseVehicle.model_collection[path]
+            # print(car_model.getScale())
+                
             car_model.instanceTo(self.origin)
             if self.config["random_color"]:
                 material = Material()
@@ -664,6 +707,15 @@ class BaseVehicle(BaseObject, BaseVehicleState):
         axis_height = self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS
         radius = self.TIRE_RADIUS
         wheels = []
+        # print(self.TIRE_RADIUS, self.CHASSIS_TO_WHEEL_AXIS, 'radius')
+        # print(self.config["scale"])
+        # if self.config["scale"] is not None:
+            # scale 0 width, 1 length 2 height
+            # f_l *= self.config["scale"][1]
+            # r_l *= self.config["scale"][1]
+            # lateral *= self.config["scale"][0]
+            # axis_height = self.TIRE_RADIUS - self.CHASSIS_TO_WHEEL_AXIS * self.config["scale"][2]
+            # radius *= self.config["scale"][2]
         for k, pos in enumerate([Vec3(lateral, f_l, axis_height), Vec3(-lateral, f_l, axis_height),
                                  Vec3(lateral, r_l, axis_height), Vec3(-lateral, r_l, axis_height)]):
             wheel = self._add_wheel(pos, radius, True if k < 2 else False, True if k == 0 or k == 2 else False)
@@ -680,7 +732,21 @@ class BaseVehicle(BaseObject, BaseVehicleState):
             wheel_model = self.loader.loadModel(model_path)
             wheel_model.setTwoSided(self.TIRE_TWO_SIDED)
             wheel_model.reparentTo(wheel_np)
-            wheel_model.set_scale(1 * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_MODEL_CORRECT)
+            tire_scale = 1 * self.TIRE_MODEL_CORRECT if left else -1 * self.TIRE_MODEL_CORRECT
+
+            if self.config['scale'] is not None:
+                tire_scale = (
+                    self.config['scale'][0] * tire_scale, self.config['scale'][1] * tire_scale, self.config['scale'][2] * tire_scale
+                )
+
+                # A quick workaround here.
+                # The model position is set to height/2 in ScenarioMapManager.
+                # Now we set this offset to -height/2, so that the model will be placed on the ground.
+                # For the wheel, the bottom of it is not z=0, so we add two more terms to correct it.
+                extra_offset = -self.config["height"] / 2  + self.TIRE_RADIUS/self.config['scale'][2] + self.CHASSIS_TO_WHEEL_AXIS/self.config['scale'][2]
+                wheel_model.setPos(0, 0, extra_offset)
+
+            wheel_model.set_scale(tire_scale)
         wheel = self.system.createWheel()
         wheel.setNode(wheel_np.node())
         wheel.setChassisConnectionPointCs(pos)

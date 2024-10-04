@@ -3,19 +3,17 @@ This environment can load all scenarios exported from other environments via env
 """
 
 import numpy as np
-from metadrive.component.navigation_module.edge_network_navigation import EdgeNetworkNavigation
+
 from metadrive.component.navigation_module.trajectory_navigation import TrajectoryNavigation
-from metadrive.constants import DEFAULT_AGENT
 from metadrive.constants import TerminationState
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.envs.base_env import BaseEnv
+from metadrive.manager.scenario_agent_manager import ScenarioAgentManager
 from metadrive.manager.scenario_curriculum_manager import ScenarioCurriculumManager
 from metadrive.manager.scenario_data_manager import ScenarioDataManager
 from metadrive.manager.scenario_light_manager import ScenarioLightManager
 from metadrive.manager.scenario_map_manager import ScenarioMapManager
 from metadrive.manager.scenario_traffic_manager import ScenarioTrafficManager
-from metadrive.manager.scenario_diverse_traffic_manager import ScenarioDiverseTrafficManager
-from metadrive.manager.new_sidewalk_manager import SidewalkManager
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.utils import get_np_random
 from metadrive.utils.math import wrap_to_pi
@@ -92,7 +90,8 @@ SCENARIO_ENV_CONFIG = dict(
 
     # ===== others =====
     allowed_more_steps=None,  # horizon, None=infinite
-    top_down_show_real_size=False
+    top_down_show_real_size=False,
+    use_bounding_box=False,  # Set True to use a cube in visualization to represent every dynamic objects.
 )
 
 
@@ -116,6 +115,18 @@ class ScenarioEnv(BaseEnv):
                 "If using > 1 workers, you have to allow sequential_seed for consistency!"
         self.start_index = self.config["start_scenario_index"]
         self.num_scenarios = self.config["num_scenarios"]
+
+    def _post_process_config(self, config):
+        config = super(ScenarioEnv, self)._post_process_config(config)
+        if config["use_bounding_box"]:
+            config["vehicle_config"]["random_color"] = True
+            config["vehicle_config"]["vehicle_model"] = "varying_dynamics_bounding_box"
+            config["agent_configs"]["default_agent"]["use_special_color"] = True
+            config["agent_configs"]["default_agent"]["vehicle_model"] = "varying_dynamics_bounding_box"
+        return config
+
+    def _get_agent_manager(self):
+        return ScenarioAgentManager(init_observations=self._get_observations())
 
     def setup_engine(self):
         super(ScenarioEnv, self).setup_engine()
@@ -181,7 +192,7 @@ class ScenarioEnv(BaseEnv):
                 done = True
             self.logger.info(msg("max step"), extra={"log_once": True})
         elif self.config["allowed_more_steps"] and self.episode_lengths[vehicle_id] >= \
-                self.engine.data_manager.current_scenario_length + self.config["allowed_more_steps"]:
+            self.engine.data_manager.current_scenario_length + self.config["allowed_more_steps"]:
             if self.config["truncate_as_terminate"]:
                 done = True
             done_info[TerminationState.MAX_STEP] = True
@@ -381,19 +392,6 @@ class ScenarioEnv(BaseEnv):
             self.config["start_scenario_index"] + self.config["num_scenarios"])
         self.seed(current_seed)
 
-class ScenarioDiverseEnv(ScenarioEnv):
-
-    def setup_engine(self):
-        super(ScenarioEnv, self).setup_engine()
-        self.engine.register_manager("data_manager", ScenarioDataManager())
-        self.engine.register_manager("map_manager", ScenarioMapManager())
-        if not self.config["no_traffic"]:
-            # self.engine.register_manager("traffic_manager", ScenarioTrafficManager())
-            self.engine.register_manager("traffic_manager", ScenarioDiverseTrafficManager())
-        if not self.config["no_light"]:
-            self.engine.register_manager("light_manager", ScenarioLightManager())
-        self.engine.register_manager("curriculum_manager", ScenarioCurriculumManager())
-        # self.engine.register_manager("sidewalk_manager", SidewalkManager())
 
 if __name__ == "__main__":
     env = ScenarioEnv(

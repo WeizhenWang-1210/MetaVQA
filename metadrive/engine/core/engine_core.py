@@ -252,12 +252,12 @@ class EngineCore(ShowBase.ShowBase):
                 if self.mode == RENDER_MODE_ONSCREEN and (not self.global_config["debug"]):
                     if self.global_config["show_logo"]:
                         self._window_logo = attach_logo(self)
-                        self._loading_logo = attach_cover_image(
-                            window_width=self.get_size()[0], window_height=self.get_size()[1]
-                        )
-                        for i in range(5):
-                            self.graphicsEngine.renderFrame()
-                        self.taskMgr.add(self.remove_logo, "remove _loading_logo in first frame")
+                    self._loading_logo = attach_cover_image(
+                        window_width=self.get_size()[0], window_height=self.get_size()[1]
+                    )
+                    for i in range(5):
+                        self.graphicsEngine.renderFrame()
+                    self.taskMgr.add(self.remove_logo, "remove _loading_logo in first frame")
 
         self.closed = False
 
@@ -273,7 +273,9 @@ class EngineCore(ShowBase.ShowBase):
         self.common_filter = None
 
         # physics world
-        self.physics_world = PhysicsWorld(self.global_config["debug_static_world"])
+        self.physics_world = PhysicsWorld(
+            self.global_config["debug_static_world"], disable_collision=self.global_config["disable_collision"]
+        )
 
         # collision callback
         self.physics_world.dynamic_world.setContactAddedCallback(PythonCallbackObject(collision_callback))

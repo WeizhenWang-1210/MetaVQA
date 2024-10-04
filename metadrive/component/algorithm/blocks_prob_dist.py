@@ -37,8 +37,7 @@ class PGBlockDistConfig:
         "Split": 0.00,
         "ParkingLot": 0.00,
         "TollGate": 0.00,
-        "Bidirection": 0.00,
-        "StdInterSectionWithUTurn": 0.00
+        "Bidirection": 0.00
     }
 
     @classmethod

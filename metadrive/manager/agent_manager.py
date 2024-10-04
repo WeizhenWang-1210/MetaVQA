@@ -168,7 +168,6 @@ class VehicleAgentManager(BaseAgentManager):
         self._allow_respawn = flag
 
     def try_actuate_agent(self, step_infos, stage="before_step"):
-        from metadrive.policy.replay_policy import InterventionPolicy
         """
         Some policies should make decision before physics world actuation, in particular, those need decision-making
         But other policies like ReplayPolicy should be called in after_step, as they already know the final state and
@@ -178,23 +177,13 @@ class VehicleAgentManager(BaseAgentManager):
         for agent_id in self.active_agents.keys():
             policy = self.get_policy(self._agent_to_object[agent_id])
             is_replay = isinstance(policy, ReplayTrafficParticipantPolicy)
-            is_intervention = isinstance(policy, InterventionPolicy)
             assert policy is not None, "No policy is set for agent {}".format(agent_id)
             if is_replay:
                 if stage == "after_step":
-                    if is_intervention:
-                        continue
-                    # action not being used.
                     policy.act(agent_id)
                     step_infos[agent_id] = policy.get_action_info()
-
                 else:
-                    if is_intervention:
-                        action = policy.act(agent_id)
-                        step_infos[agent_id] = policy.get_action_info()
-                        step_infos[agent_id].update(self.get_agent(agent_id).before_step(action))
-                    else:
-                        step_infos[agent_id] = self.get_agent(agent_id).before_step([0, 0])
+                    step_infos[agent_id] = self.get_agent(agent_id).before_step([0, 0])
             else:
                 if stage == "before_step":
                     action = policy.act(agent_id)

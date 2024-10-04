@@ -162,14 +162,6 @@ class WorldSurface(pygame.Surface):
         """
         x, y = self.vec2pix(vec)
         return -margin < x < self.get_width() + margin and -margin < y < self.get_height() + margin
-    
-    def pix2pos(self, x,y):
-        """
-        The reverse process of pos2pix. Note that some precision will be sacrificed due to ceiling
-        operation.
-        """
-        x / self.scaling + self.origin[0], (self.raw_size[-1]- y)/self.scaling+self.origin[1]
-        
 
     def move_display_window_to(self, position: PositionType) -> None:
         """

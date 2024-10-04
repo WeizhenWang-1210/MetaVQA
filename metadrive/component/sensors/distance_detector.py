@@ -89,6 +89,7 @@ class DistanceDetector(BaseSensor):
     """
     It is a module like lidar, used to detect sidewalk/center line or other static things
     """
+    Lidar_point_cloud_obs_dim = 240
     DEFAULT_HEIGHT = 0.2
 
     # for vis debug
@@ -195,7 +196,7 @@ class SideDetector(DistanceDetector):
         super(SideDetector, self).__init__(engine)
         self.set_start_phase_offset(90)
         self.origin.hide(CamMask.RgbCam | CamMask.Shadow | CamMask.Shadow | CamMask.DepthCam | CamMask.SemanticCam)
-        self.mask = CollisionGroup.ContinuousLaneLine | CollisionGroup.Sidewalk
+        self.mask = CollisionGroup.ContinuousLaneLine
 
 
 class LaneLineDetector(SideDetector):
@@ -205,4 +206,4 @@ class LaneLineDetector(SideDetector):
         super(SideDetector, self).__init__(engine)
         self.set_start_phase_offset(90)
         self.origin.hide(CamMask.RgbCam | CamMask.Shadow | CamMask.Shadow | CamMask.DepthCam | CamMask.SemanticCam)
-        self.mask = CollisionGroup.ContinuousLaneLine | CollisionGroup.BrokenLaneLine | CollisionGroup.Sidewalk
+        self.mask = CollisionGroup.ContinuousLaneLine | CollisionGroup.BrokenLaneLine

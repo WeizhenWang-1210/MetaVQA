@@ -63,6 +63,7 @@ class ReplayTrafficParticipantPolicy(BasePolicy):
         self.control_object.set_velocity(info["velocity"], in_local_frame=self._velocity_local_frame)
         self.control_object.set_heading_theta(info["heading"])
         self.control_object.set_angular_velocity(info["angular_velocity"])
+        self.control_object.set_static(True)
 
         return None  # Return None action so the base vehicle will not overwrite the steering & throttle
 
@@ -79,41 +80,3 @@ class ReplayEgoCarPolicy(ReplayTrafficParticipantPolicy):
                 i,
             ))
         return ret
-
-
-class InterventionPolicy(ReplayEgoCarPolicy):
-    def act(self, *args, **kwargs):
-        # print(self.engine.external_actions)
-        index = max(int(self.episode_step), 0)
-        if index >= len(self.traj_info):
-            print("no more trajectories")
-            return None
-
-        info = self.traj_info[index]
-        # Before step
-        # Warning by LQY: Don't call before step here! Before step should be called by manager
-        # action = self.traj_info[int(self.episode_step)].get("action", None)
-        # self.control_object.before_step(action)
-
-        if not bool(info["valid"]):
-            return None  # Return None action so the base vehicle will not overwrite the steering & throttle
-
-        if "throttle_brake" in info:
-            if hasattr(self.control_object, "set_throttle_brake"):
-                self.control_object.set_throttle_brake(float(info["throttle_brake"].item()))
-        if "steering" in info:
-            if hasattr(self.control_object, "set_steering"):
-                self.control_object.set_steering(float(info["steering"].item()))
-
-        intervention = self.engine.external_actions is not None and 'default_agent' in self.engine.external_actions.keys() \
-                       and not (self.engine.external_actions['default_agent'][0] == 0. \
-                                and self.engine.external_actions['default_agent'][1] == 0)
-        if not intervention:
-            self.control_object.set_position(info["position"])
-            self.control_object.set_velocity(info["velocity"], in_local_frame=self._velocity_local_frame)
-            self.control_object.set_heading_theta(info["heading"])
-            self.control_object.set_angular_velocity(info["angular_velocity"])
-            return None
-        else:
-            return self.engine.external_actions['default_agent']
-

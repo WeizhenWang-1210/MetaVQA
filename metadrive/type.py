@@ -10,7 +10,7 @@ class MetaDriveType:
 
     NOTE: when add new keys, make sure class method works well for them
     """
-    TEST_OBJECT = "TestObject"
+
     # ===== Lane, Road =====
     LANE_SURFACE_STREET = "LANE_SURFACE_STREET"
     # Unlike a set of lanes separated by broken/solid line, this includes intersection and some unstructured roads.

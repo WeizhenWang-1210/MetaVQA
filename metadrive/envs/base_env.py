@@ -120,8 +120,6 @@ BASE_DEFAULT_CONFIG = dict(
         show_line_to_dest=False,
         # Whether to draw a line from current vehicle position to the next navigation point
         show_line_to_navi_mark=False,
-        # Whether to draw left / right arrow in the interface to denote the navigation direction
-        show_navigation_arrow=True,
         # If set to True, the vehicle will be in color green in top-down renderer or MARL setting
         use_special_color=False,
         # Clear wheel friction, so it can not move by setting steering and throttle/brake. Used for ReplayPolicy
@@ -158,6 +156,7 @@ BASE_DEFAULT_CONFIG = dict(
         length=None,
         height=None,
         mass=None,
+        scale=None,  # triplet (x, y, z)
 
         # Set the vehicle size only for pygame top-down renderer. It doesn't affect the physical size!
         top_down_width=None,
@@ -211,6 +210,8 @@ BASE_DEFAULT_CONFIG = dict(
     preload_models=True,
     # model compression increasing the launch time
     disable_model_compression=True,
+    # Whether to disable the collision detection (useful for debugging / replay logged scenarios)
+    disable_collision=False,
 
     # ===== Terrain =====
     # The size of the square map region, which is centered at [0, 0]. The map objects outside it are culled.
@@ -337,13 +338,13 @@ class BaseEnv(gym.Env):
         #     config["multi_thread_render"] = False
 
         # Optimize sensor creation in none-screen mode
-        """if not config["use_render"] and not config["image_observation"]:
+        if not config["use_render"] and not config["image_observation"]:
             filtered = {}
             for id, cfg in config["sensors"].items():
                 if len(cfg) > 0 and not issubclass(cfg[0], BaseCamera) and id != "main_camera":
                     filtered[id] = cfg
             config["sensors"] = filtered
-            config["interface_panel"] = []"""
+            config["interface_panel"] = []
 
         # Check sensor existence
         if config["use_render"] or "main_camera" in config["sensors"]:

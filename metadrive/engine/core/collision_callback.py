@@ -27,18 +27,14 @@ def collision_callback(contact):
             # crash vehicles
             if another_node_name == MetaDriveType.VEHICLE:
                 obj_1.crash_vehicle = True
-                obj_1.crashed_objects.add((another_node_name,obj_2.id))
-                #print("collision{}{}".format(obj_1.id, obj_2.id))
             # crash objects
             elif MetaDriveType.is_traffic_object(another_node_name):
-                obj_1.crashed_objects.add((another_node_name,obj_2.id))
                 if not obj_2.crashed:
                     obj_1.crash_object = True
                     if obj_2.COST_ONCE:
                         obj_2.crashed = True
             # collision_human
             elif another_node_name in [MetaDriveType.CYCLIST, MetaDriveType.PEDESTRIAN]:
-                obj_1.crashed_objects.add((another_node_name,obj_2.id))
                 obj_1.crash_human = True
             # crash invisible wall or building
             elif another_node_name in [MetaDriveType.INVISIBLE_WALL, MetaDriveType.BUILDING]:
