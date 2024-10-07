@@ -52,11 +52,11 @@ def find_center(bitmask):
     bitmask_255 = (bitmask * 255).astype(np.uint8)
     bitmask = bitmask.astype(np.uint8)
     # Set the top and bottom rows to zero
-    bitmask_255[:1, :] = 0
-    bitmask_255[-1:] = 0
+    bitmask_255[:4, :] = 0
+    bitmask_255[-4:] = 0
     # Set the left and right columns to zero
-    bitmask_255[:, :1] = 0
-    bitmask_255[:, -1:] = 0
+    bitmask_255[:, :4] = 0
+    bitmask_255[:, -4:] = 0
 
     dist_transform = cv2.distanceTransform(bitmask_255, cv2.DIST_L2, 5)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(dist_transform)
@@ -68,7 +68,7 @@ def find_center(bitmask):
             # Create a "hollowed rectangle" shape around the bounding box.
             x, y, w, h = cv2.boundingRect(cnt)
             image = np.zeros((bitmask_255.shape[0], bitmask_255.shape[1], 3))
-            cv2.rectangle(image, (x - 5, y - 5), (x + w + 5, y + h + 5), (255, 255, 255), thickness=-1)
+            cv2.rectangle(image, (x - 10, y - 10), (x + w + 10, y + h + 10), (255, 255, 255), thickness=-1)
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 0), thickness=-1)
             bitmask_free = np.all(image == [255, 255, 255], axis=-1).astype(np.uint8)
             #cv2.imwrite("regions.png", bitmask_free * 255)
@@ -104,6 +104,23 @@ def put_text(image, text, center, color=(255, 255, 255)):
     # Draw the filled rectangle (background) around the text
     cv2.rectangle(image, center, top_left, background_color, thickness=-1)
     cv2.putText(image, text, center, font, font_scale, text_color, thickness, cv2.LINE_AA)
+
+
+def put_rectangle(image, text, center, color=(255, 255, 255)):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.75
+    thickness = 1
+    # Write text at the specified location (center)
+    # Get the text size to draw the background rectangle
+    (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+    # Calculate the top-left corner of the rectangle based on the center
+    x, y = center
+    top_left = (x + text_width, y - text_height)
+    # Set the background color (e.g., white) and text color (e.g., black)
+    background_color = color
+    # Draw the filled rectangle (background) around the text
+    cv2.rectangle(image, center, top_left, background_color, thickness=-1)
+    return image
 
 
 def find_areas(img: np.array, colors: List, mode="RGB"):
@@ -197,20 +214,38 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
               for query_id, color, area, binary_mask
               in zip(query_ids, colors, areas, binary_masks)]
     area_ascending = sorted(tuples, key=lambda x: x[2])
+    center_list, contour_list = [], []
+
+    text_boxes = np.zeros_like(base_img)
+
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
         legal_mask = binary_mask
         for j in range(i):
             legal_mask = np.logical_and(legal_mask, ~area_ascending[j][3])
+            occupied_text = np.all(text_boxes == [255, 255, 255], axis=-1)
+            legal_mask = np.logical_and(legal_mask, ~occupied_text)
         colored_mask = base_img.copy()
         colored_mask[legal_mask == 1] = color
         alpha = 0.0  # Transparency factor
         base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
         center, contours = find_center(legal_mask)
-        put_text(base_img, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
+        center_list.append(center)
+        contour_list.append(contours)
+        text_boxes = put_rectangle(text_boxes, str(id2l[query_id]), center)
         if save_label:
             put_text(canvas, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
-        cv2.drawContours(base_img, contours, -1, area_ascending[i][1], 2)
+
+    for i in range(len(area_ascending)):
+        query_id, color, area, binary_mask = area_ascending[i]
+        cv2.drawContours(base_img, contour_list[i], -1, color, 2)
+
+    for i in range(len(area_ascending)):
+        query_id, color, area, binary_mask = area_ascending[i]
+        put_text(base_img, str(id2l[query_id]), center_list[i], color=color)
+
+    cv2.imwrite(os.path.join(frame_path, "textboxes_{}_{}.png".format(perspective, identifier)), text_boxes)
+
     if save_path is not None:
         cv2.imwrite(save_path, base_img)
     else:
@@ -236,52 +271,9 @@ def label_transfer(nusc_img_path, label_img_path):
     src.save("test_transfer.png")
 
 
-def scratch():
-    raise DeprecationWarning
-    #TODO we need to ease observable pixels
-    episode_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0005_1_50"
-    id2label(episode_path)
-    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0005_1_50/4_7"
-    identifier = os.path.basename(frame_path)
-    world = os.path.join(frame_path, "world_{}.json".format(identifier))
-    id2c = os.path.join(frame_path, "id2c_{}.json".format(identifier))
-    instance_seg = os.path.join(frame_path, "mask_front_{}.png".format(identifier))
-    base_img = os.path.join(frame_path, "rgb_front_{}.png".format(identifier))
-    world = json.load(open(world))
-    id2c = json.load(open(id2c))
-    id2l = json.load(open(os.path.join(episode_path, "id2label.json")))
-    mask_img = cv2.imread(instance_seg)
-    mask = np.array(mask_img)
-    base_img = np.array(cv2.imread(base_img))
-    query_ids = []
-    for obj in world["objects"]:
-        if "front" in obj["observing_camera"]:
-            query_ids.append(obj["id"])
-    colors = [id2c[query_id] for query_id in query_ids]
-    colors = [(round(color[0] * 255, 0), round(color[1] * 255, 0), round(color[2] * 255, 0)) for color in colors]
-    areas, binary_masks = find_areas(mask, colors, "BGR")
-    tuples = [(query_id, color, area, binary_mask)
-              for query_id, color, area, binary_mask
-              in zip(query_ids, colors, areas, binary_masks)]
-    area_ascending = sorted(tuples, key=lambda x: x[2])
-    for i in range(len(area_ascending)):
-        query_id, color, area, binary_mask = area_ascending[i]
-        legal_mask = binary_mask
-        for j in range(i):
-            legal_mask = np.logical_and(legal_mask, ~area_ascending[j][3])
-        colored_mask = base_img.copy()
-        colored_mask[legal_mask == 1] = color
-        alpha = 0.0  # Transparency factor
-        base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
-        center, contours = find_center(legal_mask)
-        put_text(base_img, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
-        cv2.drawContours(base_img, contours, -1, area_ascending[i][1], 2)
-    cv2.imwrite("some.png", base_img)
-
-
 if __name__ == "__main__":
-    #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96"
-    #id2label(os.path.dirname(frame_path), "front")
-    #labelframe(frame_path, "front", save_label=True)
-    label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
-                   "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
+    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0061_91_100/0_91"
+    id2label(os.path.dirname(frame_path), "front")
+    labelframe(frame_path, "front", save_label=True)
+    #label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
+    #              "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
