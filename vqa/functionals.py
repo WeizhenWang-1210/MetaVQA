@@ -333,17 +333,16 @@ def identify_heading(origin_pos, origin_heading):
             bin_number = int(angle / bin_width) + 1
             return bin_number
 
+        import numpy as np
         result = {}
         for search_space in search_spaces:
             for object in search_space:
-                heading_transformed = transform_heading(
+                angle_rotated = transform_heading(
                     object.heading, origin_pos, origin_heading
                 )
-                angle = np.arctan2(heading_transformed[1], heading_transformed[0])
-                angle = angle + 2 * np.pi  #so the range is now 0 to 360.
+                angle = 2 * np.pi - angle_rotated  #so the range is now 0 to 360.
                 clockness = angle_to_clock_bin(angle)
                 result[object.id] = clockness
-
         return result
 
     return helper
