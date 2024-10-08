@@ -1,0 +1,74 @@
+{
+    "static":{
+        "identify_color":{
+            "text": [
+                "Please tell me the color of object <id1>."
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"extract_color",
+            "constraint":[]
+        },
+        "identify_type": {
+            "text":[
+                "Please tell me the type of object <id1>."
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"extract_type",
+            "constraint":[]
+        },
+        "identify_distance": {
+            "text":[
+                "Please tell me how far object <id1> is from me. Classify the answers into very close(0-2m), close(2-10m), medium(10-30m), and far(30m-)."
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"classify_distance",
+            "constraint":[]
+        },
+        "identify_position": {
+            "text":[
+                "Please tell me the relative position <id1> with respect to us."
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"classify_position",
+            "constraint":[]
+        },
+        "identify_heading": {
+            "text":[
+                "Please tell me the heading of object <id1> in our clock angle."
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"identify_heading",
+            "constraint":[]
+        },
+        "pick_closer": {
+            "text":[
+                "Which object is closer to me, <<id1>> or <<id2>>?"
+            ],
+            "params":[
+                "<id1>","<id2>"
+            ],
+            "end_filter":"pick_closer",
+            "constraint":[]
+        },
+        "predict_crash": {
+            "text":[
+                "Suppose object <<id1>> proceed along its current heading. Will it collide into us?"
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"extrapolate_box",
+            "constraint":[]
+        }
+    }
+}
