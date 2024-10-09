@@ -2,7 +2,7 @@
     "static":{
         "identify_color":{
             "text": [
-                "Please tell me the color of object <id1>."
+                "Please tell us the color of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -12,7 +12,7 @@
         },
         "identify_type": {
             "text":[
-                "Please tell me the type of object <id1>."
+                "Please tell us the type of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -22,7 +22,7 @@
         },
         "identify_distance": {
             "text":[
-                "Please tell me how far object <id1> is from me. Classify the answers into very close(0-2m), close(2-10m), medium(10-30m), and far(30m-)."
+                "Please tell me how far object <id1> is from us. Classify the answer into (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
             ],
             "params":[
                 "<id1>"
@@ -32,7 +32,7 @@
         },
         "identify_position": {
             "text":[
-                "Please tell me the relative position <id1> with respect to us."
+                "Please tell me the relative position of <<id1>> with respect to us."
             ],
             "params":[
                 "<id1>"
@@ -60,14 +60,75 @@
             "end_filter":"pick_closer",
             "constraint":[]
         },
-        "predict_crash": {
+        "predict_crash_ego_still": {
             "text":[
-                "Suppose object <<id1>> proceed along its current heading. Will it collide into us?"
+                "Suppose object <<id1>> proceed along its current heading. Will it collide into us if we stay still?"
             ],
             "params":[
                 "<id1>"
             ],
-            "end_filter":"extrapolate_box",
+            "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "predict_crash_ego_dynamic": {
+            "text":[
+                "Suppose both object <<id1>> and us proceed along our current heading. Will we collide?"
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "relative_distance": {
+            "text":[
+                "How close are <<id1>> and <<id2>> positioned? Classify the answers into very close(0-2m), close(2-10m), medium(10-30m), and far(30m-)."
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"relative_distance",
+            "constraint":[]
+        },
+        "relative_position": {
+            "text":[
+                "How's object <<id1>> positioned relative to object <<id2>>?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"relative_position",
+            "constraint":[]
+        },
+        "relative_heading": {
+             "text":[
+                "Do object <<id1>> oriented in roughly the same direction as <<id2>>?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"relative_heading",
+            "constraint":[]
+
+        },
+        "relative_predict_crash_still": {
+            "text":[
+                "Suppose object <<id1>> proceed along its current heading. Will it collide into <<id2>> if <<id2>> stays still?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "relative_predict_crash_dynamic": {
+            "text":[
+                "Suppose object <<id1>> and object <<id2>> proceed along their current directions with the same speed. Will they collide into each other?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"extrapolate_boxes",
             "constraint":[]
         }
     }
