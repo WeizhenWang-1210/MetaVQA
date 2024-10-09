@@ -41,7 +41,7 @@ def preprocess_observation(destination, buffer, vis_processors, text_processors)
     destination = int(destination[0]), int(destination[1])
     #print(destination)
     question = text_processors(
-        "You are the driver, what is the safest action to do? Answer in left|right|stop|none.")
+        "You are the driver, what is the safest action to do? Choose from one option from: (A) left ;(B) right ;(C) stop ;(D) none. For example, if you want to turn left, answer \"A\" ")
     im = torch.unsqueeze(im, 0)
     question = question
     return {

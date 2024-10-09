@@ -12,7 +12,7 @@ from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from collections import deque
 import torch
-from online_eval import device
+from vqa.online_eval import device
 def load_and_process_images(images_lists, vis_processor):
     # image paths: 6x20(view x time) list of paths
     # return: 5x6x3x364x364 tensor (5 is the select time)
