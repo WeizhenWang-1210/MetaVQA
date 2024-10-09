@@ -619,6 +619,22 @@ def box_trajectories_overlap(bboxes1, bboxes2):
             return True
     return False
 
+def box_trajectories_intersect(bboxes1, bboxes2):
+    records = []
+    for id1, box1 in enumerate(bboxes1):
+        for id2, box2 in enumerate(bboxes2):
+            if box_overlap(box1, box2):
+                records.append((id1,id2))
+    records = sorted(records, key=lambda x:min(x))
+    if len(records)>0:
+        if records[0][0] < records[0][1]:
+            print("2 run into 1")
+        else:
+            print("1 run into 2")
+        return True
+    else:
+        return False
+
 
 def rotate_point(point, origin, angle):
     """
