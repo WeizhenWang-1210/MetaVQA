@@ -627,10 +627,10 @@ def box_trajectories_intersect(bboxes1, bboxes2):
                 records.append((id1,id2))
     records = sorted(records, key=lambda x:min(x))
     if len(records)>0:
-        if records[0][0] < records[0][1]:
+        """if records[0][0] < records[0][1]:
             print("2 run into 1")
         else:
-            print("1 run into 2")
+            print("1 run into 2")"""
         return True
     else:
         return False
