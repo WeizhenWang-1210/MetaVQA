@@ -2,7 +2,7 @@
     "static":{
         "identify_color":{
             "text": [
-                "Please tell us the color of object <<id1>>."
+                "Specify the color of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -12,7 +12,7 @@
         },
         "identify_type": {
             "text":[
-                "Please tell us the type of object <<id1>>."
+                "Specify the type of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -22,7 +22,7 @@
         },
         "identify_distance": {
             "text":[
-                "Please tell me how far object <id1> is from us. Classify the answer into (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
+                "Please tell me how far object <id1> is from us. Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
             ],
             "params":[
                 "<id1>"
@@ -42,7 +42,7 @@
         },
         "identify_heading": {
             "text":[
-                "Please tell me the heading of object <id1> in our clock angle."
+                "Please provide the heading of object <<id1>> in clock terms, where 12 o'clock represents our front and 3 o'clock is our right."
             ],
             "params":[
                 "<id1>"
@@ -82,7 +82,7 @@
         },
         "relative_distance": {
             "text":[
-                "How close are <<id1>> and <<id2>> positioned? Classify the answers into very close(0-2m), close(2-10m), medium(10-30m), and far(30m-)."
+                "How close are <<id1>> and <<id2>> positioned? Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -102,7 +102,7 @@
         },
         "relative_heading": {
              "text":[
-                "Do object <<id1>> oriented in roughly the same direction as <<id2>>?"
+                "Is object <<id1>> heading toward roughly the same direction as <<id2>>?"
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -113,7 +113,7 @@
         },
         "relative_predict_crash_still": {
             "text":[
-                "Suppose object <<id1>> proceed along its current heading. Will it collide into <<id2>> if <<id2>> stays still?"
+                "Suppose object <<id1>> proceed along its current heading. Will it collide into object <<id2>> if object <<id2>> stays still?"
             ],
             "params":[
                 "<id1>", "<id2>"
