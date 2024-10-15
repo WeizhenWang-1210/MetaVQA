@@ -80,17 +80,17 @@ def find_center(bitmask):
     return center, contours
 
 
-def put_text(image, text, center, color=(255, 255, 255)):
+def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75):
     """
     Put <text> in <image> centered at <center> in <color>
     :param image: (H, W, C) numpy array
     :param text: str
     :param center: tuple(int, int)
     :param color: tuple(int, int, int)
+    :param font_scale: flaot.
     :return: None. Modify <image> in-place.
     """
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.75
     thickness = 1
     # Write text at the specified location (center)
     # Get the text size to draw the background rectangle
@@ -106,9 +106,8 @@ def put_text(image, text, center, color=(255, 255, 255)):
     cv2.putText(image, text, center, font, font_scale, text_color, thickness, cv2.LINE_AA)
 
 
-def put_rectangle(image, text, center, color=(255, 255, 255)):
+def put_rectangle(image, text, center, color=(255, 255, 255), font_scale=0.75):
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.75
     thickness = 1
     # Write text at the specified location (center)
     # Get the text size to draw the background rectangle
@@ -180,14 +179,27 @@ def id2label(episode_path: str, perspective: str = "front"):
     json.dump(result, open(os.path.join(episode_path, "id2label_{}.json").format(perspective), "w"))
 
 
-def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False):
+def static_id2label(frame_path, perspective="front"):
+    identifier = os.path.basename(frame_path)
+    world_path = os.path.join(frame_path, f"world_{identifier}.json")
+    world = json.load(open(world_path, "r"))
+    result = {}
+    currentlabel = 0
+    for obj in world["objects"]:
+        if perspective in obj["observing_camera"]:
+            result[obj["id"]] = currentlabel
+            currentlabel += 1
+    json.dump(result, open(os.path.join(frame_path, "static_id2label_{}_{}.json").format(perspective, identifier), "w"))
+    print(f"Successfully created single-frame-consistent id2label for {frame_path}")
+
+
+def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False, query_ids: list= None, id2l: dict = None, font_scale:float = 0.75):
     """
     :param frame_path:
     :param perspective: choose from "front"|"leftf"|"leftb"|"rightf"|"rightb"|"back"
     :param save_path:
     :return:
     """
-
     episode_path = os.path.dirname(frame_path)
     identifier = os.path.basename(frame_path)
     world = os.path.join(frame_path, "world_{}.json".format(identifier))
@@ -196,17 +208,19 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     base_img = os.path.join(frame_path, "rgb_{}_{}.png".format(perspective, identifier))
     world = json.load(open(world))
     id2c = json.load(open(id2c))
-    id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
-    print(id2l.keys())
+    if not id2l:
+        id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
+    #print(id2l.keys())
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
     canvas = np.zeros_like(base_img)
-    query_ids = []
-    for obj in world["objects"]:
-        if perspective in obj["observing_camera"]:
-            query_ids.append(obj["id"])
-    print(query_ids)
+    if not query_ids:
+        query_ids = []
+        for obj in world["objects"]:
+            if perspective in obj["observing_camera"]:
+                query_ids.append(obj["id"])
+    #print(query_ids)
     colors = [id2c[query_id] for query_id in query_ids]
     colors = [(round(color[0] * 255, 0), round(color[1] * 255, 0), round(color[2] * 255, 0)) for color in colors]
     areas, binary_masks = find_areas(mask, colors, "BGR")
@@ -232,9 +246,9 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
         center, contours = find_center(legal_mask)
         center_list.append(center)
         contour_list.append(contours)
-        text_boxes = put_rectangle(text_boxes, str(id2l[query_id]), center)
+        text_boxes = put_rectangle(text_boxes, str(id2l[query_id]), center, font_scale)
         if save_label:
-            put_text(canvas, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
+            put_text(canvas, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1], font_scale=font_scale)
 
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
@@ -242,9 +256,9 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
 
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
-        put_text(base_img, str(id2l[query_id]), center_list[i], color=color)
+        put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale)
 
-    cv2.imwrite(os.path.join(frame_path, "textboxes_{}_{}.png".format(perspective, identifier)), text_boxes)
+    #cv2.imwrite(os.path.join(frame_path, "textboxes_{}_{}.png".format(perspective, identifier)), text_boxes)
 
     if save_path is not None:
         cv2.imwrite(save_path, base_img)
@@ -270,9 +284,12 @@ def label_transfer(nusc_img_path, label_img_path):
     src.paste(label, mask=mask)
     src.save("test_transfer.png")
 
+def remask(frame_path):
+    episode_path = os.path.dirname(frame_path)
+    episode_label_path = os.path.join()
 
 if __name__ == "__main__":
-    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0061_91_100/0_91"
+    frame_path = "/bigdata/weizhen/repo/qa_platform/public/test_wide/scene-0061_91_100/0_91"
     id2label(os.path.dirname(frame_path), "front")
     labelframe(frame_path, "front", save_label=True)
     #label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",

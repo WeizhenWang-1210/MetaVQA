@@ -22,7 +22,7 @@
         },
         "identify_distance": {
             "text":[
-                "Please tell me how far object <id1> is from us. Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
+                "Please tell me how far object <<id1>> is from us. Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
             ],
             "params":[
                 "<id1>"
@@ -129,6 +129,131 @@
                 "<id1>", "<id2>"
             ],
             "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "identify_closest": {
+            "text":[
+                "For all labeled objects, which object is closest to us?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_closest",
+            "constraint":[]
+        },
+        "identify_leftmost": {
+            "text":[
+                "For all labeled objects, which object is leftmost to us?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "identify_rightmost": {
+            "text":[
+                "For all labeled objects, which object is rightmost to us?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "identify_frontmost": {
+            "text":[
+                "For all labeled objects, which object is furthest along the front direction of us?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "identify_backmost": {
+            "text":[
+                "For all labeled objects, which object is closest along the front direction of us?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "order_closest": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the closest to the furthest from us."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_closest",
+            "constraint":[]
+        },
+        "order_leftmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the leftmost to rightmost in our perspective."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_leftmost",
+            "constraint":[]
+        },
+        "order_rightmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the rightmost to leftmost in our perspective."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_rightmost",
+            "constraint":[]
+        },
+        "order_frontmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the furthest to the closest along our heading."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_rightmost",
+            "constraint":[]
+        },
+        "order_backmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the closest to the furthest along our heading."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_rightmost",
+            "constraint":[]
+        },
+        "describe_scenario":{
+            "text": [
+                "Please describe all labeled objects in the observation, in the order of their labels. For each labeled object, specify its color, type, position with respect to us, distance from us. If the object has heading direction, also include its heading in clock terms where 12 o'clock represents our front and 3 o'clock is our right."
+            ],
+            "params":[
+
+            ],
+            "end_filter":"describe_scenario",
+            "constraint":[]
+        },
+        "describe_sector": {
+            "text": [
+                "What labeled objects fall into our <pos> sector?"
+            ],
+            "params":[
+                "<pos>"
+            ],
+            "end_filter":"describe_sector",
+            "constraint":[]
+        },
+        "describe_distance":{
+            "text": [
+                "What labeled objects fall within \"<dist>\" range from us? We classify distance into: \"very close\"(0-2m); \"close\"(2-10m); \"medium\"(10-30m); \"far\"(30m-)."
+            ],
+            "params":[
+                "<dist>"
+            ],
+            "end_filter":"describe_distance",
             "constraint":[]
         }
     }
