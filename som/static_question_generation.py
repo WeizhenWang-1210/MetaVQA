@@ -97,7 +97,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     if question_type == "identify_color":
         # randomly choose a non-ego labelled object
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         # Fill the question template's <id...> with the chosen label.
@@ -125,7 +125,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         type_space = [NAMED_MAPPING[obj]["singular"] for obj in NAMED_MAPPING.keys()]
 
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
@@ -146,7 +146,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "identify_distance":
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
@@ -174,7 +174,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "identify_position":
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
@@ -195,7 +195,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         #TODO select cars only
         non_ego_labels = [label for label in labels if
                   graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"] and label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
@@ -227,7 +227,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "pick_closer":
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 2:
+        if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
@@ -277,7 +277,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         non_ego_labels = [label for label in labels if
                           graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
                                                                        "TrafficLight"] and label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         object = graph.get_node(label2id[selected_label])
@@ -316,7 +316,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         non_ego_labels = [label for label in labels if
                           graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
                                                                        "TrafficLight"] and label != -1]
-        if non_ego_labels < 1:
+        if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
         object = graph.get_node(label2id[selected_label])
@@ -359,7 +359,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "relative_distance":
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 2:
+        if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
@@ -395,7 +395,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "relative_position":
         non_ego_labels = [label for label in labels if label != -1]
-        if non_ego_labels < 2:
+        if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
