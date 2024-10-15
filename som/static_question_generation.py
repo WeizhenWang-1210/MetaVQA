@@ -264,7 +264,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 index = 2
                 explanation = ("Object <{}>, a {} {} {} us, is closer to us than object <{}>, "
                                "a {} {} {} us.").format(
-                    id1, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], id1, color1.lower(),
+                    id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], id1, color1.lower(),
                     NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1]
                 )
 
