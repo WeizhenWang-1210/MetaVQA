@@ -151,15 +151,15 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                 show=False,
             )
             identifier = "{}_{}".format(env.current_seed, env.episode_step)
-            positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                         (0., 0., 1.5)]
-            hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
-            perspectives = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            positions = [(0., 0.0, 1.5)] #[(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),(0., 0., 1.5)]
+            hprs = [[0, 0, 0]]           #[[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
+            perspectives = ["front"]     #["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
-            for position, hpr, perspective in zip(positions, hprs, perspectives)[:1]:
+            for position, hpr, perspective in zip(positions, hprs, perspectives):
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                #need to invoke twice to flush the buffer.
                 depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
@@ -173,11 +173,11 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             # is reserved for special purpose, and no objects will take this color.
             mapping = engine.c_id
             visible_ids_set = set()
-            # to be considered as observable, the object must not be black/white(reserved) and must have at least 240
+            # to be considered as observable, the object must not be black/white(reserved) and must have at least 960
             # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
-                                                c > 240)
+                                                c > 960)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -188,9 +188,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             # Record only if there are observable objects.
             # get all objectes within 100m of the ego(except agent)
             valid_objects = engine.get_objects(
-                lambda x: l2_distance(x,
-                                      env.agent) <= 100 and x.id != env.agent.id and not isinstance(x,
-                                                                                                   BaseTrafficLight))
+                lambda x: l2_distance(x, env.agent) <= 50 and x.id != env.agent.id and not isinstance(x, BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
                 final = []
