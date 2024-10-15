@@ -1388,7 +1388,7 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
                                                                     f"<{new_id2label[object_id]}>")
                     record["explanation"] = record["explanation"].replace(f"<{original_id2label[object_id]}>",
                                                                           f"<{new_id2label[object_id]}>")
-                record["obs"] = new_labeled_path
+                record["obs"] = [new_labeled_path]
             records[qid + count] = record
         count += frame_id
     json.dump(records, open(save_path, "w"), indent=2)
