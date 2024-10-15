@@ -11,6 +11,7 @@ from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.engine_utils import get_engine
+from vqa.configs.NAMESPACE import OBS_HEIGHT,OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 import pickle
 from collections import defaultdict
 import cv2
@@ -177,7 +178,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
-                                                c > 960)
+                                                c > MIN_OBSERVABLE_PIXEL)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -188,7 +189,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             # Record only if there are observable objects.
             # get all objectes within 100m of the ego(except agent)
             valid_objects = engine.get_objects(
-                lambda x: l2_distance(x, env.agent) <= 50 and x.id != env.agent.id and not isinstance(x, BaseTrafficLight))
+                lambda x: l2_distance(x, env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x, BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
                 final = []
@@ -370,10 +371,10 @@ def annotate_scenarios():
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
         }
@@ -398,10 +399,10 @@ def annotate_scenarios():
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             height_scale=1
         )

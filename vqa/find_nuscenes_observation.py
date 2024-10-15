@@ -19,6 +19,7 @@ from collections import defaultdict
 import os
 import cv2
 import multiprocessing
+from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 
 
 PAIRED_OBSERVATION = json.load(open(PATH, "r"))
@@ -151,7 +152,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
-                                                c > 960)
+                                                c > MIN_OBSERVABLE_PIXEL)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -163,7 +164,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # get all objectes within 50m of the ego(except agent)
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
-                                      env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
+                                      env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x,
                                                                                                    BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
@@ -227,10 +228,10 @@ def paired_logging(headless, num_scenarios, config, seeds):
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
         }
@@ -317,5 +318,5 @@ def main(scenarios=None):
 
 
 if __name__ == "__main__":
-    jobs = list(range(2, 100))
-    main(jobs)
+    #jobs = list(range(2, 100))
+    main()

@@ -13,6 +13,7 @@ from metadrive.scenario import utils as sd_utils
 from vqa.collision_episodes_generation import generate_safe_data
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE,MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 import json
 
 
@@ -35,10 +36,10 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
             "height_scale": 1,
@@ -64,10 +65,10 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             height_scale=1,
         )
@@ -93,10 +94,10 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None, pref
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
         }
@@ -220,7 +221,6 @@ def safety_critical():
     job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
     prefix = os.path.basename(args.data_directory)
     job_intervals = [list(range(*job_interval)) for job_interval in job_intervals]
-    #exit()
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))

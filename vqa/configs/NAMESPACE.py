@@ -16,3 +16,9 @@ NAMESPACE = dict(
 POSITION2CHOICE = dict(
     lf="left-front", rf="right-front", lb="left-back", rb="right-back", f="front", b="back", l="left", r="right"
 )
+
+
+MAX_DETECT_DISTANCE = 75
+MIN_OBSERVABLE_PIXEL = 1600
+OBS_WIDTH = 1920
+OBS_HEIGHT = 1080

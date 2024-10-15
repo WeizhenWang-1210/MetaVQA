@@ -15,6 +15,7 @@ from vqa.dataset_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from vqa.episodes_generation import postprocess_annotation
+from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 
 
 def find_collision_step(env):
@@ -31,7 +32,7 @@ def find_collision_step(env):
 
 
 class Buffer:
-    def __init__(self, size=3, shape=(540, 960, 3)):
+    def __init__(self, size=3, shape=(OBS_WIDTH, OBS_HEIGHT, 3)):
         self.dq = deque(maxlen=size)
         self.size = size
         self.shape = shape
@@ -105,12 +106,12 @@ class Buffer:
         print(first_identifier, last_identifier)
         return int(first_step), int(last_step)
 
+
 def record_frame(env, lidar, camera, instance_camera):
     engine = env.engine
-    positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                 (0., 0., 1.5)]
-    hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
-    names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+    positions = [(0., 0.0, 1.5)]  #[(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5), (0., 0., 1.5)]
+    hprs = [[0, 0, 0]]  #[[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
+    names = ["front"]  #["front", "leftf", "leftb", "back", "rightb", "rightf"]
     depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     cloud_points, _ = lidar.perceive(
         env.agent,
@@ -125,6 +126,7 @@ def record_frame(env, lidar, camera, instance_camera):
                                         hpr=hpr)
         rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
         depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+        depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
         semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
         rgb_dict[name] = dict(
             mask=mask,
@@ -135,7 +137,7 @@ def record_frame(env, lidar, camera, instance_camera):
     mapping = engine.c_id
     visible_ids_set = set()
     filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
-            r == 0 and g == 0 and b == 0) and (c > 240)
+            r == 0 and g == 0 and b == 0) and (c > MIN_OBSERVABLE_PIXEL)
     Log_Mapping = dict()
     for perspective in rgb_dict.keys():
         visible_ids, log_mapping = get_visible_object_ids(rgb_dict[perspective]["mask"], mapping, filter)
@@ -143,7 +145,7 @@ def record_frame(env, lidar, camera, instance_camera):
         rgb_dict[perspective]["visible_ids"] = visible_ids
         Log_Mapping.update(log_mapping)
     valid_objects = engine.get_objects(
-        lambda x: l2_distance(x, env.agent) <= 100 and
+        lambda x: l2_distance(x, env.agent) <= MAX_DETECT_DISTANCE and
                   x.id != env.agent.id and
                   not isinstance(x, BaseTrafficLight))
     observing_camera = []
@@ -187,7 +189,7 @@ def record_accident(env, buffer, countdown, session_folder, prefix=""):
             break
         countdown -= 1
     buffer_size = len(buffer.dq)
-    initial_step,final_step = buffer.firstnlast()
+    initial_step, final_step = buffer.firstnlast()
 
     #final_step = engine.episode_step
     #initial_step = final_step - 2 * (buffer_size-1)
@@ -270,10 +272,10 @@ if __name__ == "__main__":
             "num_scenarios": len(scenario_summary),
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1920, 1080),
-                instance=(InstanceCamera, 1920, 1080),
-                semantic=(SemanticCamera, 1920, 1080),
-                depth=(DepthCamera, 1920, 1080)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
 
@@ -281,4 +283,4 @@ if __name__ == "__main__":
     )
     seeds = [i for i in range(len(scenario_summary))]
     print(len(seeds))
-    generate_safe_data(env, seeds[:100], "test_collision_final")
+    generate_safe_data(env, seeds, "test_collision_final")
