@@ -86,6 +86,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     #exit()
     labels = list(label2id.keys())
     #labels = [label for label in label2id.keys() if get(world, label2id[label]) is not None]
+    question = None
+    answer = None
+    explanation = None
 
     ego_id, nodelist = nodify(world, multiview=False)
     graph = SceneGraph(ego_id, nodelist, frame_path)
@@ -93,9 +96,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     ids_of_interest = []
     if question_type == "identify_color":
         # randomly choose a non-ego labelled object
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         # Fill the question template's <id...> with the chosen label.
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
         # Getting the answer from SceneGraph. In addition, grab extra information from the scene graph for explanation string.
@@ -119,9 +123,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     #todo maybe size?
     elif question_type == "identify_type":
         type_space = [NAMED_MAPPING[obj]["singular"] for obj in NAMED_MAPPING.keys()]
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
         object = get(world, label2id[selected_label])
         color, type = object["color"], object["type"]
@@ -139,9 +145,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(question)
         print(answer, explanation)
     elif question_type == "identify_distance":
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
         object = graph.get_node(label2id[selected_label])
         distance = get_distance(object.pos, ego_node.pos)
@@ -166,9 +173,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(question)
         print(answer, explanation)
     elif question_type == "identify_position":
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
         object = graph.get_node(label2id[selected_label])
         color, type = object.color, object.type
@@ -185,11 +193,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "identify_heading":
         #TODO select cars only
-        labels = [label for label in labels if
-                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"]]
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+        non_ego_labels = [label for label in labels if
+                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"] and label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
         object = graph.get_node(label2id[selected_label])
         heading = identify_heading(ego_node.pos, ego_node.heading)([[object]])
@@ -218,9 +226,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(question)
         print(answer, explanation)
     elif question_type == "pick_closer":
-        selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
-        while -1 in selected_labels:
-            selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 2:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
 
         options = [f"<{id1}> and <{id2}> are about the same distance", f"<{id1}> is closer", f"<{id2}> is closer"]
@@ -265,11 +274,12 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "predict_crash_ego_still":
         #TODO examine the trajectories. via visualization
-        labels = [label for label in labels if
-                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"]]
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+        non_ego_labels = [label for label in labels if
+                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
+                                                                       "TrafficLight"] and label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         object = graph.get_node(label2id[selected_label])
         init_center = object.pos
         extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
@@ -302,9 +312,13 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     elif question_type == "predict_crash_ego_dynamic":
         #TODO examine the trajectories. via visualization
         #TODO make sure the selectd objects ar movable
-        selected_label = random.choice(labels)
-        while selected_label == -1:
-            selected_label = random.choice(labels)
+
+        non_ego_labels = [label for label in labels if
+                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
+                                                                       "TrafficLight"] and label != -1]
+        if non_ego_labels < 1:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_label = random.choice(non_ego_labels)
         object = graph.get_node(label2id[selected_label])
         init_center = object.pos
         extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
@@ -344,9 +358,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(question)
         print(answer, explanation)
     elif question_type == "relative_distance":
-        selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
-        while -1 in selected_labels:
-            selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 2:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
         object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
@@ -379,9 +394,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(question)
         print(answer, explanation)
     elif question_type == "relative_position":
-        selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
-        while -1 in selected_labels:
-            selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
+        non_ego_labels = [label for label in labels if label != -1]
+        if non_ego_labels < 2:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
         object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
@@ -406,12 +422,12 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(question)
         print(answer, explanation)
     elif question_type == "relative_heading":
-        labels = [label for label in labels if
-                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"]]
+        non_ego_labels = [label for label in labels if
+                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"] and label != -1]
+        if len(non_ego_labels)<2:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         #TODO select cars only
-        selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
-        while -1 in selected_labels:
-            selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
+        selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
         object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
@@ -444,13 +460,14 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "relative_predict_crash_still":
         #TODO examine the trajectories. via visualization
-        label1_pool = [label for label in labels if
-                       graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                    "TrafficLight"] and label != -1]
-        id1 = random.choice(label1_pool)
-        id2 = random.choice(labels)
-        while id2 == -1 or id2 == id1:
-            id2 = random.choice(labels)
+        non_ego_labels = [label for label in labels if
+                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
+                                                                       "TrafficLight"] and label != -1]
+        if len(non_ego_labels) < 2:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        # TODO select cars only
+        selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
+        id1,id2 = selected_labels
         object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
         init_center = object1.pos
         extrapolated_centers = [list(np.array(object1.heading) * i + np.array(init_center)) for i in range(50)]
@@ -484,12 +501,13 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         print(answer, explanation)
     elif question_type == "relative_predict_crash_dynamic":
         #TODO examine the trajectories. via visualization
-        labels = [label for label in labels if
-                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                               "TrafficLight"] and label != -1]
-        selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
-        while -1 in selected_labels:
-            selected_labels = np.random.choice(np.array(labels), size=2, replace=False)
+        non_ego_labels = [label for label in labels if
+                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
+                                                                       "TrafficLight"] and label != -1]
+        if len(non_ego_labels) < 2:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+        # TODO select cars only
+        selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
         id1, id2 = selected_labels
 
         object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
@@ -533,6 +551,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             )
 
         non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
+
         selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
         ordered_labels = sorted(selected_labels, key=dist)
 
@@ -577,6 +598,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             return (np.array(o.pos) - np.array(ego_node.pos)).dot(left_vec)
 
         non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
         ordered_labels = sorted(selected_labels, key=dist, reverse=True)
         all_permutations = list(itertools.permutations(selected_labels))
@@ -619,6 +642,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             return (np.array(o.pos) - np.array(ego_node.pos)).dot(right_vec)
 
         non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
         ordered_labels = sorted(selected_labels, key=dist, reverse=True)
         all_permutations = list(itertools.permutations(selected_labels))
@@ -661,6 +686,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             return (np.array(o.pos) - np.array(ego_node.pos)).dot(front_vec)
 
         non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
         ordered_labels = sorted(selected_labels, key=dist, reverse=True)
         all_permutations = list(itertools.permutations(selected_labels))
@@ -703,6 +730,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             return (np.array(o.pos) - np.array(ego_node.pos)).dot(back_vec)
 
         non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
         ordered_labels = sorted(selected_labels, key=dist, reverse=True)
         all_permutations = list(itertools.permutations(selected_labels))
@@ -739,6 +768,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(answer, explanation)
         ids_of_interest = [label2id[label] for label in selected_labels]
     elif question_type == "identify_closest":
+        non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         objects = [graph.get_node(label2id[label]) for label in labels if label != -1]
         min_dist, closest_id = 10000, objects[0].id
         for o in objects:
@@ -769,6 +801,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(question)
             print(answer, explanation)
     elif question_type == "identify_leftmost":
+        non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         objects = [graph.get_node(label2id[label]) for label in labels if label != -1]
         max_dist, closest_id = -10000, objects[0].id
         left_vec = -ego_node.heading[1], ego_node.heading[0]
@@ -799,6 +834,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(question)
             print(answer, explanation)
     elif question_type == "identify_rightmost":
+        non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         objects = [graph.get_node(label2id[label]) for label in labels if label != -1]
         max_dist, closest_id = -10000, objects[0].id
         right_vec = ego_node.heading[1], -ego_node.heading[0]
@@ -830,6 +868,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(question)
             print(answer, explanation)
     elif question_type == "identify_frontmost":
+        non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         objects = [graph.get_node(label2id[label]) for label in labels if label != -1]
         max_dist, closest_id = -10000, objects[0].id
         front_vec = ego_node.heading
@@ -861,6 +902,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(question)
             print(answer, explanation)
     elif question_type == "identify_backmost":
+        non_ego_labels = [label for label in labels if label != -1]
+        if len(non_ego_labels) < 4:
+            print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         objects = [graph.get_node(label2id[label]) for label in labels if label != -1]
         max_dist, closest_id = -10000, objects[0].id
         back_vec = -ego_node.heading[0], -ego_node.heading[1]
@@ -972,9 +1016,13 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
     ego_id, nodelist = nodify(world, multiview=False)
     graph = SceneGraph(ego_id, nodelist, frame_path)
     ego_node = graph.get_ego_node()
+    question = None
+    answer = None
+    explanation = None
     ids_of_interest = []
     if question_type == "describe_sector":
         sector = param["<pos>"]
+
         def satisfying_set(labels):
             for label in labels:
                 if ego_node.compute_relation(
@@ -985,6 +1033,9 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 return True
 
         selected_labels = [label for label in labels if label != -1]
+
+
+
         objects = [graph.get_node(label2id[label]) for label in selected_labels]
         pos_stat = defaultdict(lambda: set())
         for label_idx, object in enumerate(objects):
@@ -1002,6 +1053,8 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
             answer_tuple = ()
             option_length = 4
         all_combinations = list(itertools.combinations(selected_labels, option_length))
+        if len(all_combinations)<4:
+            print(f"Not enough items in the scene. Skip generating {question_type} with {sector} for {frame_path}")
         distinct_combinations = random.sample(all_combinations, 2)
 
         while not all([not satisfying_set(combination) for combination in distinct_combinations]):
@@ -1128,6 +1181,8 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
             answer_tuple = ()
             option_length = 4
         all_combinations = list(itertools.combinations(selected_labels, option_length))
+        if len(all_combinations)<4:
+            print(f"Not enough items in the scene. Skip generating {question_type} with {sector} for {frame_path}")
         distinct_combinations = random.sample(all_combinations, 2)
 
         while not all([not satisfying_set(combination) for combination in distinct_combinations]):
@@ -1269,6 +1324,7 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
             labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path, id2l=static_id2l)
         else:
             static_id2l = json.load(open(static_id2label_path, "r"))
+
         queried_ids = set()
         for question_type in static_templates.keys():
             if question_type not in ["describe_sector", "describe_distance"]:
@@ -1276,14 +1332,15 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
                                                                           question_type=question_type,
                                                                           perspective=perspective, verbose=verbose,
                                                                           id2label_path=static_id2label_path)
-                frame_records[frame_id] = dict(
-                    question=question, answer=answer, explanation=explanation,
-                    type=question_type, objects=ids_of_interest, world=[frame_path],
-                    obs=[static_labeled_path]
-                )
-                frame_id += 1
-                for id in ids_of_interest:
-                    queried_ids.add(id)
+                if question is not None and answer is not None and explanation is not None:
+                    frame_records[frame_id] = dict(
+                        question=question, answer=answer, explanation=explanation,
+                        type=question_type, objects=ids_of_interest, world=[frame_path],
+                        obs=[static_labeled_path]
+                    )
+                    frame_id += 1
+                    for id in ids_of_interest:
+                        queried_ids.add(id)
             else:
                 if question_type == "describe_sector":
                     params = [
@@ -1300,12 +1357,13 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
                                                                                             perspective=perspective,
                                                                                             verbose=verbose,
                                                                                             id2label_path=static_id2label_path)
-                    frame_records[frame_id] = dict(
-                        question=question, answer=answer, explanation=explanation,
-                        type=question_type, objects=ids_of_interest, world=[frame_path],
-                        obs=[static_labeled_path]
-                    )
-                    frame_id += 1
+                    if question is not None and answer is not None and explanation is not None:
+                        frame_records[frame_id] = dict(
+                            question=question, answer=answer, explanation=explanation,
+                            type=question_type, objects=ids_of_interest, world=[frame_path],
+                            obs=[static_labeled_path]
+                        )
+                        frame_id += 1
             new_id2label = {object_id: i for i, object_id in enumerate(queried_ids)}
             new_labeled_path = os.path.join(frame_path, f"static_qa_labeled_{perspective}_{identifier}.png")
             original_id2label = static_id2l
@@ -1334,7 +1392,8 @@ if __name__ == "__main__":
     #episode_path = os.path.dirname(frame_path)
     #asset_path = "/test_wide/scene-0061_91_100/0_91"
     #obs = os.path.join(asset_path, "labeled_front_{}.png".format(os.path.basename(frame_path)))
-    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=True, save_path="/bigdat/weizhen/metavqa_iclr/vqa/static_questions.json", labeled=False)
+    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=True,
+                          save_path="/bigdat/weizhen/metavqa_iclr/vqa/static_questions.json", labeled=False)
 
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
