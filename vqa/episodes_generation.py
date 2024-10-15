@@ -156,10 +156,11 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
             perspectives = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
-            for position, hpr, perspective in zip(positions, hprs, perspectives):
+            for position, hpr, perspective in zip(positions, hprs, perspectives)[:1]:
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 rgb_annotations[perspective] = dict(
@@ -173,7 +174,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             mapping = engine.c_id
             visible_ids_set = set()
             # to be considered as observable, the object must not be black/white(reserved) and must have at least 240
-            # in any of the 960*540 resolution camera
+            # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
                                                 c > 240)
@@ -371,10 +372,10 @@ def annotate_scenarios():
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080)
             ),
             "height_scale": 1
         }
@@ -399,10 +400,10 @@ def annotate_scenarios():
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080)
             ),
             height_scale=1
         )

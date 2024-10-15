@@ -270,10 +270,10 @@ if __name__ == "__main__":
             "num_scenarios": len(scenario_summary),
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080)
             ),
             "height_scale": 1
 

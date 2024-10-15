@@ -35,10 +35,10 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080)
             ),
             "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
             "height_scale": 1,
@@ -64,10 +64,10 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080)
             ),
             height_scale=1,
         )
@@ -93,10 +93,10 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None, pref
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080)
             ),
             "height_scale": 1
         }

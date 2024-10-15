@@ -165,7 +165,7 @@ def main():
         "num_scenarios": num_scenarios,
         "agent_policy": InterventionPolicy,
         "sensors": dict(
-            rgb=(RGBCamera, 960, 540),
+            rgb=(RGBCamera, 1920, 1080),
         ),
         "height_scale": 1
     }
