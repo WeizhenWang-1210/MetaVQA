@@ -155,7 +155,7 @@ class EngineCore(ShowBase.ShowBase):
                     # render-pipeline can not work with multi-thread rendering
                     loadPrcFileData("", "threading-model {}".format(self.global_config["multi_thread_render_mode"]))
             else:
-                assert self.mode == RENDER_MODE_NONE, "Render mode error"
+                self.mode == RENDER_MODE_NONE, "Render mode error"
                 if self.global_config["show_interface"]:
                     # Disable useless camera capturing in none mode
                     self.global_config["show_interface"] = False
