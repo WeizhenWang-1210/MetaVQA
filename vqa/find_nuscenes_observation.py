@@ -125,10 +125,10 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                 show=False,
             )
             identifier = "{}_{}".format(env.current_seed, env.episode_step)
-            positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                         (0., 0., 1.5)]
-            hprs = [[0, 0, 0], [55, 0, 0], [110, 0, 0], [180, 0, 0], [-110, 0, 0], [-55, 0, 0]]
-            names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            positions = [(0., 0.0, 1.5)]#[(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
+                         #(0., 0., 1.5)]
+            hprs = [[0, 0, 0]]#[[0, 0, 0], [55, 0, 0], [110, 0, 0], [180, 0, 0], [-110, 0, 0], [-55, 0, 0]]
+            names = ["front"]#["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
             for position, hpr, name in zip(positions, hprs, names):
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
@@ -147,11 +147,11 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # is reserved for special purpose, and no objects will take this color.
             mapping = engine.c_id
             visible_ids_set = set()
-            # to be considered as observable, the object must not be black/white(reserved) and must have at least 240
-            # in any of the 960*540 resolution camera
+            # to be considered as observable, the object must not be black/white(reserved) and must have at least 960
+            # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
-                                                c > 240)
+                                                c > 960)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -163,7 +163,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # get all objectes within 50m of the ego(except agent)
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
-                                      env.agent) <= 100 and x.id != env.agent.id and not isinstance(x,
+                                      env.agent) <= 50 and x.id != env.agent.id and not isinstance(x,
                                                                                                    BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
@@ -227,10 +227,10 @@ def paired_logging(headless, num_scenarios, config, seeds):
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1600, 900),
-                instance=(InstanceCamera, 1600, 900),
-                depth=(DepthCamera, 1600, 900),
-                semantic=(SemanticCamera, 1600, 900)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080)
             ),
             "height_scale": 1
         }
