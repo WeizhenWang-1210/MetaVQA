@@ -29,7 +29,7 @@ DIRECTION_MAPPING = {
     "rb": "to the right and behind"
 }
 
-
+#TODO refactor this ugly code.
 def create_options(present_values, num_options, answer, namespace, transform=None):
     if len(present_values) < num_options:
         space = set(namespace)
@@ -76,7 +76,7 @@ def create_multiple_choice(options):
     return "; ".join(result) + ".", answer_to_choice
 
 
-def generate(frame_path: str, question_type: str, perspective: str = "front", verbose: bool = True,
+def generate(frame_path: str, question_type: str, perspective: str = "front", verbose: bool = False,
              id2label_path: str = None):
     identifier = os.path.basename(frame_path)
     world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
@@ -142,8 +142,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                                                 DIRECTION_MAPPING[pos],
                                                                                 NAMED_MAPPING[type]["singular"])
         ids_of_interest.append(label2id[selected_label])
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "identify_distance":
         non_ego_labels = [label for label in labels if label != -1]
         if len(non_ego_labels) < 1:
@@ -170,8 +171,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                                    selected_label, round(distance),
                                                                    DIRECTION_MAPPING[pos])
         ids_of_interest.append(label2id[selected_label])
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "identify_position":
         non_ego_labels = [label for label in labels if label != -1]
         if len(non_ego_labels) < 1:
@@ -189,8 +191,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         explanation = "The {} {}(<{}>) is {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"], selected_label,
                                                          DIRECTION_MAPPING[pos])
         ids_of_interest.append(label2id[selected_label])
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "identify_heading":
         #TODO select cars only
         non_ego_labels = [label for label in labels if
@@ -223,8 +226,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                                                          DIRECTION_MAPPING[pos],
                                                                                          heading)
         ids_of_interest.append(label2id[selected_label])
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "pick_closer":
         non_ego_labels = [label for label in labels if label != -1]
         if len(non_ego_labels) < 2:
@@ -269,9 +273,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         answer = answer2label[options[index]]
         question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
         ids_of_interest += [label2id[l] for l in list(selected_labels)]
-
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "predict_crash_ego_still":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
@@ -307,8 +311,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             explanation = "No, this {} {}(<{}>) {} us and heading at {} o\' clock will not run into us if we both drive along our current heading.".format(
                 color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
         ids_of_interest.append(label2id[selected_label])
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "predict_crash_ego_dynamic":
         #TODO examine the trajectories. via visualization
         #TODO make sure the selectd objects ar movable
@@ -355,8 +360,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 explanation = "No, this {} {}<{}> {} us and heading at {} o\' clock will not run into us.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
         ids_of_interest.append(label2id[selected_label])
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "relative_distance":
         non_ego_labels = [label for label in labels if label != -1]
         if len(non_ego_labels) < 2:
@@ -391,8 +397,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], relative_dist)
 
         ids_of_interest += [label2id[l] for l in list(selected_labels)]
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "relative_position":
         non_ego_labels = [label for label in labels if label != -1]
         if len(non_ego_labels) < 2:
@@ -419,8 +426,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], DIRECTION_MAPPING[pos2to1],
             id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2])
         ids_of_interest += [label2id[l] for l in list(selected_labels)]
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "relative_heading":
         non_ego_labels = [label for label in labels if
                   graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"] and label != -1]
@@ -456,8 +464,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             explanation = "No. Object <{}>, a {} {} {} us, is not heading toward the same direction as object <{}>, a {} {} located {} us. In particular, object <{}>'s heading differs by {} degrees counterclockwise from that of object <{}>.".format(
                 id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], id2, color2.lower(),
                 NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], id2, round(angle1to2), id1)
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "relative_predict_crash_still":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
@@ -497,8 +506,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             explanation = "No, object <{}> will not run into object <{}>.".format(
                 id1, id2)
         ids_of_interest += [label2id[id1], label2id[id2]]
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "relative_predict_crash_dynamic":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
@@ -542,8 +552,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             explanation = "No, object <{}> will not run into object <{}>.".format(
                 id1, id2)
         ids_of_interest += [label2id[l] for l in list(selected_labels)]
-        print(question)
-        print(answer, explanation)
+        if verbose:
+            print(question)
+            print(answer, explanation)
     elif question_type == "order_closest":
         def dist(label):
             return get_distance(
@@ -778,7 +789,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             if cur_dist < min_dist:
                 min_dist = cur_dist
                 closest_id = o.id
-        print(closest_id, min_dist)
         question = TEMPLATES["static"][question_type]["text"][0]
 
         answer_label = find_label(closest_id, label2id)
@@ -846,7 +856,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             if left_dist > max_dist:
                 max_dist = left_dist
                 closest_id = o.id
-        print(closest_id, max_dist)
         question = TEMPLATES["static"][question_type]["text"][0]
 
         answer_label = find_label(closest_id, label2id)
@@ -880,7 +889,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             if left_dist > max_dist:
                 max_dist = left_dist
                 closest_id = o.id
-        print(closest_id, max_dist)
         question = TEMPLATES["static"][question_type]["text"][0]
 
         answer_label = find_label(closest_id, label2id)
@@ -914,7 +922,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             if left_dist > max_dist:
                 max_dist = left_dist
                 closest_id = o.id
-        print(closest_id, max_dist)
         question = TEMPLATES["static"][question_type]["text"][0]
 
         answer_label = find_label(closest_id, label2id)
@@ -1296,20 +1303,21 @@ for id, record in records.items():
 
 import glob
 
-
+import tqdm
 def batch_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False):
-    def find_frames(session_path):
-        pattern = os.path.join(session_path, "**", "**")
+    def find_worlds(session_path):
+        pattern = os.path.join(session_path, "**", "**","world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
 
     current_directory = os.path.dirname(os.path.abspath(__file__))
-    frame_paths = find_frames(session_path)
+    world_paths = find_worlds(session_path)
+    frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
     template_path = os.path.join(current_directory, "questions_templates.json")
     static_templates = json.load(open(template_path, "r"))["static"]
     records = {}
     count = 0
-    for frame_path in frame_paths:
+    for frame_path in tqdm.tqdm(frame_paths[5:10], desc="Processing", unit="frame"):
         frame_records = {}
         frame_id = 0
         identifier = os.path.basename(frame_path)
@@ -1326,7 +1334,7 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
             static_id2l = json.load(open(static_id2label_path, "r"))
 
         queried_ids = set()
-        for question_type in static_templates.keys():
+        for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
             if question_type not in ["describe_sector", "describe_distance"]:
                 question, answer, explanation, ids_of_interest = generate(frame_path=frame_path,
                                                                           question_type=question_type,
@@ -1392,40 +1400,9 @@ if __name__ == "__main__":
     #episode_path = os.path.dirname(frame_path)
     #asset_path = "/test_wide/scene-0061_91_100/0_91"
     #obs = os.path.join(asset_path, "labeled_front_{}.png".format(os.path.basename(frame_path)))
-    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=True,
-                          save_path="/bigdat/weizhen/metavqa_iclr/vqa/static_questions.json", labeled=False)
+    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=False,
+                          save_path="/bigdata/weizhen/metavqa_iclr/vqa/static_questions.json", labeled=True)
 
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
-    """results = {}
-    idx = 0
-    ids_referred = set()
-    for question_type in TEMPLATES["static"].keys():
-        question, answer, explanation, ids = generate(frame_path, question_type, "front", verbose=False)
-        results[idx] = dict(
-            question=question, answer=answer, obs=obs, type=question_type, explanation=explanation, objects=ids
-        )
-        for id in ids:
-            ids_referred.add(id)
-        idx += 1
 
-    new_id2label = {object_id: i for i, object_id in enumerate(ids_referred)}
-    print(new_id2label)
-    new_obs_path = os.path.join(asset_path, "static_qa_labeled.png")
-    original_id2label = json.load(
-        open(os.path.join(episode_path, "id2label_front.json"), "r")
-    )
-
-    labelframe(
-        frame_path=frame_path, perspective="front", save_path=os.path.join(frame_path, "static_qa_labeled.png"),
-        query_ids=list(ids_referred), id2l=new_id2label, font_scale=1
-    )
-
-    for qid, record in results.items():
-        for object_id in record["objects"]:
-            record["question"] = record["question"].replace(f"<{original_id2label[object_id]}>",
-                                                            f"<{new_id2label[object_id]}>")
-            record["explanation"] = record["explanation"].replace(f"<{original_id2label[object_id]}>",
-                                                                  f"<{new_id2label[object_id]}>")
-        record["obs"] = new_obs_path
-    json.dump(results, open("/bigdata/weizhen/repo/qa_platform/public/data.json", "w"), indent=2)"""
