@@ -1,6 +1,6 @@
 import json
 import os.path
-
+from vqa.dataset_utils import get_distance
 import numpy as np
 from typing import List
 from PIL import Image
@@ -171,7 +171,7 @@ def id2label(episode_path: str, perspective: str = "front"):
     for scene_graph in scene_graphs:
         world = json.load(open(scene_graph, "r"))
         for obj in world["objects"]:
-            if perspective in obj["observing_camera"]:
+            if perspective in obj["observing_camera"] and get_distance(obj["pos"], world["ego"]["pos"])<35:
                 if obj["id"] in result.keys():
                     continue
                 result[obj["id"]] = currentlabel

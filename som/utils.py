@@ -3,6 +3,7 @@ import os.path
 from collections import defaultdict
 
 
+
 def get(world, target_id):
     for obj in world["objects"]:
         if obj["id"] == target_id:
@@ -31,7 +32,7 @@ def enumerate_frame_labels(frame_path: str, perspective: str = "front", id2label
     results = {}
     invalid_id = []
     for obj in world["objects"]:
-        if obj["id"] in id2label.keys() and (perspective in obj["observing_camera"]):
+        if obj["id"] in id2label.keys() and perspective in obj["observing_camera"]:
             results[id2label[obj["id"]]] = obj["id"]
         else:
             invalid_id.append(obj["id"])

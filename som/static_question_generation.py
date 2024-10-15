@@ -109,10 +109,12 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         # Postpend the multiple-choice string.
         question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
         pos = ego_node.compute_relation_string(node=graph.get_node(object["id"]), ref_heading=ego_node.heading)
-        explanation = f"The color of this {type.lower()} (<{selected_label}>) {DIRECTION_MAPPING[pos]} us is {color.lower()}."  #.format(, , , )
+
+        type_str = NAMED_MAPPING[type]["singular"]
+        explanation = f"The color of this {type_str} (<{selected_label}>) {DIRECTION_MAPPING[pos]} us is {color.lower()}."  #.format(, , , )
         ids_of_interest.append(label2id[selected_label])
         if verbose:
-            print(question_type, question)
+            print(question)
             print(answer, explanation)
     #todo maybe size?
     elif question_type == "identify_type":
@@ -188,7 +190,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         selected_label = random.choice(labels)
         while selected_label == -1:
             selected_label = random.choice(labels)
-        selected_label = 24
         question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
         object = graph.get_node(label2id[selected_label])
         heading = identify_heading(ego_node.pos, ego_node.heading)([[object]])
@@ -271,7 +272,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             selected_label = random.choice(labels)
         object = graph.get_node(label2id[selected_label])
         init_center = object.pos
-        selected_label = 1
         extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
         extrapolated_boxes = extrapolate_bounding_boxes(extrapolated_centers,
                                                         np.arctan2(object.heading[1], object.heading[0]), object.bbox)
@@ -305,7 +305,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         selected_label = random.choice(labels)
         while selected_label == -1:
             selected_label = random.choice(labels)
-        selected_label = 1
         object = graph.get_node(label2id[selected_label])
         init_center = object.pos
         extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
@@ -527,6 +526,50 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         ids_of_interest += [label2id[l] for l in list(selected_labels)]
         print(question)
         print(answer, explanation)
+    elif question_type == "order_closest":
+        def dist(label):
+            return get_distance(
+                graph.get_node(label2id[label]).pos, ego_node.pos
+            )
+
+        non_ego_labels = [label for label in labels if label != -1]
+        selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
+        ordered_labels = sorted(selected_labels, key=dist)
+
+        all_permutations = list(itertools.permutations(selected_labels))
+        distinct_permutations = random.sample(all_permutations, 4)
+
+        if tuple(ordered_labels) not in distinct_permutations:
+            distinct_permutations[-1] = tuple(ordered_labels)
+        for idx, distinct_permutation in enumerate(distinct_permutations):
+            new_tuple = [
+                f"<{val}>" for val in distinct_permutation
+            ]
+            new_tuple = ", ".join(new_tuple)
+            distinct_permutations[idx] = new_tuple
+        options = distinct_permutations
+        answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
+        multiple_choice_options = create_options(options, 4, answer_ordering, options)
+        multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+        question = fill_in_label(
+            template_str=TEMPLATES["static"][question_type]["text"][0],
+            replacement={code: str(selected_labels[idx])
+                         for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
+                         }
+        )
+        question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
+        answer = answer2label[answer_ordering]
+        object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
+        explanation = "The {} {}(<{}>) is closest to us, and the {} {}(<{}>) is furthest away from us. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
+            object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
+            object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
+            object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
+            object3.color.lower(), NAMED_MAPPING[object3.type]["singular"], ordered_labels[2]
+        )
+        if verbose:
+            print(question)
+            print(answer, explanation)
+        ids_of_interest = [label2id[label] for label in selected_labels]
     elif question_type == "order_leftmost":
         def dist(label):
             o = graph.get_node(label2id[label])
@@ -707,19 +750,21 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         question = TEMPLATES["static"][question_type]["text"][0]
 
         answer_label = find_label(closest_id, label2id)
+
         options = np.random.choice(np.array(labels), size=3, replace=False)
         while answer_label in list(options) or -1 in list(options):
             options = np.random.choice(np.array(labels), size=3, replace=False)
         options = list(options) + [answer_label]
+        options = [f"<{option}>" for option in options]
+        answer_label = f"<{answer_label}>"
         multiple_choice_options = create_options(options, 4, answer_label, options)
         multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
         question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
         answer = answer2label[answer_label]
         object = graph.get_node(closest_id)
         color, type = object.color, object.type
-        explanation = "The {} {}(<{}>) is the closest labeled object from us.".format(
+        explanation = "The {} {}({}) is the closest labeled object from us.".format(
             color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
-        ids_of_interest = []
         if verbose:
             print(question)
             print(answer, explanation)
@@ -740,15 +785,16 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         while answer_label in list(options) or -1 in list(options):
             options = np.random.choice(np.array(labels), size=3, replace=False)
         options = list(options) + [answer_label]
+        options = [f"<{option}>" for option in options]
+        answer_label = f"<{answer_label}>"
         multiple_choice_options = create_options(options, 4, answer_label, options)
         multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
         question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
         answer = answer2label[answer_label]
         object = graph.get_node(closest_id)
         color, type = object.color, object.type
-        explanation = "The {} {}(<{}>) is the leftmost labeled object from us.".format(
+        explanation = "The {} {}({}) is the leftmost labeled object from us.".format(
             color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
-        ids_of_interest = []
         if verbose:
             print(question)
             print(answer, explanation)
@@ -767,6 +813,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
 
         answer_label = find_label(closest_id, label2id)
         options = np.random.choice(np.array(labels), size=3, replace=False)
+        options = [f"<{option}>" for option in options]
+        answer_label = f"<{answer_label}>"
         while answer_label in list(options) or -1 in list(options):
             options = np.random.choice(np.array(labels), size=3, replace=False)
         options = list(options) + [answer_label]
@@ -776,9 +824,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         answer = answer2label[answer_label]
         object = graph.get_node(closest_id)
         color, type = object.color, object.type
-        explanation = "The {} {}(<{}>) is the rightest labeled object from us.".format(
+        explanation = "The {} {}({}) is the rightest labeled object from us.".format(
             color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
-        ids_of_interest = []
         if verbose:
             print(question)
             print(answer, explanation)
@@ -800,15 +847,16 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         while answer_label in list(options) or -1 in list(options):
             options = np.random.choice(np.array(labels), size=3, replace=False)
         options = list(options) + [answer_label]
+        options = [f"<{option}>" for option in options]
+        answer_label = f"<{answer_label}>"
         multiple_choice_options = create_options(options, 4, answer_label, options)
         multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
         question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
         answer = answer2label[answer_label]
         object = graph.get_node(closest_id)
         color, type = object.color, object.type
-        explanation = "The {} {}(<{}>) is the object furthest along front direction us.".format(
+        explanation = "The {} {}({}) is the object furthest along front direction us.".format(
             color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
-        ids_of_interest = []  #[label2id[label] for label in labels if label != -1]
         if verbose:
             print(question)
             print(answer, explanation)
@@ -830,64 +878,20 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         while answer_label in list(options) or -1 in list(options):
             options = np.random.choice(np.array(labels), size=3, replace=False)
         options = list(options) + [answer_label]
+        options = [f"<{option}>" for option in options]
+        answer_label = f"<{answer_label}>"
         multiple_choice_options = create_options(options, 4, answer_label, options)
         multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
         question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
         answer = answer2label[answer_label]
         object = graph.get_node(closest_id)
         color, type = object.color, object.type
-        explanation = "The {} {}(<{}>) is the object closest along the front direction of us.".format(
+        explanation = "The {} {}({}) is the object closest along the front direction of us.".format(
             color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
-        ids_of_interest = []
         if verbose:
             print(question)
             print(answer, explanation)
-    elif question_type == "order_closest":
-        def dist(label):
-            return get_distance(
-                graph.get_node(label2id[label]).pos, ego_node.pos
-            )
-
-        non_ego_labels = [label for label in labels if label != -1]
-        selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
-        ordered_labels = sorted(selected_labels, key=dist)
-
-        all_permutations = list(itertools.permutations(selected_labels))
-        distinct_permutations = random.sample(all_permutations, 4)
-
-        if tuple(ordered_labels) not in distinct_permutations:
-            distinct_permutations[-1] = tuple(ordered_labels)
-        for idx, distinct_permutation in enumerate(distinct_permutations):
-            new_tuple = [
-                f"<{val}>" for val in distinct_permutation
-            ]
-            new_tuple = ", ".join(new_tuple)
-            distinct_permutations[idx] = new_tuple
-        options = distinct_permutations
-        answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
-        multiple_choice_options = create_options(options, 4, answer_ordering, options)
-        multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-        question = fill_in_label(
-            template_str=TEMPLATES["static"][question_type]["text"][0],
-            replacement={code: str(selected_labels[idx])
-                         for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
-                         }
-        )
-        question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
-        answer = answer2label[answer_ordering]
-        object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
-        explanation = "The {} {}(<{}>) is closest to us, and the {} {}(<{}>) is furthest away from us. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
-            object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
-            object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
-            object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
-            object3.color.lower(), NAMED_MAPPING[object3.type]["singular"], ordered_labels[2]
-        )
-        if verbose:
-            print(question)
-            print(answer, explanation)
-        ids_of_interest = [label2id[label] for label in selected_labels]
     elif question_type == "describe_scenario":
-
         def discrete_dist(distance):
             if 0 < distance <= 2:
                 # relative_dist = "very close"
@@ -971,7 +975,6 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
     ids_of_interest = []
     if question_type == "describe_sector":
         sector = param["<pos>"]
-
         def satisfying_set(labels):
             for label in labels:
                 if ego_node.compute_relation(
@@ -1246,12 +1249,14 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
         return matching_frames
 
     current_directory = os.path.dirname(os.path.abspath(__file__))
-    frame_paths = find_frames(session_path)[:1]
+    frame_paths = find_frames(session_path)
     template_path = os.path.join(current_directory, "questions_templates.json")
     static_templates = json.load(open(template_path, "r"))["static"]
     records = {}
     count = 0
     for frame_path in frame_paths:
+        frame_records = {}
+        frame_id = 0
         identifier = os.path.basename(frame_path)
         static_id2label_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
         static_labeled_path = os.path.join(frame_path, f"static_labeled_{perspective}_{identifier}.png")
@@ -1271,12 +1276,12 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
                                                                           question_type=question_type,
                                                                           perspective=perspective, verbose=verbose,
                                                                           id2label_path=static_id2label_path)
-                records[count] = dict(
+                frame_records[frame_id] = dict(
                     question=question, answer=answer, explanation=explanation,
                     type=question_type, objects=ids_of_interest, world=[frame_path],
                     obs=[static_labeled_path]
                 )
-                count += 1
+                frame_id += 1
                 for id in ids_of_interest:
                     queried_ids.add(id)
             else:
@@ -1295,39 +1300,41 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
                                                                                             perspective=perspective,
                                                                                             verbose=verbose,
                                                                                             id2label_path=static_id2label_path)
-                    records[count] = dict(
+                    frame_records[frame_id] = dict(
                         question=question, answer=answer, explanation=explanation,
                         type=question_type, objects=ids_of_interest, world=[frame_path],
                         obs=[static_labeled_path]
                     )
-                    count += 1
+                    frame_id += 1
             new_id2label = {object_id: i for i, object_id in enumerate(queried_ids)}
             new_labeled_path = os.path.join(frame_path, f"static_qa_labeled_{perspective}_{identifier}.png")
             original_id2label = static_id2l
             labelframe(
                 frame_path=frame_path, perspective="front", save_path=new_labeled_path,
-                query_ids=list(queried_ids), id2l=new_id2label, font_scale=1.25
+                query_ids=list(queried_ids), id2l=new_id2label, font_scale=0.75
             )
-            for qid, record in records.items():
-                if record["type"] not in ["identify_closest", "identify_leftmost", "identify_rightmost",
-                                          "identify_frontmost", "identify_backmost", "describe_scenario",
-                                          "describe_sector", "describe_distance"]:
-                    for object_id in record["objects"]:
-                        record["question"] = record["question"].replace(f"<{original_id2label[object_id]}>",
-                                                                        f"<{new_id2label[object_id]}>")
-                        record["explanation"] = record["explanation"].replace(f"<{original_id2label[object_id]}>",
-                                                                              f"<{new_id2label[object_id]}>")
-                    record["obs"] = new_labeled_path
+        for qid, record in frame_records.items():
+            if record["type"] not in ["identify_closest", "identify_leftmost", "identify_rightmost",
+                                      "identify_frontmost", "identify_backmost", "describe_scenario",
+                                      "describe_sector", "describe_distance"]:
+                for object_id in record["objects"]:
+                    record["question"] = record["question"].replace(f"<{original_id2label[object_id]}>",
+                                                                    f"<{new_id2label[object_id]}>")
+                    record["explanation"] = record["explanation"].replace(f"<{original_id2label[object_id]}>",
+                                                                          f"<{new_id2label[object_id]}>")
+                record["obs"] = new_labeled_path
+            records[qid + count] = record
+        count += frame_id
     json.dump(records, open(save_path, "w"), indent=2)
 
 
 if __name__ == "__main__":
-    frame_path = "/bigdata/weizhen/repo/qa_platform/public/test_wide/scene-0061_91_100/0_91"
-    "/bigdata/weizhen/repo/qa_platform/public/test_wide/scene-0061_46_55/0_48/"
-    episode_path = os.path.dirname(frame_path)
+    #frame_path = "/bigdata/weizhen/repo/qa_platform/public/test_wide/scene-0061_91_100/0_91"
+    #"/bigdata/weizhen/repo/qa_platform/public/test_wide/scene-0061_46_55/0_48/"
+    #episode_path = os.path.dirname(frame_path)
     #asset_path = "/test_wide/scene-0061_91_100/0_91"
     #obs = os.path.join(asset_path, "labeled_front_{}.png".format(os.path.basename(frame_path)))
-    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=True)
+    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=True, save_path="/bigdat/weizhen/metavqa_iclr/vqa/static_questions.json", labeled=False)
 
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
