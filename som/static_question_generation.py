@@ -29,6 +29,7 @@ DIRECTION_MAPPING = {
     "rb": "to the right and behind"
 }
 
+
 #TODO refactor this ugly code.
 def create_options(present_values, num_options, answer, namespace, transform=None):
     if len(present_values) < num_options:
@@ -197,7 +198,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     elif question_type == "identify_heading":
         #TODO select cars only
         non_ego_labels = [label for label in labels if
-                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
+                                                                       "TrafficLight"] and label != -1]
         if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         selected_label = random.choice(non_ego_labels)
@@ -431,8 +433,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(answer, explanation)
     elif question_type == "relative_heading":
         non_ego_labels = [label for label in labels if
-                  graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning", "TrafficLight"] and label != -1]
-        if len(non_ego_labels)<2:
+                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
+                                                                       "TrafficLight"] and label != -1]
+        if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         #TODO select cars only
         selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
@@ -476,7 +479,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         # TODO select cars only
         selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
-        id1,id2 = selected_labels
+        id1, id2 = selected_labels
         object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
         init_center = object1.pos
         extrapolated_centers = [list(np.array(object1.heading) * i + np.array(init_center)) for i in range(50)]
@@ -1041,8 +1044,6 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
 
         selected_labels = [label for label in labels if label != -1]
 
-
-
         objects = [graph.get_node(label2id[label]) for label in selected_labels]
         pos_stat = defaultdict(lambda: set())
         for label_idx, object in enumerate(objects):
@@ -1060,7 +1061,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
             answer_tuple = ()
             option_length = 4
         all_combinations = list(itertools.combinations(selected_labels, option_length))
-        if len(all_combinations)<4:
+        if len(all_combinations) < 4:
             print(f"Not enough items in the scene. Skip generating {question_type} with {sector} for {frame_path}")
         distinct_combinations = random.sample(all_combinations, 2)
 
@@ -1188,7 +1189,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
             answer_tuple = ()
             option_length = 4
         all_combinations = list(itertools.combinations(selected_labels, option_length))
-        if len(all_combinations)<4:
+        if len(all_combinations) < 4:
             print(f"Not enough items in the scene. Skip generating {question_type} with {sector} for {frame_path}")
         distinct_combinations = random.sample(all_combinations, 2)
 
@@ -1280,33 +1281,75 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
     return question, answer, explanation, ids_of_interest
 
 
-"""elif question_type == "count_occurences":
-records, counts = generate_all_frame(
-    templates=
-    {"counting": {
-        "text": [
-            "How many <o> can be observed at this moment?",
-            "How many <o> are there in observation currently?",
-            "Give me the number of <o> at this moment.",
-            "Count the number of observed <o> at current moment.",
-            "Determine how many <o> are observed at current moment.",
-            "Record the quantity of <o> at current moment."
-        ],
-        "params": [
-            "<o>"
-        ],
-        "end_filter": "count",
-        "constraint": []}}
-    , frame=world_path, attempts=100, max=4, id_start=0, verbose=verbose, multiview=False)
-for id, record in records.items():
-    print(id, record)"""
+def cfg_adapater(frame_path, question_type, perspective, verbose, id2label_path: str = None):
+    identifier = os.path.basename(frame_path)
+    world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
+    world = json.load(open(world_path, "r"))
+    label2id, invalid_ids = enumerate_frame_labels(frame_path, perspective, id2label_path)
+
+    records, counts = generate_all_frame(
+        templates=
+        {"counting": {
+            "text": [
+                "How many <o> can be observed at this moment?",
+                "How many <o> are there in observation currently?",
+                "Give me the number of <o> at this moment.",
+                "Count the number of observed <o> at current moment.",
+                "Determine how many <o> are observed at current moment.",
+                "Record the quantity of <o> at current moment."
+            ],
+            "params": [
+                "<o>"
+            ],
+            "end_filter": "count",
+            "constraint": []}}
+        , frame=world_path, attempts=100, max=4, id_start=0, verbose=verbose, multiview=False)
+    for id, record in records.items():
+        print(id, record)
+
+
+def verify_grounding(frame_path, perspective, verbose, id2label_path: str = None):
+    identifier = os.path.basename(frame_path)
+    world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
+    world = json.load(open(world_path, "r"))
+    label2id, invalid_ids = enumerate_frame_labels(frame_path, perspective, id2label_path)
+    labels = list(label2id.keys())
+
+    non_ego_labels = [label for label in labels if label != -1]
+    if len(non_ego_labels) < 0:
+        print("Too few objects for grounding")
+        return
+    randomly_selected_labels = random.sample(non_ego_labels, min(len(non_ego_labels), 4))
+    records = {}
+    idx = 0
+    for selected_label in randomly_selected_labels:
+        solo_labeled_path = os.path.join(frame_path, f"label_{selected_label}_{perspective}_{identifier}.png")
+        random_new_labels = np.random.choice(20, size=4, replace=False)
+        random_new_label = random_new_labels[0]
+        labelframe(
+            frame_path=frame_path, perspective="front", save_path=solo_labeled_path,
+            query_ids=[label2id[selected_label]], id2l={label2id[selected_label]: random_new_label}, font_scale=1.25,grounding=True
+        )
+        multiple_choice_options = create_options(random_new_labels, 4, random_new_label, random_new_labels)
+        multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+        answer = answer2label[random_new_label]
+        question = f"What 's the numerical label of the white-contoured object? Select from option (A) through (D): {multiple_choice_string}"
+        explanation = ""
+        records[idx] = dict(
+            question=question, answer=answer, explanation=explanation,type="grounding", objects=[], world=[frame_path],obs=[solo_labeled_path]
+        )
+        idx +=1
+    return records
+
 
 import glob
 
 import tqdm
+
+
 def batch_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False):
     def find_worlds(session_path):
-        pattern = os.path.join(session_path, "**", "**","world**.json")
+        pattern = os.path.join(session_path, "**", "**", "world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
 
@@ -1317,7 +1360,8 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
     static_templates = json.load(open(template_path, "r"))["static"]
     records = {}
     count = 0
-    for frame_path in tqdm.tqdm(frame_paths[5:10], desc="Processing", unit="frame"):
+    frame_paths = random.sample(frame_paths,50)
+    for frame_path in tqdm.tqdm(frame_paths, desc="Processing", unit="frame"):
         frame_records = {}
         frame_id = 0
         identifier = os.path.basename(frame_path)
@@ -1334,7 +1378,7 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
             static_id2l = json.load(open(static_id2label_path, "r"))
 
         queried_ids = set()
-        for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
+        """for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
             if question_type not in ["describe_sector", "describe_distance"]:
                 question, answer, explanation, ids_of_interest = generate(frame_path=frame_path,
                                                                           question_type=question_type,
@@ -1390,7 +1434,14 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
                                                                           f"<{new_id2label[object_id]}>")
                 record["obs"] = [new_labeled_path]
             records[qid + count] = record
-        count += frame_id
+        count += frame_id"""
+
+        grounding_records = verify_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
+                                             id2label_path=static_id2label_path)
+        for g_id, record in grounding_records.items():
+            records[g_id + count] = record
+        count += len(grounding_records)
+
     json.dump(records, open(save_path, "w"), indent=2)
 
 
@@ -1400,9 +1451,8 @@ if __name__ == "__main__":
     #episode_path = os.path.dirname(frame_path)
     #asset_path = "/test_wide/scene-0061_91_100/0_91"
     #obs = os.path.join(asset_path, "labeled_front_{}.png".format(os.path.basename(frame_path)))
-    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test_wide", verbose=False,
-                          save_path="/bigdata/weizhen/metavqa_iclr/vqa/static_questions.json", labeled=True)
+    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test", verbose=False,
+                          save_path="/bigdata/weizhen/repo/qa_platform/public/grounding.json", labeled=False)
 
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
-
