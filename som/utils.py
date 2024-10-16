@@ -86,19 +86,63 @@ def random_choice(qa_records):
         record["final_choice"] = random.choice(valid_options)
     return qa_records
 
+def merge_qas(qa_records):
+    result = {}
+    idx = 0
+    for qa_record in qa_records:
+        local_idx = 0
+        for record in qa_record.values():
+            result[idx + local_idx] = record
+            local_idx+=1
+        idx += local_idx
+    return result
+
+
+def accuracy_analysis(qa_records):
+    statistics = dict()
+    total_correct = total = 0
+    for qid, record in qa_records.items():
+        if record["type"] not in statistics.keys():
+            statistics[record["type"]] = dict(
+                total=0, correct=0
+            )
+        statistics[record["type"]]["total"]+=1
+        statistics[record["type"]]["correct"] += 1 if record["final_choice"].upper() == "({})".format(record["answer"]).upper() else 0
+    for type, stat in statistics.items():
+        stat["accuracy"] = stat["correct"]/stat["total"]
+        total += stat["total"]
+        total_correct += stat["correct"]
+    return statistics, total, total_correct
+
+import glob
 if __name__ == "__main__":
-    #old_qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/grounding.json", "r"))
+    #old_qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_small.json", "r"))
     #new_qa = replace_obs(old_qa, ["/bigdata/weizhen/repo/qa_platform/public/black.png"])
     #new_qa = random_choice(old_qa)
     #json.dump(
-    #    new_qa, open("/bigdata/weizhen/repo/qa_platform/public/ground_result_random_parsed.json", "w"), indent=2
+    #    new_qa, open("/bigdata/weizhen/repo/qa_platform/public/data_small_random_result.json", "w"), indent=2
     #)
 
+    #old_qas = glob.glob("/bigdata/weizhen/repo/qa_platform/public/test/**_data_small.json")
+    #print(len(old_qas))
+    #old_qas = [json.load(open(old_qa,"r")) for old_qa in old_qas]
+    #new_qa = merge_qas(
+    #    old_qas
+    #)
+    #json.dump(new_qa, open("/bigdata/weizhen/repo/qa_platform/public/data_small.json", "w"), indent=2)
+
+    qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_small_result_parsed.json", "r"))
+    stat_by_category, total, total_correct = accuracy_analysis(qa)
+
+    result = dict(
+        total_questions = total, total_correct = total_correct, stats = stat_by_category
+    )
+    json.dump(result, open("/bigdata/weizhen/repo/qa_platform/public/data_small_result_pared_stat.json", "w"), indent=2)
 
 
-    #exit()
+    exit()
 
-    response_path = "/bigdata/weizhen/repo/qa_platform/public/ground_result_all_black.json"
+    response_path = "/bigdata/weizhen/repo/qa_platform/public/data_small_all_black_result.json"
     import json
 
     responses = json.load(open(response_path, "r"))
@@ -106,7 +150,7 @@ if __name__ == "__main__":
         choice = parse_response(responses[qid]["model_response"])
         responses[qid]["final_choice"] = choice
     json.dump(
-        responses, open("/bigdata/weizhen/repo/qa_platform/public/ground_result_all_black_parsed.json", "w"), indent=2
+        responses, open("/bigdata/weizhen/repo/qa_platform/public/data_small_all_black_result_parsed.json", "w"), indent=2
     )
 
 

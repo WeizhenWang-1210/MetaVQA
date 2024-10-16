@@ -1298,20 +1298,14 @@ import glob
 import tqdm
 
 
-def batch_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False):
-    def find_worlds(session_path):
-        pattern = os.path.join(session_path, "**", "**", "world**.json")
-        matching_frames = glob.glob(pattern)
-        return matching_frames
-
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    world_paths = find_worlds(session_path)
+def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False):
     frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
     template_path = os.path.join(current_directory, "questions_templates.json")
     static_templates = json.load(open(template_path, "r"))["static"]
     records = {}
     count = 0
-    frame_paths = ["/bigdata/weizhen/repo/qa_platform/public/test/scene-0128_76_125/101_110"]#random.sample(frame_paths,1)
+    #frame_paths = ["/bigdata/weizhen/repo/qa_platform/public/test/scene-0128_76_125/101_110"]#random.sample(frame_paths,1)
+    frame_paths = frame_paths[::2]
     for frame_path in tqdm.tqdm(frame_paths, desc="Processing", unit="frame"):
         frame_records = {}
         frame_id = 0
@@ -1333,7 +1327,6 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
         queried_ids = set()
         for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
             if question_type not in ["describe_sector", "describe_distance"]:
-                continue
                 question, answer, explanation, ids_of_interest = generate(frame_path=frame_path,
                                                                           question_type=question_type,
                                                                           perspective=perspective, verbose=verbose,
@@ -1395,8 +1388,43 @@ def batch_generate_static(session_path, save_path="./", verbose=False, perspecti
         for g_id, record in grounding_records.items():
             records[g_id + count] = record
         count += len(grounding_records)
-
     json.dump(records, open(save_path, "w"), indent=2)
+
+def split_list(lst, chunk_size):
+    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
+
+import multiprocessing as multp
+def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False, num_proc=1):
+    def find_worlds(session_path):
+        pattern = os.path.join(session_path, "**", "**", "world**.json")
+        matching_frames = glob.glob(pattern)
+        return matching_frames
+    world_paths = find_worlds(session_path)
+    job_chunks = split_list(world_paths, num_proc)
+    processes = []
+    name_root = os.path.basename(save_path)
+    save_dir = os.path.dirname(save_path)
+    for proc_id in range(num_proc):
+        print(f"Sending job {proc_id}")
+        name = f"{proc_id}_{name_root}"
+        p = multp.Process(
+            target=batch_generate_static,
+            args=(
+                job_chunks[proc_id],
+                os.path.join(save_dir,name),
+                verbose,
+                perspective,
+                labeled
+            )
+        )
+        print(f"Successfully sent {proc_id}")
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+    print("All processes finished.")
+
+
 
 
 if __name__ == "__main__":
@@ -1405,8 +1433,12 @@ if __name__ == "__main__":
     #episode_path = os.path.dirname(frame_path)
     #asset_path = "/test_wide/scene-0061_91_100/0_91"
     #obs = os.path.join(asset_path, "labeled_front_{}.png".format(os.path.basename(frame_path)))
-    batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test", verbose=False,
-                          save_path="/bigdata/weizhen/repo/qa_platform/public/data_small.json", labeled=True)
-
+    #batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test", verbose=False,
+    #                      save_path="/bigdata/weizhen/repo/qa_platform/public/data_small.json", labeled=True)
+    multiprocess_generate_static(
+        session_path="/bigdata/weizhen/repo/qa_platform/public/test",
+        save_path="/bigdata/weizhen/repo/qa_platform/public/test/data_small.json",
+        num_proc=8
+    )
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
