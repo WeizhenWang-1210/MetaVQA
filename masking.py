@@ -5,6 +5,7 @@ import numpy as np
 from typing import List
 from PIL import Image
 import cv2
+from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL
 
 
 def contrastive_color(image, center):
@@ -171,7 +172,8 @@ def id2label(episode_path: str, perspective: str = "front"):
     for scene_graph in scene_graphs:
         world = json.load(open(scene_graph, "r"))
         for obj in world["objects"]:
-            if perspective in obj["observing_camera"] and get_distance(obj["pos"], world["ego"]["pos"])<35:
+            if perspective in obj["observing_camera"] and get_distance(obj["pos"],
+                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
                 if obj["id"] in result.keys():
                     continue
                 result[obj["id"]] = currentlabel
@@ -193,7 +195,8 @@ def static_id2label(frame_path, perspective="front"):
     print(f"Successfully created single-frame-consistent id2label for {frame_path}")
 
 
-def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False, query_ids: list= None, id2l: dict = None, font_scale:float = 0.75):
+def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False,
+               query_ids: list = None, id2l: dict = None, font_scale: float = 0.75, id2c:dict = None, grounding:dict=False):
     """
     :param frame_path:
     :param perspective: choose from "front"|"leftf"|"leftb"|"rightf"|"rightb"|"back"
@@ -203,11 +206,11 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     episode_path = os.path.dirname(frame_path)
     identifier = os.path.basename(frame_path)
     world = os.path.join(frame_path, "world_{}.json".format(identifier))
-    id2c = os.path.join(frame_path, "id2c_{}.json".format(identifier))
+    if not id2c:
+        id2c = json.load(open(os.path.join(frame_path, "id2c_{}.json".format(identifier)),'r'))
     instance_seg = os.path.join(frame_path, "mask_{}_{}.png".format(perspective, identifier))
     base_img = os.path.join(frame_path, "rgb_{}_{}.png".format(perspective, identifier))
     world = json.load(open(world))
-    id2c = json.load(open(id2c))
     if not id2l:
         id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
     #print(id2l.keys())
@@ -218,7 +221,8 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     if not query_ids:
         query_ids = []
         for obj in world["objects"]:
-            if perspective in obj["observing_camera"]:
+            if perspective in obj["observing_camera"] and get_distance(obj["pos"],
+                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
                 query_ids.append(obj["id"])
     #print(query_ids)
     colors = [id2c[query_id] for query_id in query_ids]
@@ -252,6 +256,8 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
 
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
+        if grounding:
+            color = (255,255,255)
         cv2.drawContours(base_img, contour_list[i], -1, color, 2)
 
     for i in range(len(area_ascending)):
@@ -284,13 +290,15 @@ def label_transfer(nusc_img_path, label_img_path):
     src.paste(label, mask=mask)
     src.save("test_transfer.png")
 
+
 def remask(frame_path):
     episode_path = os.path.dirname(frame_path)
     episode_label_path = os.path.join()
 
+
 if __name__ == "__main__":
-    frame_path = "/bigdata/weizhen/repo/qa_platform/public/test_wide/scene-0061_91_100/0_91"
+    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/test_fixed_1200_75/scene-0131_151_188/104_187"
     id2label(os.path.dirname(frame_path), "front")
-    labelframe(frame_path, "front", save_label=True)
+    labelframe(frame_path, "front", save_label=True, font_scale=1.25)
     #label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
     #              "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
