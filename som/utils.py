@@ -1,7 +1,9 @@
+import copy
 import json
 import os.path
 from collections import defaultdict
 
+import numpy as np
 
 
 def get(world, target_id):
@@ -47,3 +49,65 @@ def enumerate_episode_labels(episode_path: str, perspective: str = "front"):
     for key, value in id2label.items():
         results[value] = key
     return results
+
+import re
+def parse_response(response):
+    valid_choices = ["(A)", "(B)", "(C)", "(D)", "(a)", "(b)", "(c)", "(d)", " A", " B", ""]
+    for valid_choice in valid_choices:
+        if valid_choice in response:
+            return valid_choice
+
+    valid_answers = ["A", "B", "C", "D", "a", "b", "c", "d"]
+    for valid_answer in valid_answers:
+        if valid_answer == response:
+            return f"({valid_answer})"
+    return " "
+
+def create_black_obs(width=1920, height=1080):
+    location = "/bigdata/weizhen/repo/qa_platform/public/black.png"
+    from PIL import Image
+    black_image = Image.new("RGB", (width, height), (0, 0, 0))
+    black_image.save(location)
+
+def replace_obs(qa_records, obs):
+    for key,record in qa_records.items():
+        qa_records[key]["obs"]=obs
+    return qa_records
+import random
+def random_choice(qa_records):
+    options = ["(A)","(B)","(C)","(D)"]
+    for key, record in qa_records.items():
+        if record["type"] in ["pick_closer"]:
+            valid_options = options[:3]
+        elif record["type"] in ["predict_crash_ego_still", "predict_crash_ego_dynamic","relative_predict_crash_still","relative_predict_crash_dynamic"]:
+            valid_options = options[:2]
+        else:
+            valid_options = options
+        record["final_choice"] = random.choice(valid_options)
+    return qa_records
+
+if __name__ == "__main__":
+    #old_qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/grounding.json", "r"))
+    #new_qa = replace_obs(old_qa, ["/bigdata/weizhen/repo/qa_platform/public/black.png"])
+    #new_qa = random_choice(old_qa)
+    #json.dump(
+    #    new_qa, open("/bigdata/weizhen/repo/qa_platform/public/ground_result_random_parsed.json", "w"), indent=2
+    #)
+
+
+
+    #exit()
+
+    response_path = "/bigdata/weizhen/repo/qa_platform/public/ground_result_all_black.json"
+    import json
+
+    responses = json.load(open(response_path, "r"))
+    for qid in responses.keys():
+        choice = parse_response(responses[qid]["model_response"])
+        responses[qid]["final_choice"] = choice
+    json.dump(
+        responses, open("/bigdata/weizhen/repo/qa_platform/public/ground_result_all_black_parsed.json", "w"), indent=2
+    )
+
+
+
