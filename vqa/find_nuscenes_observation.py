@@ -136,6 +136,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                  hpr=hpr)
                 rgb_annotations[name] = dict(
