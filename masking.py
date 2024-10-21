@@ -6,6 +6,7 @@ from typing import List
 from PIL import Image
 import cv2
 from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL
+import traceback
 
 
 def contrastive_color(image, center):
@@ -63,7 +64,7 @@ def find_center(bitmask):
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(dist_transform)
     contours, _ = cv2.findContours(bitmask_255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    if np.sum(bitmask) < 2000:
+    if np.sum(bitmask) < 1600:
         # The masked area is too small, need to move the text outside.
         for cnt in contours:
             # Create a "hollowed rectangle" shape around the bounding box.
@@ -188,11 +189,13 @@ def static_id2label(frame_path, perspective="front"):
     result = {}
     currentlabel = 0
     for obj in world["objects"]:
-        if perspective in obj["observing_camera"]:
+        if perspective in obj["observing_camera"]and get_distance(obj["pos"],
+                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
             result[obj["id"]] = currentlabel
             currentlabel += 1
     json.dump(result, open(os.path.join(frame_path, "static_id2label_{}_{}.json").format(perspective, identifier), "w"))
     print(f"Successfully created single-frame-consistent id2label for {frame_path}")
+    return result
 
 
 def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False,
@@ -206,25 +209,23 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     episode_path = os.path.dirname(frame_path)
     identifier = os.path.basename(frame_path)
     world = os.path.join(frame_path, "world_{}.json".format(identifier))
-    if not id2c:
+    if id2c is None:
         id2c = json.load(open(os.path.join(frame_path, "id2c_{}.json".format(identifier)),'r'))
     instance_seg = os.path.join(frame_path, "mask_{}_{}.png".format(perspective, identifier))
     base_img = os.path.join(frame_path, "rgb_{}_{}.png".format(perspective, identifier))
     world = json.load(open(world))
-    if not id2l:
+    if id2l is None:
         id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
-    #print(id2l.keys())
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
     canvas = np.zeros_like(base_img)
-    if not query_ids:
+    if query_ids is None:
         query_ids = []
         for obj in world["objects"]:
             if perspective in obj["observing_camera"] and get_distance(obj["pos"],
                                                                        world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
                 query_ids.append(obj["id"])
-    #print(query_ids)
     colors = [id2c[query_id] for query_id in query_ids]
     colors = [(round(color[0] * 255, 0), round(color[1] * 255, 0), round(color[2] * 255, 0)) for color in colors]
     areas, binary_masks = find_areas(mask, colors, "BGR")
