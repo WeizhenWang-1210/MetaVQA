@@ -14,6 +14,7 @@ from masking import labelframe, id2label, static_id2label
 from vqa.static_question_generation import generate_all_frame
 import itertools
 from copy import deepcopy
+import traceback
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
@@ -95,6 +96,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     graph = SceneGraph(ego_id, nodelist, frame_path)
     ego_node = graph.get_ego_node()
     ids_of_interest = []
+    option2answer = {}
     if question_type == "identify_color":
         # randomly choose a non-ego labelled object
         non_ego_labels = [label for label in labels if label != -1]
@@ -111,6 +113,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             # of options present, we grab from the answer space
             multiple_choice_options = create_options(graph.statistics["<p>"], 4, color, NAMESPACE["color"])
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             answer = answer2label[color]
             # Postpend the multiple-choice string.
             question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
@@ -131,6 +136,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             color, type = object["color"], object["type"]
             multiple_choice_options = create_options(graph.statistics["<t>"], 4, type, type_space)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             for key, value in NAMED_MAPPING.items():
                 multiple_choice_string = multiple_choice_string.replace(key, value["singular"].capitalize())
             question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
@@ -162,6 +170,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             else:
                 #relative_dist = "far"
                 answer = "D"
+            option2answer = {
+                "A": "very close", "B": "close", "C": "medium", "D": "far"
+            }
             pos = ego_node.compute_relation_string(node=graph.get_node(object.id), ref_heading=ego_node.heading)
             explanation = "The {} {}(<{}>) is {} meters {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
                                                                        selected_label, round(distance),
@@ -180,10 +191,14 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             multiple_choice_options = create_options(list(POSITION2CHOICE.keys()), 4, pos, list(POSITION2CHOICE.keys()),
                                                      POSITION2CHOICE)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = " ".join([question,
                                  f"Choose the best answer from option (A) through (D): {multiple_choice_string}"])
             answer = answer2label[POSITION2CHOICE[pos]]
-            explanation = "The {} {}(<{}>) is {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"], selected_label,
+            explanation = "The {} {}(<{}>) is {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
+                                                             selected_label,
                                                              DIRECTION_MAPPING[pos])
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_heading":
@@ -202,11 +217,15 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             transform = lambda x: "{} o'clock".format(x)
             multiple_choice_options = create_options(options, 4, heading, list(range(1, 13)), transform)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             color, type = object.color, object.type
             pos = ego_node.compute_relation_string(node=graph.get_node(object.id),
                                                    ref_heading=ego_node.heading)
             answer = answer2label[transform(heading)]
-            question = " ".join([question, "Choose the best answer from option (A) through (D):  {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D):  {}".format(multiple_choice_string)])
             explanation = "The {} {}(<{}>) {} us is facing the {} o'clock direction.".format(color.lower(),
                                                                                              NAMED_MAPPING[type][
                                                                                                  "singular"],
@@ -222,7 +241,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
             id1, id2 = selected_labels
             options = [f"<{id1}> and <{id2}> are about the same distance", f"<{id1}> is closer", f"<{id2}> is closer"]
-            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
+            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
+                                     {"<id1>": str(id1), "<id2>": str(id2)})
             object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
             distance1, distance2 = get_distance(object1.pos, ego_node.pos), get_distance(object2.pos, ego_node.pos)
             color1, type1 = object1.color, object1.type
@@ -241,21 +261,27 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                     index = 1
                     explanation = ("Object <{}>, a {} {} {} us , is closer to us than object <{}>, "
                                    "a {} {} {} us.").format(
-                        id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], id2, color2.lower(),
+                        id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], id2,
+                        color2.lower(),
                         NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2]
                     )
                 else:
                     index = 2
                     explanation = ("Object <{}>, a {} {} {} us, is closer to us than object <{}>, "
                                    "a {} {} {} us.").format(
-                        id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], id1, color1.lower(),
+                        id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], id1,
+                        color1.lower(),
                         NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1]
                     )
 
             multiple_choice_options = create_options(options, 3, options[index], options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             answer = answer2label[options[index]]
-            question = " ".join([question, "Choose the best answer from option (A) through (C): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (C): {}".format(multiple_choice_string)])
             ids_of_interest += [label2id[l] for l in list(selected_labels)]
     elif question_type == "predict_crash_ego_still":
         #TODO examine the trajectories. via visualization
@@ -270,7 +296,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             init_center = object.pos
             extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
             extrapolated_boxes = extrapolate_bounding_boxes(extrapolated_centers,
-                                                            np.arctan2(object.heading[1], object.heading[0]), object.bbox)
+                                                            np.arctan2(object.heading[1], object.heading[0]),
+                                                            object.bbox)
             ego_boxes = [ego_node.bbox for i in range(50)]
             crash = box_trajectories_overlap(extrapolated_boxes, ego_boxes)
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
@@ -284,13 +311,17 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             options = ["Yes", "No"]
             multiple_choice_options = create_options(options, 2, "Yes" if crash else "No", options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
             answer = answer2label["Yes" if crash else "No"]
             if crash:
-                explanation = "Yes, this {} {}(<{}>) {} us and heading at {} o\' clock will run into us if we both drive along our current heading.".format(
+                explanation = "Yes, this {} {}(<{}>) {} us and heading at {} o\' clock will run into us if it drives along its current heading.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             else:
-                explanation = "No, this {} {}(<{}>) {} us and heading at {} o\' clock will not run into us if we both drive along our current heading.".format(
+                explanation = "No, this {} {}(<{}>) {} us and heading at {} o\' clock will not run into us if it drives along its current heading.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "predict_crash_ego_dynamic":
@@ -306,7 +337,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             init_center = object.pos
             extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
             extrapolated_boxes = extrapolate_bounding_boxes(extrapolated_centers,
-                                                            np.arctan2(object.heading[1], object.heading[0]), object.bbox)
+                                                            np.arctan2(object.heading[1], object.heading[0]),
+                                                            object.bbox)
             ego_centers = [list(np.array(ego_node.heading) * i + np.array(ego_node.pos)) for i in range(50)]
             ego_boxes = extrapolate_bounding_boxes(ego_centers,
                                                    np.arctan2(ego_node.heading[1], ego_node.heading[0]), ego_node.bbox)
@@ -317,8 +349,12 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
 
             multiple_choice_options = create_options(options, 2, "Yes" if crash else "No", options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
-            question = " ".join([question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
             answer = answer2label["Yes" if crash else "No"]
 
             object = graph.get_node(label2id[selected_label])
@@ -328,14 +364,14 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             pos = ego_node.compute_relation_string(node=graph.get_node(object.id),
                                                    ref_heading=ego_node.heading)
             if crash:
-                explanation = "Yes, this {} {}<{}> {} us and heading at {} o\' clock will run into us if it proceed along its current heading.".format(
+                explanation = "Yes, this {} {}(<{}>) {} us and heading at {} o\' clock will run into us if it proceed along its current heading.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             else:
                 if intersect:
-                    explanation = "No, this {} {}<{}> {} us and heading at {} o\' clock will not run into us even though our paths will intersect.".format(
+                    explanation = "No, this {} {}(<{}>) {} us and heading at {} o\' clock will not run into us even though our paths will intersect.".format(
                         color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
                 else:
-                    explanation = "No, this {} {}<{}> {} us and heading at {} o\' clock will not run into us.".format(
+                    explanation = "No, this {} {}(<{}>) {} us and heading at {} o\' clock will not run into us.".format(
                         color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "relative_distance":
@@ -345,7 +381,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         else:
             selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
             id1, id2 = selected_labels
-            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
+            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
+                                     {"<id1>": str(id1), "<id2>": str(id2)})
             object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
             # distance1, distance2 = get_distance(object1.pos, ego_node.pos), get_distance(object2.pos, ego_node.pos)
             distance12 = get_distance(object1.pos, object2.pos)
@@ -361,6 +398,9 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             else:
                 relative_dist = "far"
                 answer = "D"
+            option2answer = {
+                "A": "very close", "B": "close", "C": "medium", "D": "far"
+            }
             pos2to1 = object2.compute_relation_string(node=object1, ref_heading=ego_node.heading)
             color1, type1 = object1.color, object1.type
             pos1 = ego_node.compute_relation_string(node=graph.get_node(object1.id),
@@ -369,7 +409,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             pos2 = ego_node.compute_relation_string(node=graph.get_node(object2.id),
                                                     ref_heading=ego_node.heading)
             explanation = "Object <{}>, a {} {} {} us, is {} object <{}>, a {} {} {} us, at a {} distance.".format(
-                id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], DIRECTION_MAPPING[pos2to1],
+                id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1],
+                DIRECTION_MAPPING[pos2to1],
                 id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2], relative_dist)
 
             ids_of_interest += [label2id[l] for l in list(selected_labels)]
@@ -380,7 +421,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         else:
             selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
             id1, id2 = selected_labels
-            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
+            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
+                                     {"<id1>": str(id1), "<id2>": str(id2)})
             object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
             #distance1, distance2 = get_distance(object1.pos, ego_node.pos), get_distance(object2.pos, ego_node.pos)
             pos2to1 = object2.compute_relation_string(node=object1, ref_heading=ego_node.heading)
@@ -391,13 +433,19 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             pos2 = ego_node.compute_relation_string(node=graph.get_node(object2.id),
                                                     ref_heading=ego_node.heading)
 
-            multiple_choice_options = create_options(list(POSITION2CHOICE.keys()), 4, pos2to1, list(POSITION2CHOICE.keys()),
+            multiple_choice_options = create_options(list(POSITION2CHOICE.keys()), 4, pos2to1,
+                                                     list(POSITION2CHOICE.keys()),
                                                      POSITION2CHOICE)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[POSITION2CHOICE[pos2to1]]
             explanation = "Object <{}>, a {} {} {} us, is {} object <{}>, a {} {} {} us.".format(
-                id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], DIRECTION_MAPPING[pos2to1],
+                id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1],
+                DIRECTION_MAPPING[pos2to1],
                 id2, color2.lower(), NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2])
             ids_of_interest += [label2id[l] for l in list(selected_labels)]
     elif question_type == "relative_heading":
@@ -409,7 +457,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         else:
             selected_labels = np.random.choice(np.array(non_ego_labels), size=2, replace=False)
             id1, id2 = selected_labels
-            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
+            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
+                                     {"<id1>": str(id1), "<id2>": str(id2)})
             object1, object2 = graph.get_node(label2id[id1]), graph.get_node(label2id[id2])
             # distance1, distance2 = get_distance(object1.pos, ego_node.pos), get_distance(object2.pos, ego_node.pos)
             angle1to2 = np.rad2deg(transform_heading(object2.heading, object1.pos, object1.heading))
@@ -425,7 +474,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             multiple_choice_options = create_options(options, 2, answer, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
             answer = answer2label[answer]
-            question = " ".join([question, "Choose the best answer between option (A) and (B):: {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
 
             ids_of_interest += [label2id[l] for l in list(selected_labels)]
             if abs(angle1to2) < 20:
@@ -455,7 +508,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                             object1.bbox)
             object2_boxes = [object2.bbox for i in range(50)]
             crash = box_trajectories_overlap(extrapolated_boxes, object2_boxes)
-            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
+            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
+                                     {"<id1>": str(id1), "<id2>": str(id2)})
             color1, type1 = object1.color, object1.type
             pos1 = ego_node.compute_relation_string(node=graph.get_node(object1.id),
                                                     ref_heading=ego_node.heading)
@@ -466,7 +520,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             options = ["Yes", "No"]
             multiple_choice_options = create_options(options, 2, "Yes" if crash else "No", options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer between option (A) and (B):: {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
             answer = answer2label["Yes" if crash else "No"]
 
             if crash:
@@ -502,7 +560,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                              object2.bbox)
             crash = box_trajectories_overlap(extrapolated_boxes1, extrapolated_boxes2)
             intersect = box_trajectories_intersect(extrapolated_boxes1, extrapolated_boxes2)
-            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(id1), "<id2>": str(id2)})
+            question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
+                                     {"<id1>": str(id1), "<id2>": str(id2)})
             color1, type1 = object1.color, object1.type
             pos1 = ego_node.compute_relation_string(node=graph.get_node(object1.id),
                                                     ref_heading=ego_node.heading)
@@ -512,7 +571,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             options = ["Yes", "No"]
             multiple_choice_options = create_options(options, 2, "Yes" if crash else "No", options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
             answer = answer2label["Yes" if crash else "No"]
             if crash:
                 explanation = "Yes, object <{}> will run into object <{}>.".format(
@@ -531,14 +594,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         if len(non_ego_labels) < 4:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
-
-
             selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
             ordered_labels = sorted(selected_labels, key=dist)
-
             all_permutations = list(itertools.permutations(selected_labels))
             distinct_permutations = random.sample(all_permutations, 4)
-
             if tuple(ordered_labels) not in distinct_permutations:
                 distinct_permutations[-1] = tuple(ordered_labels)
             for idx, distinct_permutation in enumerate(distinct_permutations):
@@ -551,13 +610,17 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
             multiple_choice_options = create_options(options, 4, answer_ordering, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = fill_in_label(
                 template_str=TEMPLATES["static"][question_type]["text"][0],
                 replacement={code: str(selected_labels[idx])
                              for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
                              }
             )
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
             explanation = "The {} {}(<{}>) is closest to us, and the {} {}(<{}>) is furthest away from us. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
@@ -577,7 +640,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         if len(non_ego_labels) < 4:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
-
             selected_labels = list(np.random.choice(np.array(non_ego_labels), size=4, replace=False))
             ordered_labels = sorted(selected_labels, key=dist, reverse=True)
             all_permutations = list(itertools.permutations(selected_labels))
@@ -594,13 +656,17 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
             multiple_choice_options = create_options(options, 4, answer_ordering, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = fill_in_label(
                 template_str=TEMPLATES["static"][question_type]["text"][0],
                 replacement={code: str(selected_labels[idx])
                              for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
                              }
             )
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
             explanation = "The {} {}(<{}>) is at the far left, and the {} {}(<{}>) is at the far right. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
@@ -637,13 +703,17 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
             multiple_choice_options = create_options(options, 4, answer_ordering, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = fill_in_label(
                 template_str=TEMPLATES["static"][question_type]["text"][0],
                 replacement={code: str(selected_labels[idx])
                              for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
                              }
             )
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
             explanation = "The {} {}(<{}>) is at the far right, and the {} {}(<{}>) is at the far left. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
@@ -680,13 +750,17 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
             multiple_choice_options = create_options(options, 4, answer_ordering, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = fill_in_label(
                 template_str=TEMPLATES["static"][question_type]["text"][0],
                 replacement={code: str(selected_labels[idx])
                              for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
                              }
             )
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
             explanation = "The {} {}(<{}>) is at the furthest along our heading direction, and the {} {}(<{}>) is the closest. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
@@ -723,13 +797,17 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_ordering = ", ".join([f"<{val}>" for val in ordered_labels])
             multiple_choice_options = create_options(options, 4, answer_ordering, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             question = fill_in_label(
                 template_str=TEMPLATES["static"][question_type]["text"][0],
                 replacement={code: str(selected_labels[idx])
                              for idx, code in enumerate(TEMPLATES["static"][question_type]["params"])
                              }
             )
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
             explanation = "The {} {}(<{}>) is at the closest along our heading direction, and the {} {}(<{}>) is the furthest. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
@@ -761,7 +839,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_label = f"<{answer_label}>"
             multiple_choice_options = create_options(options, 4, answer_label, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
@@ -791,7 +873,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_label = f"<{answer_label}>"
             multiple_choice_options = create_options(options, 4, answer_label, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
@@ -814,14 +900,18 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             question = TEMPLATES["static"][question_type]["text"][0]
             answer_label = find_label(closest_id, label2id)
             options = np.random.choice(np.array(non_ego_labels), size=3, replace=False)
-            options = [f"<{option}>" for option in options]
-            answer_label = f"<{answer_label}>"
             while answer_label in list(options) or -1 in list(options):
                 options = np.random.choice(np.array(labels), size=3, replace=False)
+            options = [f"<{option}>" for option in options]
+            answer_label = f"<{answer_label}>"
             options = list(options) + [answer_label]
             multiple_choice_options = create_options(options, 4, answer_label, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
@@ -851,7 +941,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_label = f"<{answer_label}>"
             multiple_choice_options = create_options(options, 4, answer_label, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
@@ -882,7 +976,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer_label = f"<{answer_label}>"
             multiple_choice_options = create_options(options, 4, answer_label, options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
+            question = " ".join(
+                [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
@@ -952,7 +1050,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     if verbose:
         print(question)
         print(answer, explanation)
-    return question, answer, explanation, ids_of_interest
+    return question, answer, explanation, ids_of_interest, option2answer
 
 
 from collections import defaultdict
@@ -972,8 +1070,10 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
     answer = None
     explanation = None
     ids_of_interest = []
+    option2answer = {}
     if question_type == "describe_sector":
         sector = param["<pos>"]
+
         def satisfying_set(labels):
             for label in labels:
                 if ego_node.compute_relation_string(
@@ -982,6 +1082,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 ) != sector:
                     return False
             return True
+
         selected_labels = [label for label in labels if label != -1]
         objects = [graph.get_node(label2id[label]) for label in selected_labels]
         pos_stat = defaultdict(lambda: set())
@@ -1030,13 +1131,17 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 answer_ordering = "".join(["[", answer_ordering, "]"])
                 multiple_choice_options = create_options(options, 4, answer_ordering, options)
                 multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+                option2answer = {
+                    val: key for key, val in answer2label.items()
+                }
                 question = fill_in_label(
                     template_str=TEMPLATES["static"][question_type]["text"][0],
                     replacement={
                         "<pos>": POSITION2CHOICE[param["<pos>"]]
                     }
                 )
-                question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+                question = " ".join(
+                    [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
                 answer = answer2label[answer_ordering]
                 wrong_reasons = {
                     val: "" for val in answer2label.values()
@@ -1093,6 +1198,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 ids_of_interest = []
     elif question_type == "describe_distance":
         sector = param["<dist>"]
+
         def discretize_dist(abs_dist):
             if abs_dist < 2:
                 discrete_dist = "very close"
@@ -1138,7 +1244,6 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
             for combination in all_combinations:
                 if not satisfying_set(combination):
                     non_answer_combinations.append(combination)
-            print(non_answer_combinations)
             if len(non_answer_combinations) < 3:
                 print(f"Not enough items in the scene. Skip generating {question_type} with {sector} for {frame_path}")
             else:
@@ -1162,13 +1267,17 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 answer_ordering = "".join(["[", answer_ordering, "]"])
                 multiple_choice_options = create_options(options, 4, answer_ordering, options)
                 multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+                option2answer = {
+                    val: key for key, val in answer2label.items()
+                }
                 question = fill_in_label(
                     template_str=TEMPLATES["static"][question_type]["text"][0],
                     replacement={
                         "<dist>": param["<dist>"]
                     }
                 )
-                question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+                question = " ".join(
+                    [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
                 answer = answer2label[answer_ordering]
                 wrong_reasons = {
                     val: "" for val in answer2label.values()
@@ -1230,7 +1339,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
         print(question)
         print(answer)
         print(explanation)
-    return question, answer, explanation, ids_of_interest
+    return question, answer, explanation, ids_of_interest, option2answer
 
 
 def cfg_adapater(frame_path, question_type, perspective, verbose, id2label_path: str = None):
@@ -1273,24 +1382,54 @@ def verify_grounding(frame_path, perspective, verbose, id2label_path: str = None
     else:
         randomly_selected_labels = random.sample(non_ego_labels, min(len(non_ego_labels), 4))
         idx = 0
-        for selected_label in tqdm.tqdm(randomly_selected_labels, desc="Generating Grounding Question", unit="question"):
+        for selected_label in tqdm.tqdm(randomly_selected_labels, desc="Generating Grounding Question",
+                                        unit="question"):
             solo_labeled_path = os.path.join(frame_path, f"label_{selected_label}_{perspective}_{identifier}.png")
-            random_new_labels = np.random.choice(20, size=4, replace=False)
+            random_new_labels = list(np.random.choice(20, size=4, replace=False))
+            random_new_labels = [int(item) for item in random_new_labels]
             random_new_label = random_new_labels[0]
+
+            new_id2l = {label2id[selected_label]: random_new_label}
+            assert new_id2l is not None
             labelframe(
                 frame_path=frame_path, perspective="front", save_path=solo_labeled_path,
-                query_ids=[label2id[selected_label]], id2l={label2id[selected_label]: random_new_label}, font_scale=1.25,grounding=True
+                query_ids=[label2id[selected_label]], id2l=new_id2l,
+                font_scale=1.25, grounding=True
             )
             multiple_choice_options = create_options(random_new_labels, 4, random_new_label, random_new_labels)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
+            option2answer = {
+                val: key for key, val in answer2label.items()
+            }
             answer = answer2label[random_new_label]
-            question = f"What is the numerical label of the white-contoured object? Choose the best answer from option (A) through (D): {multiple_choice_string}."
+            question = f"What is the numerical label of the white-contoured object? Choose the best answer from option (A) through (D): {multiple_choice_string}"
             explanation = ""
             records[idx] = dict(
-                question=question, answer=answer, explanation=explanation,type="grounding", objects=[], world=[frame_path],obs=[solo_labeled_path]
+                question=question, answer=answer, explanation=explanation, type="grounding", objects=[],
+                world=[frame_path], obs=[solo_labeled_path], options=option2answer
             )
-            idx +=1
+            idx += 1
     return records
+
+
+import re
+
+
+def replace_substrs(original_string, mapping):
+    # Define the pattern to match <n> where n is an integer
+    pattern = r'<(\d+)>'
+
+    # Function to use for substitution
+    def replacer(match):
+        # Extract the number n from <n>
+        n = int(match.group(1))
+        # Check if n is in the mapping and replace with its mapped value
+        return f"<{str(mapping.get(n, match.group(0)))}>"
+
+    # Substitute using re.sub with the replacer function
+    replaced_string = re.sub(pattern, replacer, original_string)
+
+    return replaced_string
 
 
 import glob
@@ -1298,109 +1437,149 @@ import glob
 import tqdm
 
 
-def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False):
+def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0):
     frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
     template_path = os.path.join(current_directory, "questions_templates.json")
     static_templates = json.load(open(template_path, "r"))["static"]
     records = {}
-    count = 0
-    #frame_paths = ["/bigdata/weizhen/repo/qa_platform/public/test/scene-0128_76_125/101_110"]#random.sample(frame_paths,1)
-    frame_paths = frame_paths[::2]
-    for frame_path in tqdm.tqdm(frame_paths, desc="Processing", unit="frame"):
-        frame_records = {}
-        frame_id = 0
-        identifier = os.path.basename(frame_path)
-        static_id2label_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
-        static_labeled_path = os.path.join(frame_path, f"static_labeled_{perspective}_{identifier}.png")
-        rgb_paths = glob.glob(os.path.join(frame_path, f"rgb_{perspective}**.png"))
-        if not labeled or not os.path.exists(static_labeled_path):
-            if verbose:
-                print(f"Creating single-frame-consistent labelling for {frame_path}")
-            static_id2label(frame_path, perspective)
-            static_id2l = json.load(open(static_id2label_path, "r"))
-            labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path, id2l=static_id2l, font_scale=1.25)
-        else:
-            if verbose:
-                print(f"Already have labelled version FOR {frame_path}")
-            static_id2l = json.load(open(static_id2label_path, "r"))
-
-        queried_ids = set()
-        for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
-            if question_type not in ["describe_sector", "describe_distance"]:
-                question, answer, explanation, ids_of_interest = generate(frame_path=frame_path,
-                                                                          question_type=question_type,
-                                                                          perspective=perspective, verbose=verbose,
-                                                                          id2label_path=static_id2label_path)
-                if question is not None and answer is not None and explanation is not None:
-                    frame_records[frame_id] = dict(
-                        question=question, answer=answer, explanation=explanation,
-                        type=question_type, objects=ids_of_interest, world=[frame_path],
-                        obs=[static_labeled_path]
-                    )
-                    frame_id += 1
-                    for id in ids_of_interest:
-                        queried_ids.add(id)
+    current_type = ""
+    current_frame = ""
+    try:
+        count = 0
+        frame_paths = frame_paths
+        for frame_path in tqdm.tqdm(frame_paths, desc=f"Processing {proc_id}", unit="frame"):
+            current_frame = frame_path
+            frame_records = {}
+            frame_id = 0
+            identifier = os.path.basename(frame_path)
+            static_id2label_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
+            static_labeled_path = os.path.join(frame_path, f"static_labeled_{perspective}_{identifier}.png")
+            if not labeled or not os.path.exists(static_labeled_path):
+                if verbose:
+                    print(f"Creating single-frame-consistent labelling for {frame_path}")
+                result = static_id2label(frame_path, perspective)
+                static_id2l = result  #json.load(open(static_id2label_path, "r"))
+                if static_id2l is None:
+                    print("why>>>???")
+                assert static_id2l is not None
+                labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path,
+                           id2l=static_id2l,
+                           font_scale=1.25)
             else:
-                if question_type == "describe_sector":
-                    params = [
-                        {"<pos>": pos} for pos in ["lf", "rf", "f"]
-                    ]
-                else:
-                    params = [
-                        {"<dist>": dist for dist in ["very close", "close", "medium", "far"]}
-                    ]
-                for param in params:
-                    question, answer, explanation, ids_of_interest = parameterized_generate(frame_path=frame_path,
-                                                                                            question_type=question_type,
-                                                                                            param=param,
-                                                                                            perspective=perspective,
-                                                                                            verbose=verbose,
-                                                                                            id2label_path=static_id2label_path)
+                raise Exception
+                if verbose:
+                    print(f"Already have labelled version FOR {frame_path}")
+                static_id2l = json.load(open(static_id2label_path, "r"))
+            queried_ids = set()
+            for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
+                current_type = question_type
+                if question_type not in ["describe_sector", "describe_distance"]:
+                    question, answer, explanation, ids_of_interest, option2answer = generate(frame_path=frame_path,
+                                                                                             question_type=question_type,
+                                                                                             perspective=perspective,
+                                                                                             verbose=verbose,
+                                                                                             id2label_path=static_id2label_path)
                     if question is not None and answer is not None and explanation is not None:
                         frame_records[frame_id] = dict(
                             question=question, answer=answer, explanation=explanation,
                             type=question_type, objects=ids_of_interest, world=[frame_path],
-                            obs=[static_labeled_path]
+                            obs=[static_labeled_path], option=option2answer
                         )
                         frame_id += 1
+                        for id in ids_of_interest:
+                            queried_ids.add(id)
+                else:
+                    if question_type == "describe_sector":
+                        params = [
+                            {"<pos>": pos} for pos in ["lf", "rf", "f"]
+                        ]
+                    else:
+                        params = [
+                            {"<dist>": dist} for dist in ["very close", "close", "medium", "far"]
+                        ]
+                    for param in params:
+                        question, answer, explanation, ids_of_interest, option2answer = parameterized_generate(
+                            frame_path=frame_path,
+                            question_type=question_type,
+                            param=param,
+                            perspective=perspective,
+                            verbose=verbose,
+                            id2label_path=static_id2label_path)
+                        if question is not None and answer is not None and explanation is not None:
+                            frame_records[frame_id] = dict(
+                                question=question, answer=answer, explanation=explanation,
+                                type=question_type, objects=ids_of_interest, world=[frame_path],
+                                obs=[static_labeled_path], option=option2answer
+                            )
+                            frame_id += 1
             new_id2label = {object_id: i for i, object_id in enumerate(queried_ids)}
             new_labeled_path = os.path.join(frame_path, f"static_qa_labeled_{perspective}_{identifier}.png")
             original_id2label = static_id2l
+            assert new_id2label is not None
             labelframe(
                 frame_path=frame_path, perspective="front", save_path=new_labeled_path,
                 query_ids=list(queried_ids), id2l=new_id2label, font_scale=1.25
             )
-        for qid, record in frame_records.items():
-            if record["type"] not in ["identify_closest", "identify_leftmost", "identify_rightmost",
-                                      "identify_frontmost", "identify_backmost", "describe_scenario",
-                                      "describe_sector", "describe_distance"]:
-                for object_id in record["objects"]:
-                    record["question"] = record["question"].replace(f"<{original_id2label[object_id]}>",
-                                                                    f"<{new_id2label[object_id]}>")
-                    record["explanation"] = record["explanation"].replace(f"<{original_id2label[object_id]}>",
-                                                                          f"<{new_id2label[object_id]}>")
-                record["obs"] = [new_labeled_path]
-            records[qid + count] = record
-        count += frame_id
+            for qid, record in frame_records.items():
+                if record["type"] not in ["identify_closest", "identify_leftmost", "identify_rightmost",
+                                          "identify_frontmost", "identify_backmost", "describe_scenario",
+                                          "describe_sector", "describe_distance"]:
+                    old2new = {
+                        original_id2label[object_id]: new_id2label[object_id] for object_id in record["objects"]
+                    }
+                    record["question"] = replace_substrs(record["question"], old2new)
+                    record["explanation"] = replace_substrs(record["explanation"], old2new)
+                    for opt in record["option"].keys():
+                        record["option"][opt] = replace_substrs(record["option"][opt], old2new)
+                    record["obs"] = [new_labeled_path]
+                records[qid + count] = record
+            count += frame_id
+            grounding_records = verify_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
+                                                 id2label_path=static_id2label_path)
+            for g_id, record in grounding_records.items():
+                records[g_id + count] = record
+            count += len(grounding_records)
+    except Exception as e:
+        print("Something Wrong! save partial results")
+        print(f"Encountered issue at {current_frame},{current_type}")
+        var = traceback.format_exc()
+        debug_path = os.path.join(
+            os.path.dirname(save_path),
+            f"{proc_id}_debug.json"
+        )
+        json.dump(
+            {"proc_id": proc_id, "end_frame": current_frame, "end_quetion": current_type, "error": str(e),
+             "generated": len(records), "trace": str(var)},
+            open(debug_path, "w"),
+            indent=2
+        )
+        raise (e)
+    finally:
+        json.dump(records, open(save_path, "w"), indent=2)
 
-        grounding_records = verify_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
-                                             id2label_path=static_id2label_path)
-        for g_id, record in grounding_records.items():
-            records[g_id + count] = record
-        count += len(grounding_records)
-    json.dump(records, open(save_path, "w"), indent=2)
 
 def split_list(lst, chunk_size):
     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
+
+import math
+
 import multiprocessing as multp
-def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False, num_proc=1):
+
+
+def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False,
+                                 num_proc=1):
     def find_worlds(session_path):
         pattern = os.path.join(session_path, "**", "**", "world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
+
     world_paths = find_worlds(session_path)
-    job_chunks = split_list(world_paths, num_proc)
+    world_paths = world_paths
+    print(f"Working on {len(world_paths)} frames.")
+    chunk_size = math.ceil(len(world_paths) / num_proc)
+    job_chunks = split_list(world_paths, chunk_size)
+    print(f"{len(world_paths)} frames distributed across {num_proc} processes, {chunk_size} MAX each process")
     processes = []
     name_root = os.path.basename(save_path)
     save_dir = os.path.dirname(save_path)
@@ -1411,10 +1590,10 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
             target=batch_generate_static,
             args=(
                 job_chunks[proc_id],
-                os.path.join(save_dir,name),
+                os.path.join(save_dir, name),
                 verbose,
                 perspective,
-                labeled
+                labeled, proc_id
             )
         )
         print(f"Successfully sent {proc_id}")
@@ -1423,8 +1602,6 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
     for p in processes:
         p.join()
     print("All processes finished.")
-
-
 
 
 if __name__ == "__main__":
@@ -1436,9 +1613,10 @@ if __name__ == "__main__":
     #batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test", verbose=False,
     #                      save_path="/bigdata/weizhen/repo/qa_platform/public/data_small.json", labeled=True)
     multiprocess_generate_static(
-        session_path="/bigdata/weizhen/repo/qa_platform/public/test",
-        save_path="/bigdata/weizhen/repo/qa_platform/public/test/data_small.json",
-        num_proc=8
+        session_path="/bigdata/weizhen/metavqa_iclr/scenarios/nusc_fixed_1200_75",
+        save_path="/data_weizhen/metavqa_cvpr/vqa/static_medium.json",
+        num_proc=32,
+        labeled=False,
     )
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
