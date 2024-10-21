@@ -14,7 +14,7 @@ NAMESPACE = dict(
 )
 
 POSITION2CHOICE = dict(
-    lf="left-front", rf="right-front", lb="left-back", rb="right-back", f="front", b="back", l="left", r="right"
+    lf="left-front", rf="right-front", lb="left-back", rb="right-back", f="front", b="back", l="left", r="right", m="next-to"
 )
 
 
