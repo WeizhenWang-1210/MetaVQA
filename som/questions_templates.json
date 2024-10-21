@@ -72,7 +72,7 @@
         },
         "predict_crash_ego_dynamic": {
             "text":[
-                "Suppose both object <<id1>> and us proceed along our current heading. Will we collide?"
+                "Suppose both object <<id1>> and us proceed along our current headings with the same speed. Will we collide into each other?"
             ],
             "params":[
                 "<id1>"
