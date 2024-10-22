@@ -35,7 +35,18 @@ NAMED_MAPPING = dict(
                 Bike=dict(singular="bike", plural="bikes"),
                 Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
                 Warning=dict(singular="warning sign", plural="warning signs"),
-                Cone=dict(singular="traffic cone", plural="traffic cones")
+                Cone=dict(singular="traffic cone", plural="traffic cones"),
+                #nusc additions
+                Wheelchair=dict(singular="wheel chair", plural="wheel chairs"),
+                Police_officer=dict(singular="police officer", plural="police officers"),
+                Construction_worker=dict(singular="construction worker", plural="construction workers"),
+                Animal=dict(singular="animal", plural="animals"),
+                Car=dict(singular="car", plural="cars"),
+                Motorcycle=dict(singular="motorcycle", plural="motorcycles"),
+                Construction_vehicle=dict(singular="construction vehicle", plural="construction vehicles"),
+                Ambulance=dict(singular="ambulance", plural="ambulances"),
+                Trailer=dict(singular="trailer", plural="trailers"),
+
             )
 
 
