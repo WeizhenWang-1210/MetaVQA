@@ -41,7 +41,7 @@ def contrastive_background(rgb):
     # Calculate the Y value
     Y = 0.299 * R + 0.587 * G + 0.114 * B
     # If Y value is greater than 128, it's closer to white so return black. Otherwise, return white.
-    return (0, 0, 0) if Y > 128 else (255, 255, 255)
+    return (255, 255, 255)
 
 
 def find_center(bitmask):
@@ -189,8 +189,8 @@ def static_id2label(frame_path, perspective="front"):
     result = {}
     currentlabel = 0
     for obj in world["objects"]:
-        if perspective in obj["observing_camera"]and get_distance(obj["pos"],
-                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
+        if perspective in obj["observing_camera"] and get_distance(obj["pos"],
+                                                                   world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
             result[obj["id"]] = currentlabel
             currentlabel += 1
     json.dump(result, open(os.path.join(frame_path, "static_id2label_{}_{}.json").format(perspective, identifier), "w"))
@@ -199,7 +199,8 @@ def static_id2label(frame_path, perspective="front"):
 
 
 def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False,
-               query_ids: list = None, id2l: dict = None, font_scale: float = 0.75, id2c:dict = None, grounding:dict=False):
+               query_ids: list = None, id2l: dict = None, font_scale: float = 0.75, id2c: dict = None,
+               grounding: dict = False, bounding_box: bool = False, id2corners: dict = None):
     """
     :param frame_path:
     :param perspective: choose from "front"|"leftf"|"leftb"|"rightf"|"rightb"|"back"
@@ -210,7 +211,7 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     identifier = os.path.basename(frame_path)
     world = os.path.join(frame_path, "world_{}.json".format(identifier))
     if id2c is None:
-        id2c = json.load(open(os.path.join(frame_path, "id2c_{}.json".format(identifier)),'r'))
+        id2c = json.load(open(os.path.join(frame_path, "id2c_{}.json".format(identifier)), 'r'))
     instance_seg = os.path.join(frame_path, "mask_{}_{}.png".format(perspective, identifier))
     base_img = os.path.join(frame_path, "rgb_{}_{}.png".format(perspective, identifier))
     world = json.load(open(world))
@@ -258,8 +259,26 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
         if grounding:
-            color = (255,255,255)
-        cv2.drawContours(base_img, contour_list[i], -1, color, 2)
+            color = (255, 255, 255)
+        if bounding_box:
+            if id2corners is not None:
+                tl, bl, br, tr = id2corners[query_id]
+                start = (round(tl[1]), round(tl[0]))
+                w = round(tr[1] - bl[1])
+                h = round(bl[0] - tl[0])
+                print(f"Top Left{start}, width{w}, height{h}")
+                cv2.rectangle(base_img, start, (start[0] + w, start[1] + h), color, 2)
+            else:
+                contours, _ = cv2.findContours((binary_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL,
+                                               cv2.CHAIN_APPROX_SIMPLE)
+                for contour in contours:
+                    # Get the tight bounding rectangle around the contour
+                    x, y, w, h = cv2.boundingRect(contour)
+                    # Draw the bounding box on the original mask or another image
+                    # For example, create a copy of the mask to visualize
+                    cv2.rectangle(base_img, (x, y), (x + w, y + h), color, 2)  # Draw green bounding box
+        else:
+            cv2.drawContours(base_img, contour_list[i], -1, color, 2)
 
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
@@ -298,8 +317,17 @@ def remask(frame_path):
 
 
 if __name__ == "__main__":
-    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/test_fixed_1200_75/scene-0131_151_188/104_187"
-    id2label(os.path.dirname(frame_path), "front")
-    labelframe(frame_path, "front", save_label=True, font_scale=1.25)
+    frame_paths = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/**/**"
+    frame_paths = glob.glob(frame_paths)
+    for frame_path in frame_paths[:1]:
+        print(frame_path)
+        identifier = os.path.basename(frame_path)
+        id2label(os.path.dirname(frame_path), "front")
+        id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
+        labelframe(frame_path, "front", save_label=True, font_scale=1.25, bounding_box=True, id2corners=id2corners)
+
+    #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0002_0_1/0_0"
+    #id2label(os.path.dirname(frame_path), "front")
+    #labelframe(frame_path, "front", save_label=True, font_scale=1.25)
     #label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
     #              "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
