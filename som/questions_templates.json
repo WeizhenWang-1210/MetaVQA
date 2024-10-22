@@ -62,7 +62,7 @@
         },
         "predict_crash_ego_still": {
             "text":[
-                "Suppose object <<id1>> proceed along its current heading. Will it collide into us if we stay still?"
+                "Suppose object <<id1>> proceed along its current heading. Will it collides into us if we stay still?"
             ],
             "params":[
                 "<id1>"
@@ -72,7 +72,7 @@
         },
         "predict_crash_ego_dynamic": {
             "text":[
-                "Suppose both object <<id1>> and us proceed along our current headings with the same speed. Will we collide into each other?"
+                "Suppose both object <<id1>> and us proceed along our corresponding current headings with the same speed. Will we collide into each other?"
             ],
             "params":[
                 "<id1>"
@@ -82,7 +82,7 @@
         },
         "relative_distance": {
             "text":[
-                "How close are <<id1>> and <<id2>> positioned? Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
+                "How close are object <<id1>> and object <<id2>> positioned? Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -92,7 +92,7 @@
         },
         "relative_position": {
             "text":[
-                "How's object <<id1>> positioned relative to object <<id2>>?"
+                "How is object <<id1>> positioned relative to object <<id2>>?"
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -102,7 +102,7 @@
         },
         "relative_heading": {
              "text":[
-                "Is object <<id1>> heading toward roughly the same direction as <<id2>>?"
+                "Is object <<id1>> heading toward roughly the same direction as object <<id2>>?"
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -113,7 +113,7 @@
         },
         "relative_predict_crash_still": {
             "text":[
-                "Suppose object <<id1>> proceed along its current heading. Will it collide into object <<id2>> if object <<id2>> stays still?"
+                "Suppose object <<id1>> proceed along its current heading. Will it collides into object <<id2>> if object <<id2>> stays still?"
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -142,7 +142,7 @@
         },
         "identify_leftmost": {
             "text":[
-                "For all labeled objects, which object is leftmost to us?"
+                "For all labeled objects, which object is the leftmost in our coordinate system?"
             ],
             "params":[
             ],
@@ -151,7 +151,7 @@
         },
         "identify_rightmost": {
             "text":[
-                "For all labeled objects, which object is rightmost to us?"
+                "For all labeled objects, which object is the rightmost in our coordinate system?"
             ],
             "params":[
             ],
@@ -160,7 +160,7 @@
         },
         "identify_frontmost": {
             "text":[
-                "For all labeled objects, which object is furthest along the front direction of us?"
+                "For all labeled objects, which object is furthest along our front direction?"
             ],
             "params":[
             ],
@@ -169,7 +169,7 @@
         },
         "identify_backmost": {
             "text":[
-                "For all labeled objects, which object is closest along the front direction of us?"
+                "For all labeled objects, which object is closest along our front direction?"
             ],
             "params":[
             ],
@@ -178,7 +178,7 @@
         },
         "order_closest": {
             "text":[
-                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the closest to the furthest from us."
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from closest to furthest from us."
             ],
             "params":[
                 "<id1>","<id2>","<id3>","<id4>"
@@ -188,7 +188,7 @@
         },
         "order_leftmost": {
             "text":[
-                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the leftmost to rightmost in our perspective."
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from leftmost to rightmost in our coordinate system."
             ],
             "params":[
                 "<id1>","<id2>","<id3>","<id4>"
@@ -198,7 +198,7 @@
         },
         "order_rightmost": {
             "text":[
-                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the rightmost to leftmost in our perspective."
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from rightmost to leftmost in our coordinate system."
             ],
             "params":[
                 "<id1>","<id2>","<id3>","<id4>"
@@ -208,7 +208,7 @@
         },
         "order_frontmost": {
             "text":[
-                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the furthest to the closest along our heading."
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from furthest to the closest along our front direction."
             ],
             "params":[
                 "<id1>","<id2>","<id3>","<id4>"
@@ -218,7 +218,7 @@
         },
         "order_backmost": {
             "text":[
-                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from the closest to the furthest along our heading."
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from closest to the furthest along our front direction."
             ],
             "params":[
                 "<id1>","<id2>","<id3>","<id4>"
