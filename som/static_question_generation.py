@@ -11,6 +11,7 @@ from vqa.configs.NAMESPACE import NAMESPACE, POSITION2CHOICE
 import numpy as np
 from vqa.static_question_generator import NAMED_MAPPING
 from masking import labelframe, id2label, static_id2label
+from vqa.nusc_devkit_annotation import ALL_TYPE
 from vqa.static_question_generation import generate_all_frame
 import itertools
 from copy import deepcopy
@@ -18,6 +19,8 @@ import traceback
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
+
+TYPES_WITHOUT_HEADINGS=["Cone", "Barrier", "Warning", "TrafficLight", "Trailer"]
 
 DIRECTION_MAPPING = {
     "l": "to the left of",
@@ -103,12 +106,14 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
+
             selected_label = random.choice(non_ego_labels)
             # Fill the question template's <id...> with the chosen label.
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
             # Getting the answer from SceneGraph. In addition, grab extra information from the scene graph for explanation string.
             object = get(world, label2id[selected_label])
             color, type = object["color"], object["type"]
+            assert len(color)>0, "Empty string for color"
             # First, get a pool of sensible answers for the multiple-choice setup from the scenario. If no sufficient number
             # of options present, we grab from the answer space
             multiple_choice_options = create_options(graph.statistics["<p>"], 4, color, NAMESPACE["color"])
@@ -118,9 +123,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             }
             answer = answer2label[color]
             # Postpend the multiple-choice string.
-            question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
+            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             pos = ego_node.compute_relation_string(node=graph.get_node(object["id"]), ref_heading=ego_node.heading)
-
             type_str = NAMED_MAPPING[type]["singular"]
             explanation = f"The color of this {type_str} (<{selected_label}>) {DIRECTION_MAPPING[pos]} us is {color.lower()}."  #.format(, , , )
             ids_of_interest.append(label2id[selected_label])
@@ -130,23 +134,39 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
             type_space = [NAMED_MAPPING[obj]["singular"] for obj in NAMED_MAPPING.keys()]
+            #print(type_space)
             selected_label = random.choice(non_ego_labels)
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
             object = get(world, label2id[selected_label])
             color, type = object["color"], object["type"]
-            multiple_choice_options = create_options(graph.statistics["<t>"], 4, type, type_space)
+            #print(type)
+
+            options = [NAMED_MAPPING[type]["singular"] for type in graph.statistics["<t>"]]
+            #print(options)
+
+
+            multiple_choice_options = create_options(options, 4, type, type_space)
+            #print(multiple_choice_options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
             option2answer = {
                 val: key for key, val in answer2label.items()
             }
             for key, value in NAMED_MAPPING.items():
-                multiple_choice_string = multiple_choice_string.replace(key, value["singular"].capitalize())
-            question = " ".join([question, "Choose the best answer from: {}".format(multiple_choice_string)])
-            answer = answer2label[type]
+                multiple_choice_string = multiple_choice_string.replace(value["singular"], value["singular"].capitalize())
+            #print(multiple_choice_string)
+            #exit()
+            question = " ".join([question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
+            answer = answer2label[NAMED_MAPPING[type]["singular"]]
             pos = ego_node.compute_relation_string(node=graph.get_node(object["id"]), ref_heading=ego_node.heading)
-            explanation = "The type of this {} object(<{}>) {} of us is {}.".format(color.lower(), selected_label,
-                                                                                    DIRECTION_MAPPING[pos],
-                                                                                    NAMED_MAPPING[type]["singular"])
+
+
+
+            color_str= f" {color.lower()} " if len(color)>0 else " "
+            label_str= str(selected_label)
+            pos_str = DIRECTION_MAPPING[pos]
+            type_str = NAMED_MAPPING[type]["singular"]
+            explanation = f"The type of this{color_str}object(<{label_str}>) {pos_str} of us is {type_str}."
+
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_distance":
         non_ego_labels = [label for label in labels if label != -1]
@@ -174,9 +194,16 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 "A": "very close", "B": "close", "C": "medium", "D": "far"
             }
             pos = ego_node.compute_relation_string(node=graph.get_node(object.id), ref_heading=ego_node.heading)
-            explanation = "The {} {}(<{}>) is {} meters {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
-                                                                       selected_label, round(distance),
-                                                                       DIRECTION_MAPPING[pos])
+
+            color_str = f" {color.lower()} " if len(color) > 0 else " "
+            label_str = str(selected_label)
+            pos_str = DIRECTION_MAPPING[pos]
+            type_str = NAMED_MAPPING[type]["singular"]
+            explanation = f"The{color_str}{type_str}(<{label_str}>) is {round(distance)} meters {pos_str} us."
+
+            #explanation = "The {} {}(<{}>) is {} meters {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
+            #                                                           selected_label, round(distance),
+            #                                                           DIRECTION_MAPPING[pos])
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_position":
         non_ego_labels = [label for label in labels if label != -1]
@@ -203,8 +230,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_heading":
         non_ego_labels = [label for label in labels if
-                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                       "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in TYPES_WITHOUT_HEADINGS and label != -1]
         if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
@@ -286,8 +312,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     elif question_type == "predict_crash_ego_still":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
-                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                       "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in TYPES_WITHOUT_HEADINGS and label != -1]
         if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
@@ -327,8 +352,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     elif question_type == "predict_crash_ego_dynamic":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
-                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                       "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in TYPES_WITHOUT_HEADINGS and label != -1]
         if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
@@ -450,8 +474,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             ids_of_interest += [label2id[l] for l in list(selected_labels)]
     elif question_type == "relative_heading":
         non_ego_labels = [label for label in labels if
-                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                       "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in TYPES_WITHOUT_HEADINGS and label != -1]
         if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
@@ -492,8 +515,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     elif question_type == "relative_predict_crash_still":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
-                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                       "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in TYPES_WITHOUT_HEADINGS and label != -1]
         if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
@@ -537,8 +559,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     elif question_type == "relative_predict_crash_dynamic":
         #TODO examine the trajectories. via visualization
         non_ego_labels = [label for label in labels if
-                          graph.get_node(label2id[label]).type not in ["Cone", "Barrier", "Warning",
-                                                                       "TrafficLight"] and label != -1]
+                          graph.get_node(label2id[label]).type not in TYPES_WITHOUT_HEADINGS and label != -1]
         if len(non_ego_labels) < 2:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
@@ -1028,14 +1049,18 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 pos = ego_node.compute_relation_string(node=graph.get_node(object.id), ref_heading=ego_node.heading)
                 distance = discrete_dist(get_distance(object.pos, ego_node.pos))
                 heading = identify_heading(ego_node.pos, ego_node.heading)([[object]])[object.id]
-                if type not in ["Cone", "Barrier", "Warning", "TrafficLight"]:
+                if type not in TYPES_WITHOUT_HEADINGS:
                     description_string = "{} {} {} positioned in our {} sector at {} distance. It heads toward our {} o'clock direction".format(
-                        "A" if color[0] not in ["A", "E", "I", "O", "U"] else "An", color.lower(),
+                        ("A" if color[0] not in ["A", "E", "I", "O", "U"] else "An") if len(color) > 0
+                        else ("A" if NAMED_MAPPING[type]["singular"][0] not in ["a", "e", "i", "o", "u"] else "An"),
+                        color.lower(),
                         NAMED_MAPPING[type]["singular"], POSITION2CHOICE[pos], distance, heading
                     )
                 else:
                     description_string = "{} {} {} positioned in our {} sector at {} distance. Since it is {} {}, it doesn't have a heading".format(
-                        "A" if color[0] not in ["A", "E", "I", "O", "U"] else "An", color.lower(),
+                        ("A" if color[0] not in ["A", "E", "I", "O", "U"] else "An") if len(color) > 0
+                        else ("A" if NAMED_MAPPING[type]["singular"][0] not in ["a", "e", "i", "o", "u"] else "An"),
+                        color.lower(),
                         NAMED_MAPPING[type]["singular"],
                         POSITION2CHOICE[pos], distance,
                         "a" if NAMED_MAPPING[type]["singular"][0] not in ["a", "e", "i", "o", "u"] else "an",
@@ -1369,7 +1394,7 @@ def cfg_adapater(frame_path, question_type, perspective, verbose, id2label_path:
         print(id, record)
 
 
-def verify_grounding(frame_path, perspective, verbose, id2label_path: str = None):
+def verify_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False):
     identifier = os.path.basename(frame_path)
     world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
     world = json.load(open(world_path, "r"))
@@ -1394,7 +1419,7 @@ def verify_grounding(frame_path, perspective, verbose, id2label_path: str = None
             labelframe(
                 frame_path=frame_path, perspective="front", save_path=solo_labeled_path,
                 query_ids=[label2id[selected_label]], id2l=new_id2l,
-                font_scale=1.25, grounding=True
+                font_scale=1.25, grounding=True, bounding_box=box
             )
             multiple_choice_options = create_options(random_new_labels, 4, random_new_label, random_new_labels)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
@@ -1437,10 +1462,11 @@ import glob
 import tqdm
 
 
-def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0):
+def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0,
+                          box=False):
     frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
     template_path = os.path.join(current_directory, "questions_templates.json")
-    static_templates = json.load(open(template_path, "r"))["static"]
+    static_templates = TEMPLATES["static"]  #json.load(open(template_path, "r"))["static"]
     records = {}
     current_type = ""
     current_frame = ""
@@ -1464,7 +1490,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                 assert static_id2l is not None
                 labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path,
                            id2l=static_id2l,
-                           font_scale=1.25)
+                           font_scale=1.25, bounding_box=box)
             else:
                 raise Exception
                 if verbose:
@@ -1518,7 +1544,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
             assert new_id2label is not None
             labelframe(
                 frame_path=frame_path, perspective="front", save_path=new_labeled_path,
-                query_ids=list(queried_ids), id2l=new_id2label, font_scale=1.25
+                query_ids=list(queried_ids), id2l=new_id2label, font_scale=1.25, bounding_box=box
             )
             for qid, record in frame_records.items():
                 if record["type"] not in ["identify_closest", "identify_leftmost", "identify_rightmost",
@@ -1535,7 +1561,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                 records[qid + count] = record
             count += frame_id
             grounding_records = verify_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
-                                                 id2label_path=static_id2label_path)
+                                                 id2label_path=static_id2label_path, box=box)
             for g_id, record in grounding_records.items():
                 records[g_id + count] = record
             count += len(grounding_records)
@@ -1568,14 +1594,14 @@ import multiprocessing as multp
 
 
 def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False,
-                                 num_proc=1):
+                                 num_proc=1, box=False):
     def find_worlds(session_path):
         pattern = os.path.join(session_path, "**", "**", "world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
 
     world_paths = find_worlds(session_path)
-    world_paths = world_paths
+    world_paths = world_paths[:2]
     print(f"Working on {len(world_paths)} frames.")
     chunk_size = math.ceil(len(world_paths) / num_proc)
     job_chunks = split_list(world_paths, chunk_size)
@@ -1593,7 +1619,7 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
                 os.path.join(save_dir, name),
                 verbose,
                 perspective,
-                labeled, proc_id
+                labeled, proc_id, box
             )
         )
         print(f"Successfully sent {proc_id}")
@@ -1612,11 +1638,24 @@ if __name__ == "__main__":
     #obs = os.path.join(asset_path, "labeled_front_{}.png".format(os.path.basename(frame_path)))
     #batch_generate_static("/bigdata/weizhen/repo/qa_platform/public/test", verbose=False,
     #                      save_path="/bigdata/weizhen/repo/qa_platform/public/data_small.json", labeled=True)
+    NUSC = True
+    if NUSC:
+        #NAMED_MAPPING = {
+        #    val: dict(
+        #        singular=val,
+        #        plural=val
+        #    ) for val in ALL_TYPE.values()
+        #}
+        TEMPLATES["static"] = {
+            key: val for key, val in TEMPLATES["static"].items() if key not in ["identify_color"]
+        }
+
     multiprocess_generate_static(
-        session_path="/bigdata/weizhen/metavqa_iclr/scenarios/nusc_fixed_1200_75",
-        save_path="/data_weizhen/metavqa_cvpr/vqa/static_medium.json",
-        num_proc=32,
+        session_path="/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2",
+        save_path="/bigdata/weizhen/repo/qa_platform/public/real_eval2.json",
+        num_proc=1,
         labeled=False,
+        box=NUSC
     )
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
