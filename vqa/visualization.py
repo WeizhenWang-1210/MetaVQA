@@ -82,7 +82,7 @@ def create_video(frame_arrays, filename, fps=5):
     output_path = filename  # f'{filename}.mp4'
     writer = imageio.get_writer(output_path, fps=fps)
     for frame in frame_arrays:
-        writer.append_data(frame)
+        writer.append_data(frame[0])
     writer.close()
 
 
@@ -139,7 +139,7 @@ def visualize_session(root_dir):
     for content in contents:
         if os.path.isdir(os.path.join(root_dir, content)):
             # print(content)
-            perspectives = ["leftf", "front", "rightf", "leftb", "back", "rightb"]
+            perspectives = ["front"]#["leftf", "front", "rightf", "leftb", "back", "rightb"]
             imarrays = {
                 perspective: [] for perspective in perspectives
             }
@@ -155,7 +155,8 @@ def visualize_session(root_dir):
                 arrays = []
                 for perspective in perspectives:
                     arrays.append(imarrays[perspective][frame])
-                concatenated_arrays.append(gridify_imarrays(arrays))
+                #concatenated_arrays.append(gridify_imarrays(arrays))
+                concatenated_arrays.append(arrays)
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_rgb.mp4")
 
             for perspective in perspectives:
@@ -170,7 +171,8 @@ def visualize_session(root_dir):
                 arrays = []
                 for perspective in perspectives:
                     arrays.append(imarrays[perspective][frame])
-                concatenated_arrays.append(gridify_imarrays(arrays))
+                #concatenated_arrays.append(gridify_imarrays(arrays))
+                concatenated_arrays.append(arrays)
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_real.mp4", fps=2)
 
             for perspective in perspectives:
@@ -185,7 +187,8 @@ def visualize_session(root_dir):
                 arrays = []
                 for perspective in perspectives:
                     arrays.append(imarrays[perspective][frame])
-                concatenated_arrays.append(gridify_imarrays(arrays))
+                #concatenated_arrays.append(gridify_imarrays(arrays))
+                concatenated_arrays.append(arrays)
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_mask.mp4")
             
             
@@ -202,7 +205,8 @@ def visualize_session(root_dir):
                 arrays = []
                 for perspective in perspectives:
                     arrays.append(imarrays[perspective][frame])
-                concatenated_arrays.append(gridify_imarrays(arrays))
+                #concatenated_arrays.append(gridify_imarrays(arrays))
+                concatenated_arrays.append(arrays)
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_depth.mp4")
             
             for perspective in perspectives:
@@ -217,7 +221,8 @@ def visualize_session(root_dir):
                 arrays = []
                 for perspective in perspectives:
                     arrays.append(imarrays[perspective][frame])
-                concatenated_arrays.append(gridify_imarrays(arrays))
+                #concatenated_arrays.append(gridify_imarrays(arrays))
+                concatenated_arrays.append(arrays)
             create_video(concatenated_arrays, f"{root_dir}/{content}/episode_semantic.mp4")
             
 
@@ -333,7 +338,7 @@ if __name__ == "__main__":
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
     create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")"""
-    visualize_session("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes")
+    visualize_session("/bigdata/weizhen/metavqa_cvpr/scenarios/waymo_sim")
     #visualize_frames("C:/Users/arnoe/Downloads/nuscenes")
 
     #demo("C:/Users/arnoe/Downloads/QA_rgb/QA_rgb/ safety_obs")
