@@ -52,8 +52,11 @@ ALL_TYPE = {
     "vehicle.ego": "ego"
 }
 
-IGNORED_NUSC_TYPE=("noise", "human.pedestrian.personal_mobility", "movable_object.pushable_pullable", "movable_object.debris", "static_object.bicycle_rack","flat.driveable_surface","flat.sidewalk","flat.terrain","flat.other","static.manmade","static.vegetation","static.other")
-
+IGNORED_NUSC_TYPE = (
+    "noise", "human.pedestrian.personal_mobility", "movable_object.pushable_pullable", "movable_object.debris",
+    "static_object.bicycle_rack", "flat.driveable_surface", "flat.sidewalk", "flat.terrain", "flat.other",
+    "static.manmade",
+    "static.vegetation", "static.other")
 
 
 def normalize_point(shape, point):
@@ -67,6 +70,8 @@ def normalize_point(shape, point):
     elif point[1] > shape[1]:
         new_point[1] = shape[1]
     return tuple(new_point)
+
+
 def find_extremeties(points):
     xmin = np.min(points[:, 0])
     xmax = np.max(points[:, 0])
@@ -91,6 +96,7 @@ def create_mask(shape, points):
 
 
 import tqdm
+
 
 def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
     """
@@ -151,7 +157,7 @@ def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
     combined_image_pil = Image.fromarray(final_result.astype('uint8'))
 
     #further processing to account for observable pixels after occlusion.
-    areas, masks = find_areas(img=final_result.astype('uint8'), colors= [tuple(val) for val in color_mapping.values()])
+    areas, masks = find_areas(img=final_result.astype('uint8'), colors=[tuple(val) for val in color_mapping.values()])
     new_color_mapping = {}
     new_corners_mapping = {}
     for idx, (key, value) in enumerate(color_mapping.items()):
@@ -159,7 +165,7 @@ def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
             new_color_mapping[key] = value
             new_corners_mapping[key] = corners_mapping[key]
         else:
-            visibilities_copy[key] = False #key here is the old indices consistent in visibilities.
+            visibilities_copy[key] = False  #key here is the old indices consistent in visibilities.
 
     # fig, axes = plt.subplots(figsize=(1600 / 100, 900 / 100), dpi=100)
     # axes.imshow(combined_image_pil)
@@ -174,12 +180,15 @@ def traverse(nusc, start, steps):
         steps -= 1
     return cur_sample
 
-def job(job_range=[1,2], root="./", nusc=None, proc_id=0):
+
+def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
     if nusc is None:
         nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
     nusc_scenes = nusc.scene
     EGO_SHAPE = (1.730, 4.084, 1.562)
-    for scene_idx, nusc_scene in tqdm.tqdm(enumerate(nusc_scenes[job_range[0]:job_range[1]]), desc=f"Process-{proc_id}, {job_range[1]-job_range[0]} scenes in total", unit="scene"):
+    for scene_idx, nusc_scene in tqdm.tqdm(enumerate(nusc_scenes[job_range[0]:job_range[1]]),
+                                           desc=f"Process-{proc_id}, {job_range[1] - job_range[0]} scenes in total",
+                                           unit="scene"):
         frame_idx = 0  # zero-based index
         sample = nusc.get("sample", nusc_scene["first_sample_token"])
         assert sample is not None
@@ -189,7 +198,9 @@ def job(job_range=[1,2], root="./", nusc=None, proc_id=0):
         scene_name = nusc_scene["name"]
         scene_length = nusc_scene["nbr_samples"]
         #TODO create scene-consistent color mapping.
-        for frame_idx in tqdm.tqdm(range(scene_length), desc=f"Process-{proc_id}, annotating {scene_name} with {scene_length} frames", unit="frame"):#while frame_idx < nusc_scene["nbr_samples"]:
+        for frame_idx in tqdm.tqdm(range(scene_length),
+                                   desc=f"Process-{proc_id}, annotating {scene_name} with {scene_length} frames",
+                                   unit="frame"):  #while frame_idx < nusc_scene["nbr_samples"]:
             # Get CAM_FRONT data
             cam_front_sample_data = nusc.get("sample_data", sample["data"]["CAM_FRONT"])
             # Get the path to img, bboxes, and camera_instrinsics.
@@ -255,7 +266,7 @@ def job(job_range=[1,2], root="./", nusc=None, proc_id=0):
                 )
                 # The sample_annotation token for the visible(occlusion, observable pixels considered). objects
                 frame_data = {
-                    "ego": None, "objects": []
+                    "ego": None, "objects": [], "world": scene_name, "data_summary": scene_name
                 }
                 # print(instance_tokens)
                 # print(medium_visible_indices)
@@ -313,7 +324,9 @@ def job(job_range=[1,2], root="./", nusc=None, proc_id=0):
             sample = traverse(nusc, sample, 1)
             #frame_idx += 1
         episode_path = os.path.join(root, f"{scene_name}_0_{scene_length - 1}")
-        for frame_idx, records in tqdm.tqdm(frame_annotations.items(), desc=f"Process-{proc_id}, storing {len(frame_annotations)} annotations for {scene_name}", unit="point"):
+        for frame_idx, records in tqdm.tqdm(frame_annotations.items(),
+                                            desc=f"Process-{proc_id}, storing {len(frame_annotations)} annotations for {scene_name}",
+                                            unit="point"):
             identifier = f"{scene_idx}_{frame_idx}"
             #print(f"Saving for {identifier}")
             frame_path = os.path.join(episode_path, identifier)
@@ -333,26 +346,40 @@ def job(job_range=[1,2], root="./", nusc=None, proc_id=0):
                 raise e
         assert sample["token"] == nusc_scene["last_sample_token"]
 
+
 def split_ranges(start, end, chunk_size):
     result = []
     while start + chunk_size < end:
-        result.append([start, start+chunk_size])
+        result.append([start, start + chunk_size])
         start += chunk_size
-    result.append([start,end])
+    result.append([start, end])
     return result
 
+
 def main():
+    import argparse
     import multiprocessing as multp
-    job_range=[400,500] #head inclusive, tail exclusive
-    num_scenes = job_range[1]-job_range[0]
-    num_proc = 2
     import math
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--start", type=int, default=0, help="Inclusive starting index")
+    parser.add_argument("--end", type=int, default=800, help="Exclusive starting index")
+    parser.add_argument("--num_proc", type=int, default=2, help="Processes used to extract scenarios")
+    parser.add_argument("--store_dir", type=str, default="./", help="Root directory of stored episodes")
+    args = parser.parse_args()
+    print("Running with the following parameters")
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    job_range = [args.start, args.end]
+    num_scenes = args.end - args.start
+    num_proc = args.num_proc
     chunk_size = math.ceil(num_scenes / num_proc)
     print(f"Working on {num_scenes} frames with {num_proc} process(es), {chunk_size} MAX scenes per process")
     job_ranges = split_ranges(job_range[0], job_range[1], chunk_size)
-    assert len(job_ranges)==num_proc and job_ranges[0][0] == job_range[0] and job_ranges[-1][1] == job_range[1]
-    root = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real"
+    assert len(job_ranges) == num_proc and job_ranges[0][0] == job_range[0] and job_ranges[-1][1] == job_range[1]
+    root = args.store_dir
     nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
+    total_scenes = len(nusc.scene)
+    assert args.start >=0 and args.end <= num_scenes and num_scenes <= total_scenes, "Invalid range!"
     processes = []
     for proc_id in range(num_proc):
         print(f"Sending job {proc_id}")
@@ -361,7 +388,7 @@ def main():
             args=(
                 job_ranges[proc_id],
                 root,
-                nusc,
+                None,
                 proc_id
             )
         )
@@ -371,6 +398,7 @@ def main():
     for p in processes:
         p.join()
     print("All processes finished.")
+
 
 if __name__ == "__main__":
     main()
