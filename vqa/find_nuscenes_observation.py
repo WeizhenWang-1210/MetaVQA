@@ -29,11 +29,11 @@ import pickle
 
 PERSPECTIVE_MAPPING = {
     'CAM_FRONT': "front",
-    'CAM_FRONT_RIGHT': "rightf",
-    'CAM_FRONT_LEFT': "leftf",
-    'CAM_BACK': "back",
-    'CAM_BACK_LEFT': "leftb",
-    'CAM_BACK_RIGHT': "rightb"
+    #'CAM_FRONT_RIGHT': "rightf",
+    #'CAM_FRONT_LEFT': "leftf",
+    #'CAM_BACK': "back",
+    #'CAM_BACK_LEFT': "leftb",
+    #'CAM_BACK_RIGHT': "rightb"
 }
 
 
@@ -201,6 +201,8 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                 key_frame = (offset + total_steps) // 5
                 collection = {}
                 for perspective, paths in img_path_dict.items():
+                    if perspective not in PERSPECTIVE_MAPPING.keys():
+                        continue
                     path = paths[key_frame]
                     rgb = Image.open(path)
                     collection[PERSPECTIVE_MAPPING[perspective]] = rgb
