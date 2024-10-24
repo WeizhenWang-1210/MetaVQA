@@ -159,13 +159,15 @@ def find_areas(img: np.array, colors: List, mode="RGB"):
 import glob
 
 
-def id2label(episode_path: str, perspective: str = "front"):
+def id2label(episode_path: str, perspective: str = "front", overwrite=False):
     """
     Find all front-visible objects in the episode and provide them with unique labels(within the scope of this episode).
     :param perspective:
     :param episode_path: str. Path to an episode
     :return: None. Will write to the episode folder an "id2label.json" file.
     """
+    if os.path.exists(os.path.join(episode_path, "id2label_{}.json").format(perspective)) and not overwrite:
+        print("{} already exists!Use this one.".format(os.path.join(episode_path, "id2label_{}.json").format(perspective)))
     scene_graph_template = os.path.join(episode_path, "**/world**.json")
     scene_graphs = glob.glob(scene_graph_template)
     result = {}
@@ -217,6 +219,10 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     world = json.load(open(world))
     if id2l is None:
         id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
+    if bounding_box and id2corners is None:
+        id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
+
+
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
@@ -266,7 +272,7 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
                 start = (round(tl[1]), round(tl[0]))
                 w = round(tr[1] - bl[1])
                 h = round(bl[0] - tl[0])
-                print(f"Top Left{start}, width{w}, height{h}")
+                #print(f"Top Left{start}, width{w}, height{h}")
                 cv2.rectangle(base_img, start, (start[0] + w, start[1] + h), color, 2)
             else:
                 contours, _ = cv2.findContours((binary_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL,
@@ -319,12 +325,14 @@ def remask(frame_path):
 if __name__ == "__main__":
     frame_paths = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/**/**"
     frame_paths = glob.glob(frame_paths)
+    frame_paths = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/scene-0002_0_39/0_11"]
     for frame_path in frame_paths[:1]:
         print(frame_path)
-        identifier = os.path.basename(frame_path)
+        #identifier = os.path.basename(frame_path)
+        #id2label(os.path.dirname(frame_path), "front")
+        #id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
         id2label(os.path.dirname(frame_path), "front")
-        id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
-        labelframe(frame_path, "front", save_label=True, font_scale=1.25, bounding_box=True, id2corners=id2corners)
+        labelframe(frame_path, "front", save_label=True, font_scale=1.25, bounding_box=True)
 
     #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0002_0_1/0_0"
     #id2label(os.path.dirname(frame_path), "front")
