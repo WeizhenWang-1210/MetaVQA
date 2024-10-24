@@ -143,9 +143,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
 
             options = [NAMED_MAPPING[type]["singular"] for type in graph.statistics["<t>"]]
             #print(options)
-
-
-            multiple_choice_options = create_options(options, 4, type, type_space)
+            multiple_choice_options = create_options(options, 4, NAMED_MAPPING[type]["singular"], type_space)
             #print(multiple_choice_options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
             option2answer = {
@@ -1492,7 +1490,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                            id2l=static_id2l,
                            font_scale=1.25, bounding_box=box)
             else:
-                raise Exception
+                #raise Exception
                 if verbose:
                     print(f"Already have labelled version FOR {frame_path}")
                 static_id2l = json.load(open(static_id2label_path, "r"))
@@ -1509,7 +1507,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                         frame_records[frame_id] = dict(
                             question=question, answer=answer, explanation=explanation,
                             type=question_type, objects=ids_of_interest, world=[frame_path],
-                            obs=[static_labeled_path], option=option2answer
+                            obs=[static_labeled_path], options=option2answer
                         )
                         frame_id += 1
                         for id in ids_of_interest:
@@ -1535,7 +1533,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                             frame_records[frame_id] = dict(
                                 question=question, answer=answer, explanation=explanation,
                                 type=question_type, objects=ids_of_interest, world=[frame_path],
-                                obs=[static_labeled_path], option=option2answer
+                                obs=[static_labeled_path], options=option2answer
                             )
                             frame_id += 1
             new_id2label = {object_id: i for i, object_id in enumerate(queried_ids)}
@@ -1555,8 +1553,8 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                     }
                     record["question"] = replace_substrs(record["question"], old2new)
                     record["explanation"] = replace_substrs(record["explanation"], old2new)
-                    for opt in record["option"].keys():
-                        record["option"][opt] = replace_substrs(record["option"][opt], old2new)
+                    for opt in record["options"].keys():
+                        record["options"][opt] = replace_substrs(record["options"][opt], old2new)
                     record["obs"] = [new_labeled_path]
                 records[qid + count] = record
             count += frame_id
@@ -1568,6 +1566,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
     except Exception as e:
         print("Something Wrong! save partial results")
         print(f"Encountered issue at {current_frame},{current_type}")
+        print(e)
         var = traceback.format_exc()
         debug_path = os.path.join(
             os.path.dirname(save_path),
@@ -1601,7 +1600,7 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         return matching_frames
 
     world_paths = find_worlds(session_path)
-    world_paths = world_paths[:2]
+    world_paths = world_paths[::5]
     print(f"Working on {len(world_paths)} frames.")
     chunk_size = math.ceil(len(world_paths) / num_proc)
     job_chunks = split_list(world_paths, chunk_size)
@@ -1651,11 +1650,12 @@ if __name__ == "__main__":
         }
 
     multiprocess_generate_static(
-        session_path="/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2",
-        save_path="/bigdata/weizhen/repo/qa_platform/public/real_eval2.json",
+        session_path="/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real",
+        save_path="/home/weizhen/main_meta/test.json",
         num_proc=1,
-        labeled=False,
+        labeled=True,
         box=NUSC
     )
+    "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0596_0_40/26_17"
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
