@@ -133,7 +133,8 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
     print("I'm in the episode! Starting at env{}, step{}".format(env.current_seed, env.episode_step))
     total_steps = 0  # record how many steps have actually taken place in the current episode
     buffer = dict()  # Store all frame annotations for the current episode.
-    env_id = env.current_seed
+    env_id = ".".join(env.engine.data_manager.current_scenario_file_name.split(".")[:-1])  #env.current_seed
+    print(env_id)
     env_start = env.episode_step
     depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     while total_steps < episode_length:
@@ -244,7 +245,7 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
                 top_down: The top-down image in episode at specific step
                 wolrd: The annotation of this step in the episode. Utilized to create the scene graphs for dataset generation
     """
-
+    print(job_range)
     try:
         folder = os.path.join(IO_config["batch_folder"])
         os.makedirs(folder, exist_ok=True)
