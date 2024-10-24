@@ -1,9 +1,9 @@
 ---
-storage_path : "/bigdata/weizhen/metavqa_iclr/scenarios/test"
-sample_frequency: 1
-num_samples: 100
+storage_path : "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_fixed_1200_75"
+sample_frequency: 5
+num_samples: 10000
 max_iterations: 1000000000000000
 temporal_generation: True
-episode_length: 10
-skip_length: 25
+episode_length: 100
+skip_length: 20
 ...
