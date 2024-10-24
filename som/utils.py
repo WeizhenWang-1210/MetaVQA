@@ -50,7 +50,10 @@ def enumerate_episode_labels(episode_path: str, perspective: str = "front"):
         results[value] = key
     return results
 
+
 import re
+
+
 def parse_response(response):
     valid_choices = ["(A)", "(B)", "(C)", "(D)", "(a)", "(b)", "(c)", "(d)", " A", " B", ""]
     for valid_choice in valid_choices:
@@ -63,28 +66,36 @@ def parse_response(response):
             return f"({valid_answer})"
     return " "
 
+
 def create_black_obs(width=1920, height=1080):
     location = "/bigdata/weizhen/repo/qa_platform/public/black.png"
     from PIL import Image
     black_image = Image.new("RGB", (width, height), (0, 0, 0))
     black_image.save(location)
 
+
 def replace_obs(qa_records, obs):
-    for key,record in qa_records.items():
-        qa_records[key]["obs"]=obs
+    for key, record in qa_records.items():
+        qa_records[key]["obs"] = obs
     return qa_records
+
+
 import random
+
+
 def random_choice(qa_records):
-    options = ["(A)","(B)","(C)","(D)"]
+    options = ["(A)", "(B)", "(C)", "(D)"]
     for key, record in qa_records.items():
         if record["type"] in ["pick_closer"]:
             valid_options = options[:3]
-        elif record["type"] in ["predict_crash_ego_still", "predict_crash_ego_dynamic","relative_predict_crash_still","relative_predict_crash_dynamic"]:
+        elif record["type"] in ["predict_crash_ego_still", "predict_crash_ego_dynamic", "relative_predict_crash_still",
+                                "relative_predict_crash_dynamic"]:
             valid_options = options[:2]
         else:
             valid_options = options
         record["final_choice"] = random.choice(valid_options)
     return qa_records
+
 
 def merge_qas(qa_records):
     result = {}
@@ -93,7 +104,7 @@ def merge_qas(qa_records):
         local_idx = 0
         for record in qa_record.values():
             result[idx + local_idx] = record
-            local_idx+=1
+            local_idx += 1
         idx += local_idx
     return result
 
@@ -106,43 +117,215 @@ def accuracy_analysis(qa_records):
             statistics[record["type"]] = dict(
                 total=0, correct=0
             )
-        statistics[record["type"]]["total"]+=1
-        statistics[record["type"]]["correct"] += 1 if record["final_choice"].upper() == "({})".format(record["answer"]).upper() else 0
+        statistics[record["type"]]["total"] += 1
+        statistics[record["type"]]["correct"] += 1 if record["final_choice"].upper() == "({})".format(
+            record["answer"]).upper() else 0
     for type, stat in statistics.items():
-        stat["accuracy"] = stat["correct"]/stat["total"]
+        stat["accuracy"] = stat["correct"] / stat["total"]
         total += stat["total"]
         total_correct += stat["correct"]
     return statistics, total, total_correct
 
-import glob
-if __name__ == "__main__":
-    #old_qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_small.json", "r"))
-    #new_qa = replace_obs(old_qa, ["/bigdata/weizhen/repo/qa_platform/public/black.png"])
-    #new_qa = random_choice(old_qa)
-    #json.dump(
-    #    new_qa, open("/bigdata/weizhen/repo/qa_platform/public/data_small_random_result.json", "w"), indent=2
-    #)
+import re
+def analyze_dataset(qa_records):
+    def find_sdc_file(frame_path):
+        template = os.path.join(frame_path, "world**.json")
+        result = glob.glob(template)[0]
+        world_dict = json.load(open(result, "r"))
+        if "world" in world_dict.keys():
+            world = world_dict[["world"]]
+        else:
+            #pattern = r"^scene-\d{4}.*"
+            episode_path = os.path.basename(os.path.dirname(frame_path))
+            #match = re.match(pattern, episode_path)
+            #print(match)
+            world = episode_path[:10]#match
 
-    #old_qas = glob.glob("/bigdata/weizhen/repo/qa_platform/public/test/**_data_small.json")
-    #print(len(old_qas))
-    #old_qas = [json.load(open(old_qa,"r")) for old_qa in old_qas]
-    #new_qa = merge_qas(
-    #    old_qas
-    #)
-    #json.dump(new_qa, open("/bigdata/weizhen/repo/qa_platform/public/data_small.json", "w"), indent=2)
+        return world
 
-    qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_small_result_parsed.json", "r"))
-    stat_by_category, total, total_correct = accuracy_analysis(qa)
-
-    result = dict(
-        total_questions = total, total_correct = total_correct, stats = stat_by_category
+    statistics = dict(
+        total=0, question_dist=dict(), answer_dist=defaultdict(lambda: 0), total_frames=0, total_scenarios=0
     )
-    json.dump(result, open("/bigdata/weizhen/repo/qa_platform/public/data_small_result_pared_stat.json", "w"), indent=2)
+    frames, scenarios = set(), set()
+
+    for qid, record in qa_records.items():
+        frames.update(record["world"])
+        scenarios.add(find_sdc_file(record["world"][-1]))
+        statistics["total"] += 1
+        if record["type"] not in statistics["question_dist"].keys():
+            statistics["question_dist"][record["type"]] = dict(
+                count=0, answer_dist=defaultdict(lambda: 0)
+            )
+        statistics["question_dist"][record["type"]]["count"] += 1
+        statistics["question_dist"][record["type"]]["answer_dist"][record["answer"]] += 1
+        statistics["answer_dist"][record["answer"]] += 1
+    statistics["total_frames"] = len(frames)
+    statistics["total_scenarios"] = len(scenarios)
+    return statistics
 
 
+def create_split(qa_records, split_path, distributions=(0.8,0.2)):
+    import numpy as np
+    data = np.array(list(qa_records.keys()))
+    # Example data
+    # Step 1: Shuffle the data
+    np.random.shuffle(data)
+    # Step 2: Define proportions (e.g., 50%, 30%, 20%)
+    split_proportions = distributions
+    # Step 3: Convert proportions into lengths for each split
+    split_indices = np.cumsum([int(len(data) * p) for p in split_proportions])
+    # Step 4: Split the shuffled data
+    split_data = np.split(data, split_indices[:-1])
+    # Print each split
+    for i, subset in enumerate(split_data):
+        print(f"Subset {i + 1}: {len(subset)} items")
+    json.dump(
+        {
+            "train":list(split_data[0]),
+            "val":list(split_data[1])
+        },
+        open(split_path,"w"),
+    )
+
+
+
+import glob
+
+import shutil
+import os
+from concurrent.futures import ThreadPoolExecutor
+def copy_file(src, dest):
+    try:
+        shutil.copy2(src, dest)  # copy2 also preserves metadata like timestamps
+        print(f"Copied {src} to {dest}")
+    except Exception as e:
+        print(f"Error copying {src} to {dest}: {e}")
+
+# Function to perform parallel file copying
+def parallel_copy(mappings, num_threads=4):
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        # Create a list of tasks for copying files
+        tasks = [executor.submit(copy_file, src_path, dest_path) for src_path, dest_path in
+                 mappings]
+        # Optionally, wait for all tasks to complete and handle results
+        for task in tasks:
+            task.result()
+
+def export(qa_path, obs_directory, vqa_directory):
+    import tqdm
+    qa_records = json.load(open(qa_path, "r"))
+    obs_old2new = dict()
+    token_name = 0
+    transfer_tuples = []
+    #new_records = copy.deepcopy(qa_records)
+    for qid, record in tqdm.tqdm(qa_records.items(), desc="Refactoring obs", unit="vqa"):
+        old_ob_paths = record["obs"]
+        for old_ob_path in old_ob_paths:
+            if old_ob_path not in obs_old2new.keys():
+                new_ob_path = os.path.join(obs_directory, f"{token_name}.png")
+                #shutil.copy2(old_ob_path, new_ob_path)
+                relative_new_ob_path = os.path.relpath(new_ob_path, vqa_directory)
+                transfer_tuples.append((old_ob_path, new_ob_path))
+                obs_old2new[old_ob_path] = relative_new_ob_path
+                token_name += 1
+        record["obs"] = [obs_old2new[path] for path in old_ob_paths]
+    json.dump(obs_old2new, open(os.path.join(obs_directory, "old2new.json"), "w"))
+    json.dump(qa_records, open(os.path.join(vqa_directory, "data.json"), "w"))
+    parallel_copy(transfer_tuples)
+
+
+
+def split(path, split_path, train_path, val_path):
+    import json, os
+    #path = "/data_weizhen/metavqa_cvpr/static_medium_export/data.json"
+    base_dir = os.path.dirname(path)
+    #split_path = "/data_weizhen/metavqa_cvpr/vqa_merged/static_medium_split.json"
+    qas = json.load(open(path, "r"))
+    split = json.load(open(split_path, "r"))
+    print(len(split["train"]))
+    print(len(split["val"]))
+    #train_path = "/data_weizhen/metavqa_cvpr/static_medium_export/train.json"
+    #val_path = "/data_weizhen/metavqa_cvpr/static_medium_export/val.json"
+    train_qas, val_qas = dict(), dict()
+    local_idx = 0
+    def append_prefix(paths, prefix):
+        return [os.path.join(prefix, p) for p in paths]
+
+    for idx in split["train"]:
+        train_qas[local_idx] = qas[idx]
+        train_qas[local_idx]["obs"] = append_prefix(qas[idx]["obs"], base_dir)
+        local_idx += 1
+    local_idx = 0
+    for idx in split["val"]:
+        val_qas[local_idx] = qas[idx]
+        val_qas[local_idx]["obs"] = append_prefix(qas[idx]["obs"], base_dir)
+        local_idx += 1
+    #print(train_qas[0]["obs"])
+    json.dump(train_qas, open(train_path, "w"), indent=2)
+    json.dump(val_qas, open(val_path, "w"), indent=2)
+
+
+
+if __name__ == "__main__":
+    """
+    for real demo
+    data = json.load((open("/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json","r")))
+    create_split(data, "/bigdata/weizhen/repo/qa_platform/public/nusc_real/1_real_split.json", (0.96, 0.04))
+    split("/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json",
+          "/bigdata/weizhen/repo/qa_platform/public/nusc_real/1_real_split.json",
+          "/bigdata/weizhen/repo/qa_platform/public/1_real_train.json", "/bigdata/weizhen/repo/qa_platform/public/1_real_val.json"
+          )
+    """
+    """
+    for sim demo
+    data = json.load((open("/bigdata/weizhen/repo/qa_platform/public/0_static_medium.json","r")))
+    create_split(data, "/bigdata/weizhen/repo/qa_platform/public/0_static_medium_split.json", (0.98,0.02))
+    split("/bigdata/weizhen/repo/qa_platform/public/0_static_medium.json", "/bigdata/weizhen/repo/qa_platform/public/0_static_medium_split.json",
+          "/bigdata/weizhen/repo/qa_platform/public/0_train.json", "/bigdata/weizhen/repo/qa_platform/public/0_val.json"
+    )
+    """
+
+    #sample exporting
+    exit()
+    obs_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/obs"      #"/den/metavqa_cvpr/static_medium_expoata_weizhrt/obs"
+    vqa_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/"      #"/data_weizhen/metavqa_cvpr/static_medium_export"
+    export(qa_path="/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", obs_directory=obs_directory, vqa_directory=vqa_directory)
+    """
+    
+    exit()
+    old_qas = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json",
+               "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/2_real.json",
+               "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/3_real.json"]
+    print(len(old_qas))
+    old_qas = [json.load(open(old_qa, "r")) for old_qa in old_qas]
+    print(sum([len(qa) for qa in old_qas]))
+    new_qa = merge_qas(
+        old_qas
+    )
+    json.dump(new_qa, open("/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", "w"), indent=2)
+    json.dump(
+        analyze_dataset(new_qa), open("/bigdata/weizhen/metavqa_iclr/vqa/real/real_stats.json", "w"), indent=2
+    )
     exit()
 
-    response_path = "/bigdata/weizhen/repo/qa_platform/public/data_small_all_black_result.json"
+    #qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "r"))
+    #stat_by_category, total, total_correct = accuracy_analysis(qa)
+
+    #result = dict(
+    #    total_questions = total, total_correct = total_correct, stats = stat_by_category
+    #)
+    #answer = []
+    #for record in qa.values():
+    #    answer.append(record["answer"])
+    #print(";".join(answer))
+    #exit()
+    #json.dump(result, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed_stat.json", "w"),
+    #          indent=2)
+
+    """
+    """
+    #for parsing response    
+    response_path = "/bigdata/weizhen/repo/qa_platform/public/data_verification_result.json"
     import json
 
     responses = json.load(open(response_path, "r"))
@@ -150,8 +333,8 @@ if __name__ == "__main__":
         choice = parse_response(responses[qid]["model_response"])
         responses[qid]["final_choice"] = choice
     json.dump(
-        responses, open("/bigdata/weizhen/repo/qa_platform/public/data_small_all_black_result_parsed.json", "w"), indent=2
+        responses, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "w"), indent=2
     )
-
+    """
 
 
