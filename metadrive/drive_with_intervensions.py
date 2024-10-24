@@ -9,6 +9,7 @@ from metadrive.envs.scenario_env import ScenarioEnv
 from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy, InterventionPolicy
 from metadrive.scenario.parse_object_state import parse_object_state
+from metadrive.component.sensors.rgb_camera import RGBCamera
 import time
 
 RENDER_MESSAGE = {
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     print(HELP_MESSAGE)
     data_directory = "C:\school\Bolei\cat\cat"
     scenario_summary, scenes, _ = sd_utils.read_dataset_summary(data_directory)
+    im_buffer = {}
     try:
         env = ScenarioEnv(
             {
@@ -57,6 +59,9 @@ if __name__ == "__main__":
                 "data_directory": data_directory,
                 "num_scenarios": len(scenes),
                 "agent_policy": InterventionPolicy,
+                "sensors": dict(
+                    rgb=(RGBCamera, 1920, 1080)
+                )
             }
         )
         o, _ = env.reset()
