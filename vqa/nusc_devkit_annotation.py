@@ -19,26 +19,26 @@ from PIL import Image
 
 ALL_TYPE = {
     "noise": 'noise',
-    "human.pedestrian.adult": 'adult',
-    "human.pedestrian.child": 'child',
-    "human.pedestrian.wheelchair": 'wheelchair',
-    "human.pedestrian.stroller": 'stroller',
+    "human.pedestrian.adult": 'Pedestrian',
+    "human.pedestrian.child": 'Pedestrian',
+    "human.pedestrian.wheelchair": 'Wheelchair',
+    "human.pedestrian.stroller": 'Stroller',
     "human.pedestrian.personal_mobility": 'p.mobility',
-    "human.pedestrian.police_officer": 'police',
-    "human.pedestrian.construction_worker": 'worker',
-    "animal": 'animal',
-    "vehicle.car": 'car',
-    "vehicle.motorcycle": 'motorcycle',
-    "vehicle.bicycle": 'bicycle',
-    "vehicle.bus.bendy": 'bus.bendy',
-    "vehicle.bus.rigid": 'bus.rigid',
-    "vehicle.truck": 'truck',
-    "vehicle.construction": 'constr. veh',
-    "vehicle.emergency.ambulance": 'ambulance',
-    "vehicle.emergency.police": 'police car',
-    "vehicle.trailer": 'trailer',
-    "movable_object.barrier": 'barrier',
-    "movable_object.trafficcone": 'trafficcone',
+    "human.pedestrian.police_officer": 'Police_officer',
+    "human.pedestrian.construction_worker": 'Construction_worker',
+    "animal": 'Animal',
+    "vehicle.car": 'Car',
+    "vehicle.motorcycle": 'Motorcycle',
+    "vehicle.bicycle": 'Bike',
+    "vehicle.bus.bendy": 'Bus',
+    "vehicle.bus.rigid": 'Bus',
+    "vehicle.truck": 'Truck',
+    "vehicle.construction": 'Construction_vehicle',
+    "vehicle.emergency.ambulance": 'Ambulance',
+    "vehicle.emergency.police": 'Policecar',
+    "vehicle.trailer": 'Trailer',
+    "movable_object.barrier": 'Barrier',
+    "movable_object.trafficcone": 'Cone',
     "movable_object.pushable_pullable": 'push/pullable',
     "movable_object.debris": 'debris',
     "static_object.bicycle_rack": 'bicycle racks',
@@ -52,10 +52,8 @@ ALL_TYPE = {
     "vehicle.ego": "ego"
 }
 
-METAVQA_TYPE={
+IGNORED_NUSC_TYPE=("noise", "human.pedestrian.personal_mobility", "movable_object.pushable_pullable", "movable_object.debris", "static_object.bicycle_rack","flat.driveable_surface","flat.sidewalk","flat.terrain","flat.other","static.manmade","static.vegetation","static.other")
 
-
-}
 
 
 def normalize_point(shape, point):
@@ -92,7 +90,7 @@ def create_mask(shape, points):
     return mask, normalized_area
 
 
-
+import tqdm
 
 def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
     """
@@ -176,21 +174,22 @@ def traverse(nusc, start, steps):
         steps -= 1
     return cur_sample
 
-
-def main():
-    ROOT = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2"
-    nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
+def job(job_range=[1,2], root="./", nusc=None, proc_id=0):
+    if nusc is None:
+        nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
     nusc_scenes = nusc.scene
     EGO_SHAPE = (1.730, 4.084, 1.562)
-    for scene_idx, nusc_scene in enumerate(nusc_scenes[1:2]):
+    for scene_idx, nusc_scene in tqdm.tqdm(enumerate(nusc_scenes[job_range[0]:job_range[1]]), desc=f"Process-{proc_id}, {job_range[1]-job_range[0]} scenes in total", unit="scene"):
         frame_idx = 0  # zero-based index
         sample = nusc.get("sample", nusc_scene["first_sample_token"])
+        assert sample is not None
         nbr_samples = nusc_scene["nbr_samples"]
         print(f"Total of {nbr_samples} frames in scene-{scene_idx}")
         frame_annotations = {}
         scene_name = nusc_scene["name"]
+        scene_length = nusc_scene["nbr_samples"]
         #TODO create scene-consistent color mapping.
-        while frame_idx < nusc_scene["nbr_samples"]:
+        for frame_idx in tqdm.tqdm(range(scene_length), desc=f"Process-{proc_id}, annotating {scene_name} with {scene_length} frames", unit="frame"):#while frame_idx < nusc_scene["nbr_samples"]:
             # Get CAM_FRONT data
             cam_front_sample_data = nusc.get("sample_data", sample["data"]["CAM_FRONT"])
             # Get the path to img, bboxes, and camera_instrinsics.
@@ -261,11 +260,10 @@ def main():
                 # print(instance_tokens)
                 # print(medium_visible_indices)
                 # print(final_visible_indices)
-                print(f"{frame_idx}:{len(instance_rotations)}")
+                # print(f"{frame_idx}:{len(instance_rotations)}")
                 for idx, visible_flag in enumerate(final_visible_indices):
-                    if not visible_flag:
+                    if not visible_flag or instance_types[idx] in IGNORED_NUSC_TYPE:
                         continue
-                    print(idx)
                     yaw = quaternion_yaw(Quaternion(instance_rotations[idx]))
                     data_point = dict(
                         id=instance_tokens[idx],
@@ -276,7 +274,7 @@ def main():
                         bbox=visible_boxes_world_bottom[idx].tolist(),
                         type=ALL_TYPE[instance_types[idx]],
                         height=sample_annotations[idx]["size"][2],
-                        class_name=ALL_TYPE[instance_types[idx]],
+                        class_name=instance_types[idx],
                         visible=True,
                         observing_camera=["front"],
                         collisions=[],
@@ -292,7 +290,7 @@ def main():
                     bbox=ego_box_world_bottom.tolist(),
                     type=ALL_TYPE["vehicle.ego"],
                     height=EGO_SHAPE[2],
-                    class_name=ALL_TYPE["vehicle.ego"],
+                    class_name="vehicle.ego",
                     visible=False,
                     observing_camera=[],
                     collisions=[]
@@ -311,13 +309,13 @@ def main():
                     rgb=Image.open(data_path),
                     id2corners=id2corners
                 )
-            print(f"Done {frame_idx} or {scene_name}")
+            #print(f"Done {frame_idx} for {scene_name}")
             sample = traverse(nusc, sample, 1)
-            frame_idx += 1
-        episode_path = os.path.join(ROOT, f"{scene_name}_0_{frame_idx - 1}")
-        for frame_idx, records in frame_annotations.items():
+            #frame_idx += 1
+        episode_path = os.path.join(root, f"{scene_name}_0_{scene_length - 1}")
+        for frame_idx, records in tqdm.tqdm(frame_annotations.items(), desc=f"Process-{proc_id}, storing {len(frame_annotations)} annotations for {scene_name}", unit="point"):
             identifier = f"{scene_idx}_{frame_idx}"
-            print(f"Saving for {identifier}")
+            #print(f"Saving for {identifier}")
             frame_path = os.path.join(episode_path, identifier)
             os.makedirs(frame_path, exist_ok=True)
             id2c_path = os.path.join(frame_path, f"id2c_{identifier}.json")
@@ -335,6 +333,44 @@ def main():
                 raise e
         assert sample["token"] == nusc_scene["last_sample_token"]
 
+def split_ranges(start, end, chunk_size):
+    result = []
+    while start + chunk_size < end:
+        result.append([start, start+chunk_size])
+        start += chunk_size
+    result.append([start,end])
+    return result
+
+def main():
+    import multiprocessing as multp
+    job_range=[400,500] #head inclusive, tail exclusive
+    num_scenes = job_range[1]-job_range[0]
+    num_proc = 2
+    import math
+    chunk_size = math.ceil(num_scenes / num_proc)
+    print(f"Working on {num_scenes} frames with {num_proc} process(es), {chunk_size} MAX scenes per process")
+    job_ranges = split_ranges(job_range[0], job_range[1], chunk_size)
+    assert len(job_ranges)==num_proc and job_ranges[0][0] == job_range[0] and job_ranges[-1][1] == job_range[1]
+    root = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real"
+    nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
+    processes = []
+    for proc_id in range(num_proc):
+        print(f"Sending job {proc_id}")
+        p = multp.Process(
+            target=job,
+            args=(
+                job_ranges[proc_id],
+                root,
+                nusc,
+                proc_id
+            )
+        )
+        print(f"Successfully sent {proc_id}")
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+    print("All processes finished.")
 
 if __name__ == "__main__":
     main()
