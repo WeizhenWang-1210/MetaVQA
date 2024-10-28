@@ -70,7 +70,7 @@ def find_center(bitmask):
             # Create a "hollowed rectangle" shape around the bounding box.
             x, y, w, h = cv2.boundingRect(cnt)
             image = np.zeros((bitmask_255.shape[0], bitmask_255.shape[1], 3))
-            cv2.rectangle(image, (x - 10, y - 10), (x + w + 10, y + h + 10), (255, 255, 255), thickness=-1)
+            cv2.rectangle(image, (x - 20, y - 20), (x + w + 20, y + h + 20), (255, 255, 255), thickness=-1)
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 0), thickness=-1)
             bitmask_free = np.all(image == [255, 255, 255], axis=-1).astype(np.uint8)
             #cv2.imwrite("regions.png", bitmask_free * 255)
@@ -82,14 +82,15 @@ def find_center(bitmask):
     return center, contours
 
 
-def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75):
+def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75, background_color=None):
     """
     Put <text> in <image> centered at <center> in <color>
     :param image: (H, W, C) numpy array
     :param text: str
     :param center: tuple(int, int)
-    :param color: tuple(int, int, int)
+    :param color: tuple(int, int, int). in int space
     :param font_scale: flaot.
+    :param background_color:tuple(int, int,int). in int space
     :return: None. Modify <image> in-place.
     """
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -101,7 +102,8 @@ def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75):
     x, y = center
     top_left = (x + text_width, y - text_height)
     # Set the background color (e.g., white) and text color (e.g., black)
-    background_color = contrastive_background(color)  # White
+    if not background_color:
+        background_color = contrastive_background(color)
     text_color = color  # Black
     # Draw the filled rectangle (background) around the text
     cv2.rectangle(image, center, top_left, background_color, thickness=-1)
@@ -219,10 +221,8 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     world = json.load(open(world))
     if id2l is None:
         id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
-    if bounding_box and id2corners is None:
+    if bounding_box and id2corners is not None:
         id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
-
-
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
@@ -277,12 +277,21 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
             else:
                 contours, _ = cv2.findContours((binary_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL,
                                                cv2.CHAIN_APPROX_SIMPLE)
+                tlxs = []
+                tlys = []
+                brxs = []
+                brys = []
                 for contour in contours:
                     # Get the tight bounding rectangle around the contour
                     x, y, w, h = cv2.boundingRect(contour)
+                    tlxs.append(x)
+                    tlys.append(y)
+                    brxs.append(x + w)
+                    brys.append(y + h)
                     # Draw the bounding box on the original mask or another image
                     # For example, create a copy of the mask to visualize
-                    cv2.rectangle(base_img, (x, y), (x + w, y + h), color, 2)  # Draw green bounding box
+                cv2.rectangle(base_img, (min(tlxs), min(tlys)), (max(brxs), max(brys)), color,
+                              2)  # Draw green bounding box
         else:
             cv2.drawContours(base_img, contour_list[i], -1, color, 2)
 
@@ -299,6 +308,116 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
         if save_label:
             cv2.imwrite(os.path.join(frame_path, "label_{}_{}.png".format(perspective, identifier)), canvas)
 
+
+def grounding_labelframe(ground_id:str, frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False,
+               query_ids: list = None, id2l: dict = None, font_scale: float = 0.75, id2c: dict = None,
+               grounding: bool = False, bounding_box: bool = False, id2corners: dict = None, masking:bool=False, background_color=None):
+    """
+    :param frame_path:
+    :param perspective: choose from "front"|"leftf"|"leftb"|"rightf"|"rightb"|"back"
+    :param save_path:
+    :return:
+    """
+    episode_path = os.path.dirname(frame_path)
+    identifier = os.path.basename(frame_path)
+    world = os.path.join(frame_path, "world_{}.json".format(identifier))
+    if id2c is None:
+        id2c = json.load(open(os.path.join(frame_path, "id2c_{}.json".format(identifier)), 'r'))
+    instance_seg = os.path.join(frame_path, "mask_{}_{}.png".format(perspective, identifier))
+    base_img = os.path.join(frame_path, "rgb_{}_{}.png".format(perspective, identifier))
+    world = json.load(open(world))
+    if id2l is None:
+        id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
+    if bounding_box and id2corners is not None:
+        id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
+    mask_img = cv2.imread(instance_seg)
+    mask = np.array(mask_img)
+    base_img = np.array(cv2.imread(base_img))
+    canvas = np.zeros_like(base_img)
+    if query_ids is None:
+        query_ids = []
+        for obj in world["objects"]:
+            if perspective in obj["observing_camera"] and get_distance(obj["pos"],
+                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
+                query_ids.append(obj["id"])
+    colors = [id2c[query_id] for query_id in query_ids]
+    colors = [(round(color[0] * 255, 0), round(color[1] * 255, 0), round(color[2] * 255, 0)) for color in colors]
+    areas, binary_masks = find_areas(mask, colors, "BGR")
+    tuples = [(query_id, color, area, binary_mask)
+              for query_id, color, area, binary_mask
+              in zip(query_ids, colors, areas, binary_masks)]
+    area_ascending = sorted(tuples, key=lambda x: x[2])
+    center_list, contour_list = [], []
+
+    text_boxes = np.zeros_like(base_img)
+    #ego_text = np.zeros_like(base_img)
+
+    for i in range(len(area_ascending)):
+        query_id, color, area, binary_mask = area_ascending[i]
+        legal_mask = binary_mask
+        for j in range(i):
+            legal_mask = np.logical_and(legal_mask, ~area_ascending[j][3])
+            occupied_text = np.all(text_boxes == [255, 255, 255], axis=-1)
+            legal_mask = np.logical_and(legal_mask, ~occupied_text)
+        center, contours = find_center(legal_mask)
+        center_list.append(center)
+        contour_list.append(contours)
+        text_boxes = put_rectangle(text_boxes, str(id2l[query_id]), center, font_scale)
+        #if query_id == ground_id:
+        #    ego_text = put_rectangle(ego_text, str[id2l[query_id]], center, font_scale)
+        if save_label:
+            put_text(canvas, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1], font_scale=font_scale, background_color=background_color)
+
+    for i in range(len(area_ascending)):
+        query_id, color, area, binary_mask = area_ascending[i]
+        if query_id != ground_id:
+            continue
+        if grounding:
+            color = (255, 255, 255)
+        if bounding_box:
+            if id2corners is not None:
+                tl, bl, br, tr = id2corners[query_id]
+                start = (round(tl[1]), round(tl[0]))
+                w = round(tr[1] - bl[1])
+                h = round(bl[0] - tl[0])
+                #print(f"Top Left{start}, width{w}, height{h}")
+                cv2.rectangle(base_img, start, (start[0] + w, start[1] + h), color, 2)
+            else:
+                contours, _ = cv2.findContours((binary_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                tlxs = []
+                tlys = []
+                brxs = []
+                brys = []
+                for contour in contours:
+                    # Get the tight bounding rectangle around the contour
+                    x, y, w, h = cv2.boundingRect(contour)
+                    tlxs.append(x)
+                    tlys.append(y)
+                    brxs.append(x+w)
+                    brys.append(y+h)
+                    # Draw the bounding box on the original mask or another image
+                    # For example, create a copy of the mask to visualize
+                cv2.rectangle(base_img, (min(tlxs), min(tlys)), (max(brxs), max(brys)), color, 2)  # Draw green bounding box
+        elif masking:
+            colored_mask = base_img.copy()
+            colored_mask[binary_mask == True] = color
+            alpha = 0.75 # Transparency factor
+            base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
+        else:
+            cv2.drawContours(base_img, contour_list[i], -1, color, 2)
+
+    for i in range(len(area_ascending)):
+        query_id, color, area, binary_mask = area_ascending[i]
+
+
+        put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale, background_color=background_color)
+
+    if save_path is not None:
+        cv2.imwrite(save_path, base_img)
+    else:
+        cv2.imwrite(os.path.join(frame_path, "labeled_{}_{}.png".format(perspective, identifier)), base_img)
+        if save_label:
+            cv2.imwrite(os.path.join(frame_path, "label_{}_{}.png".format(perspective, identifier)), canvas)
 
 def label_transfer(nusc_img_path, label_img_path):
     from PIL import Image

@@ -1,9 +1,6 @@
-import copy
 import json
 import os.path
 from collections import defaultdict
-
-import numpy as np
 
 
 def get(world, target_id):
@@ -49,9 +46,6 @@ def enumerate_episode_labels(episode_path: str, perspective: str = "front"):
     for key, value in id2label.items():
         results[value] = key
     return results
-
-
-import re
 
 
 def parse_response(response):
@@ -126,14 +120,14 @@ def accuracy_analysis(qa_records):
         total_correct += stat["correct"]
     return statistics, total, total_correct
 
-import re
+
 def analyze_dataset(qa_records):
     def find_sdc_file(frame_path):
         template = os.path.join(frame_path, "world**.json")
         result = glob.glob(template)[0]
         world_dict = json.load(open(result, "r"))
         if "world" in world_dict.keys():
-            world = world_dict[["world"]]
+            world = world_dict["world"]
         else:
             #pattern = r"^scene-\d{4}.*"
             episode_path = os.path.basename(os.path.dirname(frame_path))
@@ -284,6 +278,17 @@ if __name__ == "__main__":
           "/bigdata/weizhen/repo/qa_platform/public/0_train.json", "/bigdata/weizhen/repo/qa_platform/public/0_val.json"
     )
     """
+    qas = glob.glob("/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/*_grounding_ablation.json")
+    qas = [json.load(open(path)) for path in qas]
+    merged_qa = merge_qas(qas)
+    json.dump(merged_qa, open("/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation.json","w"), indent=2)
+    json.dump(
+        analyze_dataset(merged_qa), open("/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation_stats.json", "w"), indent=2
+    )
+    obs_directory = "/bigdata/weizhen/metavqa_cvpr/exports/grounding_ablations/obs"  # "/den/metavqa_cvpr/static_medium_expoata_weizhrt/obs"
+    vqa_directory = "/bigdata/weizhen/metavqa_cvpr/exports/grounding_ablations"  # "/data_weizhen/metavqa_cvpr/static_medium_export"
+    export(qa_path="/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation.json", obs_directory=obs_directory,
+           vqa_directory=vqa_directory)
 
     #sample exporting
     exit()
@@ -291,7 +296,6 @@ if __name__ == "__main__":
     vqa_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/"      #"/data_weizhen/metavqa_cvpr/static_medium_export"
     export(qa_path="/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", obs_directory=obs_directory, vqa_directory=vqa_directory)
     """
-    
     exit()
     old_qas = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json",
                "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/2_real.json",
