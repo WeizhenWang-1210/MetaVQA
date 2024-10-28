@@ -1,3 +1,5 @@
+from som.grounding_question import generate_grounding, grounding_ablations, SETTINGS
+from som.qa_utils import create_options, create_multiple_choice, split_list
 from som.utils import enumerate_frame_labels, get, fill_in_label
 import os
 import json
@@ -10,18 +12,20 @@ from vqa.dataset_utils import transform_heading
 from vqa.configs.NAMESPACE import NAMESPACE, POSITION2CHOICE
 import numpy as np
 from vqa.static_question_generator import NAMED_MAPPING
-from masking import labelframe, id2label, static_id2label
-from vqa.nusc_devkit_annotation import ALL_TYPE
+from masking import labelframe, static_id2label
 from vqa.static_question_generation import generate_all_frame
 import itertools
 from copy import deepcopy
 import traceback
+import glob
+import tqdm
+from collections import defaultdict
+import math
+import multiprocessing as multp
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
-
 TYPES_WITHOUT_HEADINGS=["Cone", "Barrier", "Warning", "TrafficLight", "Trailer"]
-
 DIRECTION_MAPPING = {
     "l": "to the left of",
     "r": "to the right of",
@@ -35,31 +39,10 @@ DIRECTION_MAPPING = {
 }
 
 
+
+
+
 #TODO refactor this ugly code.
-def create_options(present_values, num_options, answer, namespace, transform=None):
-    if len(present_values) < num_options:
-        space = set(namespace)
-        result = set(present_values)
-        diff = space.difference(result)
-        choice = np.random.choice(np.array(list(diff)), size=num_options - len(present_values), replace=False)
-        result = list(result) + list(choice)
-    elif len(present_values) == num_options:
-        result = present_values
-    else:
-        answer = {answer}
-        space = set(present_values)
-        diff = space.difference(answer)
-        choice = np.random.choice(np.array(list(diff)), size=num_options - 1, replace=False)
-        result = list(answer) + list(choice)
-    if transform:
-        if callable(transform):
-            result = [transform(o) for o in result]
-        elif isinstance(transform, dict):
-            result = [transform[o] for o in result]
-    #paired_list = list(enumerate(result))
-    np.random.shuffle(result)
-    #shuffled_list = [element for _, element in paired_list]
-    return result  #, {answer: index for index, answer in paired_list}
 
 
 def find_label(obj_id, label2id):
@@ -67,19 +50,6 @@ def find_label(obj_id, label2id):
         if id == obj_id:
             return label
     return None
-
-
-def create_multiple_choice(options):
-    assert len(options) < 26, "no enough alphabetic character"
-    result = []
-    answer_to_choice = {}
-    for idx, option in enumerate(options):
-        label = chr(idx + 64 + 1)
-        result.append(
-            "({}) {}".format(label, option)
-        )
-        answer_to_choice[option] = label
-    return "; ".join(result) + ".", answer_to_choice
 
 
 def generate(frame_path: str, question_type: str, perspective: str = "front", verbose: bool = False,
@@ -106,7 +76,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
         if len(non_ego_labels) < 1:
             print(f"Not enough items in the scene. Skip generating {question_type} for {frame_path}")
         else:
-
             selected_label = random.choice(non_ego_labels)
             # Fill the question template's <id...> with the chosen label.
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
@@ -1076,8 +1045,6 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
     return question, answer, explanation, ids_of_interest, option2answer
 
 
-from collections import defaultdict
-
 
 def parameterized_generate(frame_path, question_type, param, perspective="front", verbose=True,
                            id2label_path: str = None):
@@ -1392,74 +1359,6 @@ def cfg_adapater(frame_path, question_type, perspective, verbose, id2label_path:
         print(id, record)
 
 
-def verify_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False):
-    identifier = os.path.basename(frame_path)
-    world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
-    world = json.load(open(world_path, "r"))
-    label2id, invalid_ids = enumerate_frame_labels(frame_path, perspective, id2label_path)
-    labels = list(label2id.keys())
-    non_ego_labels = [label for label in labels if label != -1]
-    records = {}
-    if len(non_ego_labels) < 0:
-        print("Too few objects for grounding")
-    else:
-        randomly_selected_labels = random.sample(non_ego_labels, min(len(non_ego_labels), 4))
-        idx = 0
-        for selected_label in tqdm.tqdm(randomly_selected_labels, desc="Generating Grounding Question",
-                                        unit="question"):
-            solo_labeled_path = os.path.join(frame_path, f"label_{selected_label}_{perspective}_{identifier}.png")
-            random_new_labels = list(np.random.choice(20, size=4, replace=False))
-            random_new_labels = [int(item) for item in random_new_labels]
-            random_new_label = random_new_labels[0]
-
-            new_id2l = {label2id[selected_label]: random_new_label}
-            assert new_id2l is not None
-            labelframe(
-                frame_path=frame_path, perspective="front", save_path=solo_labeled_path,
-                query_ids=[label2id[selected_label]], id2l=new_id2l,
-                font_scale=1.25, grounding=True, bounding_box=box
-            )
-            multiple_choice_options = create_options(random_new_labels, 4, random_new_label, random_new_labels)
-            multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
-            option2answer = {
-                val: key for key, val in answer2label.items()
-            }
-            answer = answer2label[random_new_label]
-            question = f"What is the numerical label of the white-contoured object? Choose the best answer from option (A) through (D): {multiple_choice_string}"
-            explanation = ""
-            records[idx] = dict(
-                question=question, answer=answer, explanation=explanation, type="grounding", objects=[],
-                world=[frame_path], obs=[solo_labeled_path], options=option2answer
-            )
-            idx += 1
-    return records
-
-
-import re
-
-
-def replace_substrs(original_string, mapping):
-    # Define the pattern to match <n> where n is an integer
-    pattern = r'<(\d+)>'
-
-    # Function to use for substitution
-    def replacer(match):
-        # Extract the number n from <n>
-        n = int(match.group(1))
-        # Check if n is in the mapping and replace with its mapped value
-        return f"<{str(mapping.get(n, match.group(0)))}>"
-
-    # Substitute using re.sub with the replacer function
-    replaced_string = re.sub(pattern, replacer, original_string)
-
-    return replaced_string
-
-
-import glob
-
-import tqdm
-
-
 def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0,
                           box=False):
     frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
@@ -1558,10 +1457,70 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                     record["obs"] = [new_labeled_path]
                 records[qid + count] = record
             count += frame_id
-            grounding_records = verify_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
+            grounding_records = generate_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
                                                  id2label_path=static_id2label_path, box=box)
             for g_id, record in grounding_records.items():
                 records[g_id + count] = record
+            count += len(grounding_records)
+
+    except Exception as e:
+        print("Something Wrong! save partial results")
+        print(f"Encountered issue at {current_frame},{current_type}")
+        print(e)
+        var = traceback.format_exc()
+        debug_path = os.path.join(
+            os.path.dirname(save_path),
+            f"{proc_id}_debug.json"
+        )
+        json.dump(
+            {"proc_id": proc_id, "end_frame": current_frame, "end_quetion": current_type, "error": str(e),
+             "generated": len(records), "trace": str(var)},
+            open(debug_path, "w"),
+            indent=2
+        )
+        raise (e)
+    finally:
+        json.dump(records, open(save_path, "w"), indent=2)
+
+
+
+def batch_generate_grounding_ablation(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0,
+                          box=False, domain="sim"):
+    frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
+    records = {}
+    current_type = "grounding"
+    current_frame = ""
+    try:
+        count = 0
+        for frame_path in tqdm.tqdm(frame_paths, desc=f"Processing {proc_id}", unit="frame"):
+            current_frame = frame_path
+            identifier = os.path.basename(frame_path)
+            static_id2label_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
+            static_labeled_path = os.path.join(frame_path, f"static_labeled_{perspective}_{identifier}.png")
+            if not labeled or not os.path.exists(static_labeled_path):
+                if verbose:
+                    print(f"Creating single-frame-consistent labelling for {frame_path}")
+                result = static_id2label(frame_path, perspective)
+                static_id2l = result  #json.load(open(static_id2label_path, "r"))
+                if static_id2l is None:
+                    print("why>>>???")
+                assert static_id2l is not None
+                labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path,
+                           id2l=static_id2l,
+                           font_scale=1.25, bounding_box=box)
+            else:
+                if verbose:
+                    print(f"Already have labelled version FOR {frame_path}")
+                static_id2l = json.load(open(static_id2label_path, "r"))
+                assert static_id2l is not None
+            grounding_records = grounding_ablations(
+                frame_path=frame_path, perspective=perspective, verbose=verbose,
+                id2label_path=static_id2label_path, configs=SETTINGS)
+            for g_id, record in grounding_records.items():
+                records[g_id + count] = record
+                records[g_id + count]["group"] = count
+                records[g_id + count]["variant"] = g_id
+                records[g_id + count]["domain"] = domain
             count += len(grounding_records)
     except Exception as e:
         print("Something Wrong! save partial results")
@@ -1583,28 +1542,19 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
         json.dump(records, open(save_path, "w"), indent=2)
 
 
-def split_list(lst, chunk_size):
-    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
-
-
-import math
-
-import multiprocessing as multp
-
-
 def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False,
-                                 num_proc=1, box=False):
+                                 num_proc=1, box=False, domain="sim"):
     def find_worlds(session_path):
+        print("Searching")
         pattern = os.path.join(session_path, "**", "**", "world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
-
+    print(session_path)
     world_paths = find_worlds(session_path)
-    world_paths = world_paths[::5]
+    world_paths = world_paths[::10][:1000]#["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0507_0_40/23_8/world_23_8.json"]
     print(f"Working on {len(world_paths)} frames.")
-    chunk_size = math.ceil(len(world_paths) / num_proc)
-    job_chunks = split_list(world_paths, chunk_size)
-    print(f"{len(world_paths)} frames distributed across {num_proc} processes, {chunk_size} MAX each process")
+    job_chunks = split_list(world_paths, num_proc)
+    print(f"{len(world_paths)} frames distributed across {num_proc} processes, {math.ceil(len(world_paths)/num_proc)} MAX each process")
     processes = []
     name_root = os.path.basename(save_path)
     save_dir = os.path.dirname(save_path)
@@ -1612,13 +1562,13 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         print(f"Sending job {proc_id}")
         name = f"{proc_id}_{name_root}"
         p = multp.Process(
-            target=batch_generate_static,
+            target=batch_generate_grounding_ablation, #batch_generate_static,
             args=(
                 job_chunks[proc_id],
                 os.path.join(save_dir, name),
                 verbose,
                 perspective,
-                labeled, proc_id, box
+                labeled, proc_id, box, domain
             )
         )
         print(f"Successfully sent {proc_id}")
@@ -1650,12 +1600,12 @@ if __name__ == "__main__":
         }
 
     multiprocess_generate_static(
-        session_path="/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real",
-        save_path="/home/weizhen/main_meta/test.json",
-        num_proc=1,
+        session_path="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim",
+        save_path="/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation.json",
+        num_proc=16,
         labeled=True,
         box=NUSC
     )
-    "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0596_0_40/26_17"
+    #"/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0596_0_40/26_17"
     #generate(frame_path, "describe_scenario", "front", verbose=True)
     #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
