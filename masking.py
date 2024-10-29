@@ -41,7 +41,7 @@ def contrastive_background(rgb):
     # Calculate the Y value
     Y = 0.299 * R + 0.587 * G + 0.114 * B
     # If Y value is greater than 128, it's closer to white so return black. Otherwise, return white.
-    return (255, 255, 255)
+    return (0, 0, 0)
 
 
 def find_center(bitmask):
