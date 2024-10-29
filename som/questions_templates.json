@@ -42,7 +42,7 @@
         },
         "identify_heading": {
             "text":[
-                "Please provide the heading of object <<id1>> in clock terms, where 12 o'clock represents our front and 3 o'clock is our right."
+                "Please describe the heading direction of object <<id1>>."
             ],
             "params":[
                 "<id1>"
