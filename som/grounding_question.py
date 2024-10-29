@@ -22,7 +22,7 @@ SETTINGS = [
 print(SETTINGS)
 
 
-def generate_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False):
+def generate_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False, font_scale:float=0.75):
     identifier = os.path.basename(frame_path)
     world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
     world = json.load(open(world_path, "r"))
@@ -53,7 +53,7 @@ def generate_grounding(frame_path, perspective, verbose, id2label_path: str = No
                 ground_id=label2id[selected_label],
                 frame_path=frame_path, perspective="front", save_path=solo_labeled_path,
                 query_ids=list(new_id2l.keys()), id2l=new_id2l,
-                font_scale=1.25, grounding=True, bounding_box=box
+                font_scale=font_scale, grounding=True, bounding_box=box
             )
             multiple_choice_options = create_options(random_new_labels, 4, random_new_label, list(range(50)))
 
@@ -64,7 +64,7 @@ def generate_grounding(frame_path, perspective, verbose, id2label_path: str = No
                 val: key for key, val in answer2label.items()
             }
             answer = answer2label[random_new_label]
-            question = f"What is the numerical label of the white-contoured object? Choose the best answer from option (A) through (D): {multiple_choice_string}"
+            question = f"What is the numerical label associated with the highlighted area? Choose the best answer from option (A) through (D): {multiple_choice_string}"
             explanation = ""
             records[idx] = dict(
                 question=question, answer=answer, explanation=explanation, type="grounding", objects=[],
@@ -102,7 +102,7 @@ def grounding_ablations(frame_path, perspective, verbose, id2label_path: str = N
         question = f"What is the numerical label associated with the highlighted area? Choose the best answer from option (A) through (D): {multiple_choice_string}"
         explanation = ""
         for setting_id, config in enumerate(configs):
-            #print('here')
+            print('setting_id')
             font_scale, background_color, form = config["font_scale"], config["background_color"], config["form"]
             solo_labeled_path = os.path.join(frame_path, f"setting_{setting_id}_{perspective}_{identifier}.png")
             grounding_labelframe(
