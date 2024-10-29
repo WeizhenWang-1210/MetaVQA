@@ -94,7 +94,7 @@ def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75, backgr
     :return: None. Modify <image> in-place.
     """
     font = cv2.FONT_HERSHEY_SIMPLEX
-    thickness = 1
+    thickness = 2
     # Write text at the specified location (center)
     # Get the text size to draw the background rectangle
     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
@@ -112,7 +112,7 @@ def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75, backgr
 
 def put_rectangle(image, text, center, color=(255, 255, 255), font_scale=0.75):
     font = cv2.FONT_HERSHEY_SIMPLEX
-    thickness = 1
+    thickness = 2
     # Write text at the specified location (center)
     # Get the text size to draw the background rectangle
     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
@@ -204,7 +204,7 @@ def static_id2label(frame_path, perspective="front"):
 
 def labelframe(frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False,
                query_ids: list = None, id2l: dict = None, font_scale: float = 0.75, id2c: dict = None,
-               grounding: dict = False, bounding_box: bool = False, id2corners: dict = None):
+               grounding: dict = False, bounding_box: bool = False, id2corners: dict = None, masking:bool=False, background_color=None):
     """
     :param frame_path:
     :param perspective: choose from "front"|"leftf"|"leftb"|"rightf"|"rightb"|"back"
@@ -252,9 +252,10 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
             occupied_text = np.all(text_boxes == [255, 255, 255], axis=-1)
             legal_mask = np.logical_and(legal_mask, ~occupied_text)
         colored_mask = base_img.copy()
-        colored_mask[legal_mask == 1] = color
-        alpha = 0.0  # Transparency factor
-        base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
+        if masking:
+            colored_mask[legal_mask == 1] = color
+            alpha = 0.75  # Transparency factor
+            base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
         center, contours = find_center(legal_mask)
         center_list.append(center)
         contour_list.append(contours)
@@ -293,11 +294,12 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
                 cv2.rectangle(base_img, (min(tlxs), min(tlys)), (max(brxs), max(brys)), color,
                               2)  # Draw green bounding box
         else:
-            cv2.drawContours(base_img, contour_list[i], -1, color, 2)
+            if not masking:
+                cv2.drawContours(base_img, contour_list[i], -1, color, 2)
 
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
-        put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale)
+        put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale, background_color=background_color)
 
     #cv2.imwrite(os.path.join(frame_path, "textboxes_{}_{}.png".format(perspective, identifier)), text_boxes)
 
