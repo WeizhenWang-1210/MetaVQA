@@ -77,3 +77,10 @@ def split_list(lst, num_chunks):
         start = end
 
     return chunks
+
+
+def find_label(obj_id, label2id):
+    for label, id in label2id.items():
+        if id == obj_id:
+            return label
+    return None
