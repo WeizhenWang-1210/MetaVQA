@@ -221,8 +221,8 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     world = json.load(open(world))
     if id2l is None:
         id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
-    if bounding_box and id2corners is not None:
-        id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
+    #if bounding_box and id2corners is not None:
+        #id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
@@ -330,8 +330,8 @@ def grounding_labelframe(ground_id:str, frame_path: str, perspective: str = "fro
     world = json.load(open(world))
     if id2l is None:
         id2l = json.load(open(os.path.join(episode_path, "id2label_{}.json".format(perspective))))
-    if bounding_box and id2corners is not None:
-        id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
+    #if bounding_box and id2corners is not None:
+    #    id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
     mask_img = cv2.imread(instance_seg)
     mask = np.array(mask_img)
     base_img = np.array(cv2.imread(base_img))
