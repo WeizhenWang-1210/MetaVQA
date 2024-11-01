@@ -8,9 +8,7 @@ from som.qa_utils import create_options, create_multiple_choice
 from som.utils import enumerate_frame_labels
 import itertools
 
-SETTING_ID={
 
-}
 
 TEXTSCALES=(0.75,1.25)
 FORMS=("box", "mask", "contour")
@@ -19,10 +17,10 @@ BACKGROUND=((255,255,255), (0,0,0))
 SETTINGS = [
     dict(font_scale=textscale, form=form, background_color=background) for (textscale, form, background) in itertools.product(TEXTSCALES, FORMS, BACKGROUND)
 ]
-print(SETTINGS)
+#print(SETTINGS)
 
 
-def generate_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False, font_scale:float=0.75):
+def generate_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False, font_scale:float=0.75, domain="sim"):
     identifier = os.path.basename(frame_path)
     world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
     world = json.load(open(world_path, "r"))
@@ -30,6 +28,10 @@ def generate_grounding(frame_path, perspective, verbose, id2label_path: str = No
     labels = list(label2id.keys())
     non_ego_labels = [label for label in labels if label != -1]
     records = {}
+    if domain == "real":
+        id2corners = json.load(open(os.path.join(frame_path,f"id2corners_{identifier}.json"),"r"))
+    else:
+        id2corners = None
     if len(non_ego_labels) <= 0:
         print("Too few objects for grounding")
     else:
@@ -52,8 +54,8 @@ def generate_grounding(frame_path, perspective, verbose, id2label_path: str = No
             grounding_labelframe(
                 ground_id=label2id[selected_label],
                 frame_path=frame_path, perspective="front", save_path=solo_labeled_path,
-                query_ids=list(new_id2l.keys()), id2l=new_id2l,
-                font_scale=font_scale, grounding=True, bounding_box=box
+                query_ids=list(new_id2l.keys()), id2l=new_id2l, id2corners=id2corners,
+                font_scale=font_scale, grounding=True, bounding_box=box, background_color=(0,0,0)
             )
             multiple_choice_options = create_options(random_new_labels, 4, random_new_label, list(range(50)))
 
