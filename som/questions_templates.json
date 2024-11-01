@@ -255,6 +255,30 @@
             ],
             "end_filter":"describe_distance",
             "constraint":[]
+        },
+        "embodied_distance": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) \"very close\"(0-2m); (B) \"close\"(2-10m); (C) \"medium\"(10-30m); (D) \"far\"(30m-)."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>"
+            ]
+        },
+        "embodied_sideness": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Which sector will we end up? Select the best option from: (A) left-front; (B) front; (C) right-front."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>"
+            ]
+        },
+        "embodied_collision": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Will we run into object <<id1>>, provided that it remains still?. Select the best option from: (A) Yes; (B) No."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>", "<id1>"
+            ]
         }
     },
     "dynamic": {
