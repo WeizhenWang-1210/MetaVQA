@@ -84,8 +84,6 @@ def angle2sector(degree):
         return "lf"
 
 
-
-
 #TODO refactor this ugly code.
 
 def generate(frame_path: str, question_type: str, perspective: str = "front", verbose: bool = False,
@@ -1111,6 +1109,10 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
             identifier = os.path.basename(frame_path)
             static_id2label_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
             static_labeled_path = os.path.join(frame_path, f"static_labeled_{perspective}_{identifier}.png")
+            if domain == "real":
+                id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"),"r"))
+            else:
+                id2corners = None
             if not labeled or not os.path.exists(static_labeled_path):
                 if verbose:
                     print(f"Creating single-frame-consistent labelling for {frame_path}")
@@ -1120,10 +1122,9 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                     print("why>>>???")
                 assert static_id2l is not None
                 labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path,
-                           id2l=static_id2l,
-                           font_scale=FONT_SCALE, bounding_box=box)
+                           id2l=static_id2l, id2corners=id2corners,
+                           font_scale=FONT_SCALE, bounding_box=USEBOX, background_color=BACKGROUND)
             else:
-                #raise Exception
                 if verbose:
                     print(f"Already have labelled version FOR {frame_path}")
                 static_id2l = json.load(open(static_id2label_path, "r"))
@@ -1154,11 +1155,37 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                         params = [
                             {"<dist>": dist} for dist in ["very close", "close", "medium", "far"]
                         ]
-                    elif question_type == "embodied_distance" or "embodied_sideness" or "embodied_collision":
-                        speeds, actions, durations = [5,15,25,35], [0,1,2,3,4], [5,10,15,20]
-                        configs = itertools.product(speeds, actions, durations)
+                    elif question_type == "embodied_distance" :
+                        speeds= [2,5,15,25]  #0-10 mph, 10-30 mph,  30-50 mph, 50mph+
+                                              #0-4.47 m/s, 4.47-13.41 m/s, 13.41-22.35 m/s, 22.35m/s +
+                        actions = [0,1,2,3,4]#[0,1,2,3,4]
+                        durations = [5,10,15,20]#[5]#,10,15,20]
+                        configs = list(itertools.product(speeds, actions, durations))
+                        configs = random.sample(configs, k=4)
                         params = [
                             {"<speed>": speed, "<action>":action, "<duration>": duration} for (speed, action, duration) in configs
+                        ]
+                    elif question_type == "embodied_sideness":
+                        speeds = [2, 5, 15, 25]  # 0-10 mph, 10-30 mph,  30-50 mph, 50mph+
+                        # 0-4.47 m/s, 4.47-13.41 m/s, 13.41-22.35 m/s, 22.35m/s +
+                        actions = [0, 1, 2, 3, 4]  # [0,1,2,3,4]
+                        durations = [5, 10, 15, 20]  # [5]#,10,15,20]
+                        configs = list(itertools.product(speeds, actions, durations))
+                        configs = random.sample(configs, k=4)
+                        params = [
+                            {"<speed>": speed, "<action>": action, "<duration>": duration} for (speed, action, duration)
+                            in configs
+                        ]
+                    elif question_type == "embodied_collision":
+                        speeds = [2, 5, 15, 25]  # 0-10 mph, 10-30 mph,  30-50 mph, 50mph+
+                        # 0-4.47 m/s, 4.47-13.41 m/s, 13.41-22.35 m/s, 22.35m/s +
+                        actions = [0, 1, 2, 3, 4]  # [0,1,2,3,4]
+                        durations = [5, 10, 15, 20]  # [5]#,10,15,20]
+                        configs = list(itertools.product(speeds, actions, durations))
+                        configs = random.sample(configs, k=4)
+                        params = [
+                            {"<speed>": speed, "<action>": action, "<duration>": duration} for (speed, action, duration)
+                            in configs
                         ]
                     for param in params:
                         question, answer, explanation, ids_of_interest, option2answer = parameterized_generate(
@@ -1175,14 +1202,18 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                                 obs=[static_labeled_path], options=option2answer
                             )
                             frame_id += 1
+                        for id in ids_of_interest:
+                            queried_ids.add(id)
             new_id2label = {object_id: i for i, object_id in enumerate(queried_ids)}
             new_labeled_path = os.path.join(frame_path, f"static_qa_labeled_{perspective}_{identifier}.png")
             original_id2label = static_id2l
             assert new_id2label is not None
+            #New labelling to leave out unferred objects.
             labelframe(
-                frame_path=frame_path, perspective="front", save_path=new_labeled_path,
-                query_ids=list(queried_ids), id2l=new_id2label, font_scale=FONT_SCALE, bounding_box=box
+                frame_path=frame_path, perspective="front", save_path=new_labeled_path,  query_ids=list(queried_ids),
+                id2l=new_id2label, id2corners=id2corners, font_scale=FONT_SCALE, bounding_box=USEBOX, background_color=BACKGROUND
             )
+            #Determine which questions should have labelling replaced.
             for qid, record in frame_records.items():
                 if record["type"] not in ["identify_closest", "identify_leftmost", "identify_rightmost",
                                           "identify_frontmost", "identify_backmost", "describe_scenario",
@@ -1197,13 +1228,13 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                     record["obs"] = [new_labeled_path]
                 records[qid + count] = record
             count += frame_id
+            #Seperate function to generate grounding questions
             grounding_records = generate_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
-                                                 id2label_path=static_id2label_path, box=box, font_scale=FONT_SCALE)
+                                                 id2label_path=static_id2label_path, box=box, font_scale=FONT_SCALE, domain=domain)
             for g_id, record in grounding_records.items():
                 records[g_id + count] = record
                 records[g_id + count]["domain"] = domain
             count += len(grounding_records)
-
     except Exception as e:
         print("Something Wrong! save partial results")
         print(f"Encountered issue at {current_frame},{current_type}")
@@ -1350,6 +1381,8 @@ def batch_generate_general_ablation(world_paths, save_path="./", verbose=False, 
                                 obs=None, options=option2answer
                             )
                             frame_id += 1
+                        for id in ids_of_interest:
+                            queried_ids.add(id)
             new_id2label = {object_id: i for i, object_id in enumerate(queried_ids)}
             original_id2label = static_id2l
             assert new_id2label is not None
@@ -1431,7 +1464,6 @@ def batch_generate_general_ablation(world_paths, save_path="./", verbose=False, 
     finally:
         json.dump(records, open(save_path, "w"), indent=2)
 
-
 def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False,
                                  num_proc=1, box=False, domain="sim"):
     def find_worlds(session_path):
@@ -1439,9 +1471,8 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         pattern = os.path.join(session_path, "**", "**", "world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
-    print(session_path)
-    world_paths = find_worlds(session_path)
-    world_paths = world_paths[::100][:16]#["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0507_0_40/23_8/world_23_8.json"]
+    #world_paths = find_worlds(session_path)
+    world_paths = ["/bigdata/weizhen/metavqa_cvpr/scenarios/waymo_sim/sd_waymo_v1.2_ffff557fc43e39_1_78/6253_46/world_6253_46.json"]#world_paths[::100][:2]#["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0507_0_40/23_8/world_23_8.json"]
     print(f"Working on {len(world_paths)} frames.")
     job_chunks = split_list(world_paths, num_proc)
     print(f"{len(world_paths)} frames distributed across {num_proc} processes, {math.ceil(len(world_paths)/num_proc)} MAX each process")
@@ -1452,14 +1483,14 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         print(f"Sending job {proc_id}")
         name = f"{proc_id}_{name_root}"
         p = multp.Process(
-            target=batch_generate_general_ablation, #batch_generate_grounding_ablation, #
+            target= batch_generate_static,
             args=(
                 job_chunks[proc_id],
                 os.path.join(save_dir, name),
                 verbose,
                 perspective,
-                labeled, proc_id, SETTINGS, domain
-            )
+                labeled, proc_id, USEBOX, domain
+            ),
         )
         print(f"Successfully sent {proc_id}")
         processes.append(p)
@@ -1469,33 +1500,28 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
     print("All processes finished.")
 
 import argparse
-
 if __name__ == "__main__":
-    #parser = argparse.
-
-    NUSC = False
-    if NUSC:
-        #NAMED_MAPPING = {
-        #    val: dict(
-        #        singular=val,
-        #        plural=val
-        #    ) for val in ALL_TYPE.values()
-        #}
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--scenarios", default="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim", help="The path to stored episodes.")
+    parser.add_argument("--save_path", default="/bigdata/weizhen/metavqa_cvpr/vqas/scratch/qa.json", help="Name template for qas. Each process will have its proc_id as prefix to the basename.")
+    parser.add_argument("--num_proc", default=1, type=int, help="Number of process generating qas.")
+    parser.add_argument("--use_existing_labels", action="store_true", help="If set, will generate new frame-level labelling regardless of if such labelling already exists.")
+    parser.add_argument("--nusc_real", action="store_true", help="If set, will load additional corner files for generating som for nuscenes data with real observations. Also will skip color-identification problems.")
+    parser.add_argument("--verbose", action="store_true", help="Set verbosity for debugging")
+    parser.add_argument("--domain", default="sim", help="Specify the observation domains. Either \"sim\" or \"real\" ")
+    args = parser.parse_args()
+    print("Running with the following parameters")
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    if args.nusc_real:
         TEMPLATES["static"] = {
             key: val for key, val in TEMPLATES["static"].items() if key not in ["identify_color"]
         }
-
-    #TEMPLATES["static"] = {
-    #    key: val for key, val in TEMPLATES["static"].items() if key in ["identify_heading","identify_type"]
-    #}
-
     multiprocess_generate_static(
-        session_path="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim",
-        save_path="/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/general.json",
-        num_proc=16,
-        labeled=False,
+        session_path=args.scenarios,
+        save_path=args.save_path,
+        verbose=args.verbose,
+        num_proc=args.num_proc,
+        labeled=args.use_existing_labels,
         box=USEBOX
     )
-    #"/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0596_0_40/26_17"
-    #generate(frame_path, "describe_scenario", "front", verbose=True)
-    #parameterized_generate(frame_path, "describe_distance", {"<dist>":"medium"}, "front", True)
