@@ -1130,7 +1130,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
             queried_ids = set()
             for question_type in tqdm.tqdm(static_templates.keys(), desc="Generating Questions", unit="type"):
                 current_type = question_type
-                if question_type not in ["describe_sector", "describe_distance"]:
+                if question_type not in ["describe_sector", "describe_distance", "embodied_distance", "embodied_sideness", "embodied_collision"]:
                     question, answer, explanation, ids_of_interest, option2answer = generate(frame_path=frame_path,
                                                                                              question_type=question_type,
                                                                                              perspective=perspective,
@@ -1150,9 +1150,15 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                         params = [
                             {"<pos>": pos} for pos in ["lf", "rf", "f"]
                         ]
-                    else:
+                    elif question_type == "describe_distance":
                         params = [
                             {"<dist>": dist} for dist in ["very close", "close", "medium", "far"]
+                        ]
+                    elif question_type == "embodied_distance" or "embodied_sideness" or "embodied_collision":
+                        speeds, actions, durations = [5,15,25,35], [0,1,2,3,4], [5,10,15,20]
+                        configs = itertools.product(speeds, actions, durations)
+                        params = [
+                            {"<speed>": speed, "<action>":action, "<duration>": duration} for (speed, action, duration) in configs
                         ]
                     for param in params:
                         question, answer, explanation, ids_of_interest, option2answer = parameterized_generate(
