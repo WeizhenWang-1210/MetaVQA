@@ -356,41 +356,44 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
             "very fast": "(50+ mph)",
         }
         non_ego_labels = [label for label in labels if label != -1]
-        chosen_label = random.choice(non_ego_labels)
-        speed, action, duration = param["<speed>"], param["<action>"], param["<duration>"]
-        object = graph.get_node(label2id[chosen_label])
-        object_box = object.bbox
-        object_box_ego = transform(ego_node, object_box)
-        will_collide, collision_time = determine_collisions(obj_box=object_box_ego, action=action, speed=speed, duration=duration)
-        speed_class = classify_speed(speed)
-        action_class = ACTION.get_action(action)
-        question = fill_in_label(
-                    template_str=TEMPLATES["static"][question_type]["text"][0],
-                    replacement={
-                        "<speed>": f"{speed_class}{criteria[speed_class]}",
-                        "<action>": action_class,
-                        "<duration>": f"{str(round(duration/10,1))} seconds",
-                        "<id1>": str(chosen_label)
-                    }
-                )
-        obj_pos = ego_node.compute_relation_string(node=graph.get_node(object.id), ref_heading=ego_node.heading)
-        _, end_pos = get_end_sector(action=action, speed=speed, duration=duration)
-        if end_pos == "m":
-            end_pos = "f"
-        if will_collide:
-            explanation = f"We will run into object <{chosen_label}> currently in {POSITION2CHOICE[obj_pos]} sector after {round(collision_time,1)} seconds."
+        if len(non_ego_labels) <= 0 :
+            print(f"Not enough things to generate {question_type}")
         else:
-            if obj_pos == end_pos:
-                explanation = f"We will not run into object <{chosen_label}>, even though we both end in our {POSITION2CHOICE[obj_pos]} sector."
+            chosen_label = random.choice(non_ego_labels)
+            speed, action, duration = param["<speed>"], param["<action>"], param["<duration>"]
+            object = graph.get_node(label2id[chosen_label])
+            object_box = object.bbox
+            object_box_ego = transform(ego_node, object_box)
+            will_collide, collision_time = determine_collisions(obj_box=object_box_ego, action=action, speed=speed, duration=duration)
+            speed_class = classify_speed(speed)
+            action_class = ACTION.get_action(action)
+            question = fill_in_label(
+                        template_str=TEMPLATES["static"][question_type]["text"][0],
+                        replacement={
+                            "<speed>": f"{speed_class}{criteria[speed_class]}",
+                            "<action>": action_class,
+                            "<duration>": f"{str(round(duration/10,1))} seconds",
+                            "<id1>": str(chosen_label)
+                        }
+                    )
+            obj_pos = ego_node.compute_relation_string(node=graph.get_node(object.id), ref_heading=ego_node.heading)
+            _, end_pos = get_end_sector(action=action, speed=speed, duration=duration)
+            if end_pos == "m":
+                end_pos = "f"
+            if will_collide:
+                explanation = f"We will run into object <{chosen_label}> currently in {POSITION2CHOICE[obj_pos]} sector after {round(collision_time,1)} seconds."
             else:
-                explanation = f"We will not run into object <{chosen_label}>. Object <{chosen_label}> is located in the {POSITION2CHOICE[obj_pos]} sector, but we will end in the {POSITION2CHOICE[end_pos]} sector."
-        labels = ["A", "B"]
-        available_options = ["Yes", "No"]
-        answer = labels[available_options.index("Yes" if will_collide else "No")]
-        option2answer = {
-            label: available_option for label, available_option in zip(labels, available_options)
-        }
-        ids_of_interest = [label2id[chosen_label]]
+                if obj_pos == end_pos:
+                    explanation = f"We will not run into object <{chosen_label}>, even though we both end in our {POSITION2CHOICE[obj_pos]} sector."
+                else:
+                    explanation = f"We will not run into object <{chosen_label}>. Object <{chosen_label}> is located in the {POSITION2CHOICE[obj_pos]} sector, but we will end in the {POSITION2CHOICE[end_pos]} sector."
+            labels = ["A", "B"]
+            available_options = ["Yes", "No"]
+            answer = labels[available_options.index("Yes" if will_collide else "No")]
+            option2answer = {
+                label: available_option for label, available_option in zip(labels, available_options)
+            }
+            ids_of_interest = [label2id[chosen_label]]
     else:
         print("Not yet implemented")
         exit()
