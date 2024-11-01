@@ -1,11 +1,12 @@
 import json
 import numpy as np
 from vqa.dataset_utils import find_extremities
-
-TRAJECTORIES = json.load(open("./trajectories_collection.json","r"))
-PROCESSED = json.load(open("./processed_trajectories.json","r"))
-EGO_WORLD_POS = TRAJECTORIES["boxs"][0]
-EGO_WORLD_HEADING = TRAJECTORIES["headings"][0]
+import os
+current_directory = os.path.dirname(os.path.abspath(__file__))
+TRAJECTORIES = json.load(open(os.path.join(current_directory,"trajectories_collection.json","r")))
+PROCESSED = json.load(open(os.path.join(current_directory,"processed_trajectories.json","r")))
+EGO_WORLD_POS = TRAJECTORIES["a_10_0"]["boxs"][0]
+EGO_WORLD_HEADING = TRAJECTORIES["a_10_0"]["headings"][0]
 
 
 class ACTION:
@@ -254,7 +255,6 @@ def interpret_actions(traj_dicts):
             discrete_pos = discrete_dists,
             sectors = sectors
         )
-
     json.dump(new_dict, open("processed_trajectories.json","w"), indent=2)
 
 
@@ -345,17 +345,16 @@ def determine_collisions(obj_box,  action, speed, duration, bucket_size=10, traj
 
 
 if __name__ == "__main__":
-    #interpret_actions(TRAJECTORIES)
-
-    processed = json.load(open("./processed_trajectories.json","r"))
-    #sortedd = sort_by_end(processed)
-    #json.dump(sortedd, open("stat_end.json","w"), indent=2)
+    interpret_actions(TRAJECTORIES)
+    #processed = json.load(open("./processed_trajectories.json","r"))
+    ##sortedd = sort_by_end(processed)
+    ##json.dump(sortedd, open("stat_end.json","w"), indent=2)
     #sortedd = sort_by_dist(processed)
     #json.dump(sortedd, open("stat_dist.json", "w"), indent=2)
 
     #result = end_with_average(processed, action="a", speed=10, duration=15)
 
-    for bucket_size in [2, 5, 10]:
-        result = end_with_average(processed, action="a", speed=10, duration=10, bucket_size=bucket_size)
-        print(result)
+    #for bucket_size in [2, 5, 10]:
+    #    result = end_with_average(processed, action="a", speed=10, duration=10, bucket_size=bucket_size)
+    #    print(result)
 
