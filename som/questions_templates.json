@@ -258,7 +258,7 @@
         },
         "embodied_distance": {
           "text": [
-                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) \"very close\"(0-2m); (B) \"close\"(2-10m); (C) \"medium\"(10-30m); (D) \"far\"(30m-)."
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) Very close(0-2m); (B) Close(2-10m); (C) Medium(10-30m); (D) Far(30m-)."
             ],
             "params":[
                 "<speed>", "<action>", "<duration>"
@@ -274,7 +274,7 @@
         },
         "embodied_collision": {
           "text": [
-                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Will we run into object <<id1>>, provided that it remains still?. Select the best option from: (A) Yes; (B) No."
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Will we run into object <<id1>>, provided that it remains still? Select the best option from: (A) Yes; (B) No."
             ],
             "params":[
                 "<speed>", "<action>", "<duration>", "<id1>"
