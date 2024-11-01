@@ -7,7 +7,7 @@ PROMPTSCHEMA="direct"
 RESULTPATH="/home/weizhen/closed_loops/internvl2_finetuned_som/internvl2_direct_finetuned.json"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
-CUDA_DEVICES=6
+CUDA_DEVICES=4
 export INTERNVL=true
 
 cd $METAVQA_DIR;
