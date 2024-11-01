@@ -83,6 +83,15 @@ def angle2sector(degree):
     elif 285<degree<345:
         return "lf"
 
+def select_not_from(space, forbidden, population=1):
+    unique_types = set(space)
+    unique_forbiddens = set(forbidden)
+    assert len(space)>len(forbidden)
+    diff = unique_types.difference(unique_forbiddens)
+    assert len(diff) >= population
+    return random.sample(list(diff), population)
+
+
 
 #TODO refactor this ugly code.
 
@@ -147,6 +156,13 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             options = [NAMED_MAPPING[type]["singular"] for type in graph.statistics["<t>"]]
             #print(options)
             multiple_choice_options = create_options(options, 4, NAMED_MAPPING[type]["singular"], type_space)
+            #Remove synonyms
+            if "vehicle" in multiple_choice_options and "car" in multiple_choice_options:
+                if NAMED_MAPPING[type]["singular"] == "vehicle":
+                    index = multiple_choice_options.index("car")
+                else:
+                    index = multiple_choice_options.index("vehicle")
+                multiple_choice_options[index] = select_not_from(type_space,multiple_choice_options)[-1]
             #print(multiple_choice_options)
             multiple_choice_string, answer2label = create_multiple_choice(multiple_choice_options)
             option2answer = {
@@ -1471,8 +1487,8 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         pattern = os.path.join(session_path, "**", "**", "world**.json")
         matching_frames = glob.glob(pattern)
         return matching_frames
-    #world_paths = find_worlds(session_path)
-    world_paths = ["/bigdata/weizhen/metavqa_cvpr/scenarios/waymo_sim/sd_waymo_v1.2_ffff557fc43e39_1_78/6253_46/world_6253_46.json"]#world_paths[::100][:2]#["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0507_0_40/23_8/world_23_8.json"]
+    world_paths = find_worlds(session_path)
+    #world_paths = world_paths[::100][:2]#["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0507_0_40/23_8/world_23_8.json"]
     print(f"Working on {len(world_paths)} frames.")
     job_chunks = split_list(world_paths, num_proc)
     print(f"{len(world_paths)} frames distributed across {num_proc} processes, {math.ceil(len(world_paths)/num_proc)} MAX each process")
