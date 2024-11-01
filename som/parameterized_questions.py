@@ -7,12 +7,31 @@ from copy import deepcopy
 from som.qa_utils import create_options, create_multiple_choice
 from som.utils import enumerate_frame_labels, fill_in_label
 from vqa.configs.NAMESPACE import POSITION2CHOICE
-from vqa.dataset_utils import get_distance
-from vqa.object_node import nodify
+from vqa.dataset_utils import get_distance, transform_to_world
+from vqa.object_node import nodify, transform
 from vqa.scene_graph import SceneGraph
+from som.embodied_utils import ACTION
+import numpy as np
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
+from embodied_utils import get_end_sector, determine_collisions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def parameterized_generate(frame_path, question_type, param, perspective="front", verbose=True,
                            id2label_path: str = None):
@@ -31,7 +50,6 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
     option2answer = {}
     if question_type == "describe_sector":
         sector = param["<pos>"]
-
         def satisfying_set(labels):
             for label in labels:
                 if ego_node.compute_relation_string(
@@ -156,7 +174,6 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 ids_of_interest = []
     elif question_type == "describe_distance":
         sector = param["<dist>"]
-
         def discretize_dist(abs_dist):
             if abs_dist < 2:
                 discrete_dist = "very close"
@@ -290,6 +307,142 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                 explanation = "; ".join(explanation)
                 explanation = "".join([explanation, "."])
                 ids_of_interest = []
+    elif question_type == "embodied_distance":
+        def discretize_speed(speed):
+            assert speed >=0
+            if speed == 0:
+                return "stopped"
+            if 0 < speed < 10:
+                return "very slow"
+            elif 10 < speed <= 20:
+                return "slow"
+            elif 20 < speed < 30:
+                return "medium"
+            else:
+                return "fast"
+        criteria = {
+            "stopped" : "(0 m/s)",
+            "very slow": "(0-10 m/s)",
+            "slow": "(10-20 m/s)",
+            "medium": "(20-30 m/s)",
+            "fast": "(30- m/s)"
+        }
+        speed, action, duration = param["<speed>"], param["<action>"], param["<duration>"]
+        speed_class = discretize_speed(speed)
+        action_class = ACTION.get_action(action)
+        end_distance,_ = get_end_sector(action=action, speed=speed, duration=duration)
+        available_options = ["very close", "close", "medium", "far"]
+        labels = ["A","B","C","D"]
+        question = fill_in_label(
+                    template_str=TEMPLATES["static"][question_type]["text"][0],
+                    replacement={
+                        "<speed>": f"{speed_class}{criteria[speed_class]}",
+                        "<action>": action_class,
+                        "duration": f"{str(round(duration/10,1))} seconds"
+                    }
+                )
+        explanation = ""
+        answer = labels[available_options.index(end_distance)]
+        option2answer = {
+            label: available_option for label, available_option in zip(labels, available_options)
+        }
+    elif question_type == "embodied_sideness":
+        def discretize_speed(speed):
+            assert speed >=0
+            if speed == 0:
+                return "stopped"
+            if 0 < speed < 10:
+                return "very slow"
+            elif 10 < speed <= 20:
+                return "slow"
+            elif 20 < speed < 30:
+                return "medium"
+            else:
+                return "fast"
+        criteria = {
+            "stopped" : "(0 m/s)",
+            "very slow": "(0-10 m/s)",
+            "slow": "(10-20 m/s)",
+            "medium": "(20-30 m/s)",
+            "fast": "(30- m/s)"
+        }
+        speed, action, duration = param["<speed>"], param["<action>"], param["<duration>"]
+        speed_class = discretize_speed(speed)
+        action_class = ACTION.get_action(action)
+        _,end_side = get_end_sector(action=action, speed=speed, duration=duration)
+        available_options = ["left-front", "front", "right-front"]
+        labels = ["A","B","C"]
+        question = fill_in_label(
+                    template_str=TEMPLATES["static"][question_type]["text"][0],
+                    replacement={
+                        "<speed>": f"{speed_class}{criteria[speed_class]}",
+                        "<action>": action_class,
+                        "duration": f"{str(round(duration/10,1))} seconds"
+                    }
+                )
+        explanation = ""
+        answer = labels[available_options.index(POSITION2CHOICE[end_side])]
+        option2answer = {
+            label: available_option for label, available_option in zip(labels, available_options)
+        }
+    elif question == "embodied_collision":
+        def discretize_speed(speed):
+            assert speed >=0
+            if speed == 0:
+                return "stopped"
+            if 0 < speed < 10:
+                return "very slow"
+            elif 10 < speed <= 20:
+                return "slow"
+            elif 20 < speed < 30:
+                return "medium"
+            else:
+                return "fast"
+        criteria = {
+            "stopped" : "(0 m/s)",
+            "very slow": "(0-10 m/s)",
+            "slow": "(10-20 m/s)",
+            "medium": "(20-30 m/s)",
+            "fast": "(30- m/s)"
+        }
+        non_ego_labels = [label for label in labels if label != -1]
+        chosen_label = random.choice(non_ego_labels)
+
+        speed, action, duration = param["<speed>"], param["<action>"], param["<duration>"]
+        object = graph.get_node(label2id[chosen_label])
+        object_box = object.bbox
+
+        object_box_ego = transform(ego_node, object_box)
+
+
+
+        will_collide, collision_timestamp = determine_collisions(obj_box=object_box_ego, action=action, speed=speed, duration=duration)
+
+        speed_class = discretize_speed(speed)
+        action_class = ACTION.get_action(action)
+        question = fill_in_label(
+                    template_str=TEMPLATES["static"][question_type]["text"][0],
+                    replacement={
+                        "<speed>": f"{speed_class}{criteria[speed_class]}",
+                        "<action>": action_class,
+                        "duration": f"{str(round(duration/10,1))} seconds"
+                    }
+                )
+        if will_collide:
+            explanation = f"We will run into object <{chosen_label}> after {round(collision_timestamp/10)} seconds."
+        else:
+            obj_pos = ego_node.compute_relation_string(node=graph.get_node(object.id), ref_heading=ego_node.heading)
+            _,end_pos = get_end_sector(action=action, speed=speed, duration=duration)
+            if obj_pos == end_pos:
+                explanation = f"We will not run into object <{chosen_label}>, even though we both end in our {POSITION2CHOICE[obj_pos]} sector."
+            else:
+                explanation = f"We will not run into object <{chosen_label}>. Object <{chosen_label}> is located in {POSITION2CHOICE[obj_pos]}, but we will end in {POSITION2CHOICE[end_pos]} sector."
+        labels = ["A", "B"]
+        available_options = ["Yes", "No"]
+        answer = labels[available_options.index("Yes" if will_collide else "No")]
+        option2answer = {
+            label: available_option for label, available_option in zip(labels, available_options)
+        }
     else:
         print("Not yet implemented")
         exit()
