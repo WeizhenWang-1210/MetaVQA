@@ -3,10 +3,46 @@ import numpy as np
 from vqa.dataset_utils import find_extremities
 import os
 current_directory = os.path.dirname(os.path.abspath(__file__))
-TRAJECTORIES = json.load(open(os.path.join(current_directory,"trajectories_collection.json","r")))
-PROCESSED = json.load(open(os.path.join(current_directory,"processed_trajectories.json","r")))
-EGO_WORLD_POS = TRAJECTORIES["a_10_0"]["boxs"][0]
-EGO_WORLD_HEADING = TRAJECTORIES["a_10_0"]["headings"][0]
+TRAJECTORIES = json.load(open(os.path.join(current_directory,"trajectories_collection.json"),"r"))
+PROCESSED = json.load(open(os.path.join(current_directory,"processed_trajectories.json"),"r"))
+EGO_WORLD_POS = TRAJECTORIES["a_10_0.0"]["boxs"][0]
+EGO_WORLD_HEADING = TRAJECTORIES["a_10_0.0"]["headings"][0]
+
+
+def interpolate_points(start, end, num_points):
+    # Generate `num_points` evenly spaced values of t between 0 and 1
+    t_values = np.linspace(0, 1, num_points)
+    interpolated_points = []
+    for t in t_values:
+        x = start[0] + t * (end[0] - start[0])
+        y = start[1] + t * (end[1] - start[1])
+        interpolated_points.append((x, y))
+    return np.array(interpolated_points)
+
+
+
+def supersample_boxes(boxes, factor=10):
+    # Calculate the number of new points per edg
+    interpolated_boxes = []
+    for idx, box in enumerate(boxes[:-1]):
+        start_box = box
+        end_box = boxes[idx+1]
+        pts = dict()
+        for vertice_idx in range(4):
+            points = interpolate_points(start_box[vertice_idx], end_box[vertice_idx], num_points = factor).tolist()
+            assert len(points) == factor
+            pts[vertice_idx] = points
+        new_boxes = []
+        for idx in range(factor-1):
+            new_box = []
+            for vertice_idx in range(4):
+                new_box.append(pts[vertice_idx][idx])
+            new_boxes.append(new_box)
+        interpolated_boxes += new_boxes
+    interpolated_boxes.append(boxes[-1])
+    return interpolated_boxes
+
+
 
 
 class ACTION:
@@ -102,7 +138,19 @@ def classify_distance(d):
     else:
       return "unknown"
 
-
+def classify_speed(s):
+    # 0-10 mph, 10-30 mph,  30-50 mph, 50mph+
+    # 0-4.47 m/s, 4.47-13.41 m/s, 13.41-22.35 m/s, 22.35m/s +
+    if 0<=s<4.47:
+      return "slow"
+    elif 4.47<=s<13.41:
+      return "moderate"
+    elif 13.41<=s<22.35:
+      return "fast"
+    elif 22.35<=s:
+      return "very fast"
+    else:
+      return "unknown"
 
 def side(box, ego_box, ego_pos, ref_heading):
     """
@@ -179,7 +227,6 @@ def find_center(box):
     """
     return np.mean(np.array(box), axis=0)
 
-
 def compute_relation_string(relation) -> str:
     side = relation['side']
     front = relation['front']
@@ -202,7 +249,6 @@ def compute_relation_string(relation) -> str:
     else:
         return 'm'
 
-
 def find_sector(box, ego_box, ego_heading):
     ego_pos = find_center(ego_box)
     relation = {
@@ -210,7 +256,6 @@ def find_sector(box, ego_box, ego_heading):
         "front": longitudinal(box, ego_box, ego_pos, ego_heading)
     }
     return compute_relation_string(relation)
-
 
 
 def discretize_trajectory(bboxes, start_angle, start_heading):
@@ -278,28 +323,33 @@ def sort_by_dist(traj_dicts):
 def end_with_average(traj_dicts, action, speed, duration, bucket_size=10):
     assert 0 <= speed < 50
     assert duration in [5, 10, 15, 20]
+    action_strs = ["a","b", "c", "d","e"]
+    action = action_strs[action]
     get_speed = lambda s: float(s.split("_")[-1])
     signature = lambda s: s.split("_")
     keys = list(traj_dicts.keys())
     keys_of_interests = [key for key in keys if signature(key)[0] == action and signature(key)[1] == str(duration)]
     keys_by_speed = sorted(keys_of_interests, key = get_speed)
-    #print(keys_by_speed)
-    assert len(keys_by_speed)==50, f"{len(keys_by_speed)}"
+    #print(len(keys_by_speed))
+    assert len(keys_by_speed)==40, f"{len(keys_by_speed)}"
     assert len(traj_dicts) % bucket_size == 0
-    start_index = speed //bucket_size
+
+    speed_class = classify_speed(speed)
+    speed_classes = ["slow", "moderate", "fast", "very fast"]
+    start_index = speed_classes.index(speed_class)
     counter = defaultdict(lambda:0)
     slice = keys_by_speed[bucket_size*start_index: bucket_size*start_index + bucket_size]
-    print(slice)
+    #print(slice)
     for traj_key in slice:
         sector = (traj_dicts[traj_key]["discrete_pos"][-1], traj_dicts[traj_key]["sectors"][-1])
         counter[sector] += 1
-    print(counter)
+    #print(counter)
     return max(counter, key=counter.get)
 
 
 
 def get_end_sector(action, speed, duration, bucket_size=10):
-    processed = json.load(open("./processed_trajectories.json", "r"))
+    processed = PROCESSED
     return end_with_average(processed, action=action, speed=speed, duration=duration, bucket_size=bucket_size)
 
 
@@ -308,28 +358,53 @@ from vqa.dataset_utils import transform_to_world
 def determine_collisions(obj_box,  action, speed, duration, bucket_size=10, traj_dicts = PROCESSED):
     """
     obj_box in ego frame. Loading ego trajectories.
-
     """
     assert 0 <= speed < 50
     assert duration in [5, 10, 15, 20]
     get_speed = lambda s: float(s.split("_")[-1])
     signature = lambda s: s.split("_")
+    action_strs = ["a", "b", "c", "d", "e"]
+    action = action_strs[action]
     keys = list(traj_dicts.keys())
     keys_of_interests = [key for key in keys if signature(key)[0] == action and signature(key)[1] == str(duration)]
     keys_by_speed = sorted(keys_of_interests, key=get_speed)
-    assert len(keys_by_speed) == 50, f"{len(keys_by_speed)}"
+    assert len(keys_by_speed) == 40, f"{len(keys_by_speed)}"
     assert len(traj_dicts) % bucket_size == 0
-    start_index = speed // bucket_size
+
+    speed_class = classify_speed(speed)
+    speed_classes = ["slow","moderate","fast","very fast"]
+    start_index = speed_classes.index(speed_class)
     slice = keys_by_speed[bucket_size * start_index: bucket_size * start_index + bucket_size]
     box_trajectories = []
     for traj_key in slice:
-        box_trajectories.append(slice[traj_key]["boxs"])
+        original_trajectory = traj_dicts[traj_key]["egocentric_boxes"]
+        #print(len(original_trajectory))
+        #print(len(supersample_boxes(original_trajectory,10)))
+        box_trajectories.append(supersample_boxes(original_trajectory,10))
     results = []
-    for timestamp, box in enumerate(box_trajectories):
-        if box_overlap(box, obj_box):
-            results.append(timestamp)
+
+    for boxes in box_trajectories:
+        #print(l2_distance(find_center(boxes[0]), find_center(boxes[-1])))
+        for timestamp, box in enumerate(boxes):
+            #print(find_center(box), find_center(obj_box))
+            #print(l2_distance(find_center(box), find_center(obj_box)))
+            if box_overlap(box, obj_box):
+                results.append(timestamp)
+                break
+            #print("---------")
+    #print(results)
+
+    #5 step - 0.5second
+    #(i-1)*10 + i = 0.5second
+    object = {
+        "trajectories":box_trajectories,
+        "other": obj_box
+    }
+    json.dump(object, open("text.json","w"), indent=2)
     if len(results) > 0:
-        return True, round(sum(results)/len(results))
+        averaged_collision_timestamp = round(sum(results) / len(results))
+        averaged_collision_time = averaged_collision_timestamp * (0.5 / ((len(original_trajectory) - 1) * 10 + 1))
+        return True, averaged_collision_time
     else:
         return False, None
 
@@ -342,17 +417,38 @@ def determine_collisions(obj_box,  action, speed, duration, bucket_size=10, traj
 
 
 
-
+from pprint import pprint
 
 if __name__ == "__main__":
-    interpret_actions(TRAJECTORIES)
+    #interpret_actions(TRAJECTORIES)
     #processed = json.load(open("./processed_trajectories.json","r"))
     ##sortedd = sort_by_end(processed)
     ##json.dump(sortedd, open("stat_end.json","w"), indent=2)
     #sortedd = sort_by_dist(processed)
     #json.dump(sortedd, open("stat_dist.json", "w"), indent=2)
 
-    #result = end_with_average(processed, action="a", speed=10, duration=15)
+    #result = end_with_average(processed, action=0, speed=10, duration=15)
+    #print(result)
+
+    box_traj = TRAJECTORIES["a_20_56.235"]["boxs"][0][:5]
+    new_traj = supersample_boxes(box_traj,4)
+
+    pprint(box_traj)
+    print("_____")
+    pprint(new_traj)
+
+    print("_____")
+    print("_____")
+    print("_____")
+
+    print(len(box_traj), len(new_traj))
+
+    for traj in box_traj:
+        print(len(traj))
+    print("_____")
+    for traj in new_traj:
+        print(len(traj))
+
 
     #for bucket_size in [2, 5, 10]:
     #    result = end_with_average(processed, action="a", speed=10, duration=10, bucket_size=bucket_size)
