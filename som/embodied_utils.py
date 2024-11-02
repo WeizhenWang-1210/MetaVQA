@@ -43,6 +43,14 @@ def supersample_boxes(boxes, factor=10):
     return interpolated_boxes
 
 
+def describe_speed(speed_class):
+    criteria = {
+        "slow": "(0-10 mph)",
+        "moderate": "(10-30 mph)",
+        "fast": "(30-50 mph)",
+        "very fast": "(50+ mph)",
+    }
+    return criteria[speed_class]
 
 
 class ACTION:

@@ -88,7 +88,6 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
             else:
                 results.append(0)
         return results, masks
-
     position = (0., 0.0, 1.5)
     hpr = [0, 0, 0]
     obs = env.engine.get_sensor("rgb").perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
@@ -96,18 +95,14 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
     instance = env.engine.get_sensor("instance").perceive(to_float=True, new_parent_node=env.agent.origin,
                                                           position=position, hpr=hpr)
     instance_5 = np.round(instance, 5)
-
     base_img = np.copy(obs)
-    #print(base_img.shape)
     color2id = env.engine.c_id
-    #id2c = env.engine.id_c
     filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (r == 0 and g == 0 and b == 0) and (
             c > MIN_OBSERVABLE_PIXEL)
     visible_object_ids, log_mapping = get_visible_object_ids(instance, color2id, filter)
     valid_objects = env.engine.get_objects(
         lambda x: l2_distance(x, env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x,
                                                                                                                BaseTrafficLight))
-    #print(valid_objects)
     query_ids = [object_id for object_id in valid_objects.keys() if object_id in visible_object_ids]
     colors = [log_mapping[query_id] for query_id in query_ids]
     colors = [(round(b, 5), round(g, 5), round(r, 5)) for r, g, b in colors]
@@ -160,7 +155,7 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
         query_id, color, area, binary_mask = area_ascending[i]
         put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale,
                  background_color=background_color)
-    return (base_img * 255).astype(np.uint8)
+    return (base_img * 255).astype(np.uint8), id2l
 
 
 def capture(env):
@@ -176,7 +171,7 @@ def capture(env):
 
 
 def capture_som(env):
-    obs = observe_som(env)
+    obs, id2label = observe_som(env)
     front = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -15, 3], [0, -0.8, 0])
     RECORD_BUFFER[env.current_seed][env.engine.episode_step] = dict(action=None, front=front, obs=obs,
                                                                     navigation=dynamic_get_navigation_signal(
@@ -184,7 +179,7 @@ def capture_som(env):
                                                                         timestamp=env.episode_step, env=env),
                                                                     state=[env.agent.position, env.agent.heading,
                                                                            env.agent.speed])
-    return obs, front
+    return obs, front, id2label
 
 
 INTERVENED = {
@@ -295,7 +290,7 @@ def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
             navigation = dynamic_get_navigation_signal(env.engine.data_manager.current_scenario,
                                                        timestamp=env.episode_step, env=env)
             prompt = f"The image is observed from your front camera, as you are driving on the road. Your current navigation command is \"{navigation}\". Please pick one of the following action in order to navigate safely without collision or violating traffic rules: (A) TURN_LEFT; (B) TURN_RIGHT; (C) SLOW_DOWN; (D) BRAKE; (E) KEEP_STRAIGHT. For example, if you think \"TURN_LEFT\" action should be chosen, answer \"A\"."
-            obs, front = capture_som(env)
+            obs, front, id2label = capture_som(env)
             if step % command_frequency == 0:
                 print("Perceive & Act")
                 intervention, intervened = generation_action(model, processor, tokenizer, prompt, obs, intervened)
