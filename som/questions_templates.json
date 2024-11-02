@@ -32,7 +32,7 @@
         },
         "identify_position": {
             "text":[
-                "Please tell me the relative position of <<id1>> with respect to us."
+                "Please tell me the relative position of object <<id1>> with respect to us."
             ],
             "params":[
                 "<id1>"
