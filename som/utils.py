@@ -78,16 +78,13 @@ import random
 
 
 def random_choice(qa_records):
-    options = ["(A)", "(B)", "(C)", "(D)"]
     for key, record in qa_records.items():
-        if record["type"] in ["pick_closer"]:
-            valid_options = options[:3]
-        elif record["type"] in ["predict_crash_ego_still", "predict_crash_ego_dynamic", "relative_predict_crash_still",
-                                "relative_predict_crash_dynamic"]:
-            valid_options = options[:2]
+        valid_options = list(record["options"].keys())
+        assert record["type"] == "describe_scenario" or not len(valid_options) <= 0
+        if len(valid_options)==0:
+            record["final_choice"] = ""
         else:
-            valid_options = options
-        record["final_choice"] = random.choice(valid_options)
+            record["final_choice"] = random.choice(valid_options)
     return qa_records
 
 
@@ -133,7 +130,7 @@ def analyze_dataset(qa_records):
             episode_path = os.path.basename(os.path.dirname(frame_path))
             #match = re.match(pattern, episode_path)
             #print(match)
-            world = episode_path[:10]#match
+            world = episode_path[:10]  #match
 
         return world
 
@@ -158,7 +155,7 @@ def analyze_dataset(qa_records):
     return statistics
 
 
-def create_split(qa_records, split_path, distributions=(0.8,0.2)):
+def create_split(qa_records, split_path, distributions=(0.8, 0.2)):
     import numpy as np
     data = np.array(list(qa_records.keys()))
     # Example data
@@ -175,12 +172,11 @@ def create_split(qa_records, split_path, distributions=(0.8,0.2)):
         print(f"Subset {i + 1}: {len(subset)} items")
     json.dump(
         {
-            "train":list(split_data[0]),
-            "val":list(split_data[1])
+            "train": list(split_data[0]),
+            "val": list(split_data[1])
         },
-        open(split_path,"w"),
+        open(split_path, "w"),
     )
-
 
 
 import glob
@@ -188,12 +184,15 @@ import glob
 import shutil
 import os
 from concurrent.futures import ThreadPoolExecutor
+
+
 def copy_file(src, dest):
     try:
         shutil.copy2(src, dest)  # copy2 also preserves metadata like timestamps
         print(f"Copied {src} to {dest}")
     except Exception as e:
         print(f"Error copying {src} to {dest}: {e}")
+
 
 # Function to perform parallel file copying
 def parallel_copy(mappings, num_threads=4):
@@ -204,6 +203,7 @@ def parallel_copy(mappings, num_threads=4):
         # Optionally, wait for all tasks to complete and handle results
         for task in tasks:
             task.result()
+
 
 def export(qa_path, obs_directory, vqa_directory):
     import tqdm
@@ -228,7 +228,6 @@ def export(qa_path, obs_directory, vqa_directory):
     parallel_copy(transfer_tuples)
 
 
-
 def split(path, split_path, train_path, val_path):
     import json, os
     #path = "/data_weizhen/metavqa_cvpr/static_medium_export/data.json"
@@ -242,6 +241,7 @@ def split(path, split_path, train_path, val_path):
     #val_path = "/data_weizhen/metavqa_cvpr/static_medium_export/val.json"
     train_qas, val_qas = dict(), dict()
     local_idx = 0
+
     def append_prefix(paths, prefix):
         return [os.path.join(prefix, p) for p in paths]
 
@@ -259,86 +259,10 @@ def split(path, split_path, train_path, val_path):
     json.dump(val_qas, open(val_path, "w"), indent=2)
 
 
-
 if __name__ == "__main__":
-    """
-    for real demo
-    data = json.load((open("/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json","r")))
-    create_split(data, "/bigdata/weizhen/repo/qa_platform/public/nusc_real/1_real_split.json", (0.96, 0.04))
-    split("/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json",
-          "/bigdata/weizhen/repo/qa_platform/public/nusc_real/1_real_split.json",
-          "/bigdata/weizhen/repo/qa_platform/public/1_real_train.json", "/bigdata/weizhen/repo/qa_platform/public/1_real_val.json"
-          )
-    """
-    """
-    for sim demo
-    data = json.load((open("/bigdata/weizhen/repo/qa_platform/public/0_static_medium.json","r")))
-    create_split(data, "/bigdata/weizhen/repo/qa_platform/public/0_static_medium_split.json", (0.98,0.02))
-    split("/bigdata/weizhen/repo/qa_platform/public/0_static_medium.json", "/bigdata/weizhen/repo/qa_platform/public/0_static_medium_split.json",
-          "/bigdata/weizhen/repo/qa_platform/public/0_train.json", "/bigdata/weizhen/repo/qa_platform/public/0_val.json"
-    )
-    """
-    qas = glob.glob("/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/*_grounding_ablation.json")
-    qas = [json.load(open(path)) for path in qas]
-    merged_qa = merge_qas(qas)
-    json.dump(merged_qa, open("/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation.json","w"), indent=2)
+    test_qas = json.load(open("/data_weizhen/metavqa_cvpr/datasets/test/test/test_processed.json"))
+    test_qas = random_choice(test_qas)
     json.dump(
-        analyze_dataset(merged_qa), open("/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation_stats.json", "w"), indent=2
+        test_qas,
+        open("/home/weizhen/experiments/main/random_test_results.json", "w"), indent=2
     )
-    obs_directory = "/bigdata/weizhen/metavqa_cvpr/exports/grounding_ablations/obs"  # "/den/metavqa_cvpr/static_medium_expoata_weizhrt/obs"
-    vqa_directory = "/bigdata/weizhen/metavqa_cvpr/exports/grounding_ablations"  # "/data_weizhen/metavqa_cvpr/static_medium_export"
-    export(qa_path="/bigdata/weizhen/metavqa_cvpr/vqas/grounding_ablations/grounding_ablation.json", obs_directory=obs_directory,
-           vqa_directory=vqa_directory)
-
-    #sample exporting
-    exit()
-    obs_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/obs"      #"/den/metavqa_cvpr/static_medium_expoata_weizhrt/obs"
-    vqa_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/"      #"/data_weizhen/metavqa_cvpr/static_medium_export"
-    export(qa_path="/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", obs_directory=obs_directory, vqa_directory=vqa_directory)
-    """
-    exit()
-    old_qas = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json",
-               "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/2_real.json",
-               "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/3_real.json"]
-    print(len(old_qas))
-    old_qas = [json.load(open(old_qa, "r")) for old_qa in old_qas]
-    print(sum([len(qa) for qa in old_qas]))
-    new_qa = merge_qas(
-        old_qas
-    )
-    json.dump(new_qa, open("/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", "w"), indent=2)
-    json.dump(
-        analyze_dataset(new_qa), open("/bigdata/weizhen/metavqa_iclr/vqa/real/real_stats.json", "w"), indent=2
-    )
-    exit()
-
-    #qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "r"))
-    #stat_by_category, total, total_correct = accuracy_analysis(qa)
-
-    #result = dict(
-    #    total_questions = total, total_correct = total_correct, stats = stat_by_category
-    #)
-    #answer = []
-    #for record in qa.values():
-    #    answer.append(record["answer"])
-    #print(";".join(answer))
-    #exit()
-    #json.dump(result, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed_stat.json", "w"),
-    #          indent=2)
-
-    """
-    """
-    #for parsing response    
-    response_path = "/bigdata/weizhen/repo/qa_platform/public/data_verification_result.json"
-    import json
-
-    responses = json.load(open(response_path, "r"))
-    for qid in responses.keys():
-        choice = parse_response(responses[qid]["model_response"])
-        responses[qid]["final_choice"] = choice
-    json.dump(
-        responses, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "w"), indent=2
-    )
-    """
-
-
