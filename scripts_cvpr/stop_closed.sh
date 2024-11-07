@@ -1,6 +1,6 @@
 #!/bin/bash
-NUMSCENARIOS=50
-DATA="/home/weizhen/cat"
+NUMSCENARIOS=120
+DATA="/data_weizhen/scenarios"
 MODELPATH="always_stop"   #Where the ckpt is stored
 RECORDPATH="/home/weizhen/closed_loops/stop"
 PROMPTSCHEMA="direct"

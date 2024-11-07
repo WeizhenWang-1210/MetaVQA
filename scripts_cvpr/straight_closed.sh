@@ -1,10 +1,10 @@
 #!/bin/bash
 NUMSCENARIOS=120
 DATA="/data_weizhen/scenarios"
-MODELPATH="random"   #Where the ckpt is stored
-RECORDPATH="/home/weizhen/closed_loops/random"
+MODELPATH="always_straight"   #Where the ckpt is stored
+RECORDPATH="/home/weizhen/closed_loops/straight"
 PROMPTSCHEMA="direct"
-RESULTPATH="/home/weizhen/closed_loops/random/random.json"
+RESULTPATH="/home/weizhen/closed_loops/straight/straight.json"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
 CUDA_DEVICES=0
