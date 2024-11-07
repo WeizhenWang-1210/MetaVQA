@@ -85,8 +85,23 @@ def filter():
         f.close()
 
 
+import os
+import shutil
+def curate_cat():
+    records = json.load(open("/data_weizhen/CAT/summary.json","r"))
+    src_dir = "/data_weizhen/CAT"
+    target_dir = "/data_weizhen/scenarios"
+    os.makedirs(target_dir, exist_ok=True)
+    for filename, record in records.items():
+        if record["total_step"] >= 30 and "collision" in record.keys():
+            shutil.copy(
+                os.path.join(src_dir, filename),
+                os.path.join(target_dir, filename)
+            )
+
+
 
 
 if __name__ == "__main__":
-    filter()
+    curate_cat()
 
