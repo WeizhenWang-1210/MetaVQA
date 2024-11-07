@@ -51,7 +51,7 @@ import random
 
 def observe(env):
     #obs = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -15, 3], [0, -0.8, 0])
-    position = (0., 0.0, 1.5)
+    position = (0., -2, 1.4)
     hpr = [0, 0, 0]
     obs = env.engine.get_sensor("rgb").perceive(to_float=False, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
@@ -88,7 +88,7 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
             else:
                 results.append(0)
         return results, masks
-    position = (0., 0.0, 1.5)
+    position = (0., -2, 1.4)
     hpr = [0, 0, 0]
     obs = env.engine.get_sensor("rgb").perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
@@ -214,6 +214,10 @@ def always_stop(intervened):
     ACTION_STATISTICS["d"] += 1
     return ACTION_MAPPING["d"], True
 
+def always_straight(intervened):
+    ACTION_MAPPING = INTERVENED
+    ACTION_STATISTICS["e"] += 1
+    return ACTION_MAPPING["e"], True
 
 def random_action(intervened):
     if intervened:
@@ -452,6 +456,7 @@ def main():
             rgb=(RGBCamera, 1920, 1080),
             instance=(InstanceCamera, 1920, 1080)
         ),
+        "vehicle_config":dict(vehicle_model="static_default"),
         "height_scale": 1
     }
     env = ScenarioDiverseEnv(env_config)
@@ -462,6 +467,10 @@ def main():
     elif args.model_path == "always_stop":
         total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
             closed_loop_baselines(env, list(range(args.num_scenarios)), actor=always_stop,
+                                  record_folder=args.record_path)
+    elif args.model_path == "always_straight":
+        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
+            closed_loop_baselines(env, list(range(args.num_scenarios)), actor=always_straight,
                                   record_folder=args.record_path)
     else:
         total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
