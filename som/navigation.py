@@ -62,15 +62,15 @@ class TurnAction:
     @classmethod
     def get_str(cls, action):
         if action == TurnAction.STOP:
-            return "STOP"
+            return "stop" #"STOP"
         elif action == TurnAction.KEEP_STRAIGHT:
-            return "KEEP_STRAIGHT"
+            return "forward" #"KEEP_STRAIGHT"
         elif action == TurnAction.TURN_LEFT:
-            return "TURN_LEFT"
+            return "go left" #“TURN_LEFT"
         elif action == TurnAction.TURN_RIGHT:
-            return "TURN_RIGHT"
+            return "go right" #"TURN_RIGHT"
         elif action == TurnAction.U_TURN:
-            return "U_TURN"
+            return "u turn" #"U_TURN"
         else:
             raise ValueError("Unknown action: {}".format(action))
 
@@ -200,7 +200,8 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
         action = TurnAction.TURN_RIGHT
     else:
         action = TurnAction.KEEP_STRAIGHT
-    print("Action at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(action)))
+    print("Dynamic Navigation at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(action)))
+    return TurnAction.get_str(action)
 
 
 

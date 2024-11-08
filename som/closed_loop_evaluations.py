@@ -15,6 +15,9 @@ from som.navigation import get_trajectory, dynamic_get_navigation_signal
 import cv2
 import os
 from PIL import Image
+import torch
+import torch.multiprocessing as mp
+from transformers import AutoModel, AutoTokenizer, AutoProcessor
 import json
 
 INTERNVL = os.getenv("INTERNVL", False)
@@ -44,7 +47,7 @@ MODELPATH = None
 sys.path.append('/home/chenda/lmms-finetune/chenda_scripts/')
 sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
-from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot
+from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model
 from masking import find_center, put_text, put_rectangle
 import random
 
@@ -88,6 +91,7 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
             else:
                 results.append(0)
         return results, masks
+
     position = (0., -2, 1.4)
     hpr = [0, 0, 0]
     obs = env.engine.get_sensor("rgb").perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
@@ -197,6 +201,10 @@ NON_INTERVENED = {
     "e": [0, 0.15]  #keep_straight
 }
 
+ACTION2OPTION = {
+    "TURN_LEFT": "A", "TURN_RIGHT": "B", "SLOW_DOWN": "C", "BRAKE": "D", "KEEP_STRAIGHT": "E"
+}
+
 
 def convert_action(action, intervened):
     if intervened:
@@ -214,10 +222,12 @@ def always_stop(intervened):
     ACTION_STATISTICS["d"] += 1
     return ACTION_MAPPING["d"], True
 
+
 def always_straight(intervened):
     ACTION_MAPPING = INTERVENED
     ACTION_STATISTICS["e"] += 1
     return ACTION_MAPPING["e"], True
+
 
 def random_action(intervened):
     if intervened:
@@ -234,6 +244,9 @@ def random_action(intervened):
         return ACTION_MAPPING[action], intervened
 
 
+from som.parse_responses import parse_response
+
+
 def generation_action(model, processor, tokenizer, prompt, obs, intervened):
     if INTERNVL:
         if INTERNVLZEROSHOT:
@@ -242,6 +255,9 @@ def generation_action(model, processor, tokenizer, prompt, obs, intervened):
             answer = inference_internvl(model, processor, tokenizer, prompt, obs[:, :, ::-1])
     else:
         answer = inference(model, processor, tokenizer, prompt, obs[:, :, ::-1])
+    print(prompt, answer)
+
+    answer = parse_response(answer, ACTION2OPTION)
     answer = answer.lower()
     ACTION_STATISTICS[answer] += 1
     intervention = convert_action(answer, intervened)
@@ -252,6 +268,9 @@ def generation_action(model, processor, tokenizer, prompt, obs, intervened):
         return intervention, False
 
 
+from som.closed_loop_utils import classify_speed
+
+
 def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
     record = record_folder is not None
     if INTERNVL:
@@ -259,7 +278,7 @@ def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
         model, processor, tokenizer = load_internvl(model_path=model_path)
     else:
         model, processor, tokenizer = load_model(model_path=model_path)
-    model.to(device)
+    model.to("cuda")
     total_completions = total_rewards = num_collisions = num_src_collisions = 0
     command_frequency = 5
     ADEs, FDEs = [], []
@@ -293,7 +312,20 @@ def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
             trajectory.append(env.agent.position)
             navigation = dynamic_get_navigation_signal(env.engine.data_manager.current_scenario,
                                                        timestamp=env.episode_step, env=env)
-            prompt = f"The image is observed from your front camera, as you are driving on the road. Your current navigation command is \"{navigation}\". Please pick one of the following action in order to navigate safely without collision or violating traffic rules: (A) TURN_LEFT; (B) TURN_RIGHT; (C) SLOW_DOWN; (D) BRAKE; (E) KEEP_STRAIGHT. For example, if you think \"TURN_LEFT\" action should be chosen, answer \"A\"."
+            speed_class = classify_speed(env.agent.speed)
+            criteria = {
+                "slow": "(0-10 mph)",
+                "moderate": "(10-30 mph)",
+                "fast": "(30-50 mph)",
+                "very fast": "(50+ mph)",
+            }
+            desc = criteria[speed_class]
+
+            prompt = (
+                f"You are driving on the road with {speed_class} speed{desc}, and your current navigation command is \"{navigation}\". "
+                f"Based on the image as the front observation, choose the safest from the following actions to execute for the next 0.5 seconds: "
+                f"(A) TURN_LEFT; (B) TURN_RIGHT; (C) SLOW_DOWN; (D) BRAKE; (E) KEEP_STRAIGHT. "
+                f"Answer in a single capitalized character chosen from [\"A\", \"B\", \"C\", \"D\", \"E\"].")
             obs, front, id2label = capture_som(env)
             if step % command_frequency == 0:
                 print("Perceive & Act")
@@ -422,8 +454,6 @@ def closed_loop_baselines(env: ScenarioDiverseEnv, seeds, actor: callable, recor
 
 
 from metadrive.component.sensors.instance_camera import InstanceCamera
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--headless", action="store_true", help="Set if don't use render")
@@ -456,7 +486,7 @@ def main():
             rgb=(RGBCamera, 1920, 1080),
             instance=(InstanceCamera, 1920, 1080)
         ),
-        "vehicle_config":dict(vehicle_model="static_default"),
+        "vehicle_config": dict(vehicle_model="static_default"),
         "height_scale": 1
     }
     env = ScenarioDiverseEnv(env_config)
@@ -494,5 +524,204 @@ def main():
     json.dump(summary, open(args.result_path, "w"), indent=2)
 
 
+def closed_loop_job(rank, data_dir, total_scenarios, seed_sets, model_path, save_path, record_folder=None, gpu_ids=None):
+    gpus = gpu_ids[rank]
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, gpu_ids[rank]))
+    env_config = {
+        "sequential_seed": True,
+        "use_render": False,
+        "data_directory": data_dir,
+        "num_scenarios": total_scenarios,
+        "agent_policy": InterventionPolicy,
+        "sensors": dict(
+            rgb=(RGBCamera, 1920, 1080),
+            instance=(InstanceCamera, 1920, 1080)
+        ),
+        "vehicle_config": dict(vehicle_model="static_default"),
+        "height_scale": 1
+    }
+    env = ScenarioDiverseEnv(env_config)
+    record = record_folder is not None
+    if INTERNVL:
+        print("Using Internvl")
+        #model, processor, tokenizer = load_internvl(model_path=model_path)
+        print(f"Loading {model_path}")
+        print(os.environ["CUDA_VISIBLE_DEVICES"])
+        device_map = split_model('InternVL2-8B')
+        model = AutoModel.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            use_flash_attn=True,
+            trust_remote_code=True,
+            #device_map=device_map
+            ).eval()
+        processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        #return model, processor, tokenizer
+    else:
+        model, processor, tokenizer = load_model(model_path=model_path)
+    #print(f'before sent {os.environ["CUDA_VISIBLE_DEVICES"]}')
+    #exit()
+    model.to(gpus[0])
+    total_completions = total_rewards = num_collisions = num_src_collisions = 0
+    command_frequency = 5
+    ADEs, FDEs = [], []
+    seeds = seed_sets[rank]
+    for seed in seeds:
+        env.reset(seed)
+        original_trajectory = get_trajectory(env)
+        max_step = original_trajectory.shape[0]
+        print(f"Rolling out seed {env.engine.current_seed}")
+        roll_out = True
+        while roll_out:
+            o, r, tm, tc, info = env.step([0, 0])
+            if len(env.agent.crashed_objects) > 0:
+                print(f"{seed} contains collision.")
+                num_src_collisions += 1
+                roll_out = False
+            if tm or tc:
+                roll_out = False
+        env.reset(seed)
+        print(f"Evaluating seed {env.engine.current_seed}")
+        run = True
+        intervened = False
+        step = episodic_completion = episodic_reward = 0
+        intervention = [0, 0]
+        trajectory = []
+        while run:
+            index = max(int(env.engine.episode_step), 0)
+            if index >= max_step:
+                print("Time horizon ended")
+                run = False
+                break
+            trajectory.append(env.agent.position)
+            navigation = dynamic_get_navigation_signal(env.engine.data_manager.current_scenario,
+                                                       timestamp=env.episode_step, env=env)
+            speed_class = classify_speed(env.agent.speed)
+            criteria = {
+                "slow": "(0-10 mph)",
+                "moderate": "(10-30 mph)",
+                "fast": "(30-50 mph)",
+                "very fast": "(50+ mph)",
+            }
+            desc = criteria[speed_class]
+
+            prompt = (
+                f"You are driving on the road with {speed_class} speed{desc}, and your current navigation command is \"{navigation}\". "
+                f"Based on the image as the front observation, choose the safest from the following actions to execute for the next 0.5 seconds: "
+                f"(A) TURN_LEFT; (B) TURN_RIGHT; (C) SLOW_DOWN; (D) BRAKE; (E) KEEP_STRAIGHT. "
+                f"Answer in a single capitalized character chosen from [\"A\", \"B\", \"C\", \"D\", \"E\"].")
+            obs, front, id2label = capture_som(env)
+            if step % command_frequency == 0:
+                print("Perceive & Act")
+                intervention, intervened = generation_action(model, processor, tokenizer, prompt, obs, intervened)
+                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["action"] = intervention
+                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["navigation"] = navigation
+                print(intervention, intervened)
+            o, r, tm, tc, info = env.step(intervention)
+            episodic_reward, episodic_completion = info["episode_reward"], info["route_completion"]
+            if len(env.agent.crashed_objects) > 0:
+                print("VLM still collided.")
+                num_collisions += 1
+                run = False
+            if in_forbidden_area(env.agent):
+                print("VLM wandered off road")
+                num_collisions += 1
+                run = False
+            if (tm or tc) and not info["out_of_road"]:
+                run = False
+            step += 1
+        total_rewards += episodic_reward
+        total_completions += episodic_completion
+        ADE, FDE = computeADE(original_trajectory, np.array(trajectory)), computeFDE(original_trajectory,
+                                                                                     np.array(trajectory))
+        ADEs.append(ADE)
+        FDEs.append(FDE)
+        if record:
+            for episode_id, frames in RECORD_BUFFER.items():
+                action_buffer = {}
+                folder_path = os.path.join(record_folder, str(episode_id))
+                os.makedirs(folder_path, exist_ok=True)
+                for frame_id, frame in frames.items():
+                    obs_path = os.path.join(folder_path, f"obs_{frame_id}.jpg")
+                    front_path = os.path.join(folder_path, f"front_{frame_id}.jpg")
+                    Image.fromarray(frame["obs"][:, :, ::-1]).save(obs_path)
+                    Image.fromarray(frame["front"][:, :, ::-1]).save(front_path)
+                    action_buffer[frame_id] = dict(action=frame["action"], state=frame["state"],
+                                                   navigation=frame["navigation"])
+                json.dump(action_buffer, open(os.path.join(folder_path, "action_buffer.json"), "w"))
+            RECORD_BUFFER.clear()
+        print(f"Finished seed {env.engine.current_seed}")
+        print(f"episodic_reward: {episodic_reward}")
+        print(f"episodic_completion:{episodic_completion}")
+        print(f"ADE:{ADE}; FDE{FDE}")
+    summary = dict(
+        src=data_dir,
+        num_scenarios=len(seeds),
+        total_collision=num_collisions,
+        total_src_collision=num_src_collisions,
+        total_rewards=total_rewards,
+        total_completions=total_completions,
+        avgADE=sum(ADEs) / len(ADEs),
+        avgFDE=sum(FDEs) / len(FDEs),
+        minADE=min(ADEs),
+        minFDE=min(FDEs),
+        ADEs=ADEs,
+        FDEs=FDEs,
+        action_statistics=ACTION_STATISTICS
+    )
+    basename = os.path.basename(save_path)
+    final_name = os.path.join(
+        os.path.dirname(save_path),
+        f"{rank}_{basename}"
+    )
+    json.dump(summary, open(final_name, "w"), indent=2)
+
+
+def multiprocess_main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--headless", action="store_true", help="Set if don't use render")
+    parser.add_argument("--num_scenarios", type=int, default=5, help="How many scenarios(from the start) to use")
+    parser.add_argument("--data_directory", type=str, default="/home/weizhen/cat",
+                        help="Path to the folder storing dataset_summary.pkl")
+    parser.add_argument("--model_path", type=str, default="/home/chenda/ckpt/internvl_demo_merge",
+                        help="Path to the model ckpt. Can be a name/local folder(if finetuned)")
+    parser.add_argument("--prompt_schema", type=str, default="direct", help="Whether to use CoT prompting or not")
+    parser.add_argument("--record_path", type=str, default=None,
+                        help="Directory to store the visualizations of VLM's decision. If None, then won't store")
+    parser.add_argument("--result_path", type=str, default="/home/weizhen/closed_loops/eval.json",
+                        help="Path to the file storing experiment statistics")
+    parser.add_argument("--num_proc", type=int, default=1,
+                        help="Number of processes")
+    args = parser.parse_args()
+    print("Running with the following parameters")
+    for key, value in args.__dict__.items():
+        print("{}: {}".format(key, value))
+    # assert INTERNVL or args.model_path in MODELPATHS, f"No implementation for model {args.model_path}"
+    seed_sets = divide_list(list(range(args.num_scenarios)), args.num_proc)
+    gpus = [int(gid) for gid in os.environ["CUDA_VISIBLE_DEVICES"].split(",")]
+    gpus = divide_list(gpus, args.num_proc)
+    print(gpus)
+    mp.spawn(
+        closed_loop_job, args=(args.data_directory, args.num_scenarios, seed_sets, args.model_path, args.result_path, args.record_path, gpus), join=True, nprocs=args.num_proc
+    )
+
+
+
+def divide_list(lst, n):
+    # Calculate the size of each chunk
+    chunk_size = len(lst) // n
+    remainder = len(lst) % n
+    result = []
+    start = 0
+    for i in range(n):
+        # Each chunk gets an extra element if there is a remainder
+        end = start + chunk_size + (1 if i < remainder else 0)
+        result.append(lst[start:end])
+        start = end
+    return result
+
 if __name__ == "__main__":
     main()
+    #multiprocess_main()

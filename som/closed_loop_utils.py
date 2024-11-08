@@ -3,9 +3,10 @@ import numpy as np
 from vqa.functionals import identify_angle
 from som.embodied_utils import classify_distance, l2_distance, find_sector, get_end_sector, classify_speed, \
     describe_speed, ACTION, determine_collisions
-from som.static_question_generation import angle2sector, SECTORS,TYPES_WITHOUT_HEADINGS
+from som.static_question_generation import angle2sector, SECTORS, TYPES_WITHOUT_HEADINGS
 from vqa.object_node import extrapolate_bounding_boxes, box_trajectories_overlap, transform_vec
 from vqa.configs.NAMESPACE import POSITION2CHOICE
+from vqa.annotation_utils import annotate_type
 
 
 def computeADE(traj1, traj2):
@@ -57,28 +58,40 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
         question = f"Please tell me the relative position of object <{label}> with respect to us. Select the best option from: {option_str}."
         answer = POSITION2CHOICE[find_sector(object.bounding_box, ego.bounding_box, ego.heading)]
         ground_truth = chr(ord("A") + options.index(answer))
-        return question, ground_truth, answer
+
+        option2answer = {
+            chr(ord("A") + options.index(opt)): opt for opt in options
+        }
+
+        return question, ground_truth, answer, option2answer
 
     def prompt_heading(label):
         obj_id = label2id[label]
         object = env.engine.get_object(obj_id)[obj_id]
-        if object.type in TYPES_WITHOUT_HEADINGS:
-            return None, None, None
+        type = annotate_type(object)
+        if type in TYPES_WITHOUT_HEADINGS:
+            return None, None, None, None
         ego = env.agent
-        options = list(POSITION2CHOICE.values())
+        options = [POSITION2CHOICE[sector] for sector in SECTORS]
         option_str = option_strings(options)
-        question = f"Please describe the heading direction of object <label>. Select the best option from: {option_str}."
+        question = f"Please describe the heading direction of object <{label}>. Select the best option from: {option_str}."
         object_angle = identify_angle(ego.position, ego.heading)([[object]])[object.id]
         heading = angle2sector(object_angle)
         answer = SECTORS.index(heading)
-        ground_truth = chr(ord("A") + options.index(answer))
-        return question, ground_truth, answer
+        ground_truth = chr(ord("A") + answer)
+
+        option2answer = {
+            chr(ord("A") + SECTORS.index(sector)): POSITION2CHOICE[sector] for sector in SECTORS
+        }
+
+        return question, ground_truth, POSITION2CHOICE[heading], option2answer
 
     def prompt_collision(label):
         obj_id = label2id[label]
         object = env.engine.get_object(obj_id)[obj_id]
-        if object.type in TYPES_WITHOUT_HEADINGS:
-            return None, None, None
+        type = annotate_type(object)
+        if type in TYPES_WITHOUT_HEADINGS:
+            return None, None, None, None
         ego = env.agent
         options = ["Yes", "No"]
         option_str = option_strings(options)
@@ -87,12 +100,13 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
         extrapolated_centers = [list(np.array(object.heading) * i + np.array(init_center)) for i in range(50)]
         extrapolated_boxes = extrapolate_bounding_boxes(extrapolated_centers,
                                                         np.arctan2(object.heading[1], object.heading[0]),
-                                                        object.bbox)
+                                                        object.bounding_box)
         ego_boxes = [ego.bounding_box for i in range(50)]
         crash = box_trajectories_overlap(extrapolated_boxes, ego_boxes)
         answer = "Yes" if crash else "No"
         ground_truth = "A" if crash else "B"
-        return question, ground_truth, answer
+        option2answer = dict(A="Yes", B="No")
+        return question, ground_truth, answer, option2answer
 
     def prompt_action_distance(action, duration, speed):
         """
@@ -105,7 +119,12 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
         options = ["very close", "close", "medium", "far"]
         end_distance, _ = get_end_sector(action=action, duration=duration, speed=speed)
         ground_truth = chr(ord("A") + options.index(end_distance))
-        return question, ground_truth, end_distance
+
+        option2answer = {
+            chr(ord("A") + options.index(opt)): opt for opt in options
+        }
+
+        return question, ground_truth, end_distance, option2answer
 
     def prompt_action_position(action, duration, speed):
         """
@@ -121,7 +140,10 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
             end_side = "f"
         answer = POSITION2CHOICE[end_side]
         ground_truth = chr(ord("A") + options.index(answer))
-        return question, ground_truth, answer
+        option2answer = {
+            chr(ord("A") + options.index(opt)): opt for opt in options
+        }
+        return question, ground_truth, answer, option2answer
 
     def prompt_action_collision(action, duration, speed, label):
         """
@@ -140,36 +162,33 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
                                                             duration=duration)
         answer = "Yes" if will_collide else "No"
         ground_truth = "A" if will_collide else "B"
-        return question, ground_truth, answer
-
-
+        return question, ground_truth, answer, dict(A="Yes", B="No")
 
     questions = []
     situational_type2func = {
-        "distance":prompt_distance,
-        "position":prompt_position,
-        "heading":prompt_heading,
-        "collision":prompt_collision,
+        "distance": prompt_distance,
+        "position": prompt_position,
+        "heading": prompt_heading,
+        "collision": prompt_collision,
     }
     situational_dicts = dict()
-
 
     indexed_dict = dict()
 
     for label in label2id.keys():
+        print(label)
         #tmp = dict()
         for question_type, func in situational_type2func.items():
-            question, option, answer = func(label)
+            question, option, answer, opt2answer = func(label)
             #tmp[question_type] = dict(
             #    question=question, option=option, answr=answer
             #)
             #questions.append(question)
-            indexed_dict[f"{label}_{question_type}"]= dict(
-                    question=question, option=option, answr=answer
+            if not question is None:
+                indexed_dict[f"{label}_{question_type}"] = dict(
+                    question=question, option=option, answer=answer, option2answer=opt2answer
                 )
         #situational_dicts[label] = tmp
-
-
 
     embodied_type2func = {
         "distance": prompt_action_distance,
@@ -183,39 +202,31 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
         if question_type != "collision":
             tmp = dict()
             for action in actions:
-                question, option, answer = func(action, 5, env.agent.speed)
+
+                question, option, answer, opt2answer = func(action, 5, env.agent.speed)
                 #tmp[action] = dict(
                 #    question=question, option=option, answr=answer
                 #)
                 #questions.append(question)
-
-                indexed_dict[f"{label}_{question_type}_{action}"]=dict(
-                    question=question, option=option, answr=answer
-                )
-
+                if not question is None:
+                    indexed_dict[f"ego_{question_type}_{action}"] = dict(
+                        question=question, option=option, answer=answer, option2answer=opt2answer
+                    )
 
             #embodied_dicts[question_type] = tmp
         else:
             for label in label2id.keys():
                 #tmp = dict()
                 for action in actions:
-                    question, option, answer = prompt_action_collision(action, 5, env.agent.speed, label)
+                    question, option, answer, opt2answer = prompt_action_collision(action, 5, env.agent.speed, label)
                     #tmp[action] = dict(
                     #    question=question, option=option, answr=answer
                     #)
                     #questions.append(question)
-                    indexed_dict[f"ego_{question_type}_{action}"] = dict(
-                        question=question, option=option, answr=answer
-                    )
+                    if not question is None:
+                        indexed_dict[f"{label}_ego-{question_type}_{action}"] = dict(
+                            question=question, option=option, answer=answer, option2answer=opt2answer
+                        )
 
                 #embodied_dicts[question_type][label] = tmp
-    return situational_dicts, embodied_dicts, questions
-
-
-
-
-
-
-
-
-
+    return indexed_dict
