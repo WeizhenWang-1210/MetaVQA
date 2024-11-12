@@ -37,6 +37,47 @@ def parse_response(response, answer2opt):
                 if len(matches) > 0:
                     answer = matches[-1][-2][-1]
     return answer.capitalize()
+import random
+
+def parse_response_safe(response, answer2opt):
+    if "assistant" in response:
+        generated = response.split("assistant")[-1][1:]
+    elif "ASSISTANT" in response:
+        generated = response.split("ASSISTANT")[-1][1:]
+    else:
+        generated = response
+    #print("!!!!!!!!!!!!!!!!")
+    #print(generated)
+    #print("!!!!!!!!!!!!!!!!")
+    answer = ""
+    if len(generated) == 1:
+        #Generated only a single token. Use that as an option.
+        answer = generated[-1]
+    else:
+        #try match option string.
+        #print("!!!!!!!!!!!!!!!!")
+        answer = parse_option(generated)
+        #print(generated)
+        #print(f"Answer:{answer}")
+        #print("!!!!!!!!!!!!!!!!")
+        if answer == "":
+            #try to match key world
+            #print(answer2opt)
+            for keyword in answer2opt.keys():
+                if keyword in generated:
+                    answer = answer2opt[keyword]
+            if answer == "":
+                #try to match answer field.
+                pattern = r'Answer(.*?):(.*?)([A-Z])([^a-zA-Z0-9]*?)'
+                matches = re.findall(pattern, generated)
+                #print(generated)
+                #print(matches)
+                if len(matches) > 0:
+                    answer = matches[-1][-2][-1]
+    answer = answer.upper()
+    if answer not in ["A","B","C","D","E","F","G","H"]:
+        answer = random.choice(list(answer2opt.values()))
+    return answer.upper()
 
 
 def parse_option(response):
