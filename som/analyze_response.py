@@ -4,9 +4,9 @@ import re
 from som.parse_responses import parse_response, parse_gpt
 
 NOT_YET_PARSED = ["describe_scenario"]
-path_template = "/home/chenda/evaluations/vqa/InternVL_waymonusc/*_test_results.json"
-merged_path = "/home/weizhen/experiments/main/InternVL_waymonusc_test_results.json"
-stat_path = "/home/weizhen/experiments/main/InternVL_waymonusc_test_results_stats.json"
+path_template = "/home/chenda/evaluations/vqa/LlavaNext/*_test_results.json"
+merged_path = "/home/weizhen/experiments/main/LLavaNext_test_results.json"
+stat_path = "/home/weizhen/experiments/main/LLavaNext_test_results_stats.json"
 domained_path = "/data_weizhen/metavqa_cvpr/datasets/test/test/test.json"
 original_qa = json.load(open(domained_path, "r"))
 
@@ -49,9 +49,6 @@ def analyze(basepath, mergepath, statpath):
     final = merge_responses(basepath)#json.load(open(mergepath, "r"))
     parsefail = 0
     for qid in final.keys():
-
-
-
         answer2opt = {str(val): str(key) for key, val in final[qid]["options"].items()} if final[qid]["options"] is not None \
             else {}
         choice = parse_response(final[qid]["model_response"], answer2opt) #parse_gpt(final[qid]["model_response"])#parse_response(final[qid]["model_response"], answer2opt)

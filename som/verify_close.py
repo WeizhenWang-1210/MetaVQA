@@ -56,17 +56,16 @@ def described(records, responses):
     for key, value in responses.items():
         oid, qtype, action = parse(key)
         opt2answer = records[key]["option2answer"]
+        print(key, value)
         answer = opt2answer[value]
-        if qtype == "distance" and answer in ["very close(0-2m)", "close(2-10m)"]:
+        if qtype == "distance" and answer in ["Very close(0-2m)", "Close(2-10m)", "Medium(10-30m)"]:
             selected_ids.append(oid)
 
         if action is None:
             new_dict[oid][qtype] = answer
         else:
             new_dict[oid][f"{qtype}_{action}"] = answer
-
     descs = []
-
     collide_with_ego = defaultdict(lambda: [])
     for idx in selected_ids:
         if idx == "ego":
@@ -93,7 +92,6 @@ def described(records, responses):
             ego_collide_str = new_dict[idx][f"ego-collision_{str(action_idx)}"]
             if ego_collide_str == "Yes":
                 collide_with_ego[action_idx].append(idx)
-
     ego_desc = []
     for action_idx in range(5):
         obs = [f"object <{idx}>" for idx in collide_with_ego[action_idx]]
@@ -104,7 +102,6 @@ def described(records, responses):
         s = ", ".join(obs)
         string = f"\tIf we choose {action_str}, we will be end up in our {position_str} sector at {distance_str} distance. If all other objects remain still, we will collide with [{s}]."
         ego_desc.append(string)
-
     obj_desc = "\n".join(descs)
     ego_desc = "\n".join(ego_desc)
     context_str = f"Here's a summary of the surrounding objects:\n{{\n{obj_desc}\n}}"
@@ -140,9 +137,6 @@ if __name__ == "__main__":
                 ),
             }
         )
-        #model, processor, tokenizer = load_internvl(
-        #    "/home/chenda/ckpt/internvl_finetuned_simreal_merge")  #"/home/chenda/ckpt/internvl_finetuned_simreal_merge"
-        #model.to("cuda")
         o, _ = env.reset()
         for seed in range(120):
             o, _ = env.reset(seed)

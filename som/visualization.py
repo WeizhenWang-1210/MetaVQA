@@ -283,7 +283,7 @@ def demo(directory):
         multiview_visualization(img_ordered_by_frames[i], os.path.join(directory, f"multiview_{i}.png"))
 
 if __name__ == "__main__":
-    trials = glob.glob(os.path.join("/home/weizhen/closed_loops/internvl2_finetuned_som/*"))
+    trials = glob.glob(os.path.join("/home/weizhen/closed_loops/internvl2_finetuned_som/*/"))
     trials = [f for f in trials if not f.endswith(".json")]
     for trial in trials:
         visualizae_closed_loop(trial_directory=trial)
