@@ -12,6 +12,38 @@ stats = [
 ]
 
 
+super_categories = dict(
+    identify_color="spatial",
+    identify_type="spatial",
+    identify_distance="spatial",
+    identify_position="spatial",
+    identify_heading="spatial",
+    pick_closer="spatial",
+    predict_crash_ego_still="embodied",
+    predict_crash_ego_dynamic="embodied",
+    relative_distance="spatial",
+    relative_position="spatial",
+    relative_heading="spatial",
+    relative_predict_crash_still="spatial",
+    relative_predict_crash_dynamic="spatial",
+    identify_closest="spatial",
+    identify_leftmost="spatial",
+    identify_rightmost="spatial",
+    identify_frontmost="spatial",
+    identify_backmost="spatial",
+    order_closest="spatial",
+    order_leftmost="spatial",
+    order_rightmost="spatial",
+    order_frontmost="spatial",
+    order_backmost="spatial",
+    describe_sector="spatial",
+    describe_distance="spatial",
+    embodied_distance="embodied",
+    embodied_sideness="embodied",
+    embodied_collision="embodied",
+    grounding="grounding"
+)
+
 
 
 
@@ -31,9 +63,9 @@ for modelid, result in zip(ids, results):
         splitted = q_id.split("_")
         doman = splitted[0]
         q_type = "_".join(splitted[1:])
-        identifier = f"{modelid},{doman},{q_type}"
+        super_type = super_categories[q_type]
+        identifier = f"{modelid},{doman},{super_type}, {q_type}"
         accu = record["accuracy"]
-        #print(identifier, accu)
         final[identifier] = accu
 
 json.dump(
