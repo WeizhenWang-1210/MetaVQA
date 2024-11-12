@@ -141,6 +141,7 @@ def get_navigation_signal(scenario, timestamp):
     actions = actions[0]
     print("Action at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(actions)))
     #print(111)
+    return actions
 
 def get_trajectory(env):
     """
