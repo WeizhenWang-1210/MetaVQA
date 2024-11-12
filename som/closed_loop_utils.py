@@ -18,6 +18,8 @@ def computeADE(traj1, traj2):
 
 def computeFDE(traj1, traj2):
     t = traj2.shape[0]
+    assert not (traj1[t - 1, :] == 0.0).all()
+    assert not (traj2[t - 1, :] == 0.0).all()
     return float(np.linalg.norm(traj1[t - 1, :] - traj2[t - 1, :]))
 
 
@@ -42,10 +44,10 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
         answer = classify_distance(l2_distance(ego.position, object.position))
         ground_truth = chr(ord("A") + options.index(answer))
         option2answer = dict(
-            A="very close(0-2m)",
-            B="close(2-10m)",
-            C="medium(10-30m)",
-            D="far(30m-)"
+            A="Very close(0-2m)",
+            B="Close(2-10m)",
+            C="Medium(10-30m)",
+            D="Far(30m-)"
         )
         return question, ground_truth, answer, option2answer
 
@@ -120,9 +122,12 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
         end_distance, _ = get_end_sector(action=action, duration=duration, speed=speed)
         ground_truth = chr(ord("A") + options.index(end_distance))
 
-        option2answer = {
-            chr(ord("A") + options.index(opt)): opt for opt in options
-        }
+        option2answer = dict(
+            A="Very close(0-2m)",
+            B="Close(2-10m)",
+            C="Medium(10-30m)",
+            D="Far(30m-)"
+        )
 
         return question, ground_truth, end_distance, option2answer
 
@@ -176,7 +181,7 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
     indexed_dict = dict()
 
     for label in label2id.keys():
-        print(label)
+        #print(label)
         #tmp = dict()
         for question_type, func in situational_type2func.items():
             question, option, answer, opt2answer = func(label)
@@ -203,7 +208,7 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
             tmp = dict()
             for action in actions:
 
-                question, option, answer, opt2answer = func(action, 5, env.agent.speed)
+                question, option, answer, opt2answer = func(action, 20, env.agent.speed)
                 #tmp[action] = dict(
                 #    question=question, option=option, answr=answer
                 #)
@@ -218,7 +223,7 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
             for label in label2id.keys():
                 #tmp = dict()
                 for action in actions:
-                    question, option, answer, opt2answer = prompt_action_collision(action, 5, env.agent.speed, label)
+                    question, option, answer, opt2answer = prompt_action_collision(action, 20, env.agent.speed, label)
                     #tmp[action] = dict(
                     #    question=question, option=option, answr=answer
                     #)
