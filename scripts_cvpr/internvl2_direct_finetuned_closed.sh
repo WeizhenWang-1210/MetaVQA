@@ -1,13 +1,13 @@
 #!/bin/bash
-NUMSCENARIOS=120
+NUMSCENARIOS=1
 DATA="/data_weizhen/scenarios"
-MODELPATH="/home/chenda/ckpt/internvl_finetuned_waymonusc_merge"   #Where the ckpt is stored
-RECORDPATH="/home/weizhen/closed_loops/internvl2_finetuned_som"
+MODELPATH="/home/chenda/huggingface_ckpt/InternVL2-8B"   #Where the ckpt is stored
+RECORDPATH="/home/weizhen/closed_loops/debug"
 PROMPTSCHEMA="direct"
-RESULTPATH="/home/weizhen/closed_loops/internvl2_finetuned_som/internvl2_direct_finetuned.json"
-#DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-#METAVQA_DIR="$(dirname "$DIR")"
-CUDA_DEVICES=2
+RESULTPATH="/home/weizhen/closed_loops/debug/debug.json"
+DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+METAVQA_DIR="$(dirname "$DIR")"
+CUDA_DEVICES=0
 export INTERNVL=true
 
 cd $METAVQA_DIR;

@@ -4,9 +4,9 @@ import re
 from som.parse_responses import parse_response, parse_gpt
 
 NOT_YET_PARSED = ["describe_scenario"]
-path_template = "/home/chenda/evaluations/vqa/LlavaNext/*_test_results.json"
-merged_path = "/home/weizhen/experiments/main/LLavaNext_test_results.json"
-stat_path = "/home/weizhen/experiments/main/LLavaNext_test_results_stats.json"
+path_template = "/home/chenda/evaluations/test/*_closed.json"
+merged_path = "/home/weizhen/experiments/test/closed.json"
+stat_path = "/home/weizhen/experiments/test/closed_stats.json"
 domained_path = "/data_weizhen/metavqa_cvpr/datasets/test/test/test.json"
 original_qa = json.load(open(domained_path, "r"))
 

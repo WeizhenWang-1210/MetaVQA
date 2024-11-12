@@ -176,7 +176,7 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
     ego_track = scenario["tracks"][ego_id]
     ego_traj = ego_track["state"]["position"][..., :2]
     T = ego_traj.shape[0]
-    adjustment_duration = 30
+    adjustment_duration = 20
     ego_pos, ego_heading = np.array(env.agent.position), np.array(env.agent.heading)
     segments_with_projection = []
     for i in range(len(ego_traj) - 1):

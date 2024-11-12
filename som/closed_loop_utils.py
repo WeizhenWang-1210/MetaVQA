@@ -18,6 +18,7 @@ def computeADE(traj1, traj2):
 
 def computeFDE(traj1, traj2):
     t = traj2.shape[0]
+    assert traj1.shape[-1]==2, traj1.shape
     assert not (traj1[t - 1, :] == 0.0).all()
     assert not (traj2[t - 1, :] == 0.0).all()
     return float(np.linalg.norm(traj1[t - 1, :] - traj2[t - 1, :]))

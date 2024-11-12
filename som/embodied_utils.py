@@ -59,19 +59,29 @@ class ACTION:
     SLOW_DOWN=2
     BRAKE=3#[0, -0.3],
     KEEP_STRAIGHT=4#[0,0.2]
+    SPEED_UP=5
+    BIG_LEFT=6
+    BIG_RIGHT=7
+
 
     @classmethod
     def get_control(cls, action):
         if action == ACTION.TURN_LEFT:
-            return [0.5, 0.8]
+            return [0.15, 0.8]
         elif action == ACTION.TURN_RIGHT:
-            return [-0.5, 0.8]
+            return [-0.15, 0.8]
         elif action == ACTION.SLOW_DOWN:
             return [0, -0.135]
         elif action == ACTION.BRAKE:
             return [0, -0.26]
         elif action == ACTION.KEEP_STRAIGHT:
             return [0, 0.15]
+        elif action == ACTION.SPEED_UP:
+            return [0, 0.3]
+        elif action == ACTION.BIG_LEFT:
+            return [0.6, 0.2]
+        elif action == ACTION.BIG_RIGHT:
+            return [-0.6, 0.2]
         else:
             raise ValueError("Unknown action: {}".format(action))
 
@@ -87,6 +97,12 @@ class ACTION:
             return "BRAKE"
         elif action == ACTION.KEEP_STRAIGHT:
             return "KEEP_STRAIGHT"
+        elif action == ACTION.SPEED_UP:
+            return "SPEED_UP"
+        elif action == ACTION.BIG_LEFT:
+            return "BIG_LEFT"
+        elif action == ACTION.BIG_RIGHT:
+            return "BIG_RIGHT"
         else:
             raise ValueError("Unknown action: {}".format(action))
 

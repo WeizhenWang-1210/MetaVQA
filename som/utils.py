@@ -81,7 +81,7 @@ def random_choice(qa_records):
     for key, record in qa_records.items():
         valid_options = list(record["options"].keys())
         assert record["type"] == "describe_scenario" or not len(valid_options) <= 0
-        if len(valid_options)==0:
+        if len(valid_options) == 0:
             record["final_choice"] = ""
         else:
             record["final_choice"] = random.choice(valid_options)
@@ -259,10 +259,69 @@ def split(path, split_path, train_path, val_path):
     json.dump(val_qas, open(val_path, "w"), indent=2)
 
 
+def analyze_gt(qa_records):
+    def find_identifier(path):
+        base = os.path.basename(path)
+        splitted = base.split("_")
+        episode = splitted[0]
+        step = splitted[1].split(".")[0]
+        return (int(episode), int(step))
+
+    statistics = dict(
+        total=0, question_dist=dict(), answer_dist=defaultdict(lambda: 0), total_frames=0, total_scenarios=0
+    )
+    frames, scenarios = set(), set()
+
+    for qid, record in qa_records.items():
+        frames.add(find_identifier(record["obs"][-1]))
+        scenarios.add(record["world"][-1])
+        statistics["total"] += 1
+        if record["type"] not in statistics["question_dist"].keys():
+            statistics["question_dist"][record["type"]] = dict(
+                count=0, answer_dist=defaultdict(lambda: 0)
+            )
+        statistics["question_dist"][record["type"]]["count"] += 1
+        statistics["question_dist"][record["type"]]["answer_dist"][record["answer"]] += 1
+        statistics["answer_dist"][record["answer"]] += 1
+    print(frames)
+    statistics["total_frames"] = len(frames)
+    statistics["total_scenarios"] = len(scenarios)
+    return statistics
+
+
 if __name__ == "__main__":
-    test_qas = json.load(open("/data_weizhen/metavqa_cvpr/datasets/test/test/test_processed.json"))
-    test_qas = random_choice(test_qas)
+    record_template = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/*qa.json"
+    traj_template = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/*traj.json"
+    record_paths = glob.glob(record_template)
+    records = [
+        json.load(open(record_path)) for record_path in record_paths
+    ]
+    traj_paths = glob.glob(traj_template)
+    trajs = [
+        json.load(open(traj_path)) for traj_path in traj_paths
+    ]
+
+    merged_traj = dict(gt=dict(), opt=dict(), act=dict(), crash=dict(), off=dict(), completion=dict())
+    for traj in trajs:
+        for key, value in traj.items():
+            for scene_id in value.keys():
+                print(value[scene_id])
+                merged_traj[key][scene_id] = value[scene_id]
     json.dump(
-        test_qas,
-        open("/home/weizhen/experiments/main/random_test_results.json", "w"), indent=2
+        merged_traj,
+        open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/traj.json", "w"),
+        indent=2
+    )
+    merged_qa = merge_qas(records)
+    json.dump(
+        merged_qa,
+        open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/qa.json", "w"),
+        indent=2
+    )
+    stats = analyze_gt(merged_qa)
+
+    json.dump(
+        stats,
+        open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/qa_stats.json", "w"),
+        indent=2
     )

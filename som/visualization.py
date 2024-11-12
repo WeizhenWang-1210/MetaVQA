@@ -125,7 +125,18 @@ def visualizae_closed_loop(trial_directory):
         filename=os.path.join(trial_directory, "front.mp4"),
         fps=20)
 
+def visualizae_replay(trial_directory):
+    def timestamp(path):
+        base = os.path.basename(path)
+        return int(base.split(".")[0])
 
+
+    fronts = glob.glob(os.path.join(trial_directory, "*.png"))
+    fronts_ordered = sorted(fronts, key=timestamp)
+    create_video(
+        frame_arrays=[np.asarray(Image.open(ob)) for ob in fronts_ordered],
+        filename=os.path.join(trial_directory, "front.mp4"),
+        fps=2)
 
 def visualize_session(root_dir):
     def extract_numbers(filename):
@@ -283,7 +294,9 @@ def demo(directory):
         multiview_visualization(img_ordered_by_frames[i], os.path.join(directory, f"multiview_{i}.png"))
 
 if __name__ == "__main__":
-    trials = glob.glob(os.path.join("/home/weizhen/closed_loops/internvl2_finetuned_som/*/"))
+    trials = glob.glob(os.path.join("/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/replay/*"))
+    print(trials)
     trials = [f for f in trials if not f.endswith(".json")]
     for trial in trials:
-        visualizae_closed_loop(trial_directory=trial)
+        visualizae_replay(trial_directory=trial)
+

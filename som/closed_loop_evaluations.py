@@ -27,7 +27,7 @@ print(INTERNVL, INTERNVLZEROSHOT)
 
 
 def in_forbidden_area(agent):
-    forbidden_places = ["CROSSWALK", "GROUND"]
+    forbidden_places = ["GROUND"]
     if len(set(forbidden_places).intersection(agent.contact_results)) > 0:
         return True
     else:
@@ -248,8 +248,10 @@ from som.parse_responses import parse_response
 
 
 def generation_action(model, processor, tokenizer, prompt, obs, intervened):
+    print(f"{obs.mean()}, {obs.std()}")
     if INTERNVL:
         if INTERNVLZEROSHOT:
+            raise ValueError
             answer = inference_internvl_zeroshot(model, processor, tokenizer, prompt, obs[:, :, ::-1])
         else:
             answer = inference_internvl(model, processor, tokenizer, prompt, obs[:, :, ::-1])
@@ -322,17 +324,20 @@ def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
             desc = criteria[speed_class]
 
             prompt = (
-                f"You are driving on the road with {speed_class} speed{desc}, and your current navigation command is \"{navigation}\". "
-                f"Based on the image as the front observation, choose the safest from the following actions to execute for the next 0.5 seconds: "
-                f"(A) TURN_LEFT; (B) TURN_RIGHT; (C) SLOW_DOWN; (D) BRAKE; (E) KEEP_STRAIGHT. "
-                f"Answer in a single capitalized character chosen from [\"A\", \"B\", \"C\", \"D\", \"E\"].")
-            obs, front, id2label = capture_som(env)
+                    f"You are driving on the road with {speed_class} speed{desc}, and your current navigation command is \"{navigation}\". "
+                    f"Based on the image as the front observation, choose the safest from the following actions to execute for the next 0.5 seconds: "
+                    f"(A) TURN_LEFT, control=[0.5, 0.8]; (B) TURN_RIGHT, control=[-0.5, 0.8]; (C) SLOW_DOWN, control=[0, -0.135]; (D) BRAKE, control=[0, -0.26]; (E) KEEP_STRAIGHT, control=[0, 0.15]. "
+                    f"Answer in a single capitalized character chosen from [\"A\", \"B\", \"C\", \"D\", \"E\"].")
+            #obs, front, id2label = capture_som(env)
             if step % command_frequency == 0:
                 print("Perceive & Act")
+                obs, front, id2label = capture_som(env)
+                Image.fromarray(obs[:, :, ::-1]).save(f"/home/weizhen/closed_loops/debug/{seed}_{env.engine.episode_step}.png")
                 intervention, intervened = generation_action(model, processor, tokenizer, prompt, obs, intervened)
                 RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["action"] = intervention
                 RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["navigation"] = navigation
                 print(intervention, intervened)
+            assert not (intervention[0] == 0 and intervention[1] ==0)
             o, r, tm, tc, info = env.step(intervention)
             episodic_reward, episodic_completion = info["episode_reward"], info["route_completion"]
             if len(env.agent.crashed_objects) > 0:
