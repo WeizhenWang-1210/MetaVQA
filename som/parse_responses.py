@@ -81,7 +81,8 @@ def parse_response_safe(response, answer2opt):
 
 
 def parse_option(response):
-    matches = list(re.finditer(r'\(A\)|\(B\)|\(C\)|\(D\)|\(a\)|\(b\)|\(c\)|\(d\)|A\)|B\)|C\)|D\)|a\)|b\)|c\)|d\)', response))
+    print("here")
+    matches = list(re.finditer(r'\(A\)|\(B\)|\(C\)|\(D\)|\(E\)|\(F\)|\(G\)|\(H\)|\(a\)|\(b\)|\(c\)|\(d\)|A\)|B\)|C\)|D\)|a\)|b\)|c\)|d\)', response))
     # Get the last match if it exists
     if matches:
         last_occurrence = matches[-1]
@@ -101,8 +102,8 @@ def parse_gpt(response):
     if len(matches) > 0:
         # print(f"Match:{matches[-1]}")
         # print("___________")
-        for choice in ["(A)", "(B)", "(C)", "(D)", "(a)", "(b)", "(c)", "(d)", "A)", "B)", "C)", "D)", "a)", "b)",
-                       "c)", "d)"]:
+        for choice in ["(A)", "(B)", "(C)", "(D)", "(E)", "(F)", "(G)", "(H)", "(a)", "(b)", "(c)", "(d)","(e)", "(f)", "(g)", "(h)", "A)", "B)", "C)", "D)","E)", "F)", "G)", "H)", "a)", "b)",
+                       "c)", "d)", "e)", "f)", "g)", "h)"]:
             # print(choice, matches[-1][-1]])
             if choice in matches[-1][-1]:
                 return choice[-2]  # matches[-1][-1][1]
