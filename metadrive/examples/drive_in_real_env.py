@@ -108,46 +108,36 @@ if __name__ == "__main__":
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
     print(HELP_MESSAGE)
-    scenario_summary, _, _ = sd_utils.read_dataset_summary("E:\Bolei\cat")
-
+    path = "/bigdata/yuxin/cat_reconstructed/train/subdir_29" #/bigdata/yuxin/cat_reconstructed/train_merged
+    scenario_summary, _, _ = sd_utils.read_dataset_summary(path)
+    last_seed = len(scenario_summary)
+    #
+    #
     try:
         env = ScenarioEnv(
             {
                 "sequential_seed": True,
                 "reactive_traffic": True if args.reactive_traffic else False,
-                "use_render": True if not args.top_down else False,
-                "data_directory": "E:\Bolei\cat",
+                "use_render": False, #True if not args.top_down else False,
+                "data_directory": path,
                 "num_scenarios": len(scenario_summary),
                 "agent_policy": ReplayEgoCarPolicy,
             }
         )
         o, _ = env.reset()
-        camera = RGBCamera(960, 640, env.engine)
-        im_buffer = Buffer(30)
-        summary = {
-            "incident_step": None,
-            "incident_obj": None
-        }
         inception = False
         countdown = 5
+        collided_seed = set()
+        print(len(scenario_summary))
         for i in range(1, 100000):
             o, r, tm, tc, info = env.step([0, 0])
-            im = camera.perceive(False, env.agent.origin, [0, -6, 2], [0, -0.5, 0])
-            im_buffer.insert(im)
-            if not inception and len(env.agent.crashed_objects) > 0:
-                print("Collision happened at step {}".format(i))
-                inception = True
-                summary["incident_step"] = env.engine.episode_step
-                summary["incident_obj"] = [obj for obj in env.agent.crashed_objects]
-                tm, tc = record_accident(env, im_buffer, summary, countdown, camera)
-            env.render(
-                mode="top_down" if args.top_down else None,
-                text=None if args.top_down else RENDER_MESSAGE,
-                **extra_args
-            )
+            if len(env.agent.crashed_objects) > 0:
+                collided_seed.add(env.current_seed)
             if tm or tc:
+                if env.current_seed+1 >= last_seed:
+                    exit()
                 env.reset()
-                inception = False
-                im_buffer.flush()
+
     finally:
         env.close()
+        print(len(collided_seed))

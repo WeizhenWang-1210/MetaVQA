@@ -118,23 +118,23 @@ from datetime import datetime
 
 
 def main():
-    if "mapping.json" in os.listdir("/bigdata/weizhen/metavqa_demo/vqa_packed"):
+    if "mapping.json" in os.listdir("/bigdata/weizhen/metavqa_demo/vqa_small"):
         print("Found mapping.json. Will use it for file copying.")
-        established_mapping = json.load(open(os.path.join("/bigdata/weizhen/metavqa_demo/vqa_packed","mapping.json")))
+        established_mapping = json.load(open(os.path.join("/bigdata/weizhen/metavqa_demo/vqa_small","mapping.json")))
     else:
         print("No mapping.json exist.")
         established_mapping = None
     version = "0.1"
     timestamp = str(datetime.now())
     jsons = [
-        "dynamic_qa20.json", "static_qa16.json"#, "static_qa9.json"
+        "dynamic_qa20.json", "static_qa16.json", "safety_qa17.json"
     ]
-    jsons = [os.path.join("/bigdata/weizhen/metavqa_demo/vqa_raw", name) for name in jsons]
+    jsons = [os.path.join("/bigdata/weizhen/metavqa_demo/vqa_processed", name) for name in jsons]
     split = {
         name: "train" for name in jsons
     }
-    merged, mapping = aggregate_qa(jsons, split, "/bigdata/weizhen/metavqa_demo/vqa_packed", version, timestamp, established_mapping)
-    dest, map = os.path.join("/bigdata/weizhen/metavqa_demo/vqa_packed", "data.json"), os.path.join("/bigdata/weizhen/metavqa_demo/vqa_packed", "mapping.json")
+    merged, mapping = aggregate_qa(jsons, split, "/bigdata/weizhen/metavqa_demo/vqa_small", version, timestamp, established_mapping)
+    dest, map = os.path.join("/bigdata/weizhen/metavqa_demo/vqa_small", "data.json"), os.path.join("/bigdata/weizhen/metavqa_demo/vqa_small", "mapping.json")
     json.dump(
         merged, open(dest,"w"), indent=2
     )
@@ -143,8 +143,8 @@ def main():
     )
 
 if __name__ == "__main__":
-    #main()
-    qas = json.load(open("/bigdata/weizhen/metavqa_demo/vqa_packed/data.json","r"))
-    print(len(qas["data"]))
-    print(qas["data"]["0"])
+    main()
+    #qas = json.load(open("/bigdata/weizhen/metavqa_demo/vqa_packed/data.json","r"))
+    # print(len(qas["data"]))
+    #  print(qas["data"]["0"])
     #print(qas["split"])

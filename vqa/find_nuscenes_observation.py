@@ -1,5 +1,11 @@
 PATH = "/bigdata/zhouyunsong/zhouys/Datasets/scenarionet/data_nusc_multiview_trainval.json"
-NUSCENES_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"
+NUSCENES_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval/sc_nusc_trainval_0"
+
+from metadrive.engine.asset_loader import AssetLoader
+asset_path = AssetLoader.asset_path
+NUSCENES_PATH = AssetLoader.file_path(
+                    asset_path, "nuscenes"
+                )
 
 import argparse
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
@@ -227,10 +233,10 @@ def paired_logging(headless, num_scenarios, config, seeds):
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1600, 900),
-                instance=(InstanceCamera, 1600, 900),
-                depth=(DepthCamera, 1600, 900),
-                semantic=(SemanticCamera, 1600, 900)
+                rgb=(RGBCamera, 1920, 1080),
+                instance=(InstanceCamera, 1920, 1080),
+                depth=(DepthCamera, 1920, 1080),
+                semantic=(SemanticCamera, 1920, 1080)
             ),
             "height_scale": 1
         }

@@ -90,7 +90,7 @@ def put_text(image, text, center, color=(255, 255, 255)):
     :return: None. Modify <image> in-place.
     """
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.75
+    font_scale = 1
     thickness = 1
     # Write text at the specified location (center)
     # Get the text size to draw the background rectangle
@@ -204,15 +204,18 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
             legal_mask = np.logical_and(legal_mask, ~area_ascending[j][3])
         colored_mask = base_img.copy()
         colored_mask[legal_mask == 1] = color
-        alpha = 0.0  # Transparency factor
+        alpha = 0.3  # Transparency factor
         base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
         center, contours = find_center(legal_mask)
+        cv2.drawContours(base_img, contours, -1, area_ascending[i][1], 1)
         put_text(base_img, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
         if save_label:
             put_text(canvas, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
-        cv2.drawContours(base_img, contours, -1, area_ascending[i][1], 2)
+
     if save_path is not None:
         cv2.imwrite(save_path, base_img)
+        if save_label:
+            cv2.imwrite(os.path.join(frame_path, "label_{}_{}.png".format(perspective, identifier)), canvas)
     else:
         cv2.imwrite(os.path.join(frame_path, "labeled_{}_{}.png".format(perspective, identifier)), base_img)
         if save_label:
@@ -223,7 +226,15 @@ def label_transfer(nusc_img_path, label_img_path):
     from PIL import Image
     src = Image.open(nusc_img_path)
     label = Image.open(label_img_path)
-    label = label.resize((1600, 900))
+    #label = label.resize((1600, 900))
+    # Define the cropping box: (left, upper, right, lower)
+    left = 0  # No crop from the left
+    top = 150  # Crop 350 pixels from the top
+    right = 1600  # No crop from the right
+    bottom = 1200 - 150  # Crop 350 pixels from the bottom
+
+    # Crop the image
+    label = label.crop((left, top, right, bottom))
 
     mask = Image.new('L', label.size, 0)  # Create a new grayscale image for the mask
     for x in range(label.width):
@@ -233,55 +244,13 @@ def label_transfer(nusc_img_path, label_img_path):
                 mask.putpixel((x, y), 255)  # Set mask pixel to white (fully opaque)
 
     src.paste(label, mask=mask)
-    src.save("test_transfer.png")
+    src.save("test_transfer3.png")
 
-
-def scratch():
-    raise DeprecationWarning
-    #TODO we need to ease observable pixels
-    episode_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0005_1_50"
-    id2label(episode_path)
-    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0005_1_50/4_7"
-    identifier = os.path.basename(frame_path)
-    world = os.path.join(frame_path, "world_{}.json".format(identifier))
-    id2c = os.path.join(frame_path, "id2c_{}.json".format(identifier))
-    instance_seg = os.path.join(frame_path, "mask_front_{}.png".format(identifier))
-    base_img = os.path.join(frame_path, "rgb_front_{}.png".format(identifier))
-    world = json.load(open(world))
-    id2c = json.load(open(id2c))
-    id2l = json.load(open(os.path.join(episode_path, "id2label.json")))
-    mask_img = cv2.imread(instance_seg)
-    mask = np.array(mask_img)
-    base_img = np.array(cv2.imread(base_img))
-    query_ids = []
-    for obj in world["objects"]:
-        if "front" in obj["observing_camera"]:
-            query_ids.append(obj["id"])
-    colors = [id2c[query_id] for query_id in query_ids]
-    colors = [(round(color[0] * 255, 0), round(color[1] * 255, 0), round(color[2] * 255, 0)) for color in colors]
-    areas, binary_masks = find_areas(mask, colors, "BGR")
-    tuples = [(query_id, color, area, binary_mask)
-              for query_id, color, area, binary_mask
-              in zip(query_ids, colors, areas, binary_masks)]
-    area_ascending = sorted(tuples, key=lambda x: x[2])
-    for i in range(len(area_ascending)):
-        query_id, color, area, binary_mask = area_ascending[i]
-        legal_mask = binary_mask
-        for j in range(i):
-            legal_mask = np.logical_and(legal_mask, ~area_ascending[j][3])
-        colored_mask = base_img.copy()
-        colored_mask[legal_mask == 1] = color
-        alpha = 0.0  # Transparency factor
-        base_img = cv2.addWeighted(base_img, 1 - alpha, colored_mask, alpha, 0)
-        center, contours = find_center(legal_mask)
-        put_text(base_img, str(id2l[area_ascending[i][0]]), center, color=area_ascending[i][1])
-        cv2.drawContours(base_img, contours, -1, area_ascending[i][1], 2)
-    cv2.imwrite("some.png", base_img)
 
 
 if __name__ == "__main__":
-    #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96"
-    #id2label(os.path.dirname(frame_path), "front")
-    #labelframe(frame_path, "front", save_label=True)
-    label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
-                   "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
+    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0103_91_100/1_91"#"/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0061_1_50/58_41"#"/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0235_76_120/184_110"#/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0063_76_125/60_120"
+    id2label(os.path.dirname(frame_path), "front")
+    labelframe(frame_path, "front", save_label=True, save_path="./191.png")
+    label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0103_91_100/1_91/real_front_1_91.png",
+                   "/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0103_91_100/1_91/label_front_1_91.png")
