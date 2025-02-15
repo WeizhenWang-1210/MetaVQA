@@ -1539,5 +1539,6 @@ if __name__ == "__main__":
         verbose=args.verbose,
         num_proc=args.num_proc,
         labeled=args.use_existing_labels,
-        box=USEBOX
+        box=USEBOX,
+        domain=args.domain
     )
