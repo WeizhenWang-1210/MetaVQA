@@ -9,7 +9,7 @@ stats = [
     "/home/weizhen/experiments/main/Llama_test_results_stats.json",
     "/home/weizhen/experiments/main/InternVL_test_results_stats.json",
     "/home/weizhen/experiments/main/InternVL_trainval_test_results_stats.json",
-#extras
+    #extras
     "/home/weizhen/experiments/extra/Qwen2_trainval_test_results_stats.json",
     "/home/weizhen/experiments/extra/Llama_trainval_test_results_stats.json"
 ]
@@ -48,7 +48,7 @@ super_categories = dict(
 )
 
 
-
+DOMAIN="real"
 
 ids = [
     os.path.basename(stat).split("test")[0][:-1] for stat in stats
@@ -58,22 +58,60 @@ ids = [
 results = [
     json.load(open(stat,"r")) for stat in stats
 ]
+from pprint import pprint
+from collections import defaultdict
 
 
-final = dict()
+
+aggregated = dict()
 for modelid, result in zip(ids, results):
+    questions = defaultdict(
+        lambda: dict(
+            total=0, correct=0
+        )
+    )
+    super_types = defaultdict(
+        lambda: dict(
+            total=0, correct=0
+        )
+    )
+    total_num = total_correct = 0
     for q_id, record in result["stats"].items():
         splitted = q_id.split("_")
         doman = splitted[0]
+        if doman != DOMAIN:
+            continue
         q_type = "_".join(splitted[1:])
         super_type = super_categories[q_type]
-        identifier = f"{modelid},{doman},{super_type}, {q_type}"
-        accu = record["accuracy"]
-        final[identifier] = accu
+        #print(super_type, q_type)
+        identifier = f"{modelid},{doman},{super_type},{q_type}"
+        #print(identifier)
+        total_num += record["total"]
+        total_correct += record["correct"]
+        super_types[super_type]["total"] += record["total"]
+        super_types[super_type]["correct"] += record["correct"]
+        questions[q_type]["total"] += record["total"]
+        questions[q_type]["correct"] += record["correct"]
+
+
+    question_accuracy = {
+        key: value["correct"]/value["total"] for key, value in questions.items()
+    }
+
+    super_accuracy = {
+        key: value["correct"]/value["total"] for key, value in super_types.items()
+    }
+    stat = dict(
+        category=question_accuracy,
+        super_category=super_accuracy,
+        overall = total_correct/total_num
+    )
+    aggregated[modelid] = stat
+
 
 json.dump(
-    final,
-    open("/home/weizhen/final/aggregated_stats.json","w"),
+    aggregated,
+    open(f"/home/weizhen/final/overall_stats_{DOMAIN}.json","w"),
     indent=2
 )
 

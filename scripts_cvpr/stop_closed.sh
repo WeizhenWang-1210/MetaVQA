@@ -7,7 +7,7 @@ PROMPTSCHEMA="direct"
 RESULTPATH="/home/weizhen/closed_loops/stop/stop.json"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
-CUDA_DEVICES=1
+CUDA_DEVICES=0
 
 cd $METAVQA_DIR;
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES python -m som.closed_loop_evaluations --headless --num_scenarios $NUMSCENARIOS --data_directory $DATA --model_path $MODELPATH \

@@ -10,6 +10,10 @@ from vqa.annotation_utils import annotate_type
 
 
 def computeADE(traj1, traj2):
+    """
+    Traj1 is Ground Truth
+    Traj2 is the generated trajectory, which can be shorter than GT
+    """
     traj1 = traj1[:traj2.shape[0], :]
     distances = np.linalg.norm((traj1 - traj2), axis=1)
     ade = np.mean(distances)
@@ -17,11 +21,19 @@ def computeADE(traj1, traj2):
 
 
 def computeFDE(traj1, traj2):
+    """
+    Traj1 is Ground Truth
+    Traj2 is the generated trajectory, which can be shorter than GT
+    """
     t = traj2.shape[0]
     assert traj1.shape[-1]==2, traj1.shape
     assert not (traj1[t - 1, :] == 0.0).all()
     assert not (traj2[t - 1, :] == 0.0).all()
     return float(np.linalg.norm(traj1[t - 1, :] - traj2[t - 1, :]))
+
+
+def absoluteFDE(traj1, traj2):
+    return float(np.linalg.norm(traj1[- 1, :] - traj2[- 1, :]))
 
 
 def option_strings(l):

@@ -202,6 +202,9 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
             dest_index = projected_segment_index + adjustment_duration
             while dest_index < T and np.linalg.norm(ego_traj[dest_index] - ego_pos) < 2:
                 dest_index += 1
+            if dest_index >= T:
+                dest_index = T-1
+            assert dest_index < T
             future_pos = ego_traj[dest_index]
         else:
             future_pos = ego_traj[-1]
@@ -222,6 +225,40 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
         action = TurnAction.KEEP_STRAIGHT
     print("Dynamic Navigation at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(action)))
     return TurnAction.get_str(action)
+
+
+def dest_navigation_signal(scenario, timestamp, env):
+    ego_id = scenario["metadata"]["sdc_id"]
+    ego_track = scenario["tracks"][ego_id]
+    ego_traj = ego_track["state"]["position"][..., :2]
+    #Sparsity to every 0.5 seconds while making sure the end is always there
+    END = ego_traj[-1,:]
+    ego_pos, ego_heading = np.array(env.agent.position), np.array(env.agent.heading)
+    future_pos = END
+    distance = np.linalg.norm(future_pos-ego_pos)
+    pos_diff = future_pos - ego_pos
+    angle = np.arccos(np.dot(pos_diff, ego_heading) / (np.linalg.norm(pos_diff) * np.linalg.norm(ego_heading)))
+    same_dir = np.dot(pos_diff, ego_heading) > 0
+    wrapped_angle = angle * -1 if np.cross(pos_diff, ego_heading) > 0 else angle * 1
+    wrapped_angle = np.degrees(wrapped_angle)
+    if wrapped_angle > 5:
+        if same_dir:
+            dir = "lf"
+        else:
+            dir = "lb"
+    elif wrapped_angle < -5:
+        if same_dir:
+            dir = "rf"
+        else:
+            dir = "rb"
+    else:
+        if same_dir:
+            dir = "f"
+        else:
+            dir = "b"
+    print("Dynamic Navigation at step {}, t={}s: {}-{}m".format(timestamp, timestamp / 10, dir, distance))
+    return dir, distance
+
 
 
 if __name__ == "__main__":
