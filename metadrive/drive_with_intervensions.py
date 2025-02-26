@@ -47,7 +47,7 @@ if __name__ == "__main__":
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
     print(HELP_MESSAGE)
-    data_directory = "C:\school\Bolei\cat\cat"
+    data_directory = "D:/cat_some/1"
     scenario_summary, scenes, _ = sd_utils.read_dataset_summary(data_directory)
     im_buffer = {}
     try:
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                 "use_render": True if not args.top_down else False,
                 "data_directory": data_directory,
                 "num_scenarios": len(scenes),
-                "agent_policy": InterventionPolicy,
+                "agent_policy": ReplayEgoCarPolicy,
                 "sensors": dict(
                     rgb=(RGBCamera, 1920, 1080)
                 )
@@ -70,12 +70,20 @@ if __name__ == "__main__":
         destination = traj[max_step - 1]['position']
         step = 0
         t = 0
+        collision=0
+        eps=set()
         for i in range(1, 100000):
-            o, r, tm, tc, info = env.step(ACTION_MAPPING["left"])
+            if len(env.agent.crashed_objects) > 0:
+                print("Collision!")
+                eps.add(env.current_seed)
+                print(f"{len(eps)}")
+            action = [0,0]
+            o, r, tm, tc, info = env.step(action)#ACTION_MAPPING["left"]
             step += 1
             t += 1
             if t % 5 == 0:
-                time.sleep(5)
+                print("Do something")
+                #time.sleep(5)
             env.render(
                 mode="top_down" if args.top_down else None,
                 text=None if args.top_down else RENDER_MESSAGE,

@@ -87,6 +87,7 @@ COLOR = {
     MetaDriveType.LIGHT_YELLOW: "orange",
     MetaDriveType.LIGHT_GREEN: "green",
     MetaDriveType.UNSET: "orange",
+    MetaDriveType.LANE_UNKNOWN:"orange"
 }
 
 
