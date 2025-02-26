@@ -85,6 +85,14 @@ def generation_action(destination, buffer, model, vis_processors, text_processor
     answer = answer[0].lower()
     ACTION_STATISTICS[answer] += 1
     #print(answer)
+    mapping = dict(
+        a="left",b="right",c="stop",d="none"
+    )
+    if answer in mapping.keys():
+        answer = mapping[answer]
+    else:
+        answer = "none"
+    print(answer)
     intervention = convert_action(answer, intervened)
     if not (intervention[0] == 0 and intervention[1] == 0):
         return intervention, True
@@ -93,7 +101,7 @@ def generation_action(destination, buffer, model, vis_processors, text_processor
 
 
 def closed_loop(env: ScenarioDiverseEnv, seeds):
-    model, vis_processors, text_processors = load_model(False)
+    model, vis_processors, text_processors = load_model(True)
     model.to(device)
     num_src_collisions = 0
     num_collisions = 0
@@ -181,7 +189,7 @@ def main():
         action_statistics=ACTION_STATISTICS
     )
     import json
-    json.dump(summary, open("./online_eval_baseline.json", "w"), indent=2)
+    json.dump(summary, open("./online_eval_elm.json", "w"), indent=2)
 
 
 if __name__ == "__main__":

@@ -333,7 +333,7 @@ if __name__ == "__main__":
     frame_files = sorted(glob.glob(top_down_template, recursive=True))
     imarrays = [np.asarray(Image.open(frame_file)) for frame_file in frame_files]
     create_video(imarrays, "C:/school/Bolei/Merging/MetaVQA/test_collision/3_37_66/episode_top_down.mp4")"""
-    visualize_session("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes")
+    visualize_session("./test_collision_final")
     #visualize_frames("C:/Users/arnoe/Downloads/nuscenes")
 
     #demo("C:/Users/arnoe/Downloads/QA_rgb/QA_rgb/ safety_obs")

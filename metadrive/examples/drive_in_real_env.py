@@ -11,12 +11,16 @@ from metadrive.envs.scenario_env import ScenarioEnv
 from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.component.sensors.rgb_camera import RGBCamera
+from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
 from collections import deque
 import numpy as np
 import cv2
 import imageio
 import os
 import json
+from metadrive.component.sensors.depth_camera import DepthCamera
+
 
 RENDER_MESSAGE = {
     "Quit": "ESC",
@@ -108,31 +112,44 @@ if __name__ == "__main__":
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
     print(HELP_MESSAGE)
-    scenario_summary, _, _ = sd_utils.read_dataset_summary("E:\Bolei\cat")
+    scenario_summary, _, _ = sd_utils.read_dataset_summary(
+        "/bigdata/datasets/scenarionet/nuscenes/trainval")
 
     try:
         env = ScenarioEnv(
             {
                 "sequential_seed": True,
                 "reactive_traffic": True if args.reactive_traffic else False,
-                "use_render": True if not args.top_down else False,
-                "data_directory": "E:\Bolei\cat",
+                "use_render": False,#True if not args.top_down else False,
                 "num_scenarios": len(scenario_summary),
                 "agent_policy": ReplayEgoCarPolicy,
+                "data_directory":"/bigdata/datasets/scenarionet/nuscenes/trainval",
+                "sensors": dict(
+                    rgb=(RGBCamera, 960, 540),
+                    instance=(InstanceCamera, 960, 540),
+                    semantic=(SemanticCamera, 960, 540),
+                    depth=(DepthCamera, 960, 540)
+                ),
+
             }
         )
-        o, _ = env.reset()
-        camera = RGBCamera(960, 640, env.engine)
-        im_buffer = Buffer(30)
+        o, _ = env.reset(seed=0)
+        #camera = RGBCamera(960, 640, env.engine)
+        #im_buffer = Buffer(30)
+        """
         summary = {
             "incident_step": None,
             "incident_obj": None
         }
+        """
+
+        depth_cam = env.engine.get_sensor("depth")
+
         inception = False
         countdown = 5
         for i in range(1, 100000):
             o, r, tm, tc, info = env.step([0, 0])
-            im = camera.perceive(False, env.agent.origin, [0, -6, 2], [0, -0.5, 0])
+            """im = camera.perceive(False, env.agent.origin, [0, -6, 2], [0, -0.5, 0])
             im_buffer.insert(im)
             if not inception and len(env.agent.crashed_objects) > 0:
                 print("Collision happened at step {}".format(i))
@@ -145,9 +162,19 @@ if __name__ == "__main__":
                 text=None if args.top_down else RENDER_MESSAGE,
                 **extra_args
             )
+            """
+            rgb = env.engine.get_sensor("rgb").perceive(new_parent_node=env.agent.origin, position=(0., 0.0, 1.5))
+            cv2.imwrite("rgb_front.png", rgb * 255)
+            capture_1 = depth_cam.perceive(new_parent_node=env.agent.origin, position=(0., 0.0, 1.5), hpr=(45, 0, 0))
+            capture_2 = depth_cam.perceive(new_parent_node=env.agent.origin, position=(0., 0.0, 1.5))
+            cv2.imwrite("front.png", capture_2*255)
+            cv2.imwrite("left.png", capture_1*255)
+
+            print("here")
+
             if tm or tc:
                 env.reset()
-                inception = False
-                im_buffer.flush()
+                #inception = False
+                #im_buffer.flush()
     finally:
         env.close()

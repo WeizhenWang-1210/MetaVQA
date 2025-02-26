@@ -1,0 +1,14 @@
+{
+  "src": "/bigdata/yuxin/cat_reconstructed/test/subdir_2",
+  "num_scenarios": 386,
+  "total_collision": 199,
+  "total_src_collision": 265,
+  "total_rewards": -60633.906623262636,
+  "action_statistics": {
+    "b": 2437,
+    "a": 35,
+    "none": 66,
+    "d": 14,
+    "": 2
+  }
+}
