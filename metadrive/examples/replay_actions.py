@@ -299,16 +299,15 @@ if __name__ == "__main__":
     extra_args = dict(film_size=(2000, 2000)) if args.top_down else {}
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
-    #print(HELP_MESSAGE)
+    print(HELP_MESSAGE)
     data_directory = "E:/Bolei/scenarios"
     num_scenarios = 120
 
-    model = "E:/closed_loops/qwen2_waymonusc"
-
+    model = "E:/closed_loops/llama_waymonusc"
 
     template = f"{model}/*/action_buffer.json"
 
-    save_path = "E:/closed_loops_visualization"
+    save_path = "E:/Bolei/replays"
     modelname = os.path.basename(model)
     action_buffers = glob.glob(template)
     tmp = dict()
@@ -336,14 +335,17 @@ if __name__ == "__main__":
         env = ScenarioEnv(
             {
                 "sequential_seed": True,
-                "use_render": False,#True,
+                "use_render": True,
                 "data_directory": data_directory,
                 "num_scenarios": num_scenarios,
                 "agent_policy": InterventionPolicy,
-                "vehicle_config": dict(vehicle_model="static_default")
+                "vehicle_config": dict(vehicle_model="static_default", show_navi_mark=False,),
+                "window_size": (1920, 1080),
+                "show_fps": False,
+                "show_logo": False
             }
         )
-        for seed in range(120):
+        for seed in range(102,103):
             env.reset(seed)
             collision = ""
             offroad = ""
@@ -359,10 +361,9 @@ if __name__ == "__main__":
             front_cams = fronts[filename]
             save_folder = save_dict[filename]
             print(f"Working on {seed}, to be saved at {save_folder}")
-            continue
             count = 0
             frames = []
-            #fronts = []
+            fronts = []
             top_downs = []
             captures = []
             #texts = []
@@ -370,13 +371,30 @@ if __name__ == "__main__":
                 Time = f"{round(idx / 10, 1)}s"
                 Inference_Time = f"{round((idx // 5) / 2, 1)}s"
                 o, r, tm, tc, info = env.step(action)
-                collision = "COLLISION" if len(env.agent.crashed_objects) > 0 else ""
-                offroad = "OFFROAD" if info["out_of_road"] else ""
 
-                front_cam = np.array(Image.open(front_cams[idx // 5]).resize(size=(800, 450)))
-                front_cam = np.array(overlay(f"Scenario at t = {Inference_Time}",
-                                             Image.fromarray(front_cam), size=45))[:, :, ::-1]
+                #collision = "COLLISION" if len(env.agent.crashed_objects) > 0 else ""
+                #offroad = "OFFROAD" if info["out_of_road"] else ""
+                env.render(
+                    mode="rgb", text=dict(Action=control2string(action))
+                )
 
+
+                front_cam = env.engine.get_sensor("main_camera").perceive(env.agent)[:,:,::-1]*255
+                front_cam = front_cam.astype(np.uint8)
+
+                #print(type(front_cam))
+                #exit()
+
+                #.astype(np.uint8)
+                #cv2.imshow("some",front_cam)
+                #cv2.waitKey(1)
+                print(front_cam.shape)
+
+                #front_cam = np.array(overlay(f"Scenario at t = {Inference_Time}",
+                #                             Image.fromarray(front_cam), size=45))[:, :, ::-1]
+                fronts.append(front_cam)
+
+                continue
                 som_obs = np.array(Image.open(observations[idx // 5]))
                 som_obs = np.array(overlay(f"Observation at t = {Inference_Time} | Action = {control2string(action)}",
                                            Image.fromarray(som_obs), size=45))[:, :, ::-1]
@@ -384,8 +402,6 @@ if __name__ == "__main__":
                 prompt = prompts[idx // 5]
                 prompt = reduce_prompt(prompt)
                 prompt = find_navigation(prompt)
-                #print(prompt)
-                #exit()
                 display_text = f"Prompt at t = {Inference_Time}:\n{prompt}\nAction: {string2choices(control2string(action))} {control2string(action)}"
                 text_buffer = np.full((600, 2400, 3), 255, dtype=np.uint8)
                 text_box = np.array(overlay_wrapped(Image.fromarray(text_buffer), display_text))
@@ -449,8 +465,8 @@ if __name__ == "__main__":
             """for idx, frame in enumerate(texts):
                 im_path = os.path.join(save_folder, f"text_{dir_id}_{idx}.png")
                 Image.fromarray(frame).save(im_path)"""
-            print("save video to {}".format(video_path))
-            create_video(frames, video_path, fps=5)
+            #print("save video to {}".format(video_path))
+            create_video(fronts, video_path, fps=10)
     finally:
         json.dump(save_dict,open("mapping.json","w"), indent=1)
         env.close()

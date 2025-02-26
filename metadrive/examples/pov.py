@@ -299,16 +299,12 @@ if __name__ == "__main__":
     extra_args = dict(film_size=(2000, 2000)) if args.top_down else {}
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
-    #print(HELP_MESSAGE)
+    print(HELP_MESSAGE)
     data_directory = "E:/Bolei/scenarios"
     num_scenarios = 120
-
-    model = "E:/closed_loops/qwen2_waymonusc"
-
-
+    model = "E:/closed_loops/llama_zeroshot"
     template = f"{model}/*/action_buffer.json"
-
-    save_path = "E:/closed_loops_visualization"
+    save_path = "E:/drive"
     modelname = os.path.basename(model)
     action_buffers = glob.glob(template)
     tmp = dict()
@@ -319,7 +315,6 @@ if __name__ == "__main__":
     fronts = dict()
 
     save_dict = dict()
-
     for action_buffer in action_buffers:
         seed = os.path.basename(os.path.dirname(action_buffer))
         vis_save_folder = os.path.join(save_path, modelname, seed)
@@ -343,7 +338,7 @@ if __name__ == "__main__":
                 "vehicle_config": dict(vehicle_model="static_default")
             }
         )
-        for seed in range(120):
+        for seed in range(96, 97):
             env.reset(seed)
             collision = ""
             offroad = ""
@@ -359,10 +354,9 @@ if __name__ == "__main__":
             front_cams = fronts[filename]
             save_folder = save_dict[filename]
             print(f"Working on {seed}, to be saved at {save_folder}")
-            continue
             count = 0
             frames = []
-            #fronts = []
+            fronts = []
             top_downs = []
             captures = []
             #texts = []
@@ -373,37 +367,31 @@ if __name__ == "__main__":
                 collision = "COLLISION" if len(env.agent.crashed_objects) > 0 else ""
                 offroad = "OFFROAD" if info["out_of_road"] else ""
 
-                front_cam = np.array(Image.open(front_cams[idx // 5]).resize(size=(800, 450)))
-                front_cam = np.array(overlay(f"Scenario at t = {Inference_Time}",
-                                             Image.fromarray(front_cam), size=45))[:, :, ::-1]
-
+                #front_cam = np.array(Image.open(front_cams[idx // 5]).resize(size=(800, 450)))
+                front_cam = np.array(Image.open(front_cams[idx // 5]))#[:, :, ::-1]
+                #front_cam = np.array(overlay(f"Scenario at t = {Inference_Time}",
+                #                             Image.fromarray(front_cam), size=45))[:, :, ::-1]
                 som_obs = np.array(Image.open(observations[idx // 5]))
                 som_obs = np.array(overlay(f"Observation at t = {Inference_Time} | Action = {control2string(action)}",
                                            Image.fromarray(som_obs), size=45))[:, :, ::-1]
-
                 prompt = prompts[idx // 5]
                 prompt = reduce_prompt(prompt)
                 prompt = find_navigation(prompt)
-                #print(prompt)
-                #exit()
                 display_text = f"Prompt at t = {Inference_Time}:\n{prompt}\nAction: {string2choices(control2string(action))} {control2string(action)}"
                 text_buffer = np.full((600, 2400, 3), 255, dtype=np.uint8)
                 text_box = np.array(overlay_wrapped(Image.fromarray(text_buffer), display_text))
-
-                if filename.find("trainval") != -1:
+                """if filename.find("trainval") != -1:
                     o = env.render(
-                        mode="top_down", target_agent_heading_up=True,
-                        # text=dict(Time=Time),
-                        film_size=(20000, 20000), screen_size=(800, 450)
+                        mode="top_down", target_agent_heading_up=False, scaling=10,
+                        film_size=(20000, 20000), screen_size=(2560, 1440), num_stack=1500
                     )
                 else:
                     o = env.render(
-                        mode="top_down", target_agent_heading_up=True, screen_size=(800, 450),
-                        # text=dict(Time=Time)
+                        mode="top_down", target_agent_heading_up=False, scaling=10, screen_size=(2560, 1440), num_stack=1500
                     )
-                top_down = o[:, :, ::-1]
-                top_down = np.array(overlay(f"Top-down at t = {Time}",
-                                            Image.fromarray(top_down), size=45))
+                top_down = o[:, :, ::-1]"""
+                #top_down = np.array(overlay(f"Top-down at t = {Time}",
+                #                            Image.fromarray(top_down), size=45))
 
                 if collision == "" and offroad == "":
                     status = ""
@@ -414,43 +402,31 @@ if __name__ == "__main__":
                 else:
                     status = f"{collision} | {offroad}"
 
-                top_down = np.array(warning(status, Image.fromarray(top_down), size=45))
-                buffer = np.full((1500, 2400, 3), 255, dtype=np.uint8)
-                buffer[:450, :800, :] = borderline(front_cam)
-                buffer[450:900, :800, :] = borderline(top_down)
-                buffer[:900, 800:, :] = borderline(som_obs)
-                buffer[900:, :, :] = borderline(text_box)
-                #cv2.imshow("frame", buffer)
-                #cv2.imwrite("demo_full.png", buffer)
-                #exit()
-                #fronts.append(front_cam[:, :, ::-1])
-                captures.append(som_obs[:, :, ::-1])
-                top_downs.append(top_down[:, :, ::-1])
-                #texts.append(text_box[:, :, ::-1])
-                frames.append(buffer[:, :, ::-1])
-
+                #top_down = np.array(warning(status, Image.fromarray(top_down), size=45))
+                #buffer = np.full((1500, 2400, 3), 255, dtype=np.uint8)
+                #buffer[:450, :800, :] = borderline(front_cam)
+                #buffer[450:900, :800, :] = borderline(top_down)
+                #buffer[:900, 800:, :] = borderline(som_obs)
+                #buffer[900:, :, :] = borderline(text_box)
+                #captures.append(som_obs[:, :, ::-1])
+                fronts.append(front_cam)
+                #top_downs.append(top_down[:, :, ::-1])
+                #frames.append(buffer[:, :, ::-1])
                 #cv2.waitKey(1)
-
             dir_id = os.path.basename(save_folder)
-            video_path = os.path.join(save_folder, f"{dir_id}_demo.mp4")
-
-            for idx, frame in enumerate(frames):
+            video_path = os.path.join(save_folder, f"{dir_id}_front.mp4")
+            """for idx, frame in enumerate(frames):
                 im_path = os.path.join(save_folder, f"{dir_id}_{idx}.png")
-                Image.fromarray(frame).save(im_path)
-            for idx, frame in enumerate(top_downs):
+                Image.fromarray(frame).save(im_path)"""
+            """for idx, frame in enumerate(top_downs):
                 im_path = os.path.join(save_folder, f"top_{dir_id}_{idx}.png")
-                Image.fromarray(frame).save(im_path)
-            """for idx, frame in enumerate(fronts):
-                im_path = os.path.join(save_folder, f"front_{dir_id}_{idx}.png")
                 Image.fromarray(frame).save(im_path)"""
-            for idx, frame in enumerate(captures):
+            """for idx, frame in enumerate(captures):
                 im_path = os.path.join(save_folder, f"obs_{dir_id}_{idx}.png")
-                Image.fromarray(frame).save(im_path)
-            """for idx, frame in enumerate(texts):
-                im_path = os.path.join(save_folder, f"text_{dir_id}_{idx}.png")
                 Image.fromarray(frame).save(im_path)"""
-            print("save video to {}".format(video_path))
-            create_video(frames, video_path, fps=5)
+            #print("save video to {}".format(video_path))
+            #create_video(frames, video_path, fps=5)
+            create_video(fronts, video_path, fps=20)
     finally:
-        json.dump(save_dict,open("mapping.json","w"), indent=1)
+        json.dump(save_dict, open("mapping.json","w"), indent=1)
         env.close()

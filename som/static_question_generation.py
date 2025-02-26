@@ -22,6 +22,9 @@ def generate(frame_path, question_type, perspective="front"):
     ego_id, nodelist = nodify(world, multiview=False)
     graph = SceneGraph(ego_id, nodelist, frame_path)
 
+
+
+
     ego_node = graph.get_ego_node()
     if question_type == "identify_color":
         selected_label = random.choice(labels)
@@ -133,14 +136,15 @@ def generate(frame_path, question_type, perspective="front"):
             selected_label = random.choice(labels)
         object = graph.get_node(label2id[selected_label])
         init_center = object.pos
+
         extrapolated_centers = [np.array(object.heading)*i + np.array(init_center) for i in range(50)]
         extrapolated_boxes = extrapolate_bounding_boxes(extrapolated_centers, object.heading, object.bbox)
-        print(extrapolated_boxes)
+        #print(extrapolated_boxes)
 
 
 
 
 
 if __name__ == "__main__":
-    frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0061_91_100/0_91"
+    frame_path = "E:/Bolei/scene-0061_76_85/0_76"#"/bigdata/weizhen/metavqa_iclr/scenarios/test_wide/scene-0061_91_100/0_91"
     generate(frame_path, "predict_crash", "front")

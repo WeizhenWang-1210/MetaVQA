@@ -248,6 +248,18 @@ def visualize_frames(root_dir):
                     real_paths = [os.path.join(frame_path, f"real_{perspective}_{frame_folder}.png") for perspective in
                                   perspectives]
                     multiview_visualization(real_paths, multiview_real_path)
+import re
+def visualizae_closed_loop(trial_directory):
+    def extract_numbers(filename):
+        pattern = r"(.*?)_(\d.*).jpg$"
+        group = re.findall(pattern, filename)
+        print(group)
+        #basename = os.path.basename(filename)
+        #basename = basename.split(".")[1]
+        #basename = basename.split("_")
+        x, y = int(basename[-2]), int(basename[-1])
+        return x, y  # (int(x), int(y))
+
 
 
 from collections import defaultdict
