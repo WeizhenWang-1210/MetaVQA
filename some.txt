@@ -1,0 +1,12 @@
+Running with the following parameters
+num_proc: 1
+root_directory: /bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed
+output_directory: /home/weizhen/debug
+src: nuScenes
+verbose: False
+Find 1206 valid episodes under session /bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed
+Sent job0
+Generating dynamic questions for /bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed/scene-0512_66_90...
+KEY FRAME at/bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed/scene-0512_66_90/403_85/world_403_85.json
+Key frame is 19
+Total frame number 25

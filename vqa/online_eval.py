@@ -135,13 +135,16 @@ def load_example(vis_processors, text_processors):
     annotation_keys = list(annotations.keys())
     id = annotation_keys[5]
     val = annotations[id]
-    image_path = process_image_path(val) # 6 x 20 list, 6 is view, 20 is timeframe
+
+    pizza_path = "pizza.jpg"
+
+    image_path = [[pizza_path] * 20 for _ in range(6)] #process_image_path(val) # 6 x 20 list, 6 is view, 20 is timeframe
     print(image_path)
     print(len(image_path)) # 6
     print(len(image_path[0])) # 20
     image = load_and_process_images(image_path, vis_processors) # 5x6x3x364x364 tensor (5 is the select time)
     question = val['question']
-    question = "You are the driver, what is the safest action to do? Anwser in left|right|stop."
+    question = "What's been shown in these pictures?"
     question = text_processors(question)
     answer = val['answer']
 
