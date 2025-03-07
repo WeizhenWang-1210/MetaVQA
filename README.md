@@ -1,7 +1,7 @@
 
 
 
-# MetaVQA: A Benchmark for Embodied Scene Understanding of Vision-Language Models
+# Embodied Scene Understanding for Vision Language Models via MetaVQA 
 <!---
 [![build](https://github.com/metadriverse/metadrive/workflows/test/badge.svg)](http://github.com/metadriverse/metadrive/actions)
 [![Documentation](https://readthedocs.org/projects/metadrive-simulator/badge/?version=latest)](https://metadrive-simulator.readthedocs.io)
@@ -15,11 +15,11 @@
 <div style="text-align: center; width:100%; margin: 0 auto; display: inline-block">
 <strong>
 [
-<a href="https://metadriverse.github.io/metaVQA/">Website</a>
+<a href="https://metadriverse.github.io/metavqa/">Website</a>
 |
-<a href="https://metadriverse.github.io/metaVQA/">MetaVQA-2M Dataset</a>
+<a href="https://metadriverse.github.io/metaVQA/">Data Preview(coming)</a>
 |
-<a href="https://github.com/WeizhenWang-1210/MetaVQA">Paper(Coming Soon)</a>
+<a href="https://arxiv.org/abs/2501.09167">Arxiv</a>
 |
 <a href="https://metadriverse.github.io/">Relevant Projects</a>
 ]
@@ -27,15 +27,15 @@
 </div>
 
 
-
+<!---
 ![](documentation/source/figs/metavqa_teaser.png)
-
+-->
 <br>
 
-[Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Yuxin Liu](https://github.com/Yuxin45), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yunsong Zhou](https://lion.sjtu.edu.cn/member/memberDetail?id=43), [Bolei Zhou](https://boleizhou.github.io/)
+[Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yuxin Liu](https://github.com/Yuxin45), [Bolei Zhou](https://boleizhou.github.io/)
 
 
-
+<!---
 ## Highlights <a name="highlights"></a>
 MetaVQA a visual question-answering benchmark for improving and evaluating the embodied scene understanding of VLMs.
     
@@ -153,7 +153,7 @@ MetaVQA is built on top of <a href="https://github.com/metadriverse/metadrive">M
 are generated using <a href="https://github.com/metadriverse/cat">CAT</a>. 
 
 
-
+-->
 
 
 
