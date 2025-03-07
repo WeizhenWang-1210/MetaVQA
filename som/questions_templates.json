@@ -2,7 +2,7 @@
     "static":{
         "identify_color":{
             "text": [
-                "Please tell me the color of object <id1>."
+                "Specify the color of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -12,7 +12,7 @@
         },
         "identify_type": {
             "text":[
-                "Please tell me the type of object <id1>."
+                "Specify the type of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -22,7 +22,7 @@
         },
         "identify_distance": {
             "text":[
-                "Please tell me how far object <id1> is from me. Classify the answers into very close(0-2m), close(2-10m), medium(10-30m), and far(30m-)."
+                "Please tell me how far object <<id1>> is from us. Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
             ],
             "params":[
                 "<id1>"
@@ -32,7 +32,7 @@
         },
         "identify_position": {
             "text":[
-                "Please tell me the relative position <id1> with respect to us."
+                "Please tell me the relative position of <<id1>> with respect to us."
             ],
             "params":[
                 "<id1>"
@@ -42,7 +42,7 @@
         },
         "identify_heading": {
             "text":[
-                "Please tell me the heading of object <id1> in our clock angle."
+                "Please describe the heading direction of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -60,15 +60,228 @@
             "end_filter":"pick_closer",
             "constraint":[]
         },
-        "predict_crash": {
+        "predict_crash_ego_still": {
             "text":[
-                "Suppose object <<id1>> proceed along its current heading. Will it collide into us?"
+                "Suppose object <<id1>> proceed along its current heading. Will it collides into us if we stay still?"
             ],
             "params":[
                 "<id1>"
             ],
-            "end_filter":"extrapolate_box",
+            "end_filter":"extrapolate_boxes",
             "constraint":[]
+        },
+        "predict_crash_ego_dynamic": {
+            "text":[
+                "Suppose both object <<id1>> and us proceed along our corresponding current headings with the same speed. Will we collide into each other?"
+            ],
+            "params":[
+                "<id1>"
+            ],
+            "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "relative_distance": {
+            "text":[
+                "How close are object <<id1>> and object <<id2>> positioned? Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"relative_distance",
+            "constraint":[]
+        },
+        "relative_position": {
+            "text":[
+                "How is object <<id1>> positioned relative to object <<id2>>?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"relative_position",
+            "constraint":[]
+        },
+        "relative_heading": {
+             "text":[
+                "Is object <<id1>> heading toward roughly the same direction as object <<id2>>?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"relative_heading",
+            "constraint":[]
+
+        },
+        "relative_predict_crash_still": {
+            "text":[
+                "Suppose object <<id1>> proceed along its current heading. Will it collides into object <<id2>> if object <<id2>> stays still?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "relative_predict_crash_dynamic": {
+            "text":[
+                "Suppose object <<id1>> and object <<id2>> proceed along their current directions with the same speed. Will they collide into each other?"
+            ],
+            "params":[
+                "<id1>", "<id2>"
+            ],
+            "end_filter":"extrapolate_boxes",
+            "constraint":[]
+        },
+        "identify_closest": {
+            "text":[
+                "For all labeled objects, which object is closest to us?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_closest",
+            "constraint":[]
+        },
+        "identify_leftmost": {
+            "text":[
+                "For all labeled objects, which object is the leftmost in our coordinate system?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "identify_rightmost": {
+            "text":[
+                "For all labeled objects, which object is the rightmost in our coordinate system?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "identify_frontmost": {
+            "text":[
+                "For all labeled objects, which object is furthest along our front direction?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "identify_backmost": {
+            "text":[
+                "For all labeled objects, which object is closest along our front direction?"
+            ],
+            "params":[
+            ],
+            "end_filter":"identify_leftest",
+            "constraint":[]
+        },
+        "order_closest": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from closest to furthest from us."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_closest",
+            "constraint":[]
+        },
+        "order_leftmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from leftmost to rightmost in our coordinate system."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_leftmost",
+            "constraint":[]
+        },
+        "order_rightmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from rightmost to leftmost in our coordinate system."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_rightmost",
+            "constraint":[]
+        },
+        "order_frontmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from furthest to the closest along our front direction."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_rightmost",
+            "constraint":[]
+        },
+        "order_backmost": {
+            "text":[
+                "Consider object <<id1>>, object <<id2>>, object <<id3>>, and object <<id4>>. Please order them from closest to the furthest along our front direction."
+            ],
+            "params":[
+                "<id1>","<id2>","<id3>","<id4>"
+            ],
+            "end_filter":"order_rightmost",
+            "constraint":[]
+        },
+        "describe_scenario":{
+            "text": [
+                "Please describe all labeled objects in the observation, in the order of their labels. For each labeled object, specify its color, type, position with respect to us, distance from us. If the object has heading direction, also include its heading in clock terms where 12 o'clock represents our front and 3 o'clock is our right."
+            ],
+            "params":[
+
+            ],
+            "end_filter":"describe_scenario",
+            "constraint":[]
+        },
+        "describe_sector": {
+            "text": [
+                "What labeled objects fall into our <pos> sector?"
+            ],
+            "params":[
+                "<pos>"
+            ],
+            "end_filter":"describe_sector",
+            "constraint":[]
+        },
+        "describe_distance":{
+            "text": [
+                "What labeled objects fall within \"<dist>\" range from us? We classify distance into: \"very close\"(0-2m); \"close\"(2-10m); \"medium\"(10-30m); \"far\"(30m-)."
+            ],
+            "params":[
+                "<dist>"
+            ],
+            "end_filter":"describe_distance",
+            "constraint":[]
+        },
+        "embodied_distance": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) Very close(0-2m); (B) Close(2-10m); (C) Medium(10-30m); (D) Far(30m-)."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>"
+            ]
+        },
+        "embodied_sideness": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Which sector will we end up? Select the best option from: (A) left-front; (B) front; (C) right-front."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>"
+            ]
+        },
+        "embodied_collision": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Will we run into object <<id1>>, provided that it remains still? Select the best option from: (A) Yes; (B) No."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>", "<id1>"
+            ]
         }
+    },
+    "dynamic": {
+
     }
 }

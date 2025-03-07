@@ -6,7 +6,7 @@ from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
-from metadrive.component.sensors.semantic_camera import  SemanticCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.scenario import utils as sd_utils
 from vqa.dataset_utils import l2_distance
@@ -19,20 +19,19 @@ from collections import defaultdict
 import os
 import cv2
 import multiprocessing
-
+from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 
 PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 from PIL import Image
-import numpy as np
 import pickle
 
 PERSPECTIVE_MAPPING = {
     'CAM_FRONT': "front",
-    'CAM_FRONT_RIGHT': "rightf",
-    'CAM_FRONT_LEFT': "leftf",
-    'CAM_BACK': "back",
-    'CAM_BACK_LEFT': "leftb",
-    'CAM_BACK_RIGHT': "rightb"
+    # 'CAM_FRONT_RIGHT': "rightf",
+    # 'CAM_FRONT_LEFT': "leftf",
+    # 'CAM_BACK': "back",
+    # 'CAM_BACK_LEFT': "leftb",
+    # 'CAM_BACK_RIGHT': "rightb"
 }
 
 
@@ -125,15 +124,16 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                 show=False,
             )
             identifier = "{}_{}".format(env.current_seed, env.episode_step)
-            positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                         (0., 0., 1.5)]
-            hprs = [[0, 0, 0], [55, 0, 0], [110, 0, 0], [180, 0, 0], [-110, 0, 0], [-55, 0, 0]]
-            names = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            positions = [(0., 0.0, 1.5)]  # [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
+            # (0., 0., 1.5)]
+            hprs = [[0, 0, 0]]  # [[0, 0, 0], [55, 0, 0], [110, 0, 0], [180, 0, 0], [-110, 0, 0], [-55, 0, 0]]
+            names = ["front"]  # ["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
             for position, hpr, name in zip(positions, hprs, names):
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                  hpr=hpr)
@@ -147,11 +147,11 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # is reserved for special purpose, and no objects will take this color.
             mapping = engine.c_id
             visible_ids_set = set()
-            # to be considered as observable, the object must not be black/white(reserved) and must have at least 240
-            # in any of the 960*540 resolution camera
+            # to be considered as observable, the object must not be black/white(reserved) and must have at least 960
+            # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
-                                                c > 240)
+                                                c > MIN_OBSERVABLE_PIXEL)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -163,8 +163,8 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # get all objectes within 50m of the ego(except agent)
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
-                                      env.agent) <= 100 and x.id != env.agent.id and not isinstance(x,
-                                                                                                   BaseTrafficLight))
+                                      env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x,
+                                                                                                                    BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
                 final = []
@@ -194,11 +194,13 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                                                         log_mapping=Log_Mapping,
                                                         debug=True)
             if (offset + total_steps) % 5 == 0:
-                #its a key frame
+                # its a key frame
                 img_path_dict = PAIRED_OBSERVATION[scene_id]['img_path']
                 key_frame = (offset + total_steps) // 5
                 collection = {}
                 for perspective, paths in img_path_dict.items():
+                    if perspective not in PERSPECTIVE_MAPPING.keys():
+                        continue
                     path = paths[key_frame]
                     rgb = Image.open(path)
                     collection[PERSPECTIVE_MAPPING[perspective]] = rgb
@@ -227,10 +229,10 @@ def paired_logging(headless, num_scenarios, config, seeds):
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 1600, 900),
-                instance=(InstanceCamera, 1600, 900),
-                depth=(DepthCamera, 1600, 900),
-                semantic=(SemanticCamera, 1600, 900)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
         }
@@ -271,7 +273,7 @@ def paired_logging(headless, num_scenarios, config, seeds):
                 offset += 1
 
 
-from vqa.multiprocess_question_generation import divide_list_into_n_chunks
+from relic.vqa.multiprocess_question_generation import divide_list_into_n_chunks
 
 
 def main(scenarios=None):
@@ -317,5 +319,5 @@ def main(scenarios=None):
 
 
 if __name__ == "__main__":
-    jobs = list(range(2, 100))
-    main(jobs)
+    # jobs = list(range(2, 100))
+    main()

@@ -1,7 +1,7 @@
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.scenario import utils as sd_utils
-from vqa.online_eval import load_model, eval_model
-from vqa.closed_loop_collision import Buffer, load_and_process_images, vector_transform
+from relic.vqa.online_eval import load_model, eval_model
+from relic.vqa.closed_loop_collision import Buffer, vector_transform
 import torch
 from metadrive.scenario.parse_object_state import parse_object_state
 
@@ -82,17 +82,10 @@ def generation_action(destination, buffer, model, vis_processors, text_processor
     observation_dict = preprocess_observation(destination, buffer, vis_processors, text_processors)
     #print(observation_dict["questions"])
     answer = eval_model(model, observation_dict, vis_processors, text_processors)
-    answer = answer[0].lower()
+    #answer = answer[0].lower()
+    answer = "stop"
     ACTION_STATISTICS[answer] += 1
     #print(answer)
-    mapping = dict(
-        a="left",b="right",c="stop",d="none"
-    )
-    if answer in mapping.keys():
-        answer = mapping[answer]
-    else:
-        answer = "none"
-    print(answer)
     intervention = convert_action(answer, intervened)
     if not (intervention[0] == 0 and intervention[1] == 0):
         return intervention, True
@@ -101,7 +94,7 @@ def generation_action(destination, buffer, model, vis_processors, text_processor
 
 
 def closed_loop(env: ScenarioDiverseEnv, seeds):
-    model, vis_processors, text_processors = load_model(True)
+    model, vis_processors, text_processors = load_model(False)
     model.to(device)
     num_src_collisions = 0
     num_collisions = 0
@@ -159,7 +152,7 @@ def closed_loop(env: ScenarioDiverseEnv, seeds):
 
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.policy.replay_policy import InterventionPolicy
-
+from metadrive.envs.scenario_env import ScenarioEnv
 
 def main():
     use_render = False
@@ -173,11 +166,11 @@ def main():
         "num_scenarios": num_scenarios,
         "agent_policy": InterventionPolicy,
         "sensors": dict(
-            rgb=(RGBCamera, 960, 540),
+            rgb=(RGBCamera, 1920, 1080),
         ),
         "height_scale": 1
     }
-    env = ScenarioDiverseEnv(env_config)
+    env = ScenarioEnv(env_config)
     total_collision, total_src_collision, total_rewards = closed_loop(env, list(range(num_scenarios)))
 
     summary = dict(
@@ -189,7 +182,8 @@ def main():
         action_statistics=ACTION_STATISTICS
     )
     import json
-    json.dump(summary, open("./online_eval_elm.json", "w"), indent=2)
+    #json.dump(summary, open("./online_eval_baseline.json", "w"), indent=2)
+    json.dump(summary, open("./online_stop_baseline.json", "w"), indent=2)
 
 
 if __name__ == "__main__":

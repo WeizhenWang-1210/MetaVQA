@@ -1,11 +1,11 @@
 import json
 import os
-from vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
-from vqa.grammar import STATIC_GRAMMAR
+from relic.vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
+from relic.vqa.grammar import STATIC_GRAMMAR
 from vqa.object_node import nodify
 from vqa.object_node import transform
 from vqa.scene_graph import SceneGraph
-from vqa.static_question_generator import QuerySpecifier, NAMED_MAPPING
+from relic.vqa.static_question_generator import QuerySpecifier, NAMED_MAPPING
 
 
 def generate_all_frame(templates, frame: str, attempts: int, max: int, id_start: int, verbose: bool = False,
@@ -331,7 +331,7 @@ def find_supertype(subname):
         return subname
 
 
-from vqa.grammar import NO_COLOR_NO_TYPE_STATIC
+from relic.vqa.grammar import NO_COLOR_NO_TYPE_STATIC
 from collections import defaultdict
 
 

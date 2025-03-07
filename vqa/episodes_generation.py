@@ -11,6 +11,7 @@ from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.engine_utils import get_engine
+from vqa.configs.NAMESPACE import OBS_HEIGHT,OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 import pickle
 from collections import defaultdict
 import cv2
@@ -132,7 +133,8 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
     print("I'm in the episode! Starting at env{}, step{}".format(env.current_seed, env.episode_step))
     total_steps = 0  # record how many steps have actually taken place in the current episode
     buffer = dict()  # Store all frame annotations for the current episode.
-    env_id = env.current_seed
+    env_id = ".".join(env.engine.data_manager.current_scenario_file_name.split(".")[:-1])  #env.current_seed
+    print(env_id)
     env_start = env.episode_step
     depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     while total_steps < episode_length:
@@ -151,15 +153,16 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                 show=False,
             )
             identifier = "{}_{}".format(env.current_seed, env.episode_step)
-            positions = [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                         (0., 0., 1.5)]
-            hprs = [[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
-            perspectives = ["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            positions = [(0., 0.0, 1.5)] #[(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),(0., 0., 1.5)]
+            hprs = [[0, 0, 0]]           #[[0, 0, 0], [45, 0, 0], [135, 0, 0], [180, 0, 0], [225, 0, 0], [315, 0, 0]]
+            perspectives = ["front"]     #["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
             for position, hpr, perspective in zip(positions, hprs, perspectives):
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
                                                 hpr=hpr)
                 rgb = camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
+                #need to invoke twice to flush the buffer.
+                depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 depth = depth_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 semantic = semantic_cam.perceive(to_float=True, new_parent_node=env.agent.origin, position=position, hpr=hpr)
                 rgb_annotations[perspective] = dict(
@@ -172,11 +175,11 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             # is reserved for special purpose, and no objects will take this color.
             mapping = engine.c_id
             visible_ids_set = set()
-            # to be considered as observable, the object must not be black/white(reserved) and must have at least 240
-            # in any of the 960*540 resolution camera
+            # to be considered as observable, the object must not be black/white(reserved) and must have at least 960
+            # in any of the 1920*1080 resolution camera
             filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
                     r == 0 and g == 0 and b == 0) and (
-                                                c > 240)
+                                                c > MIN_OBSERVABLE_PIXEL)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -187,9 +190,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             # Record only if there are observable objects.
             # get all objectes within 100m of the ego(except agent)
             valid_objects = engine.get_objects(
-                lambda x: l2_distance(x,
-                                      env.agent) <= 100 and x.id != env.agent.id and not isinstance(x,
-                                                                                                   BaseTrafficLight))
+                lambda x: l2_distance(x, env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x, BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
                 final = []
@@ -244,7 +245,7 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
                 top_down: The top-down image in episode at specific step
                 wolrd: The annotation of this step in the episode. Utilized to create the scene graphs for dataset generation
     """
-
+    print(job_range)
     try:
         folder = os.path.join(IO_config["batch_folder"])
         os.makedirs(folder, exist_ok=True)
@@ -371,10 +372,10 @@ def annotate_scenarios():
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
         }
@@ -399,10 +400,10 @@ def annotate_scenarios():
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             height_scale=1
         )

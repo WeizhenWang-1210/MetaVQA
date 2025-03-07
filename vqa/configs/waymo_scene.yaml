@@ -1,9 +1,0 @@
----
-storage_path : "/bigdata/weizhen/metavqa_iclr/scenarios/waymo/training_0"
-sample_frequency: 2
-num_samples: 5000
-max_iterations: 1000000000000000
-temporal_generation: True
-episode_length: 50
-skip_length: 25
-...
