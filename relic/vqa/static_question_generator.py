@@ -46,7 +46,7 @@ NAMED_MAPPING = dict(
                 Construction_vehicle=dict(singular="construction vehicle", plural="construction vehicles"),
                 Ambulance=dict(singular="ambulance", plural="ambulances"),
                 Trailer=dict(singular="trailer", plural="trailers"),
-
+                Stroller=dict(singular="stroller", plural="strollers")
             )
 
 

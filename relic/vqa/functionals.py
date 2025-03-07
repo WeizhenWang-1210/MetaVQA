@@ -347,6 +347,35 @@ def identify_heading(origin_pos, origin_heading):
 
     return helper
 
+def identify_angle(origin_pos, origin_heading):
+    def helper(search_spaces):
+        def angle_to_clock_bin(angle):
+            # Total radians in a circle
+            total_radians = 2 * np.pi
+            # Number of bins (hours on a clock)
+            num_bins = 12
+            # Calculate each bin width in radians
+            bin_width = total_radians / num_bins
+            # Normalize the angle to be within [0, 2*pi]
+            angle = angle % total_radians
+            # Calculate the bin number
+            bin_number = int(angle / bin_width) + 1
+            return bin_number
+
+        import numpy as np
+        result = {}
+        for search_space in search_spaces:
+            for object in search_space:
+                angle_rotated = transform_heading(
+                    object.heading, origin_pos, origin_heading
+                )
+                angle = 2 * np.pi - angle_rotated  #so the range is now 0 to 360.
+                angle = angle % (2 * np.pi)
+                angle = np.degrees(angle)
+                result[object.id] = angle
+        return result
+    return helper
+
 
 def identify_head_toward(ego):
     def helper(search_spaces):
