@@ -1,8 +1,8 @@
 from typing import Union
 from vqa.scene_graph import TemporalGraph
-from vqa.static_question_generator import Tree, Query
+from relic.vqa.static_question_generator import Tree, Query
 from collections import defaultdict
-from vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
+from relic.vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
 import json
 import os
 import random
@@ -12,7 +12,7 @@ from vqa.functionals import is_stationary, count, \
     extract_type_unique, is_turning, identify_speed, identify_heading, identify_head_toward, predict_trajectory, \
     accelerated
 
-from typing import Callable, Dict
+from typing import Callable
 from vqa.object_node import transform
 
 
@@ -232,7 +232,7 @@ def try_pipeline(episode):
     print(f"Key frame is {graph.idx_key_frame}")
     print(f"Total frame number {len(graph.frames)}")
 
-    template_path = os.path.join("./vqa", "question_templates.json")
+    template_path = os.path.join("", "question_templates.json")
     with open(template_path, "r") as f:
         templates = json.load(f)
 

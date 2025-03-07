@@ -142,13 +142,13 @@ def export_dataset_2(qa_path, src_data_directory, target_data_directory):
                 paths_to_keep.add(path)
                 # print(os.path.join(target_data_directory,path))
                 # break
-                new_frames.append(os.path.join("../vqa/", path))
+                new_frames.append(os.path.join("../../vqa/", path))
             qa_pairs[id]["rgb"][angle] = new_frames
         lidar_path = "/".join(metainfo["lidar"].split("/")[5:])
         # print(os.path.join(target_data_directory,lidar_path))
         # exit()
         paths_to_keep.add(lidar_path)
-        qa_pairs[id]["lidar"] = os.path.join("../vqa/", lidar_path)
+        qa_pairs[id]["lidar"] = os.path.join("../../vqa/", lidar_path)
 
     for path in paths_to_keep:
         source_path = os.path.join(src_data_directory, path)
