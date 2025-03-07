@@ -8,14 +8,14 @@ import json
 import os
 from vqa.scene_graph import TemporalGraph
 import random
-from relic.dynamic_question_generation import find_episodes, extract_observations
+from relic.vqa.dynamic_question_generation import find_episodes, extract_observations
 from collections import defaultdict
 import numpy as np
 
-from relic.scene_level_functionals import sample_keypoints, extrapolate_bounding_boxes, counterfactual_trajectory, \
+from relic.vqa.scene_level_functionals import sample_keypoints, extrapolate_bounding_boxes, counterfactual_trajectory, \
     counterfactual_stop, locate_crash_timestamp, move_around, predict_collision
 from vqa.object_node import box_overlap, transform_vec
-from relic.dynamic_question_generation import extract_frames, generate_context_string
+from relic.vqa.dynamic_question_generation import extract_frames, generate_context_string
 
 
 def choices(question_type, graph):
