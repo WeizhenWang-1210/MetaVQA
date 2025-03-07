@@ -1,7 +1,7 @@
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.scenario import utils as sd_utils
-from vqa.online_eval import load_model, eval_model
-from vqa.closed_loop_collision import Buffer, load_and_process_images, vector_transform
+from relic.vqa.online_eval import load_model, eval_model
+from relic.vqa.closed_loop_collision import Buffer, vector_transform
 import torch
 from metadrive.scenario.parse_object_state import parse_object_state
 
