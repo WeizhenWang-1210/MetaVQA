@@ -1,16 +1,14 @@
 import wandb
-from vqa.models.baselines import Baseline
-from vqa.models.components import Bert_Encoder, MLP_Multilabel, Resnet50_Encoder, ViT_Encoder, CLIP_ViT_Encoder
+from relic.models.baselines import Baseline
+from relic.models.components import Bert_Encoder, MLP_Multilabel, ViT_Encoder, CLIP_ViT_Encoder
 from torch.utils.data import DataLoader
-from vqa.training.datasets import MultiChoiceDataset
-from vqa.qa_preprocessing import answer_space_reversed
-from torch import nn
+from relic.training.datasets import MultiChoiceDataset
+from relic.vqa.qa_preprocessing import answer_space_reversed
 from torch.nn.functional import binary_cross_entropy
 import torch
 import json
 from tqdm import tqdm
 import os
-from PIL import Image
 
 
 def get_model_size(model):

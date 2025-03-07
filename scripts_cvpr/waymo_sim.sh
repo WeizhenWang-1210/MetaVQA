@@ -6,9 +6,9 @@ DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
 CONFIG="${METAVQA_DIR%/}/som/configs/waymo_sim.yaml"
 SETTING="NORMAL"
-START_IDX=8
-END_IDX=16
-NUM_PROC=4
+START_IDX=0
+END_IDX=7000
+NUM_PROC=16
 export SETTING
 
 cd $METAVQA_DIR;

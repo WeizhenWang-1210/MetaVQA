@@ -9,8 +9,8 @@ import os
 import re
 import glob
 from vqa.scene_graph import TemporalGraph
-from vqa.dynamic_question_generator import DynamicQuerySpecifier
-from vqa.static_question_generator import NAMED_MAPPING
+from relic.vqa.dynamic_question_generator import DynamicQuerySpecifier
+from relic.vqa.static_question_generator import NAMED_MAPPING
 from vqa.object_node import transform, transform_vec
 import random
 from collections import defaultdict
@@ -115,7 +115,7 @@ def extract_real_observations(episode, debug=False):
 
 
 def generate_trimmed_grammar(graph, tense, template):
-    from vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR, \
+    from relic.vqa.grammar import NO_STATE_CFG, NO_COLOR_STATIC, NO_TYPE_STATIC, STATIC_GRAMMAR, CFG_GRAMMAR, \
         NO_COLOR_CFG, NO_TYPE_CFG
     import copy
     # type, color, action, interaction
@@ -493,12 +493,12 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
             counts += len(candidates[question_type])
     return candidates, counts, context_string
 
-from vqa.grammar import  NO_COLOR_NO_TYPE
-from vqa.static_question_generation import find_supertype
+
+from relic.vqa.static_question_generation import find_supertype
 
 import copy
 def  generate_trimmed_grammar_nuscenes(graph, template):
-    from vqa.grammar import NO_COLOR_NO_TYPE_NO_STATE, NO_COLOR_NO_TYPE
+    from relic.vqa.grammar import NO_COLOR_NO_TYPE_NO_STATE, NO_COLOR_NO_TYPE
     statistics = graph.statistics
     if "no_state" in template["constraint"]:
         grammar = copy.deepcopy(NO_COLOR_NO_TYPE_NO_STATE)
