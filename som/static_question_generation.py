@@ -8,11 +8,11 @@ import random
 from vqa.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect
 from vqa.scene_graph import SceneGraph
 from vqa.dataset_utils import get_distance
-from vqa.functionals import identify_angle
+from relic.vqa.functionals import identify_angle
 from vqa.dataset_utils import transform_heading
 from vqa.configs.NAMESPACE import NAMESPACE, POSITION2CHOICE
 import numpy as np
-from vqa.static_question_generator import NAMED_MAPPING
+from relic.vqa.static_question_generator import NAMED_MAPPING
 from masking import labelframe, static_id2label
 import itertools
 import traceback
