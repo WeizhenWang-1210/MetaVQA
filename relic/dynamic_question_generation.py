@@ -9,7 +9,7 @@ import os
 import re
 import glob
 from vqa.scene_graph import TemporalGraph
-from vqa.dynamic_question_generator import DynamicQuerySpecifier
+from relic.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.static_question_generator import NAMED_MAPPING
 from vqa.object_node import transform, transform_vec
 import random
@@ -493,7 +493,7 @@ def generate_dynamic_questions(episode, templates, max_per_type=5, choose=3, att
             counts += len(candidates[question_type])
     return candidates, counts, context_string
 
-from vqa.grammar import  NO_COLOR_NO_TYPE
+
 from vqa.static_question_generation import find_supertype
 
 import copy
