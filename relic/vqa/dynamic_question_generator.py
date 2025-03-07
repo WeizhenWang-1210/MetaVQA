@@ -7,7 +7,7 @@ import json
 import os
 import random
 
-from vqa.functionals import is_stationary, count, \
+from relic.vqa.functionals import is_stationary, count, \
     CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
     extract_type_unique, is_turning, identify_speed, identify_heading, identify_head_toward, predict_trajectory, \
     accelerated

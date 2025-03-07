@@ -1,7 +1,7 @@
 from relic.vqa.static_question_generation import generate_all_frame, generate_all_frame_nuscene
 from relic.vqa.dynamic_question_generation import select_key_frames, extract_observations, generate_dynamic_questions, \
     extract_frames, load_valid_episodes
-from vqa.safety_question_generation import generate_safety_questions
+from relic.vqa.safety_question_generation import generate_safety_questions
 from relic.vqa.static_question_generator import QuerySpecifier
 from relic.vqa.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.scene_graph import TemporalGraph

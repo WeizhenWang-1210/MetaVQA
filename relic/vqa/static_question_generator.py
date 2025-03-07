@@ -1,5 +1,5 @@
 from typing import Any, Iterable, Union, Callable
-from vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
+from relic.vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
     CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
     extract_type_unique
 from vqa.scene_graph import SceneGraph
@@ -9,7 +9,7 @@ import random
 import json
 import argparse
 import os
-from vqa.visualization import generate_highlighted
+from relic.vqa.visualization import generate_highlighted
 from collections import defaultdict
 from vqa.object_node import transform, nodify
 

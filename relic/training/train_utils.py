@@ -3,7 +3,7 @@ from relic.models.baselines import Baseline
 from relic.models.components import Bert_Encoder, MLP_Multilabel, ViT_Encoder, CLIP_ViT_Encoder
 from torch.utils.data import DataLoader
 from relic.training.datasets import MultiChoiceDataset
-from vqa.qa_preprocessing import answer_space_reversed
+from relic.vqa.qa_preprocessing import answer_space_reversed
 from torch.nn.functional import binary_cross_entropy
 import torch
 import json
