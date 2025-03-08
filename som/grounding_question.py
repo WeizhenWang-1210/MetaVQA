@@ -3,7 +3,7 @@ import os
 import random
 import numpy as np
 import tqdm
-from masking import grounding_labelframe
+from som.masking import grounding_labelframe
 from som.qa_utils import create_options, create_multiple_choice
 from som.utils import enumerate_frame_labels
 import itertools

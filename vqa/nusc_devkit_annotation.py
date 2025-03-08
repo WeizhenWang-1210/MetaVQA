@@ -1,15 +1,13 @@
 from nuscenes.nuscenes import NuScenes
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.ndimage import distance_transform_edt
 from matplotlib.path import Path
-from matplotlib.colors import ListedColormap
 import copy
 from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
 from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibility
 from pyquaternion import Quaternion
 from vqa.configs.NAMESPACE import MIN_OBSERVABLE_PIXEL
-from masking import find_areas
+from som.masking import find_areas
 import json
 import os
 from nuscenes.eval.common.utils import quaternion_yaw

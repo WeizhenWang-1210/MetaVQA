@@ -18,7 +18,6 @@ import os
 from PIL import Image
 from som.closed_loop_utils import classify_speed
 import torch
-import torch.multiprocessing as mp
 from som.closed_loop_utils import CoT_prompts
 from som.verify_close import described
 from transformers import AutoModel, AutoTokenizer, AutoProcessor
@@ -53,10 +52,7 @@ sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
 from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model, \
     batch_inference_internvl
-from masking import find_center, put_text, put_rectangle
-import random
-
-from som.parse_responses import parse_response
+from som.masking import find_center, put_text, put_rectangle
 
 
 def observe(env):

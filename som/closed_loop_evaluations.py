@@ -48,7 +48,7 @@ sys.path.append('/home/chenda/lmms-finetune/chenda_scripts/')
 sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
 from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model
-from masking import find_center, put_text, put_rectangle
+from som.masking import find_center, put_text, put_rectangle
 import random
 
 
