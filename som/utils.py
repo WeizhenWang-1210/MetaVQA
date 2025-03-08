@@ -82,16 +82,13 @@ import random
 
 
 def random_choice(qa_records):
-    options = ["(A)", "(B)", "(C)", "(D)"]
     for key, record in qa_records.items():
-        if record["type"] in ["pick_closer"]:
-            valid_options = options[:3]
-        elif record["type"] in ["predict_crash_ego_still", "predict_crash_ego_dynamic", "relative_predict_crash_still",
-                                "relative_predict_crash_dynamic"]:
-            valid_options = options[:2]
+        valid_options = list(record["options"].keys())
+        assert record["type"] == "describe_scenario" or not len(valid_options) <= 0
+        if len(valid_options) == 0:
+            record["final_choice"] = ""
         else:
-            valid_options = options
-        record["final_choice"] = random.choice(valid_options)
+            record["final_choice"] = random.choice(valid_options)
     return qa_records
 
 
@@ -137,7 +134,7 @@ def analyze_dataset(qa_records):
             episode_path = os.path.basename(os.path.dirname(frame_path))
             #match = re.match(pattern, episode_path)
             #print(match)
-            world = episode_path[:10]#match
+            world = episode_path[:10]  #match
 
         return world
 
@@ -162,7 +159,7 @@ def analyze_dataset(qa_records):
     return statistics
 
 
-def create_split(qa_records, split_path, distributions=(0.8,0.2)):
+def create_split(qa_records, split_path, distributions=(0.8, 0.2)):
     import numpy as np
     data = np.array(list(qa_records.keys()))
     # Example data
@@ -179,13 +176,19 @@ def create_split(qa_records, split_path, distributions=(0.8,0.2)):
         print(f"Subset {i + 1}: {len(subset)} items")
     json.dump(
         {
-            "train":list(split_data[0]),
-            "val":list(split_data[1])
+            "train": list(split_data[0]),
+            "val": list(split_data[1])
         },
-        open(split_path,"w"),
+        open(split_path, "w"),
     )
 
 
+import glob
+
+
+import shutil
+import os
+from concurrent.futures import ThreadPoolExecutor
 
 
 def copy_file(src, dest):
@@ -194,6 +197,7 @@ def copy_file(src, dest):
         print(f"Copied {src} to {dest}")
     except Exception as e:
         print(f"Error copying {src} to {dest}: {e}")
+
 
 # Function to perform parallel file copying
 def parallel_copy(mappings, num_threads=16):
@@ -204,6 +208,7 @@ def parallel_copy(mappings, num_threads=16):
         # Optionally, wait for all tasks to complete and handle results
         for task in tasks:
             task.result()
+
 
 def export(qa_path, obs_directory, vqa_directory):
     import tqdm
@@ -250,7 +255,6 @@ def export_multiple(qa_paths, obs_directory, vqa_directory):
     json.dump(obs_old2new, open(os.path.join(obs_directory, "old2new.json"), "w"), indent=2)
     parallel_copy(transfer_tuples)
 
-
 def split(path, split_path, train_path, val_path):
     import json, os
     #path = "/data_weizhen/metavqa_cvpr/static_medium_export/data.json"
@@ -264,6 +268,7 @@ def split(path, split_path, train_path, val_path):
     #val_path = "/data_weizhen/metavqa_cvpr/static_medium_export/val.json"
     train_qas, val_qas = dict(), dict()
     local_idx = 0
+
     def append_prefix(paths, prefix):
         return [os.path.join(prefix, p) for p in paths]
 
@@ -466,6 +471,35 @@ def build_test():
 
 
 
+def analyze_gt(qa_records):
+    def find_identifier(path):
+        base = os.path.basename(path)
+        splitted = base.split("_")
+        episode = splitted[0]
+        step = splitted[1].split(".")[0]
+        return (int(episode), int(step))
+
+    statistics = dict(
+        total=0, question_dist=dict(), answer_dist=defaultdict(lambda: 0), total_frames=0, total_scenarios=0
+    )
+    frames, scenarios = set(), set()
+
+    for qid, record in qa_records.items():
+        frames.add(find_identifier(record["obs"][-1]))
+        scenarios.add(record["world"][-1])
+        statistics["total"] += 1
+        if record["type"] not in statistics["question_dist"].keys():
+            statistics["question_dist"][record["type"]] = dict(
+                count=0, answer_dist=defaultdict(lambda: 0)
+            )
+        statistics["question_dist"][record["type"]]["count"] += 1
+        statistics["question_dist"][record["type"]]["answer_dist"][record["answer"]] += 1
+        statistics["answer_dist"][record["answer"]] += 1
+    print(frames)
+    statistics["total_frames"] = len(frames)
+    statistics["total_scenarios"] = len(scenarios)
+    return statistics
+
 
 if __name__ == "__main__":
     from pprint import pprint
@@ -621,5 +655,39 @@ if __name__ == "__main__":
         responses, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "w"), indent=2
     )
     """
+    record_template = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/*qa.json"
+    traj_template = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/*traj.json"
+    record_paths = glob.glob(record_template)
+    records = [
+        json.load(open(record_path)) for record_path in record_paths
+    ]
+    traj_paths = glob.glob(traj_template)
+    trajs = [
+        json.load(open(traj_path)) for traj_path in traj_paths
+    ]
 
+    merged_traj = dict(gt=dict(), opt=dict(), act=dict(), crash=dict(), off=dict(), completion=dict())
+    for traj in trajs:
+        for key, value in traj.items():
+            for scene_id in value.keys():
+                print(value[scene_id])
+                merged_traj[key][scene_id] = value[scene_id]
+    json.dump(
+        merged_traj,
+        open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/traj.json", "w"),
+        indent=2
+    )
+    merged_qa = merge_qas(records)
+    json.dump(
+        merged_qa,
+        open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/qa.json", "w"),
+        indent=2
+    )
+    stats = analyze_gt(merged_qa)
+
+    json.dump(
+        stats,
+        open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/qa_stats.json", "w"),
+        indent=2
+    )
 

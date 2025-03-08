@@ -50,6 +50,7 @@ def masked_average_numpy(tensor, mask, dim):
     count = np.maximum(count, np.ones_like(count))
     return (tensor * mask).sum(axis=dim) / count
 
+
 class TurnAction:
     STOP = 0
     KEEP_STRAIGHT = 1
@@ -62,26 +63,27 @@ class TurnAction:
     @classmethod
     def get_str(cls, action):
         if action == TurnAction.STOP:
-            return "STOP"
+            return "stop"  #"STOP"
         elif action == TurnAction.KEEP_STRAIGHT:
-            return "KEEP_STRAIGHT"
+            return "forward"  #"KEEP_STRAIGHT"
         elif action == TurnAction.TURN_LEFT:
-            return "TURN_LEFT"
+            return "go left"  #“TURN_LEFT"
         elif action == TurnAction.TURN_RIGHT:
-            return "TURN_RIGHT"
+            return "go right"  #"TURN_RIGHT"
         elif action == TurnAction.U_TURN:
-            return "U_TURN"
+            return "u turn"  #"U_TURN"
         else:
             raise ValueError("Unknown action: {}".format(action))
 
+
 def get_direction_action_from_trajectory_batch(
-    traj,
-    mask,
-    dt,
-    U_TURN_DEG=115,
-    LEFT_TURN_DEG=25,
-    RIGHT_TURN_DEG=-25,
-    STOP_SPEED=0.06,
+        traj,
+        mask,
+        dt,
+        U_TURN_DEG=115,
+        LEFT_TURN_DEG=25,
+        RIGHT_TURN_DEG=-25,
+        STOP_SPEED=0.06,
 ):
     assert traj.ndim == 3
     traj_diff = traj[1:] - traj[:-1]
@@ -114,6 +116,7 @@ def get_direction_action_from_trajectory_batch(
     actions[avg_speed < STOP_SPEED] = TurnAction.STOP
     return actions
 
+
 def get_navigation_signal(scenario, timestamp):
     U_TURN_DEG = 140
     TURN_DEG = 25
@@ -125,7 +128,7 @@ def get_navigation_signal(scenario, timestamp):
     ego_valid_mask = ego_track["state"]["valid"].astype(bool)
     T = ego_traj.shape[0]
     if timestamp + chunk_size > T:
-        timestamp  = T-chunk_size
+        timestamp = T - chunk_size
     traj = ego_traj[timestamp:timestamp + chunk_size]
     mask = ego_valid_mask[timestamp:timestamp + chunk_size]
     assert traj.shape[0] == chunk_size
@@ -141,6 +144,8 @@ def get_navigation_signal(scenario, timestamp):
     actions = actions[0]
     print("Action at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(actions)))
     #print(111)
+    return actions
+
 
 def get_trajectory(env):
     """
@@ -154,8 +159,6 @@ def get_trajectory(env):
 
 
 # Function to check if a point P can be projected onto a segment AB
-
-
 
 
 def dynamic_get_navigation_signal(scenario, timestamp, env):
@@ -174,8 +177,12 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
     ego_id = scenario["metadata"]["sdc_id"]
     ego_track = scenario["tracks"][ego_id]
     ego_traj = ego_track["state"]["position"][..., :2]
+    #Sparsity to every 0.5 seconds while making sure the end is always there
+    END = ego_traj[-1]
+    ego_traj = ego_traj[:-1]
+    ego_traj = np.vstack([ego_traj[::5,:], END])
     T = ego_traj.shape[0]
-    adjustment_duration = 30
+    adjustment_duration = 8 # looks into 4 seconds of future
     ego_pos, ego_heading = np.array(env.agent.position), np.array(env.agent.heading)
     segments_with_projection = []
     for i in range(len(ego_traj) - 1):
@@ -188,29 +195,69 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
         # We are so wrong, and we have to go to the ending point.
         future_pos = ego_traj[-1]
     else:
-        projected_segment_index, projected_point = sorted(segments_with_projection, key=lambda x: x[0], reverse=True)[0]
-        future_pos = ego_traj[projected_segment_index + adjustment_duration] if adjustment_duration + projected_segment_index < T else ego_traj[-1]  # the end of this segment.
+        projected_segment_index, projected_point = \
+        sorted(segments_with_projection, key=lambda x: np.linalg.norm(x[1]), reverse=False)[0]  #choose closest waypoint
+        #make sure the destination is sufficiently 2 meters away form current positions.
+        if adjustment_duration + projected_segment_index < T:
+            dest_index = projected_segment_index + adjustment_duration
+            while dest_index < T and np.linalg.norm(ego_traj[dest_index] - ego_pos) < 2:
+                dest_index += 1
+            if dest_index >= T:
+                dest_index = T-1
+            assert dest_index < T
+            future_pos = ego_traj[dest_index]
+        else:
+            future_pos = ego_traj[-1]
     pos_diff = future_pos - ego_pos
     angle = np.arccos(np.dot(pos_diff, ego_heading) / (np.linalg.norm(pos_diff) * np.linalg.norm(ego_heading)))
+    #same_dir = np.dot(pos_diff, ego_heading) > 0
     wrapped_angle = angle * -1 if np.cross(pos_diff, ego_heading) > 0 else angle * 1
     wrapped_angle = np.degrees(wrapped_angle)
     if wrapped_angle > 5:
         action = TurnAction.TURN_LEFT
+        #if not same_dir:
+        #    print("U")
     elif wrapped_angle < -5:
         action = TurnAction.TURN_RIGHT
+        #if not same_dir:
+        #    print("U")
     else:
         action = TurnAction.KEEP_STRAIGHT
-    print("Action at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(action)))
+    print("Dynamic Navigation at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(action)))
+    return TurnAction.get_str(action)
 
 
-
-
-
-
-
-
-
-
+def dest_navigation_signal(scenario, timestamp, env):
+    ego_id = scenario["metadata"]["sdc_id"]
+    ego_track = scenario["tracks"][ego_id]
+    ego_traj = ego_track["state"]["position"][..., :2]
+    #Sparsity to every 0.5 seconds while making sure the end is always there
+    END = ego_traj[-1,:]
+    ego_pos, ego_heading = np.array(env.agent.position), np.array(env.agent.heading)
+    future_pos = END
+    distance = np.linalg.norm(future_pos-ego_pos)
+    pos_diff = future_pos - ego_pos
+    angle = np.arccos(np.dot(pos_diff, ego_heading) / (np.linalg.norm(pos_diff) * np.linalg.norm(ego_heading)))
+    same_dir = np.dot(pos_diff, ego_heading) > 0
+    wrapped_angle = angle * -1 if np.cross(pos_diff, ego_heading) > 0 else angle * 1
+    wrapped_angle = np.degrees(wrapped_angle)
+    if wrapped_angle > 5:
+        if same_dir:
+            dir = "lf"
+        else:
+            dir = "lb"
+    elif wrapped_angle < -5:
+        if same_dir:
+            dir = "rf"
+        else:
+            dir = "rb"
+    else:
+        if same_dir:
+            dir = "f"
+        else:
+            dir = "b"
+    print("Dynamic Navigation at step {}, t={}s: {}-{}m".format(timestamp, timestamp / 10, dir, distance))
+    return dir, distance
 
 
 

@@ -1,15 +1,13 @@
 #!/bin/bash
-NUMSCENARIOS=50
-DATA="/home/weizhen/cat"
-MODELPATH="/home/chenda/huggingface_ckpt/InternVL2-4B"   #Where the ckpt is stored
-RECORDPATH="/home/weizhen/closed_loops/internvl2_zeroshot"
+NUMSCENARIOS=120
+DATA="/data_weizhen/scenarios"
+MODELPATH="random"   #Where the ckpt is stored
+RECORDPATH="/home/weizhen/closed_loops/random"
 PROMPTSCHEMA="direct"
-RESULTPATH="/home/weizhen/closed_loops/internvl2_zeroshot/internvl2_direct_zeroshot.json"
+RESULTPATH="/home/weizhen/closed_loops/random/random.json"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
-CUDA_DEVICES=4
-export INTERNVL=true
-export INTERNVLZEROSHOT=true
+CUDA_DEVICES=0
 
 cd $METAVQA_DIR;
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES python -m som.closed_loop_evaluations --headless --num_scenarios $NUMSCENARIOS --data_directory $DATA --model_path $MODELPATH \

@@ -303,7 +303,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
         speed, action, duration = param["<speed>"], param["<action>"], param["<duration>"]
         speed_class = classify_speed(speed)
         action_class = ACTION.get_action(action)
-        end_distance,_ = get_end_sector(action=action, speed=speed, duration=duration)
+        end_distance, _ = get_end_sector(action=action, speed=speed, duration=duration)
         available_options = ["very close", "close", "medium", "far"]
         labels = ["A","B","C","D"]
         question = fill_in_label(
