@@ -11,7 +11,7 @@ from vqa.dataset_utils import l2_distance
 from vqa.annotation_utils import get_visible_object_ids
 import numpy as np
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
-from som.navigation import get_trajectory, dynamic_get_navigation_signal
+from som.navigation import get_trajectory, dynamic_get_navigation_signal, dest_navigation_signal
 import cv2
 import os
 from PIL import Image
@@ -48,7 +48,7 @@ sys.path.append('/home/chenda/lmms-finetune/chenda_scripts/')
 sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
 from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model
-from masking import find_center, put_text, put_rectangle
+from som.masking import find_center, put_text, put_rectangle
 import random
 
 
@@ -187,22 +187,21 @@ def capture_som(env):
 
 
 INTERVENED = {
-    "a": [0.5, 0.8],  #turn_left
-    "b": [-0.5, 0.8],  #turn_right
+    "a": [0.15, 0.8],  #turn_left
+    "b": [-0.15, 0.8],  #turn_right
     "c": [0, -0.135],  #slow_down
     "d": [0, -0.26],  #brake_now
-    "e": [0, 0.15]  #keep_straight
-}
-NON_INTERVENED = {
-    "a": [0.5, 0.8],  #turn_left
-    "b": [-0.5, 0.8],  #turn_right
-    "c": [0, -0.135],  #slow_down
-    "d": [0, -0.26],  #brake_now
-    "e": [0, 0.15]  #keep_straight
+    "e": [0, 0.15],  #keep_straight
+    "f": [0, 0.3],  #speed_up
+    "g": [0.6, 0.2],  #big_left
+    "h": [-0.6, 0.2]  #big_right
 }
 
+NON_INTERVENED = INTERVENED
+
 ACTION2OPTION = {
-    "TURN_LEFT": "A", "TURN_RIGHT": "B", "SLOW_DOWN": "C", "BRAKE": "D", "KEEP_STRAIGHT": "E"
+    "TURN_LEFT": "A", "TURN_RIGHT": "B", "SLOW_DOWN": "C", "BRAKE": "D", "KEEP_STRAIGHT": "E",
+    "SPEED_UP": "F", "BIG_LEFT": "G", "BIG_RIGHT": "H"
 }
 
 
@@ -380,8 +379,10 @@ def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
 
 def closed_loop_baselines(env: ScenarioDiverseEnv, seeds, actor: callable, record_folder=None):
     record = record_folder is not None
-    total_completions = total_rewards = num_collisions = num_src_collisions = 0
+    total_out_of_road = total_completions = total_rewards = num_collisions = num_src_collisions = 0
     command_frequency = 5
+    collided_scenarios = set()
+    offroad_scenarios = set()
     ADEs, FDEs = [], []
     for seed in seeds:
         env.reset(seed)
@@ -404,6 +405,7 @@ def closed_loop_baselines(env: ScenarioDiverseEnv, seeds, actor: callable, recor
         step = episodic_completion = episodic_reward = 0
         intervention = [0, 0]
         trajectory = []
+        offroad = collide = 0
         while run:
             index = max(int(env.engine.episode_step), 0)
             if index >= max_step:
@@ -411,25 +413,32 @@ def closed_loop_baselines(env: ScenarioDiverseEnv, seeds, actor: callable, recor
                 run = False
                 break
             trajectory.append(env.agent.position)
-            capture(env)
             if step % command_frequency == 0:
                 print("Perceive & Act")
+                dir, dist = dest_navigation_signal(env.engine.data_manager.current_scenario,
+                                                   timestamp=env.episode_step, env=env)
+                obs, front, id2label = capture_som(env)
                 intervention, intervened = actor(intervened)
-                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["action"] = intervention
                 print(intervention, intervened)
+                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["action"] = intervention
+                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["navigation"] = (dir, dist)
+            assert not (intervention[0] == 0 and intervention[1] == 0)
             o, r, tm, tc, info = env.step(intervention)
             episodic_reward, episodic_completion = info["episode_reward"], info["route_completion"]
             if len(env.agent.crashed_objects) > 0:
                 print("VLM still collided.")
-                num_collisions += 1
+                collided_scenarios.add(env.engine.data_manager.current_scenario_file_name)
+                collide = 1
+            if info["out_of_road"]:
+                print("VLM wander off road")
+                offroad = 1
+                offroad_scenarios.add(env.engine.data_manager.current_scenario_file_name)
                 run = False
-            if in_forbidden_area(env.agent):
-                print("VLM wandered off road")
-                num_collisions += 1
-                run = False
-            if (tm or tc) and not info["out_of_road"]:
+            if tm or tc:
                 run = False
             step += 1
+        num_collisions += collide
+        total_out_of_road += offroad
         total_rewards += episodic_reward
         total_completions += episodic_completion
         ADE, FDE = computeADE(original_trajectory, np.array(trajectory)), computeFDE(original_trajectory,
@@ -446,16 +455,19 @@ def closed_loop_baselines(env: ScenarioDiverseEnv, seeds, actor: callable, recor
                     front_path = os.path.join(folder_path, f"front_{frame_id}.jpg")
                     Image.fromarray(frame["obs"][:, :, ::-1]).save(obs_path)
                     Image.fromarray(frame["front"][:, :, ::-1]).save(front_path)
-                    action_buffer[frame_id] = dict(action=frame["action"], state=frame["state"],
-                                                   navigation=frame["navigation"])
+                    action_buffer[frame_id] = dict(
+                        scene=env.engine.data_manager.current_scenario_file_name, collide=collide, offroad=offroad,
+                        ADE=ADE, FDE=FDE,
+                        action=frame["action"], state=frame["state"],
+                        navigation=frame["navigation"],
+                    )
                 json.dump(action_buffer, open(os.path.join(folder_path, "action_buffer.json"), "w"))
             RECORD_BUFFER.clear()
         print(f"Finished seed {env.engine.current_seed}")
         print(f"episodic_reward: {episodic_reward}")
         print(f"episodic_completion:{episodic_completion}")
         print(f"ADE:{ADE}; FDE{FDE}")
-
-    return num_collisions, num_src_collisions, total_rewards, total_completions, ADEs, FDEs
+    return num_collisions, num_src_collisions, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, list(collided_scenarios), list(offroad_scenarios)
 
 
 from metadrive.component.sensors.instance_camera import InstanceCamera
@@ -488,33 +500,33 @@ def main():
         "num_scenarios": num_scenarios,
         "agent_policy": InterventionPolicy,
         "sensors": dict(
-            rgb=(RGBCamera, 1920, 1080),
-            instance=(InstanceCamera, 1920, 1080)
+            rgb=(RGBCamera, 1600, 900),
+            instance=(InstanceCamera, 1600, 900)
         ),
         "vehicle_config": dict(vehicle_model="static_default"),
         "height_scale": 1
     }
     env = ScenarioDiverseEnv(env_config)
     if args.model_path == "random":
-        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
+        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, collided_scenarios, offroad_scenarios  = \
             closed_loop_baselines(env, list(range(args.num_scenarios)), actor=random_action,
                                   record_folder=args.record_path)
     elif args.model_path == "always_stop":
-        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
+        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, collided_scenarios, offroad_scenarios  = \
             closed_loop_baselines(env, list(range(args.num_scenarios)), actor=always_stop,
                                   record_folder=args.record_path)
     elif args.model_path == "always_straight":
-        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
+        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, collided_scenarios, offroad_scenarios  = \
             closed_loop_baselines(env, list(range(args.num_scenarios)), actor=always_straight,
                                   record_folder=args.record_path)
     else:
-        total_collision, total_src_collision, total_rewards, total_completions, ADEs, FDEs = \
-            closed_loop(env, list(range(args.num_scenarios)), model_path=args.model_path,
-                        record_folder=args.record_path)
+       raise ValueError
     summary = dict(
+        model=args.model_path,
         src=traffic,
         num_scenarios=num_scenarios,
         total_collision=total_collision,
+        total_out_of_road=total_out_of_road,
         total_src_collision=total_src_collision,
         total_rewards=total_rewards,
         total_completions=total_completions,
@@ -524,7 +536,9 @@ def main():
         minFDE=min(FDEs),
         ADEs=ADEs,
         FDEs=FDEs,
-        action_statistics=ACTION_STATISTICS
+        action_statistics=ACTION_STATISTICS,
+        collided_scenarios=collided_scenarios,
+        offroad_scenarios=offroad_scenarios,
     )
     json.dump(summary, open(args.result_path, "w"), indent=2)
 

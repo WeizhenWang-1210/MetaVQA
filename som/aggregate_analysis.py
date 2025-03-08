@@ -9,6 +9,9 @@ stats = [
     "/home/weizhen/experiments/main/Llama_test_results_stats.json",
     "/home/weizhen/experiments/main/InternVL_test_results_stats.json",
     "/home/weizhen/experiments/main/InternVL_trainval_test_results_stats.json",
+#extras
+    "/home/weizhen/experiments/extra/Qwen2_trainval_test_results_stats.json",
+    "/home/weizhen/experiments/extra/Llama_trainval_test_results_stats.json"
 ]
 
 
@@ -70,7 +73,7 @@ for modelid, result in zip(ids, results):
 
 json.dump(
     final,
-    open("./aggregated_stats.json","w"),
+    open("/home/weizhen/final/aggregated_stats.json","w"),
     indent=2
 )
 

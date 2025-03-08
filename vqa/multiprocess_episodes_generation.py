@@ -10,10 +10,10 @@ import os
 import yaml
 import multiprocessing
 from metadrive.scenario import utils as sd_utils
-from vqa.collision_episodes_generation import generate_safe_data
+# from relic.vqa.collision_episodes_generation import generate_safe_data
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
+from vqa.configs.NAMESPACE import OBS_WIDTH, OBS_HEIGHT
 import json
 
 
@@ -84,7 +84,7 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                       skip_length=config["skip_length"], job_range=job_range)
 
 
-def safety(data_directory, headless, config, num_scenarios, job_range=None, prefix=""):
+"""def safety(data_directory, headless, config, num_scenarios, job_range=None, prefix=""):
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
@@ -103,6 +103,8 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None, pref
         }
     )
     generate_safe_data(env, job_range, config["storage_path"], prefix)
+
+"""
 
 
 def divide_into_intervals_exclusive(total, n, start=0):
@@ -197,7 +199,7 @@ def normal():
                     )
 
 
-def safety_critical():
+"""def safety_critical():
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -260,11 +262,12 @@ def safety_critical():
                     dataset_summary_path=os.path.join(args.data_directory, "dataset_summary.pkl"),
                     source="_".join(["CAT", args.source]), split=args.split, collision="True"
                     )
-
+"""
 
 if __name__ == "__main__":
     flag = os.getenv('SETTING')
     if flag == "NORMAL":
         normal()
     else:
-        safety_critical()
+        raise NotImplementedError
+        #safety_critical()

@@ -4,24 +4,26 @@ import re
 from som.parse_responses import parse_response, parse_gpt
 
 NOT_YET_PARSED = ["describe_scenario"]
-path_template = "/home/chenda/evaluations/test/*_closed.json"
-merged_path = "/home/weizhen/experiments/test/closed.json"
-stat_path = "/home/weizhen/experiments/test/closed_stats.json"
-domained_path = "/data_weizhen/metavqa_cvpr/datasets/test/test/test.json"
+path_template = "/home/chenda/evaluations/rebuttal/InternVL_rebuttal_gpt/*_test_results.json"
+merged_path = "/home/weizhen/experiments/rebuttal/InternVL_rebuttal_gpt_test_results.json"
+stat_path = "/home/weizhen/experiments/rebuttal/InternVL_rebuttal_gpt_test_results_stats.json"
+domained_path = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/test/test/test_processed.json"
 original_qa = json.load(open(domained_path, "r"))
 
 
 def merge_responses(response_paths):
     results = glob.glob(response_paths)
+    print(f"Found {len(results)} files:\n", results)
     final = dict()
     for result in results:
         qas = json.load(open(result, "r"))
         for key, value in qas.items():
             assert key not in final.keys(), "Repetitive keys found!"
-            assert key in original_qa.keys(), "You should have domain information"
+            #assert "domain" in original_qa.keys(), "You should have domain information"
             final[key] = value
-            final[key]["options"]=original_qa[key]["options"]
+            final[key]["options"]= original_qa[key]["options"]
             final[key]["domain"] = original_qa[key]["domain"]
+            #print(final[key])
     return final
 
 
@@ -46,7 +48,7 @@ def accuracy_by_domain(qa_records):
 
 
 def analyze(basepath, mergepath, statpath):
-    final = merge_responses(basepath)#json.load(open(mergepath, "r"))
+    final = merge_responses(basepath)
     parsefail = 0
     for qid in final.keys():
         answer2opt = {str(val): str(key) for key, val in final[qid]["options"].items()} if final[qid]["options"] is not None \
