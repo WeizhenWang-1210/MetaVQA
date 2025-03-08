@@ -108,16 +108,17 @@ if __name__ == "__main__":
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
     print(HELP_MESSAGE)
-    scenario_summary, _, _ = sd_utils.read_dataset_summary("E:\Bolei\cat")
+    data_dir = "/bigdata/datasets/scenarionet/nuscenes/trainval/sc_nusc_trainval_0/"
+    scenario_summary, _, _ = sd_utils.read_dataset_summary(data_dir)
 
     try:
         env = ScenarioEnv(
             {
                 "sequential_seed": True,
                 "reactive_traffic": True if args.reactive_traffic else False,
-                "use_render": True if not args.top_down else False,
-                "data_directory": "E:\Bolei\cat",
-                "num_scenarios": len(scenario_summary),
+                "use_render": False, #True if not args.top_down else False,
+                "data_directory": data_dir,
+                "num_scenarios": len(data_dir),
                 "agent_policy": ReplayEgoCarPolicy,
             }
         )
@@ -131,6 +132,10 @@ if __name__ == "__main__":
         inception = False
         countdown = 5
         for i in range(1, 100000):
+            print(env.agent.get_dynamics_parameters())
+            env.reset()
+            continue
+            #exit()
             o, r, tm, tc, info = env.step([0, 0])
             im = camera.perceive(False, env.agent.origin, [0, -6, 2], [0, -0.5, 0])
             im_buffer.insert(im)

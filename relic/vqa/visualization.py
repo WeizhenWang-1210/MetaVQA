@@ -82,7 +82,7 @@ def create_video(frame_arrays, filename, fps=5):
     output_path = filename  # f'{filename}.mp4'
     writer = imageio.get_writer(output_path, fps=fps)
     for frame in frame_arrays:
-        writer.append_data(frame[0])
+        writer.append_data(frame)
     writer.close()
 
 

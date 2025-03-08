@@ -1,7 +1,7 @@
 export HF_HOME=/bigdata/chenda/huggingface_ckpt/
 MODEL_PATH=OpenGVLab/InternVL2-4B
-OUTPUT_FILE=/bigdata/weizhen/repo/qa_platform/public/data_small_all_black_result.json
-QUESTION_FILE=/bigdata/weizhen/repo/qa_platform/public/data_small_all_black.json
+OUTPUT_FILE=/bigdata/weizhen/repo/qa_platform/public/data_verification_result.json
+QUESTION_FILE=/bigdata/weizhen/repo/qa_platform/public/test/0_data_verification.json
 CUDA_DEVICE=4,5,6,7
 
 cd /bigdata/chenda/InternVL/internvl_chat/

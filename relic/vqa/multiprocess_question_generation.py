@@ -1,11 +1,11 @@
-from vqa.static_question_generation import generate_all_frame, generate_all_frame_nuscene
-from vqa.dynamic_question_generation import select_key_frames, extract_observations, generate_dynamic_questions, \
+from relic.vqa.static_question_generation import generate_all_frame, generate_all_frame_nuscene
+from relic.vqa.dynamic_question_generation import select_key_frames, extract_observations, generate_dynamic_questions, \
     extract_frames, load_valid_episodes
-from vqa.safety_question_generation import generate_safety_questions
-from vqa.static_question_generator import QuerySpecifier
-from vqa.dynamic_question_generator import DynamicQuerySpecifier
+from relic.vqa.safety_question_generation import generate_safety_questions
+from relic.vqa.static_question_generator import QuerySpecifier
+from relic.vqa.dynamic_question_generator import DynamicQuerySpecifier
 from vqa.scene_graph import TemporalGraph
-from vqa.scene_level_functionals import predict_collision
+from relic.vqa.scene_level_functionals import predict_collision
 import json
 import os
 import argparse
@@ -125,10 +125,6 @@ def static_setting(config_path):
     for p in processes:
         p.join()
     print("All processes finished.")
-
-
-from vqa.dynamic_question_generation import find_nuscene_frames
-
 
 
 def static_job_nuscene(proc_id, paths, source, summary_path, verbose=False, multiview=True):
@@ -280,7 +276,7 @@ def dynamic_setting(config_path):
     print("All processes finished.")
 
 
-from vqa.dynamic_question_generation import extract_real_observations, generate_dynamic_questions_nuscene
+from relic.vqa.dynamic_question_generation import extract_real_observations, generate_dynamic_questions_nuscene
 
 
 def dynamic_job_nuscene(proc_id, episode_folders, source, summary_path, verbose=False):
