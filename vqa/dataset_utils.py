@@ -237,7 +237,7 @@ def majority_true(things, creterion=lambda x: x, threshold=0.8):
 
 
 def transform_heading(v, center, heading_vector):
-    print("From {} to {}".format(heading_vector, v))
+    #print("From {} to {}".format(heading_vector, v))
     # Calculate the angle of the heading vector from the X-axis
     heading_angle = np.arctan2(heading_vector[1], heading_vector[0])
     # print("ego_heading", np.rad2deg(heading_angle))
@@ -246,7 +246,7 @@ def transform_heading(v, center, heading_vector):
     angle_differential = v_angle - heading_angle
     # print("differential:", np.rad2deg(angle_differential))
     ## rotated_vector = rotate_vector(v, angle_differential)
-    print(np.rad2deg(angle_differential))
+    #print(np.rad2deg(angle_differential))
     return angle_differential  # rotated_vector
 
 

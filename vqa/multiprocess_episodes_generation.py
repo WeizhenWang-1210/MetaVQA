@@ -10,9 +10,10 @@ import os
 import yaml
 import multiprocessing
 from metadrive.scenario import utils as sd_utils
-from vqa.collision_episodes_generation import generate_safe_data
+# from relic.vqa.collision_episodes_generation import generate_safe_data
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+from vqa.configs.NAMESPACE import OBS_WIDTH, OBS_HEIGHT
 import json
 
 
@@ -35,10 +36,10 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
             "height_scale": 1,
@@ -64,10 +65,10 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
             start_seed=config["map_setting"]["start_seed"],
             debug=False,
             sensors=dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             height_scale=1,
         )
@@ -83,7 +84,7 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                       skip_length=config["skip_length"], job_range=job_range)
 
 
-def safety(data_directory, headless, config, num_scenarios, job_range=None, prefix=""):
+"""def safety(data_directory, headless, config, num_scenarios, job_range=None, prefix=""):
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
@@ -93,22 +94,23 @@ def safety(data_directory, headless, config, num_scenarios, job_range=None, pref
             "num_scenarios": num_scenarios,
             "agent_policy": ReplayEgoCarPolicy,
             "sensors": dict(
-                rgb=(RGBCamera, 960, 540),
-                instance=(InstanceCamera, 960, 540),
-                semantic=(SemanticCamera, 960, 540),
-                depth=(DepthCamera, 960, 540)
+                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
             "height_scale": 1
         }
     )
     generate_safe_data(env, job_range, config["storage_path"], prefix)
 
+"""
 
-def divide_into_intervals_exclusive(total, n):
+
+def divide_into_intervals_exclusive(total, n, start=0):
     # Calculate the basic size of each interval and the remainder
     interval_size, remainder = divmod(total, n)
     intervals = []
-    start = 0
     for i in range(n):
         # Determine the exclusive end of the current interval
         # If there's a remainder, distribute it among the first few intervals
@@ -143,6 +145,8 @@ def normal():
                         help="path to the data generation configuration file")
     parser.add_argument("--source", type=str, default="PG", help="Indicate the source of traffic.")
     parser.add_argument("--split", type=str, default="train", help="Indicate the split of this session.")
+    parser.add_argument("--start", type=int, default=0, help="Inclusive starting index")
+    parser.add_argument("--end", type=int, default=None, help="Exclusive ending index")
     args = parser.parse_args()
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
@@ -153,15 +157,23 @@ def normal():
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
+    start, end = args.start, args.end
     if args.data_directory:
         scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
         num_scenarios = len(scenario_summary.keys())
+        if args.end is None:
+            args.end = num_scenarios
+        foo_num_scenarios = end - start
+        print("here")
     else:
         num_scenarios = 10
-
+        foo_num_scenarios = num_scenarios
     if not args.scenarios:
         num_scenarios = config["map_setting"]["num_scenarios"]
-    job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
+        foo_num_scenarios = num_scenarios
+    print("{} total scenarios distributed across {} processes".format(foo_num_scenarios, args.num_proc))
+    job_intervals = divide_into_intervals_exclusive(foo_num_scenarios, args.num_proc, start=start)
+    print(job_intervals)
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))
@@ -186,7 +198,8 @@ def normal():
                     source="_".join([args.source]), split=args.split, collision="False"
                     )
 
-def safety_critical():
+
+"""def safety_critical():
     parser = argparse.ArgumentParser()
     cwd = os.getcwd()
     default_config_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -199,6 +212,8 @@ def safety_critical():
                         help="path to the data generation configuration file")
     parser.add_argument("--source", type=str, default="PG", help="Indicate the source of traffic.")
     parser.add_argument("--split", type=str, default="train", help="Indicate the split of this session.")
+    parser.add_argument("--start", type=int, default=0, help="Inclusive starting index")
+    parser.add_argument("--end", type=int, default=None, help="Exclusive ending index")
     args = parser.parse_args()
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
@@ -209,22 +224,24 @@ def safety_critical():
             config = yaml.safe_load(f)
     except Exception as e:
         raise e
+    start, end = args.start, args.end
     if args.data_directory:
         scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
         num_scenarios = len(scenario_summary.keys())
+        if args.end is None:
+            args.end = num_scenarios
+        num_scenarios = end - start
     else:
         num_scenarios = 10
     if not args.scenarios:
         num_scenarios = config["map_setting"]["num_scenarios"]
-    print("{} total scenarios distributed across {} processed".format(num_scenarios, args.num_proc))
-    job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc)
+    print("{} total scenarios distributed across {} processes".format(num_scenarios, args.num_proc))
+    job_intervals = divide_into_intervals_exclusive(num_scenarios, args.num_proc, start=start)
     prefix = os.path.basename(args.data_directory)
     job_intervals = [list(range(*job_interval)) for job_interval in job_intervals]
-    #exit()
     processes = []
     for proc_id in range(args.num_proc):
         print("Sending job{}".format(proc_id))
-
         p = multiprocessing.Process(
             target=safety,
             args=(
@@ -245,8 +262,12 @@ def safety_critical():
                     dataset_summary_path=os.path.join(args.data_directory, "dataset_summary.pkl"),
                     source="_".join(["CAT", args.source]), split=args.split, collision="True"
                     )
-
+"""
 
 if __name__ == "__main__":
-    #normal()
-    safety_critical()
+    flag = os.getenv('SETTING')
+    if flag == "NORMAL":
+        normal()
+    else:
+        raise NotImplementedError
+        #safety_critical()
