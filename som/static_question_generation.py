@@ -13,7 +13,7 @@ from vqa.dataset_utils import transform_heading
 from vqa.configs.NAMESPACE import NAMESPACE, POSITION2CHOICE
 import numpy as np
 from relic.vqa.static_question_generator import NAMED_MAPPING
-from masking import labelframe, static_id2label
+from som.masking import labelframe, static_id2label
 import itertools
 import traceback
 import glob

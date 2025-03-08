@@ -1,11 +1,10 @@
 import argparse
 from metadrive.envs.scenario_env import ScenarioEnv
-from metadrive.scenario import utils as sd_utils
 import sys
 from collections import defaultdict
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.policy.replay_policy import InterventionPolicy
-from som.closed_loop_utils import computeADE, computeFDE
+from som.closed_loop_utils import computeADE
 from vqa.configs.NAMESPACE import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from vqa.dataset_utils import l2_distance
 from vqa.annotation_utils import get_visible_object_ids
@@ -18,7 +17,6 @@ import cv2
 import os
 from PIL import Image
 import torch
-import torch.multiprocessing as mp
 from transformers import AutoModel, AutoTokenizer, AutoProcessor
 from metadrive.component.sensors.instance_camera import InstanceCamera
 import json
@@ -65,8 +63,7 @@ sys.path.append('/home/chenda/lmms-finetune/chenda_scripts/')
 sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
 from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model
-from masking import find_center, put_text, put_rectangle
-import random
+from som.masking import find_center, put_text, put_rectangle
 from som.closed_loop_utils import classify_speed
 
 

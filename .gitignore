@@ -56,3 +56,14 @@ path_config.yaml
 /test_collision_final/*
 /vqa/training/*
 /vqa/test_temporal/*
+
+/collision_scenarios_25/*
+/collision_scenarios_final/*
+/collision_scenarios_long/*
+/demo_collision/*
+/demo_top_down/*
+/episodes_final/*
+/safety_qa/*
+/tmp/*
+/vqa/test_safety/*
+/vqa/test_temporal/*
