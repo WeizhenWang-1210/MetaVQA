@@ -6,7 +6,7 @@ from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
-from metadrive.component.sensors.semantic_camera import  SemanticCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.scenario import utils as sd_utils
 from vqa.dataset_utils import l2_distance
@@ -21,19 +21,17 @@ import cv2
 import multiprocessing
 from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 
-
 PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 from PIL import Image
-import numpy as np
 import pickle
 
 PERSPECTIVE_MAPPING = {
     'CAM_FRONT': "front",
-    #'CAM_FRONT_RIGHT': "rightf",
-    #'CAM_FRONT_LEFT': "leftf",
-    #'CAM_BACK': "back",
-    #'CAM_BACK_LEFT': "leftb",
-    #'CAM_BACK_RIGHT': "rightb"
+    # 'CAM_FRONT_RIGHT': "rightf",
+    # 'CAM_FRONT_LEFT': "leftf",
+    # 'CAM_BACK': "back",
+    # 'CAM_BACK_LEFT': "leftb",
+    # 'CAM_BACK_RIGHT': "rightb"
 }
 
 
@@ -126,10 +124,10 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                 show=False,
             )
             identifier = "{}_{}".format(env.current_seed, env.episode_step)
-            positions = [(0., 0.0, 1.5)]#[(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
-                         #(0., 0., 1.5)]
-            hprs = [[0, 0, 0]]#[[0, 0, 0], [55, 0, 0], [110, 0, 0], [180, 0, 0], [-110, 0, 0], [-55, 0, 0]]
-            names = ["front"]#["front", "leftf", "leftb", "back", "rightb", "rightf"]
+            positions = [(0., 0.0, 1.5)]  # [(0., 0.0, 1.5), (0., 0., 1.5), (0., 0., 1.5), (0., 0, 1.5), (0., 0., 1.5),
+            # (0., 0., 1.5)]
+            hprs = [[0, 0, 0]]  # [[0, 0, 0], [55, 0, 0], [110, 0, 0], [180, 0, 0], [-110, 0, 0], [-55, 0, 0]]
+            names = ["front"]  # ["front", "leftf", "leftb", "back", "rightb", "rightf"]
             rgb_annotations = {}
             for position, hpr, name in zip(positions, hprs, names):
                 mask = instance_camera.perceive(to_float=True, new_parent_node=env.agent.origin, position=position,
@@ -166,7 +164,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x,
                                       env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x,
-                                                                                                   BaseTrafficLight))
+                                                                                                                    BaseTrafficLight))
             observing_camera = []
             for obj_id in valid_objects.keys():
                 final = []
@@ -196,7 +194,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
                                                         log_mapping=Log_Mapping,
                                                         debug=True)
             if (offset + total_steps) % 5 == 0:
-                #its a key frame
+                # its a key frame
                 img_path_dict = PAIRED_OBSERVATION[scene_id]['img_path']
                 key_frame = (offset + total_steps) // 5
                 collection = {}
@@ -275,7 +273,7 @@ def paired_logging(headless, num_scenarios, config, seeds):
                 offset += 1
 
 
-from vqa.multiprocess_question_generation import divide_list_into_n_chunks
+from relic.vqa.multiprocess_question_generation import divide_list_into_n_chunks
 
 
 def main(scenarios=None):
@@ -320,10 +318,6 @@ def main(scenarios=None):
     print("Finished all processes.")
 
 
-
-
-
-
 if __name__ == "__main__":
-    #jobs = list(range(2, 100))
+    # jobs = list(range(2, 100))
     main()

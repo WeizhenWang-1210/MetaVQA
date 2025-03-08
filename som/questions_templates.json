@@ -32,7 +32,7 @@
         },
         "identify_position": {
             "text":[
-                "Please tell me the relative position of <<id1>> with respect to us."
+                "Please tell me the relative position of object <<id1>> with respect to us."
             ],
             "params":[
                 "<id1>"
@@ -42,7 +42,7 @@
         },
         "identify_heading": {
             "text":[
-                "Please provide the heading of object <<id1>> in clock terms, where 12 o'clock represents our front and 3 o'clock is our right."
+                "Please describe the heading direction of object <<id1>>."
             ],
             "params":[
                 "<id1>"
@@ -255,6 +255,30 @@
             ],
             "end_filter":"describe_distance",
             "constraint":[]
+        },
+        "embodied_distance": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) Very close(0-2m); (B) Close(2-10m); (C) Medium(10-30m); (D) Far(30m-)."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>"
+            ]
+        },
+        "embodied_sideness": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Which sector will we end up? Select the best option from: (A) left-front; (B) front; (C) right-front."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>"
+            ]
+        },
+        "embodied_collision": {
+          "text": [
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. Will we run into object <<id1>>, provided that it remains still? Select the best option from: (A) Yes; (B) No."
+            ],
+            "params":[
+                "<speed>", "<action>", "<duration>", "<id1>"
+            ]
         }
     },
     "dynamic": {

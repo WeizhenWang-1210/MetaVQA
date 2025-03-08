@@ -1,0 +1,289 @@
+{
+  "static": {
+    "description": {
+      "text": [
+        "Describe the object labeled as <o>."
+      ],
+      "params":[
+                "<o>"
+            ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "color_identification": {
+      "text": [
+        "What's the color of <o>?"
+      ],
+      "params":[
+        "<o>"
+            ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "type_identification": {
+      "text": [
+        "What's the type of <o>?"
+      ],
+      "params":[
+        "<o>"
+      ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "distance_identification": {
+      "text": [
+        "How far is <o> from us?"
+      ],
+      "params":[
+        "<o>"
+      ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "heading_identification": {
+      "text": [
+        "To which direction is <o> oriented?"
+      ],
+      "params":[
+        "<o>"
+      ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "localization":{
+            "text": [
+                 "How is <o> positioned relatively from us?."
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"locate",
+            "constraint":[]
+    },
+
+    "ego_lane": {
+      "text": [
+        "From left to right, which lane am I on?"
+      ],
+      "params":[
+        "<o>"
+      ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "location": {
+      "text": [
+        "Am I located on the crosswalk?"
+      ],
+      "params":[
+        "<o>"
+      ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "find_sidewalks": {
+      "text": [
+        "Is there any sidewalk that I need to beware of?"
+      ],
+      "params":[
+        "<o>"
+      ],
+      "end_filter":"locate",
+      "constraint":[]
+    },
+    "examine_traffic_light": {
+      "text": [
+        "What's the color of the traffic light in front of us?"
+      ]
+    },
+    "examine_width_of_the_street": {
+      "text": [
+        "How many lanes do the current road have?"
+      ]
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    "distance_comparison":{
+            "text": [
+                 "Is <o1> closer or further away from us than <o2>?"
+            ],
+            "params":[
+                "<o1>", "<o2>"
+            ],
+            "end_filter":"locate",
+            "constraint":[]
+    },
+    "spatial_relation":{
+            "text": [
+                 "How are <o1> and <o2> positioned relatively?"
+            ],
+            "params":[
+                "<o1>", "<o2>"
+            ],
+            "end_filter":"locate",
+            "constraint":[]
+    },
+    "identify_direction":{
+            "text": [
+                 "Which way is <o> heading toward?"
+            ],
+            "params":[
+                "<o1>", "<o2>"
+            ],
+            "end_filter":"locate",
+            "constraint":[]
+    },
+    "counting": {
+            "text":[
+                "How many <o> are observed?",
+                "How many <o> are there in observation?",
+                "Give me the number of <o>.",
+                "Count the number of observed <o>.",
+                "Determine how many <o> are observed.",
+                "Record the quantity of <o>."
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+     },
+    "ordering_front": {
+            "text":[
+                "From closest to furthest, please order the labelled objects."
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "ordering_left": {
+            "text": [
+                 "From left to right, please order the labelled objects."
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "extrapolation_2": {
+            "text": [
+                 "If <o1> go along its current direction, will it collide into <o2>?"
+            ],
+            "params":[
+                "<o1>", "<o2>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "extrapolation_1": {
+            "text": [
+                 "If <o> go along its current direction, will it collide into us?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "extrapolation_0": {
+            "text": [
+                 "If <o> go along its current direction, will it collide into anything?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "identify_closest": {
+            "text": [
+                 "Which labelled object is closest to us?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "identify_furthest": {
+            "text": [
+                 "Which labelled object is furthest away from us?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "identify_leftest": {
+            "text": [
+                 "Which labelled object is the leftest from us?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+        },
+    "identify_rightest": {
+            "text": [
+                 "Which labelled object is the rightest from us?"
+            ],
+            "params":[
+                "<o>"
+            ],
+            "end_filter":"count",
+            "constraint":[]
+    }
+  },
+
+
+
+
+
+  "scene_understanding": {
+    "static": {
+      "description": {
+        "text": [
+          "Can you describe <o>?"
+        ]
+      },
+      "color": {
+        "text": [
+          "Can you describe <o>?"
+        ]
+      },
+      "type": {
+        "text": [
+          "Can you describe <o>?"
+        ]
+      }
+
+    },
+    "dynamic": {
+
+
+    }
+  },
+  "embodied_understanding": {
+
+  }
+}

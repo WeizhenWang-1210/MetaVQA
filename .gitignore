@@ -50,6 +50,12 @@ path_config.yaml
 /metadrive/engine/core/run_time_map_mesh.png
 /verification_multiview
 *.zip
+/wandb/*
+/vqa/cache_dir/*
+/real/*
+/test_collision_final/*
+/vqa/training/*
+/vqa/test_temporal/*
 
 /collision_scenarios_25/*
 /collision_scenarios_final/*
