@@ -17,7 +17,7 @@ BACKGROUND=((255,255,255), (0,0,0))
 SETTINGS = [
     dict(font_scale=textscale, form=form, background_color=background) for (textscale, form, background) in itertools.product(TEXTSCALES, FORMS, BACKGROUND)
 ]
-#print(SETTINGS)
+
 
 
 def generate_grounding(frame_path, perspective, verbose, id2label_path: str = None, box: bool = False, font_scale:float=0.75, domain="sim"):

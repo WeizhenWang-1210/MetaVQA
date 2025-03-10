@@ -1488,7 +1488,6 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         matching_frames = glob.glob(pattern)
         return matching_frames
     world_paths = find_worlds(session_path)
-    #world_paths = world_paths[::100][:2]#["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0507_0_40/23_8/world_23_8.json"]
     print(f"Working on {len(world_paths)} frames.")
     job_chunks = split_list(world_paths, num_proc)
     print(f"{len(world_paths)} frames distributed across {num_proc} processes, {math.ceil(len(world_paths)/num_proc)} MAX each process")
