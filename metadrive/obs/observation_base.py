@@ -1,4 +1,4 @@
-from relic.abc import ABC
+from abc import ABC
 import numpy as np
 import gymnasium as gym
 from copy import deepcopy
