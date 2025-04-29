@@ -35,6 +35,21 @@
 [Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yuxin Liu](https://github.com/Yuxin45), [Bolei Zhou](https://boleizhou.github.io/)
 
 
+
+# Installation Guide
+- Clone the repository and create a virtual environment/Conda envrionment with Python 3.11
+- install the dependencies by running `pip install -e .`
+- install the `adj_parameter` zip file, and unzip it at specified location `<path to parameter>`
+- Spefified the path to the `adj_parameter` zip file in `path_config.yaml`. Overwrite `metadriveasset` with the absolute path at which the assets are downloaded and `parentfolder` with `<path to parameter>`
+
+# Model Checkpoints & Benchmark Reproduction
+
+# Model Training and Inference
+
+# Citation
+
+
+
 <!---
 ## Highlights <a name="highlights"></a>
 MetaVQA a visual question-answering benchmark for improving and evaluating the embodied scene understanding of VLMs.
