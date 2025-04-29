@@ -26,10 +26,6 @@
 </strong>
 </div>
 
-
-<!---
-![](documentation/source/figs/metavqa_teaser.png)
--->
 <br>
 
 [Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yuxin Liu](https://github.com/Yuxin45), [Bolei Zhou](https://boleizhou.github.io/)
@@ -42,7 +38,23 @@
 - install the `adj_parameter` zip file, and unzip it at specified location `<path to parameter>`
 - Spefified the path to the `adj_parameter` zip file in `path_config.yaml`. Overwrite `metadriveasset` with the absolute path at which the assets are downloaded and `parentfolder` with `<path to parameter>`
 
+
+# Generate Scenarios
+- Checkout `scripts/test_scenegen.sh` for sample code.
+
+# Generate Questions
+## Set-of-Mark Annotation:
+- Checkout `som/masking.py`
+## VQA Generation
+- Checkout `scripts/test_vqagen.sh` for sample code.
+
+
+# Dataset Release
+
 # Model Checkpoints & Benchmark Reproduction
+## VQA Eval
+
+## Closed-loop Eval
 
 # Model Training and Inference
 

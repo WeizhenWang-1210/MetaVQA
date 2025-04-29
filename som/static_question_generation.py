@@ -1,34 +1,56 @@
+import os, json, random, itertools, traceback, glob, tqdm, math, copy, argparse
+import numpy as np
+import multiprocessing as multp
 from som.grounding_question import generate_grounding, grounding_ablations, SETTINGS
 from som.parameterized_questions import parameterized_generate
 from som.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
 from som.utils import enumerate_frame_labels, get, fill_in_label
-import os
-import json
-import random
+from som.masking import labelframe, static_id2label
 from vqa.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect
 from vqa.scene_graph import SceneGraph
 from vqa.dataset_utils import get_distance
-from relic.vqa.functionals import identify_angle
 from vqa.dataset_utils import transform_heading
 from vqa.configs.NAMESPACE import NAMESPACE, POSITION2CHOICE
-import numpy as np
-from relic.vqa.static_question_generator import NAMED_MAPPING
-from som.masking import labelframe, static_id2label
-import itertools
-import traceback
-import glob
-import tqdm
-import math
-import multiprocessing as multp
-import copy
 
-
-FONT_SCALE=1
-BACKGROUND=(0,0,0)
-USEBOX=True
 
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
+NAMED_MAPPING = dict(
+                nil=dict(singular="traffic object", plural="traffic objects"),
+                Bus=dict(singular="bus", plural="buses"),
+                Caravan=dict(singular="caravan", plural="caravans"),
+                Coupe=dict(singular="coupe", plural="coupes"),
+                FireTruck=dict(singular="fire engine", plural="fire engines"),
+                Jeep=dict(singular="jeep", plural="jeeps"),
+                Pickup=dict(singular="pickup", plural="pickups"),
+                Policecar=dict(singular="police car", plural="police cars"),
+                SUV=dict(singular="SUV", plural="SUVs"),
+                SchoolBus=dict(singular="school bus", plural="school buses"),
+                Sedan=dict(singular="sedan", plural="sedans"),
+                SportCar=dict(singular="sports car", plural="sports cars"),
+                Truck=dict(singular="truck", plural="trucks"),
+                Hatchback=dict(singular="hatchback", plural="hatchbacks"),
+                Pedestrian=dict(singular="pedestrian", plural="pedestrians"),
+                vehicle=dict(singular="vehicle", plural="vehicles"),
+                Bike=dict(singular="bike", plural="bikes"),
+                Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
+                Warning=dict(singular="warning sign", plural="warning signs"),
+                Cone=dict(singular="traffic cone", plural="traffic cones"),
+                #nusc additions
+                Wheelchair=dict(singular="wheel chair", plural="wheel chairs"),
+                Police_officer=dict(singular="police officer", plural="police officers"),
+                Construction_worker=dict(singular="construction worker", plural="construction workers"),
+                Animal=dict(singular="animal", plural="animals"),
+                Car=dict(singular="car", plural="cars"),
+                Motorcycle=dict(singular="motorcycle", plural="motorcycles"),
+                Construction_vehicle=dict(singular="construction vehicle", plural="construction vehicles"),
+                Ambulance=dict(singular="ambulance", plural="ambulances"),
+                Trailer=dict(singular="trailer", plural="trailers"),
+                Stroller=dict(singular="stroller", plural="strollers")
+            )
+FONT_SCALE=1
+BACKGROUND=(0,0,0)
+USEBOX=True
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
 TYPES_WITHOUT_HEADINGS=["Cone", "Barrier", "Warning", "TrafficLight", "Trailer"]
 DIRECTION_MAPPING = {
@@ -42,14 +64,8 @@ DIRECTION_MAPPING = {
     "rb": "to the right and behind",
     "m": "in close proximity to"
 }
-
-CLOCK_TO_SECTOR = {
-                1:"rf", 2:"rf", 3:"r", 4:"rb", 5:"rb", 6:"b", 7:"lb", 8:"lb",9:"l", 10:"lf", 11:"lf", 12:"f"
-            }
-
+CLOCK_TO_SECTOR = {1:"rf", 2:"rf", 3:"r", 4:"rb", 5:"rb", 6:"b", 7:"lb", 8:"lb",9:"l", 10:"lf", 11:"lf", 12:"f"}
 SECTORS = ["rf", "rb", "lb", "lf", "f", "r", "b", "l"]
-
-
 
 
 
@@ -63,6 +79,23 @@ SECTORS = ["rf", "rb", "lb", "lf", "f", "r", "b", "l"]
 # 345, 15 -> front; 15-75 right-front; 75->105 right; 105-165->right back; 165-195->back; 195->255->left back; 255->285 left; 285, 345->left front
 #
 
+#TODO refactor this ugly code.
+
+def identify_angle(origin_pos, origin_heading):
+    def helper(search_spaces):
+        import numpy as np
+        result = {}
+        for search_space in search_spaces:
+            for object in search_space:
+                angle_rotated = transform_heading(
+                    object.heading, origin_pos, origin_heading
+                )
+                angle = 2 * np.pi - angle_rotated  #so the range is now 0 to 360.
+                angle = angle % (2 * np.pi)
+                angle = np.degrees(angle)
+                result[object.id] = angle
+        return result
+    return helper
 
 def angle2sector(degree):
     assert 0<=degree<=360
@@ -91,20 +124,13 @@ def select_not_from(space, forbidden, population=1):
     assert len(diff) >= population
     return random.sample(list(diff), population)
 
-
-
-#TODO refactor this ugly code.
-
 def generate(frame_path: str, question_type: str, perspective: str = "front", verbose: bool = False,
              id2label_path: str = None):
     identifier = os.path.basename(frame_path)
     world_path = os.path.join(frame_path, "world_{}.json".format(identifier))
     world = json.load(open(world_path, "r"))
     label2id, invalid_ids = enumerate_frame_labels(frame_path, perspective, id2label_path)
-    #print(label2id)
-    #exit()
     labels = list(label2id.keys())
-    #labels = [label for label in label2id.keys() if get(world, label2id[label]) is not None]
     question = None
     answer = None
     explanation = None
@@ -1100,7 +1126,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             explanation = "\n".join(explanation)
             answer = ""
     else:
-        print('Something wrong!')
+        print('Unknown Question Type')
     if verbose:
         print(question)
         print(answer, explanation)
@@ -1329,6 +1355,7 @@ def batch_generate_grounding_ablation(world_paths, save_path="./", verbose=False
     finally:
         json.dump(records, open(save_path, "w"), indent=2)
 
+
 def batch_generate_general_ablation(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0,
                           configs=None, domain="sim"):
     frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
@@ -1514,7 +1541,7 @@ def multiprocess_generate_static(session_path, save_path="./", verbose=False, pe
         p.join()
     print("All processes finished.")
 
-import argparse
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenarios", default="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim", help="The path to stored episodes.")

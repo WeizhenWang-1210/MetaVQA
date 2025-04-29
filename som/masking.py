@@ -1,13 +1,9 @@
-import json
-import os.path
-from vqa.dataset_utils import get_distance
+import json, traceback, cv2, glob, os
 import numpy as np
 from typing import List
-from PIL import Image
-import cv2
+from tqdm import tqdm
+from vqa.dataset_utils import get_distance
 from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL
-import traceback
-
 
 def contrastive_color(image, center):
     center = center[1], center[0]
@@ -158,9 +154,6 @@ def find_areas(img: np.array, colors: List, mode="RGB"):
     return results, masks
 
 
-import glob
-
-
 def id2label(episode_path: str, perspective: str = "front", overwrite=False):
     """
     Find all front-visible objects in the episode and provide them with unique labels(within the scope of this episode).
@@ -169,7 +162,7 @@ def id2label(episode_path: str, perspective: str = "front", overwrite=False):
     :return: None. Will write to the episode folder an "id2label.json" file.
     """
     if os.path.exists(os.path.join(episode_path, "id2label_{}.json").format(perspective)) and not overwrite:
-        print("{} already exists!Use this one.".format(os.path.join(episode_path, "id2label_{}.json").format(perspective)))
+        print("{} already exists! Use this one.".format(os.path.join(episode_path, "id2label_{}.json").format(perspective)))
     scene_graph_template = os.path.join(episode_path, "**/world**.json")
     scene_graphs = glob.glob(scene_graph_template)
     result = {}
@@ -177,8 +170,7 @@ def id2label(episode_path: str, perspective: str = "front", overwrite=False):
     for scene_graph in scene_graphs:
         world = json.load(open(scene_graph, "r"))
         for obj in world["objects"]:
-            if perspective in obj["observing_camera"] and get_distance(obj["pos"],
-                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
+            if perspective in obj["observing_camera"] and get_distance(obj["pos"],world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
                 if obj["id"] in result.keys():
                     continue
                 result[obj["id"]] = currentlabel
@@ -186,19 +178,30 @@ def id2label(episode_path: str, perspective: str = "front", overwrite=False):
     json.dump(result, open(os.path.join(episode_path, "id2label_{}.json").format(perspective), "w"))
 
 
-def static_id2label(frame_path, perspective="front"):
+def static_id2label(frame_path, perspective="front", write=True, overwrite=True):
+    """
+    Similar to id2label, but the labeling is consistent only within a single frame.
+    """
     identifier = os.path.basename(frame_path)
     world_path = os.path.join(frame_path, f"world_{identifier}.json")
     world = json.load(open(world_path, "r"))
     result = {}
     currentlabel = 0
+    save_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
     for obj in world["objects"]:
-        if perspective in obj["observing_camera"] and get_distance(obj["pos"],
-                                                                   world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
+        if perspective in obj["observing_camera"] and get_distance(obj["pos"], world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
             result[obj["id"]] = currentlabel
             currentlabel += 1
-    json.dump(result, open(os.path.join(frame_path, "static_id2label_{}_{}.json").format(perspective, identifier), "w"))
-    print(f"Successfully created single-frame-consistent id2label for {frame_path}")
+    if write:
+        if overwrite:
+            json.dump(result, open(save_path, "w"))
+            print(f"Successfully created single-frame-consistent id2label for {frame_path}")
+        else:
+            if os.path.exists(save_path):
+                print(f"{save_path} already exists. Will not overwrite.")
+            else:
+                json.dump(result, open(save_path, "w"))
+                print(f"Successfully created single-frame-consistent id2label for {frame_path}")
     return result
 
 
@@ -265,6 +268,7 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
 
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
+        # If this is grounding quesiton, always use white color for drawing the annotations.
         if grounding:
             color = (255, 255, 255)
         if bounding_box:
@@ -273,7 +277,6 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
                 start = (round(tl[1]), round(tl[0]))
                 w = round(tr[1] - bl[1])
                 h = round(bl[0] - tl[0])
-                #print(f"Top Left{start}, width{w}, height{h}")
                 cv2.rectangle(base_img, start, (start[0] + w, start[1] + h), color, 2)
             else:
                 contours, _ = cv2.findContours((binary_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL,
@@ -306,9 +309,9 @@ def labelframe(frame_path: str, perspective: str = "front", save_path: str = Non
     if save_path is not None:
         cv2.imwrite(save_path, base_img)
     else:
-        cv2.imwrite(os.path.join(frame_path, "labeled_{}_{}.png".format(perspective, identifier)), base_img)
+        cv2.imwrite(os.path.join(frame_path, f"labeled_{perspective}_{identifier}.png"), base_img)
         if save_label:
-            cv2.imwrite(os.path.join(frame_path, "label_{}_{}.png".format(perspective, identifier)), canvas)
+            cv2.imwrite(os.path.join(frame_path, f"label_{perspective}_{identifier}.png"), canvas)
 
 
 def grounding_labelframe(ground_id:str, frame_path: str, perspective: str = "front", save_path: str = None, save_label: bool = False,
@@ -421,30 +424,34 @@ def grounding_labelframe(ground_id:str, frame_path: str, perspective: str = "fro
         if save_label:
             cv2.imwrite(os.path.join(frame_path, "label_{}_{}.png".format(perspective, identifier)), canvas)
 
-def label_transfer(nusc_img_path, label_img_path):
-    from PIL import Image
-    src = Image.open(nusc_img_path)
-    label = Image.open(label_img_path)
-    label = label.resize((1600, 900))
-
-    mask = Image.new('L', label.size, 0)  # Create a new grayscale image for the mask
-    for x in range(label.width):
-        for y in range(label.height):
-            r, g, b = label.getpixel((x, y))
-            if (r, g, b) != (0, 0, 0):  # Check if the pixel is not black
-                mask.putpixel((x, y), 255)  # Set mask pixel to white (fully opaque)
-
-    src.paste(label, mask=mask)
-    src.save("test_transfer.png")
 
 
-def remask(frame_path):
-    episode_path = os.path.dirname(frame_path)
-    episode_label_path = os.path.join()
+
+
+
+
+def sample_labeling():
+    frames = glob.glob("/bigdata/weizhen/metavqa_release/scenarios/nusc_real/**/**")
+    frames = frames[:2]
+    print("Found {} frames.".format(len(frames)))
+    for frame in tqdm(frames, unit="frame", total=len(frames), desc="ID to Labels"):
+        static_id2label(frame, "front")
+    for frame in tqdm(frames, unit="frame", total=len(frames), desc="Set-of-Marks Annotaion"):
+        template = os.path.join(frame, "static_id2label*.json")
+        matches = glob.glob(template)
+        assert len(matches) == 1, f"Found {len(matches)} matches for {template}. Please check the template."
+        id2l = json.load(open(matches[0], "r"))
+        labelframe(frame_path=frame, perspective="front", id2l=id2l, font_scale=1, bounding_box=True)
+
+
+
 
 
 if __name__ == "__main__":
-    frame_paths = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/**/**"
+    sample_labeling()
+
+    
+    """frame_paths = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/**/**"
     frame_paths = glob.glob(frame_paths)
     frame_paths = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/scene-0002_0_39/0_11"]
     for frame_path in frame_paths[:1]:
@@ -453,7 +460,7 @@ if __name__ == "__main__":
         #id2label(os.path.dirname(frame_path), "front")
         #id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
         id2label(os.path.dirname(frame_path), "front")
-        labelframe(frame_path, "front", save_label=True, font_scale=1.25, bounding_box=True)
+        labelframe(frame_path, "front", save_label=True, font_scale=1, bounding_box=True)"""
 
     #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0002_0_1/0_0"
     #id2label(os.path.dirname(frame_path), "front")
