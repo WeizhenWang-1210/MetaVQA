@@ -449,8 +449,8 @@ def sample_labeling():
 
 if __name__ == "__main__":
     sample_labeling()
+ 
 
-    
     """frame_paths = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/**/**"
     frame_paths = glob.glob(frame_paths)
     frame_paths = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/scene-0002_0_39/0_11"]
