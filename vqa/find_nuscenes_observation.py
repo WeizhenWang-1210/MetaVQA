@@ -1,6 +1,3 @@
-PATH = "/bigdata/zhouyunsong/zhouys/Datasets/scenarionet/data_nusc_multiview_trainval.json"
-NUSCENES_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"
-
 import argparse
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
@@ -20,19 +17,51 @@ import os
 import cv2
 import multiprocessing
 from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
-
-PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 from PIL import Image
 import pickle
+import yaml
+#from relic.vqa.multiprocess_question_generation import divide_list_into_n_chunks
+from tqdm import tqdm
 
+PATH = "/bigdata/zhouyunsong/zhouys/Datasets/scenarionet/data_nusc_multiview_trainval.json"
+NUSCENES_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"
+PAIRED_OBSERVATION = json.load(open(PATH, "r"))
 PERSPECTIVE_MAPPING = {
     'CAM_FRONT': "front",
-    # 'CAM_FRONT_RIGHT': "rightf",
-    # 'CAM_FRONT_LEFT': "leftf",
-    # 'CAM_BACK': "back",
-    # 'CAM_BACK_LEFT': "leftb",
-    # 'CAM_BACK_RIGHT': "rightb"
 }
+
+
+def divide_list_into_n_chunks(lst, n):
+    """
+    Divides a list into n similarly-sized chunks.
+
+    Parameters:
+    lst (list): The list to divide.
+    n (int): The number of chunks to divide the list into.
+
+    Returns:
+    list of lists: A list containing the chunks.
+    """
+    # Ensure n is a positive integer
+    if n <= 0:
+        raise ValueError("n must be a positive integer")
+
+    # Calculate the size of each chunk
+    total_length = len(lst)
+    chunk_size, remainder = divmod(total_length, n)
+
+    chunks = []
+    start_index = 0
+
+    for i in range(n):
+        # Calculate the end index for the current chunk, adding one if there's a remainder
+        end_index = start_index + chunk_size + (1 if i < remainder else 0)
+        # Slice the list to create the chunk and add it to the list of chunks
+        chunks.append(lst[start_index:end_index])
+        # Update the start index for the next chunk
+        start_index = end_index
+
+    return chunks
 
 
 def save_episode_raw(buffer, raw_buffer, root, IO, nuScene_name):
@@ -101,7 +130,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
         Record an episode of observations. Note that multiple episodes can be extracted from one seed. Moreover,
         by setting episode_length to 1, you get single-frame observations.
         """
-    print("I'm in the episode! Starting at env{}, step{}".format(env.current_seed, env.episode_step))
+    print("Entering env {}, step {}".format(env.current_seed, env.episode_step))
     total_steps = 0  # record how many steps have actually taken place in the current episode
     buffer = dict()  # Store all frame annotations for the current episode.
     env_id = env.current_seed
@@ -110,11 +139,6 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
     raw_buffer = dict()
     while total_steps < episode_length:
         o, r, tm, tc, info = env.step([0, 0])
-        env.render(
-            text={
-                "Auto-Drive (Switch mode: T)": "on" if env.current_track_agent.expert_takeover else "off",
-            }
-        )
         if total_steps % sample_frequency == 0:
             cloud_points, _ = lidar.perceive(
                 env.agent,
@@ -175,7 +199,7 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             # We will determine visibility for all valid_objects set.
             visible_mask = [True if x in visible_ids_set else False for x in valid_objects.keys()]
             # we will annotate all objects within 50 meters with respective to ego.
-            # TODO unify annotation nomenclature with Chenda.
+            # TODO unify annotation nomenclature.
             objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask,
                                                        observing_camera)
             ego_annotation = genearte_annotation(env.agent, env)
@@ -212,11 +236,8 @@ def annotate_episode_with_raw(env, engine, sample_frequency, episode_length, cam
             '''
             break
     env_end = env.episode_step
-    print(f"exist episode {env.current_seed}")
+    print(f"exit episode {env.current_seed}")
     return total_steps, buffer, raw_buffer, (env_id, env_start, env_end)  # this end is tail-inclusive
-
-
-import yaml
 
 
 def paired_logging(headless, num_scenarios, config, seeds):
@@ -247,11 +268,11 @@ def paired_logging(headless, num_scenarios, config, seeds):
     sample_frequency = config["sample_frequency"]
     root_folder = config["storage_path"]
     print(f"Will save to {root_folder}")
-    for seed in seeds:
+    for seed in tqdm(seeds, total=len(seeds), unit="Scenario", desc="Processing"):
         env.reset(seed)
         offset = 0
         id = re.findall(pattern, env.engine.data_manager.current_scenario_file_name)[0]
-        print(f"Working on NuScenes {id}")
+        #print(f"Working on NuScenes {id}")
         flag = True
         while flag:
             step_ran, buffer, raw_buffer, IO = \
@@ -273,9 +294,6 @@ def paired_logging(headless, num_scenarios, config, seeds):
                 offset += 1
 
 
-from relic.vqa.multiprocess_question_generation import divide_list_into_n_chunks
-
-
 def main(scenarios=None):
     cwd = os.getcwd()
     full_path = os.path.join(cwd, "vqa", "configs", "mixed_up_scene.yaml")
@@ -292,7 +310,7 @@ def main(scenarios=None):
     scenarios = list(range(args.start, args.end))
     config = yaml.safe_load(open(args.config, 'r'))
     print(f"We have {num_scenarios} NuScenes in total.")
-    print(f"We will process{len(scenarios)} out of them.")
+    print(f"We will process {len(scenarios)} out of them.")
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
     if not scenarios:
@@ -301,7 +319,7 @@ def main(scenarios=None):
         jobs = divide_list_into_n_chunks(scenarios, args.num_proc)
     processes = []
     for proc_id in range(args.num_proc):
-        print("Sending job{}".format(proc_id))
+        print("Sending job {}".format(proc_id))
         p = multiprocessing.Process(
             target=paired_logging,
             args=(
@@ -319,5 +337,4 @@ def main(scenarios=None):
 
 
 if __name__ == "__main__":
-    # jobs = list(range(2, 100))
     main()

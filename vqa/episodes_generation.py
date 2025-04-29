@@ -11,34 +11,13 @@ from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.engine_utils import get_engine
-from vqa.configs.NAMESPACE import OBS_HEIGHT,OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
+from vqa.configs.NAMESPACE import OBS_HEIGHT, OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 import pickle
 from collections import defaultdict
 import cv2
 import os
 import json
 import yaml
-
-
-def try_load_observations(observations_path):
-    import json
-    from PIL import Image
-    base = os.path.dirname(observations_path)
-    obseravations = json.load(open(observations_path, "r"))
-    for modality in obseravations.keys():
-        if modality == "lidar":
-            try_read_pickle(os.path.join(base, obseravations[modality]))
-        else:
-            # rgb then
-            for perspective in obseravations[modality]:
-                Image.open(os.path.join(base, obseravations[modality][perspective]))
-                print(modality, perspective)
-
-
-def try_read_pickle(filepath):
-    content = pickle.load(open(filepath, 'rb'))
-    print(content)
-
 
 def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
     def preprocess_topdown(image):
@@ -220,9 +199,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                                                         debug=True)
         total_steps += 1
         if (tm or tc) and info["arrive_dest"]:
-            '''
-            Don't go into the save environment twice.
-            '''
+            # Don't go into the save environment twice.
             break
     env_end = env.episode_step
     print(f"exist episode {env.current_seed}")
@@ -326,8 +303,6 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
 
 
 def annotate_scenarios():
-    # TODO use deluxe rendering.
-
     # Set up the config
     cwd = os.getcwd()
     full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
@@ -419,4 +394,3 @@ def annotate_scenarios():
 
 if __name__ == "__main__":
     annotate_scenarios()
-    #try_load_observations("multiview_final/80_30_30/80_30/observations_80_30.json")

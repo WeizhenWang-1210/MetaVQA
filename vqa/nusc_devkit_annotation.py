@@ -6,14 +6,13 @@ import copy
 from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
 from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibility
 from pyquaternion import Quaternion
-from vqa.configs.NAMESPACE import MIN_OBSERVABLE_PIXEL
+from vqa.configs.NAMESPACE import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from som.masking import find_areas
 import json
 import os
 from nuscenes.eval.common.utils import quaternion_yaw
 from PIL import Image
-
-#TODO  FURTHER FILTER BY OBSERVABLE PIXELS.
+import tqdm
 
 ALL_TYPE = {
     "noise": 'noise',
@@ -49,6 +48,7 @@ ALL_TYPE = {
     "static.other": 'static.other',
     "vehicle.ego": "ego"
 }
+
 
 IGNORED_NUSC_TYPE = (
     "noise", "human.pedestrian.personal_mobility", "movable_object.pushable_pullable", "movable_object.debris",
@@ -91,9 +91,6 @@ def create_mask(shape, points):
     # Find points inside the path
     mask = path.contains_points(coords).reshape(shape)
     return mask, normalized_area
-
-
-import tqdm
 
 
 def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
@@ -179,13 +176,23 @@ def traverse(nusc, start, steps):
     return cur_sample
 
 
+def split_ranges(start, end, chunk_size):
+    result = []
+    while start + chunk_size < end:
+        result.append([start, start + chunk_size])
+        start += chunk_size
+    result.append([start, end])
+    return result
+
+
 def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
     if nusc is None:
         nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
     nusc_scenes = nusc.scene
     EGO_SHAPE = (1.730, 4.084, 1.562)
     for scene_idx, nusc_scene in tqdm.tqdm(enumerate(nusc_scenes[job_range[0]:job_range[1]]),
-                                           desc=f"Process-{proc_id}, {job_range[1] - job_range[0]} scenes in total",
+                                           desc=f"Process-{proc_id}",
+                                           total=job_range[1] - job_range[0],
                                            unit="scene"):
         frame_idx = 0  # zero-based index
         sample = nusc.get("sample", nusc_scene["first_sample_token"])
@@ -227,6 +234,11 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                 instance_translations = [sample_annotation["translation"] for sample_annotation in sample_annotations]
                 # get obj heading in Quarterion(world?)
                 instance_rotations = [sample_annotation["rotation"] for sample_annotation in sample_annotations]
+                # get obj distance to ego
+                distance_to_ego = [
+                    np.linalg.norm(np.array(ego_translation[:2]) - np.array(instance_translation[:2]))
+                    for instance_translation in instance_translations
+                ]
                 # get obj type
                 instance_types = [nusc.get("instance", sample_annotation["instance_token"])["category_token"] for
                                   sample_annotation in sample_annotations]
@@ -250,7 +262,7 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                 medium_visible_indices = []
                 #first, filter out some clearly none-visible objects.
                 for idx, box in enumerate(visible_boxes):
-                    if num_lidar_points[idx] < 5 or visibility_levels[idx]["token"] not in ["3", "4"]:
+                    if num_lidar_points[idx] < 5 or visibility_levels[idx]["token"] not in ["3", "4"] or distance_to_ego[idx] > MAX_DETECT_DISTANCE:
                         medium_visible_indices.append(False)
                     else:
                         medium_visible_indices.append(True)
@@ -266,10 +278,6 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                 frame_data = {
                     "ego": None, "objects": [], "world": scene_name, "data_summary": scene_name
                 }
-                # print(instance_tokens)
-                # print(medium_visible_indices)
-                # print(final_visible_indices)
-                # print(f"{frame_idx}:{len(instance_rotations)}")
                 for idx, visible_flag in enumerate(final_visible_indices):
                     if not visible_flag or instance_types[idx] in IGNORED_NUSC_TYPE:
                         continue
@@ -318,15 +326,12 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                     rgb=Image.open(data_path),
                     id2corners=id2corners
                 )
-            #print(f"Done {frame_idx} for {scene_name}")
             sample = traverse(nusc, sample, 1)
-            #frame_idx += 1
         episode_path = os.path.join(root, f"{scene_name}_0_{scene_length - 1}")
         for frame_idx, records in tqdm.tqdm(frame_annotations.items(),
                                             desc=f"Process-{proc_id}, storing {len(frame_annotations)} annotations for {scene_name}",
                                             unit="point"):
             identifier = f"{scene_idx}_{frame_idx}"
-            #print(f"Saving for {identifier}")
             frame_path = os.path.join(episode_path, identifier)
             os.makedirs(frame_path, exist_ok=True)
             id2c_path = os.path.join(frame_path, f"id2c_{identifier}.json")
@@ -343,15 +348,6 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
             except Exception as e:
                 raise e
         assert sample["token"] == nusc_scene["last_sample_token"]
-
-
-def split_ranges(start, end, chunk_size):
-    result = []
-    while start + chunk_size < end:
-        result.append([start, start + chunk_size])
-        start += chunk_size
-    result.append([start, end])
-    return result
 
 
 def main():
@@ -377,7 +373,7 @@ def main():
     root = args.store_dir
     nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
     total_scenes = len(nusc.scene)
-    assert args.start >=0 and args.end <= num_scenes and num_scenes <= total_scenes, "Invalid range!"
+    assert args.start >=0 and args.end <= total_scenes and num_scenes <= total_scenes, "Invalid range!"
     processes = []
     for proc_id in range(num_proc):
         print(f"Sending job {proc_id}")
