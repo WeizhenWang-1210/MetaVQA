@@ -449,21 +449,3 @@ def sample_labeling():
 
 if __name__ == "__main__":
     sample_labeling()
- 
-
-    """frame_paths = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/**/**"
-    frame_paths = glob.glob(frame_paths)
-    frame_paths = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real_2/scene-0002_0_39/0_11"]
-    for frame_path in frame_paths[:1]:
-        print(frame_path)
-        #identifier = os.path.basename(frame_path)
-        #id2label(os.path.dirname(frame_path), "front")
-        #id2corners = json.load(open(os.path.join(frame_path, f"id2corners_{identifier}.json"), "r"))
-        id2label(os.path.dirname(frame_path), "front")
-        labelframe(frame_path, "front", save_label=True, font_scale=1, bounding_box=True)"""
-
-    #frame_path = "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/scene-0002_0_1/0_0"
-    #id2label(os.path.dirname(frame_path), "front")
-    #labelframe(frame_path, "front", save_label=True, font_scale=1.25)
-    #label_transfer("/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/real_front_400_96.png",
-    #              "/bigdata/weizhen/metavqa_iclr/scenarios/nuscenes/scene-0509_76_125/400_96/label_front_400_96.png")
