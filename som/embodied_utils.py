@@ -424,7 +424,7 @@ def determine_collisions(obj_box,  action, speed, duration, bucket_size=10, traj
         "trajectories":box_trajectories,
         "other": obj_box
     }
-    json.dump(object, open("text.json","w"), indent=2)
+    #json.dump(object, open("text.json","w"), indent=2)
     if len(results) > 0:
         averaged_collision_timestamp = round(sum(results) / len(results))
         averaged_collision_time = averaged_collision_timestamp * (0.5 / ((len(original_trajectory) - 1) * 10 + 1))

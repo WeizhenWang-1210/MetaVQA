@@ -112,7 +112,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                     unsats = defaultdict(lambda: [])
                     if len(option) == 0 and len(answer_tuple) != 0:
                         wrong_choice = answer2label["[]"]
-                        wrong_reasoning = "there exists at least {} objects({}) in the specified({}) sector".format(
+                        wrong_reasoning = "there exists at least {} objects ({}) in the specified ({}) sector".format(
                             len(answer_tuple),
                             ", ".join([f"<{l}>" for l in answer_tuple]),
                             POSITION2CHOICE[sector]
@@ -133,7 +133,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                         for pos, stuff in unsats.items():
                             if len(stuff) > 1:
                                 first_plurality = True
-                            wrong_reasoning = "{} object{}({}) in the {} sector".format(
+                            wrong_reasoning = "{} object{} ({}) in the {} sector".format(
                                 len(stuff), "" if len(stuff) <= 1 else "s", ", ".join([f"<{l}>" for l in stuff]),
                                 POSITION2CHOICE[pos]
                             )
@@ -247,7 +247,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                     unsats = defaultdict(lambda: [])
                     if len(option) == 0 and len(answer_tuple) != 0:
                         wrong_choice = answer2label["[]"]
-                        wrong_reasoning = "there exists at least {} objects({}) positioned at specified({}) distance from us".format(
+                        wrong_reasoning = "there exists at least {} objects ({}) positioned at specified ({}) distance from us".format(
                             len(answer_tuple),
                             ", ".join([f"<{l}>" for l in answer_tuple]),
                             sector
@@ -268,7 +268,7 @@ def parameterized_generate(frame_path, question_type, param, perspective="front"
                         for dist, stuff in unsats.items():
                             if len(stuff) > 1:
                                 first_plurality = True
-                            wrong_reasoning = "{} object{}({}) positioned at {} distance from us".format(
+                            wrong_reasoning = "{} object{} ({}) positioned at {} distance from us".format(
                                 len(stuff), "" if len(stuff) <= 1 else "s", ", ".join([f"<{l}>" for l in stuff]),
                                 dist
                             )

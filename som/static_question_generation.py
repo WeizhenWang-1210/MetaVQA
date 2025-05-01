@@ -97,6 +97,7 @@ def identify_angle(origin_pos, origin_heading):
         return result
     return helper
 
+
 def angle2sector(degree):
     assert 0<=degree<=360
     if degree < 15 or degree > 345:
@@ -116,6 +117,7 @@ def angle2sector(degree):
     elif 285<degree<345:
         return "lf"
 
+
 def select_not_from(space, forbidden, population=1):
     unique_types = set(space)
     unique_forbiddens = set(forbidden)
@@ -123,6 +125,7 @@ def select_not_from(space, forbidden, population=1):
     diff = unique_types.difference(unique_forbiddens)
     assert len(diff) >= population
     return random.sample(list(diff), population)
+
 
 def generate(frame_path: str, question_type: str, perspective: str = "front", verbose: bool = False,
              id2label_path: str = None):
@@ -208,7 +211,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             label_str= str(selected_label)
             pos_str = DIRECTION_MAPPING[pos]
             type_str = NAMED_MAPPING[type]["singular"]
-            explanation = f"The type of this{color_str}object(<{label_str}>) {pos_str} of us is {type_str}."
+            explanation = f"The type of this{color_str}object (<{label_str}>) {pos_str} of us is {type_str}."
 
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_distance":
@@ -242,7 +245,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             label_str = str(selected_label)
             pos_str = DIRECTION_MAPPING[pos]
             type_str = NAMED_MAPPING[type]["singular"]
-            explanation = f"The{color_str}{type_str}(<{label_str}>) is {round(distance)} meters {pos_str} us. Therefore, it belongs to \"{option2answer[answer]}\"."
+            explanation = f"The{color_str}{type_str} (<{label_str}>) is {round(distance)} meters {pos_str} us. Therefore, it belongs to \"{option2answer[answer]}\"."
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_position":
         non_ego_labels = [label for label in labels if label != -1]
@@ -263,7 +266,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             question = " ".join([question,
                                  f"Choose the best answer from option (A) through (D): {multiple_choice_string}"])
             answer = answer2label[POSITION2CHOICE[pos]]
-            explanation = "The {} {}(<{}>) is {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
+            explanation = "The {} {} (<{}>) is {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
                                                              selected_label,
                                                              DIRECTION_MAPPING[pos])
             ids_of_interest.append(label2id[selected_label])
@@ -301,7 +304,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer = answer2label[transform(heading)]
             question = " ".join(
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
-            explanation = "The {} {}(<{}>) {} us is facing our {} direction.".format(color.lower(),
+            explanation = "The {} {} (<{}>) {} us is facing our {} direction.".format(color.lower(),
                                                                                              NAMED_MAPPING[type][
                                                                                                  "singular"],
                                                                                              selected_label,
@@ -326,8 +329,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             pos2 = ego_node.compute_relation_string(node=graph.get_node(object2.id), ref_heading=ego_node.heading)
             if abs(distance1 - distance2) <= 2:
                 index = 0
-                explanation = ("Object <{}>, a {} {} located to our {}, is about the same distance from us as object <{"
-                               "}>, a {} {} located to our {}.").format(
+                explanation = ("Object <{}>, a {} {} located to our {}, is about the same distance from us as object <{}>, a {} {} located to our {}.").format(
                     id1, color1.lower(), NAMED_MAPPING[type1]["singular"], DIRECTION_MAPPING[pos1], id2, color2.lower(),
                     NAMED_MAPPING[type2]["singular"], DIRECTION_MAPPING[pos2]
                 )
@@ -395,10 +397,10 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 [question, "Choose the best answer between option (A) and (B): {}".format(multiple_choice_string)])
             answer = answer2label["Yes" if crash else "No"]
             if crash:
-                explanation = "Yes, this {} {}(<{}>) {} us and heading toward our {} direction will run into us if it drives along its current heading.".format(
+                explanation = "Yes, this {} {} (<{}>) {} us and heading toward our {} direction will run into us if it drives along its current heading.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             else:
-                explanation = "No, this {} {}(<{}>) {} us and heading toward our {} direction will not run into us if it drives along its current heading.".format(
+                explanation = "No, this {} {} (<{}>) {} us and heading toward our {} direction will not run into us if it drives along its current heading.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "predict_crash_ego_dynamic":
@@ -442,14 +444,14 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             pos = ego_node.compute_relation_string(node=graph.get_node(object.id),
                                                    ref_heading=ego_node.heading)
             if crash:
-                explanation = "Yes, this {} {}(<{}>) {} us and heading toward our {} direction will run into us if it proceed along its current heading.".format(
+                explanation = "Yes, this {} {} (<{}>) {} us and heading toward our {} direction will run into us if it proceed along its current heading.".format(
                     color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             else:
                 if intersect:
-                    explanation = "No, this {} {}(<{}>) {} us and heading toward our {} direction will not run into us even though our paths will intersect.".format(
+                    explanation = "No, this {} {} (<{}>) {} us and heading toward our {} direction will not run into us even though our paths will intersect.".format(
                         color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
                 else:
-                    explanation = "No, this {} {}(<{}>) {} us and heading toward our {} direction will not run into us.".format(
+                    explanation = "No, this {} {} (<{}>) {} us and heading toward our {} direction will not run into us.".format(
                         color.lower(), NAMED_MAPPING[type]["singular"], selected_label, DIRECTION_MAPPING[pos], heading)
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "relative_distance":
@@ -698,7 +700,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
-            explanation = "The {} {}(<{}>) is closest to us, and the {} {}(<{}>) is furthest away from us. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
+            explanation = "The {} {} (<{}>) is closest to us, and the {} {}(<{}>) is furthest away from us. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
                 object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
                 object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
                 object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
@@ -744,7 +746,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
-            explanation = "The {} {}(<{}>) is at the far left, and the {} {}(<{}>) is at the far right. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
+            explanation = "The {} {} (<{}>) is at the far left, and the {} {}(<{}>) is at the far right. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
                 object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
                 object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
                 object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
@@ -791,7 +793,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
-            explanation = "The {} {}(<{}>) is at the far right, and the {} {}(<{}>) is at the far left. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
+            explanation = "The {} {} (<{}>) is at the far right, and the {} {}(<{}>) is at the far left. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
                 object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
                 object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
                 object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
@@ -838,7 +840,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
-            explanation = "The {} {}(<{}>) is at the furthest along our heading direction, and the {} {}(<{}>) is the closest. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
+            explanation = "The {} {} (<{}>) is at the furthest along our heading direction, and the {} {}(<{}>) is the closest. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
                 object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
                 object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
                 object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
@@ -885,7 +887,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             answer = answer2label[answer_ordering]
             object1, object2, object3, object4 = [graph.get_node(label2id[label]) for label in ordered_labels]
-            explanation = "The {} {}(<{}>) is at the closest along our heading direction, and the {} {}(<{}>) is the furthest. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
+            explanation = "The {} {} (<{}>) is at the closest along our heading direction, and the {} {}(<{}>) is the furthest. The {} {}(<{}>) and the {} {}(<{}>) are in between.".format(
                 object1.color.lower(), NAMED_MAPPING[object1.type]["singular"], ordered_labels[0],
                 object4.color.lower(), NAMED_MAPPING[object4.type]["singular"], ordered_labels[3],
                 object2.color.lower(), NAMED_MAPPING[object2.type]["singular"], ordered_labels[1],
@@ -922,7 +924,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
-            explanation = "The {} {}({}) is the closest labeled object from us.".format(
+            explanation = "The {} {} ({}) is the closest labeled object from us.".format(
                 color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
     elif question_type == "identify_leftmost":
         non_ego_labels = [label for label in labels if label != -1]
@@ -956,7 +958,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
-            explanation = "The {} {}({}) is the leftmost labeled object from us.".format(
+            explanation = "The {} {} ({}) is the leftmost labeled object from us.".format(
                 color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
     elif question_type == "identify_rightmost":
         non_ego_labels = [label for label in labels if label != -1]
@@ -990,7 +992,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
-            explanation = "The {} {}({}) is the rightest labeled object from us.".format(
+            explanation = "The {} {} ({}) is the rightest labeled object from us.".format(
                 color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
     elif question_type == "identify_frontmost":
         non_ego_labels = [label for label in labels if label != -1]
@@ -1024,7 +1026,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
-            explanation = "The {} {}({}) is the object furthest along front direction us.".format(
+            explanation = "The {} {} ({}) is the object furthest along front direction us.".format(
                 color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
     elif question_type == "identify_backmost":
         non_ego_labels = [label for label in labels if label != -1]
@@ -1059,7 +1061,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             answer = answer2label[answer_label]
             object = graph.get_node(closest_id)
             color, type = object.color, object.type
-            explanation = "The {} {}({}) is the object closest along the front direction of us.".format(
+            explanation = "The {} {} ({}) is the object closest along the front direction of us.".format(
                 color.lower(), NAMED_MAPPING[type]["singular"], answer_label)
     elif question_type == "describe_scenario":
         non_ego_labels = [label for label in labels if label != -1]
@@ -1136,7 +1138,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
 def batch_generate_static(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0,
                           box=USEBOX, domain="sim"):
     frame_paths = [os.path.dirname(world_path) for world_path in world_paths]
-    template_path = os.path.join(current_directory, "questions_templates.json")
+    #template_path = os.path.join(current_directory, "questions_templates.json")
     static_templates = TEMPLATES["static"]  #json.load(open(template_path, "r"))["static"]
     records = {}
     current_type = ""
@@ -1144,7 +1146,8 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
     try:
         count = 0
         frame_paths = frame_paths
-        for frame_path in tqdm.tqdm(frame_paths, desc=f"Processing {proc_id}", unit="frame"):
+        for frame_path in tqdm.tqdm(frame_paths, desc=f"Proc-{proc_id}", unit="frame"):
+            # First, create som-annotated images.
             current_frame = frame_path
             frame_records = {}
             frame_id = 0
@@ -1160,9 +1163,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
                     print(f"Creating single-frame-consistent labelling for {frame_path}")
                 result = static_id2label(frame_path, perspective)
                 static_id2l = result  #json.load(open(static_id2label_path, "r"))
-                if static_id2l is None:
-                    print("why>>>???")
-                assert static_id2l is not None
+                assert static_id2l is not None, "static_id2l is None"
                 labelframe(frame_path=frame_path, perspective=perspective, save_path=static_labeled_path,
                            id2l=static_id2l, id2corners=id2corners,
                            font_scale=FONT_SCALE, bounding_box=USEBOX, background_color=BACKGROUND)
@@ -1295,7 +1296,6 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
         raise (e)
     finally:
         json.dump(records, open(save_path, "w"), indent=2)
-
 
 
 def batch_generate_grounding_ablation(world_paths, save_path="./", verbose=False, perspective="front", labeled=False, proc_id=0,
@@ -1506,6 +1506,7 @@ def batch_generate_general_ablation(world_paths, save_path="./", verbose=False, 
         raise (e)
     finally:
         json.dump(records, open(save_path, "w"), indent=2)
+
 
 def multiprocess_generate_static(session_path, save_path="./", verbose=False, perspective="front", labeled=False,
                                  num_proc=1, box=False, domain="sim"):

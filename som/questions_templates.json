@@ -22,7 +22,7 @@
         },
         "identify_distance": {
             "text":[
-                "Please tell me how far object <<id1>> is from us. Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
+                "Please tell me how far object <<id1>> is from us. Classify the answer into: (A) Very close (0-2m) (B) Close (2-10m) (C) Medium (10-30m) (D) Far (30m+)."
             ],
             "params":[
                 "<id1>"
@@ -82,7 +82,7 @@
         },
         "relative_distance": {
             "text":[
-                "How close are object <<id1>> and object <<id2>> positioned? Classify the answer into: (A) Very close(0-2m) (B) Close(2-10m) (C) Medium(10-30m) (D) Far(30m-)."
+                "How close are object <<id1>> and object <<id2>> positioned? Classify the answer into: (A) Very close (0-2m) (B) Close (2-10m) (C) Medium (10-30m) (D) Far (30m+)."
             ],
             "params":[
                 "<id1>", "<id2>"
@@ -248,7 +248,7 @@
         },
         "describe_distance":{
             "text": [
-                "What labeled objects fall within \"<dist>\" range from us? We classify distance into: \"very close\"(0-2m); \"close\"(2-10m); \"medium\"(10-30m); \"far\"(30m-)."
+                "What labeled objects fall within \"<dist>\" range from us? We classify distance into: \"very close\" (0-2m); \"close\" (2-10m); \"medium\" (10-30m); \"far\" (30m+)."
             ],
             "params":[
                 "<dist>"
@@ -258,7 +258,7 @@
         },
         "embodied_distance": {
           "text": [
-                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) Very close(0-2m); (B) Close(2-10m); (C) Medium(10-30m); (D) Far(30m-)."
+                "Suppose our current speed is <speed>, and we perform action \"<action>\" for <duration>. How far will we end up from our current position? Select the best option from: (A) Very close (0-2m); (B) Close (2-10m); (C) Medium (10-30m); (D) Far (30m+)."
             ],
             "params":[
                 "<speed>", "<action>", "<duration>"
