@@ -5,6 +5,9 @@ import glob
 import shutil
 import os
 from concurrent.futures import ThreadPoolExecutor
+import random
+import tqdm
+from pprint import pprint
 
 
 def get(world, target_id):
@@ -78,9 +81,6 @@ def replace_obs(qa_records, obs):
     return qa_records
 
 
-import random
-
-
 def random_choice(qa_records):
     for key, record in qa_records.items():
         valid_options = list(record["options"].keys())
@@ -121,7 +121,7 @@ def accuracy_analysis(qa_records):
         total_correct += stat["correct"]
     return statistics, total, total_correct
 
-import tqdm
+
 def analyze_dataset(qa_records):
     def find_sdc_file(frame_path):
         template = os.path.join(frame_path, "world**.json")
@@ -183,14 +183,6 @@ def create_split(qa_records, split_path, distributions=(0.8, 0.2)):
     )
 
 
-import glob
-
-
-import shutil
-import os
-from concurrent.futures import ThreadPoolExecutor
-
-
 def copy_file(src, dest):
     try:
         shutil.copy2(src, dest)  # copy2 also preserves metadata like timestamps
@@ -232,6 +224,7 @@ def export(qa_path, obs_directory, vqa_directory):
     json.dump(qa_records, open(os.path.join(vqa_directory, "data.json"), "w"))
     parallel_copy(transfer_tuples)
 
+
 def export_multiple(qa_paths, obs_directory, vqa_directory):
     import tqdm
     obs_old2new = dict()
@@ -255,8 +248,8 @@ def export_multiple(qa_paths, obs_directory, vqa_directory):
     json.dump(obs_old2new, open(os.path.join(obs_directory, "old2new.json"), "w"), indent=2)
     parallel_copy(transfer_tuples)
 
+
 def split(path, split_path, train_path, val_path):
-    import json, os
     #path = "/data_weizhen/metavqa_cvpr/static_medium_export/data.json"
     base_dir = os.path.dirname(path)
     #split_path = "/data_weizhen/metavqa_cvpr/vqa_merged/static_medium_split.json"
@@ -285,7 +278,6 @@ def split(path, split_path, train_path, val_path):
     json.dump(train_qas, open(train_path, "w"), indent=2)
     json.dump(val_qas, open(val_path, "w"), indent=2)
 
-from pprint import pprint
 
 def generate_tarinval():
     waymo_sim_paths = glob.glob("/bigdata/weizhen/metavqa_cvpr/vqas/waymo_sim/*_waymo_sim.json")
@@ -318,6 +310,7 @@ def generate_tarinval():
         selected_qas[key]["domain"] = "sim"
     json.dump(selected_qas, open("/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/nusc_sim.json", "w"), indent=2)
 
+
 def analyze_trainval():
     waymo_sim = json.load(open("/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/waymo_sim.json", "r"))
     json.dump(
@@ -334,6 +327,7 @@ def analyze_trainval():
         open("/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/nusc_real_stats.json", "w"), indent=2
     )
 
+
 def build_trainval():
     qa_paths = [
         "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/waymo_sim.json",
@@ -347,6 +341,7 @@ def build_trainval():
         analyze_dataset(merged_qas),
         open("/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/trainval_stats.json", "w"), indent=2
     )
+
 
 def build_scaling():
     factors = [0.5,0.25]
@@ -368,6 +363,7 @@ def build_scaling():
             open(f"/bigdata/weizhen/metavqa_cvpr/vqas/experiments/scaling/{num_point*3}_trainval_stats.json", "w"), indent=2
         )
         qas = subset
+
 
 def build_sim2real():
     qa_paths = [
@@ -465,12 +461,6 @@ def build_test():
               indent=2)
 
 
-
-
-
-
-
-
 def analyze_gt(qa_records):
     def find_identifier(path):
         base = os.path.basename(path)
@@ -501,8 +491,7 @@ def analyze_gt(qa_records):
     return statistics
 
 
-if __name__ == "__main__":
-    from pprint import pprint
+def analyze_dataset():
     qa_roots = [
         "/bigdata/weizhen/metavqa_cvpr/vqas/nusc_real",
         "/bigdata/weizhen/metavqa_cvpr/vqas/nusc_sim",
@@ -514,11 +503,8 @@ if __name__ == "__main__":
         template = os.path.join(qa_root, f"*_{basename}.json")
         results = glob.glob(template)
         all_qas += results
-
-    #
     all_qas = all_qas
     pprint(all_qas)
-    #
     stats = dict(
         type=defaultdict(lambda:0),
         answer_dist=defaultdict(lambda:0),
@@ -528,7 +514,6 @@ if __name__ == "__main__":
     )
     frames = set()
     pics = set()
-
     for qa_path in all_qas:
         qa = json.load(open(qa_path,"r"))
         if "sim" in qa["0"]["world"][-1]:
@@ -545,108 +530,20 @@ if __name__ == "__main__":
             stats["domain"][domain_code] += 1
     stats["num_frame"] += len(frames)
     stats["num_pics"] += len(pics)
-    #pprint(stats)
     json.dump(
         stats, open("/bigdata/weizhen/metavqa_cvpr/vqas/vqa_compositions.json","w"), indent=2
     )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-    exit()
-    qas = ["/bigdata/weizhen/metavqa_cvpr/vqas/experiments/test/test.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/test/test_sim.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/test/test_real.json",
-           ]
-    export_multiple(qas, "/bigdata/weizhen/metavqa_cvpr/exports/test/obs",
-                    "/bigdata/weizhen/metavqa_cvpr/exports/test")
-    exit()
-    build_test()
-    exit()
-
-    qas = ["/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/trainval.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/scaling/75000_trainval.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/scaling/37500_trainval.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/sim2real/sim.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/sim2real/real.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/sim2real/simreal.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/diversification/waymo.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/diversification/nusc.json",
-           "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/diversification/waymonusc.json"
-           ]
-    export_multiple(qas, "/bigdata/weizhen/metavqa_cvpr/exports/experiments/obs", "/bigdata/weizhen/metavqa_cvpr/exports/experiments")
-
-
-
-
-
-    build_diversification()
-    build_sim2real()
-    build_scaling()
-    #build_trainval()
-    #analyze_trainval()
-    exit(0)
-    json.dump(merged_qa, open("/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/general_ablations.json","w"), indent=2)
-    json.dump(
-        analyze_dataset(merged_qa), open("/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/grounding_ablations_stats.json", "w"), indent=2
-    )
-    obs_directory = "/bigdata/weizhen/metavqa_cvpr/exports/general_ablations/obs"  # "/den/metavqa_cvpr/static_medium_expoata_weizhrt/obs"
-    vqa_directory = "/bigdata/weizhen/metavqa_cvpr/exports/general_ablations"  # "/data_weizhen/metavqa_cvpr/static_medium_export"
-    export(qa_path="/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/general_ablations.json", obs_directory=obs_directory,
-           vqa_directory=vqa_directory)
-
-    #sample exporting
-    exit()
-    obs_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/obs"      #"/den/metavqa_cvpr/static_medium_expoata_weizhrt/obs"
-    vqa_directory = "/bigdata/weizhen/metavqa_iclr/exports/real/"      #"/data_weizhen/metavqa_cvpr/static_medium_export"
-    export(qa_path="/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", obs_directory=obs_directory, vqa_directory=vqa_directory)
+def misc():
     """
-    exit()
-    old_qas = ["/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/1_real.json",
-               "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/2_real.json",
-               "/bigdata/weizhen/metavqa_iclr/scenarios/nusc_real/3_real.json"]
-    print(len(old_qas))
-    old_qas = [json.load(open(old_qa, "r")) for old_qa in old_qas]
-    print(sum([len(qa) for qa in old_qas]))
-    new_qa = merge_qas(
-        old_qas
-    )
-    json.dump(new_qa, open("/bigdata/weizhen/metavqa_iclr/vqa/real/real.json", "w"), indent=2)
-    json.dump(
-        analyze_dataset(new_qa), open("/bigdata/weizhen/metavqa_iclr/vqa/real/real_stats.json", "w"), indent=2
-    )
-    exit()
-
-    #qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "r"))
-    #stat_by_category, total, total_correct = accuracy_analysis(qa)
-
-    #result = dict(
-    #    total_questions = total, total_correct = total_correct, stats = stat_by_category
-    #)
-    #answer = []
-    #for record in qa.values():
-    #    answer.append(record["answer"])
-    #print(";".join(answer))
-    #exit()
-    #json.dump(result, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed_stat.json", "w"),
-    #          indent=2)
-
+    Old scripts. May be cleaned
     """
+    """
+    For parsing a generated response json file, you can run see the following as an example.
     """
     #for parsing response    
     response_path = "/bigdata/weizhen/repo/qa_platform/public/data_verification_result.json"
-    import json
-
     responses = json.load(open(response_path, "r"))
     for qid in responses.keys():
         choice = parse_response(responses[qid]["model_response"])
@@ -654,7 +551,19 @@ if __name__ == "__main__":
     json.dump(
         responses, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "w"), indent=2
     )
-    """
+    qa = json.load(open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed.json", "r"))
+    stat_by_category, total, total_correct = accuracy_analysis(qa)
+
+    result = dict(
+        total_questions = total, total_correct = total_correct, stats = stat_by_category
+    )
+    answer = []
+    for record in qa.values():
+        answer.append(record["answer"])
+    print(";".join(answer))
+    json.dump(result, open("/bigdata/weizhen/repo/qa_platform/public/data_verification_result_parsed_stat.json", "w"),
+              indent=2)
+    
     record_template = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/*qa.json"
     traj_template = "/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/*traj.json"
     record_paths = glob.glob(record_template)
@@ -665,7 +574,7 @@ if __name__ == "__main__":
     trajs = [
         json.load(open(traj_path)) for traj_path in traj_paths
     ]
-
+ 
     merged_traj = dict(gt=dict(), opt=dict(), act=dict(), crash=dict(), off=dict(), completion=dict())
     for traj in trajs:
         for key, value in traj.items():
@@ -684,10 +593,85 @@ if __name__ == "__main__":
         indent=2
     )
     stats = analyze_gt(merged_qa)
-
+ 
     json.dump(
         stats,
         open("/home/weizhen/data_weizhen/metavqa_cvpr/datasets/trainval/driving/gts/qa_stats.json", "w"),
         indent=2
     )
+
+
+
+if __name__ == "__main__":
+    pass
+    """
+    For reproduction, you can run analyze_dataset() to inspect the dataset statistics.
+    """
+    # analyze_dataset()
+
+    """
+    To create the training sets, run the following methods to merge the generated json files from multiple processes and create a balanced samples of 150,000 VQA tuples in total.
+    """
+    # generate_tarinval()
+    # build_trainval()
+    # build_diversification()
+    # build_sim2real()
+    # build_scaling()
+
+    # Similearly, to create the test set, 
+    # build_test()
+
+    """
+    Finally, package the datasets into self-cotained folders for moving around
+    First, export the training sets/ablations/experiments
+    """
+    # qas = ["/bigdata/weizhen/metavqa_cvpr/vqas/experiments/trainval/trainval.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/scaling/75000_trainval.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/scaling/37500_trainval.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/sim2real/sim.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/sim2real/real.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/sim2real/simreal.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/diversification/waymo.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/diversification/nusc.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/diversification/waymonusc.json"
+    #        ]
+    # export_multiple(qas, "/bigdata/weizhen/metavqa_cvpr/exports/experiments/obs", "/bigdata/weizhen/metavqa_cvpr/exports/experiments")
+
+    """
+    Second, export the test sets
+    """
+    # qas = ["/bigdata/weizhen/metavqa_cvpr/vqas/experiments/test/test.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/test/test_sim.json",
+    #        "/bigdata/weizhen/metavqa_cvpr/vqas/experiments/test/test_real.json",
+    #        ]
+    # export_multiple(qas, "/bigdata/weizhen/metavqa_cvpr/exports/test/obs",
+    #                 "/bigdata/weizhen/metavqa_cvpr/exports/test")
+
+
+    """
+    For ablation study, you can run the following methods to merge the generated json files from multiple processes and create a balanced samples of 150,000 VQA tuples in total.
+    """
+    # ablation_files = glob.glob("/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/*_general.json")
+    # ablation_qas = [json.load(open(qa_path, "r")) for qa_path in ablation_files]
+    # merged_qa = merge_qas(ablation_qas)    
+    # json.dump(merged_qa, open("/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/general_ablations.json","w"), indent=2)
+    # json.dump(
+    #     analyze_dataset(merged_qa), open("/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/grounding_ablations_stats.json", "w"), indent=2
+    # )
+    # obs_directory = "/bigdata/weizhen/metavqa_cvpr/exports/general_ablations/obs" 
+    # vqa_directory = "/bigdata/weizhen/metavqa_cvpr/exports/general_ablations" 
+    # export(qa_path="/bigdata/weizhen/metavqa_cvpr/vqas/general_ablations/general_ablations.json", obs_directory=obs_directory,
+    #        vqa_directory=vqa_directory)
+
+
+    
+    
+    
+    
+
+
+
+
+
+    
 
