@@ -2,7 +2,7 @@
 
 # 1 nusc real scenario annotations.
 # This is the root directory at which the generated scenarios are saved.
-SAVE_DIR="/bigdata/weizhen/metavqa_release/scenarios/nusc_real_test"
+SAVE_DIR="/bigdata/weizhen/metavqa_release/scenarios/nusc_real"
 START_IDX=400
 END_IDX=401
 # Number of independent processed to use. This program is trivially parallelizable as no inter-process communication is needed.
