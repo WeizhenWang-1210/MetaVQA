@@ -46,8 +46,10 @@
 ## Set-of-Mark Annotation:
 - Checkout `som/masking.py`
 ## VQA Generation
-- Checkout `scripts/test_vqagen.sh` for sample code.
+- Checkout `scripts/test_vqagen.sh` for sample code. The creation of set-of-mark annotated data will also be taken care of.
 
+## Export the dataset
+- Checkout `som/qa_utils.py`
 
 # Dataset Release
 
