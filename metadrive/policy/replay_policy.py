@@ -116,4 +116,3 @@ class InterventionPolicy(ReplayEgoCarPolicy):
             return None
         else:
             return self.engine.external_actions['default_agent']
-

@@ -37,12 +37,12 @@ if __name__ == "__main__":
         random_lane_num=True,
         on_continuous_line_done=False,
         out_of_route_done=False,
-        vehicle_config=dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False,
-                            vehicle_model="static_default"),
+        vehicle_config=dict(
+            show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False, vehicle_model="static_default"
+        ),
         map=4,  # seven block
         agent_policy=EnvInputPolicy,
         start_seed=10,
-
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("--observation", type=str, default="lidar", choices=["lidar", "rgb_camera"])
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     l = 0
     for limit in limits:
         interval = np.linspace(l, limit, 10, endpoint=False).tolist()
-        interval = [round(val,3) for val in interval]
+        interval = [round(val, 3) for val in interval]
         intervals += interval
         print(interval)
         l = limit
@@ -93,11 +93,7 @@ if __name__ == "__main__":
             boxes.append(box)
             o, r, tm, tc, info = env.step(control_signal)
         setting = "_".join([str(c) for c in setting])
-        trajectories[setting] = dict(
-            waypoints=waypoints, speeds=speeds, headings=headings, boxs=[boxes]
-        )
+        trajectories[setting] = dict(waypoints=waypoints, speeds=speeds, headings=headings, boxs=[boxes])
     import json
 
-    json.dump(
-        trajectories, open("trajectories_collection.json", "w"), indent=2, sort_keys=True
-    )
+    json.dump(trajectories, open("trajectories_collection.json", "w"), indent=2, sort_keys=True)

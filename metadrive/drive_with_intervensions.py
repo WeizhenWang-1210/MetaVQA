@@ -18,12 +18,8 @@ RENDER_MESSAGE = {
     "Reset Episode": "R",
     "Keyboard Control": "W,A,S,D",
 }
-ACTION_MAPPING = {
-            "left": [0.5, 0.5],
-            "right": [-0.5, 0.5],
-            "stop": [0, -0.2],
-            "none": [0, 0.3]
-}
+ACTION_MAPPING = {"left": [0.5, 0.5], "right": [-0.5, 0.5], "stop": [0, -0.2], "none": [0, 0.3]}
+
 
 def get_trajectory_info(engine):
     # Directly get trajectory from data manager
@@ -36,6 +32,7 @@ def get_trajectory_info(engine):
             i,
         ))
     return ret
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -59,9 +56,7 @@ if __name__ == "__main__":
                 "data_directory": data_directory,
                 "num_scenarios": len(scenes),
                 "agent_policy": ReplayEgoCarPolicy,
-                "sensors": dict(
-                    rgb=(RGBCamera, 1920, 1080)
-                )
+                "sensors": dict(rgb=(RGBCamera, 1920, 1080))
             }
         )
         o, _ = env.reset()
@@ -70,15 +65,15 @@ if __name__ == "__main__":
         destination = traj[max_step - 1]['position']
         step = 0
         t = 0
-        collision=0
-        eps=set()
+        collision = 0
+        eps = set()
         for i in range(1, 100000):
             if len(env.agent.crashed_objects) > 0:
                 print("Collision!")
                 eps.add(env.current_seed)
                 print(f"{len(eps)}")
-            action = [0,0]
-            o, r, tm, tc, info = env.step(action)#ACTION_MAPPING["left"]
+            action = [0, 0]
+            o, r, tm, tc, info = env.step(action)  #ACTION_MAPPING["left"]
             step += 1
             t += 1
             if t % 5 == 0:
@@ -94,8 +89,7 @@ if __name__ == "__main__":
                 step = 0
             if (tm or tc) and not info["out_of_road"]:
                 env.reset()
-                step=0
-
+                step = 0
 
     finally:
         env.close()

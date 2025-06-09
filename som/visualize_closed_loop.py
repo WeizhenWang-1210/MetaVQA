@@ -91,6 +91,8 @@ def create_video(frame_arrays, filename, fps=5):
     for frame in frame_arrays:
         writer.append_data(frame)
     writer.close()
+
+    
 def visualize_closed_loop(folder):
     action_buffer = json.load(open(os.path.join(folder, "action_buffer.json"), "r"))
     obs = glob.glob(os.path.join(folder, "obs*.jpg"))

@@ -77,13 +77,13 @@ class TurnAction:
 
 
 def get_direction_action_from_trajectory_batch(
-        traj,
-        mask,
-        dt,
-        U_TURN_DEG=115,
-        LEFT_TURN_DEG=25,
-        RIGHT_TURN_DEG=-25,
-        STOP_SPEED=0.06,
+    traj,
+    mask,
+    dt,
+    U_TURN_DEG=115,
+    LEFT_TURN_DEG=25,
+    RIGHT_TURN_DEG=-25,
+    STOP_SPEED=0.06,
 ):
     assert traj.ndim == 3
     traj_diff = traj[1:] - traj[:-1]
@@ -181,9 +181,9 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
     #Sparsity to every 0.5 seconds while making sure the end is always there
     END = ego_traj[-1]
     ego_traj = ego_traj[:-1]
-    ego_traj = np.vstack([ego_traj[::5,:], END])
+    ego_traj = np.vstack([ego_traj[::5, :], END])
     T = ego_traj.shape[0]
-    adjustment_duration = 8 # looks into 4 seconds of future
+    adjustment_duration = 8  # looks into 4 seconds of future
     ego_pos, ego_heading = np.array(env.agent.position), np.array(env.agent.heading)
     segments_with_projection = []
     for i in range(len(ego_traj) - 1):
@@ -245,15 +245,17 @@ if __name__ == "__main__":
                 #"data_directory": AssetLoader.file_path(
                 #    asset_path, "waymo" if use_waymo else "nuscenes", unix_style=False
                 #),
-                "data_directory":"d:/scenes/small_scenarios",
-                "num_scenarios": 10, #3 if use_waymo else 10,
+                "data_directory": "d:/scenes/small_scenarios",
+                "num_scenarios": 10,  #3 if use_waymo else 10,
                 "agent_policy": ReplayEgoCarPolicy
             }
         )
         o, _ = env.reset()
         for i in range(1, 100000):
             o, r, tm, tc, info = env.step([0., 0.])
-            action = dynamic_get_navigation_signal(env.engine.data_manager.current_scenario, timestamp=env.episode_step, env=env)
+            action = dynamic_get_navigation_signal(
+                env.engine.data_manager.current_scenario, timestamp=env.episode_step, env=env
+            )
             RENDER_MESSAGE["Action"] = action
             RENDER_MESSAGE["file"] = env.engine.data_manager.current_scenario_file_name
             env.render(

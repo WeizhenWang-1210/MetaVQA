@@ -35,13 +35,30 @@
 # Installation Guide
 - Clone the repository and create a virtual environment/Conda envrionment with Python 3.11
 - install the dependencies by running `pip install -e .`
-- missing `yaml`, 
+- missing `yaml`, `pip install nuscenes-devkit`, `imageio`, `pip install imageio[ffmpeg]`
 - install the `adj_parameter` zip file, and unzip it at specified location `<path to parameter>`
 - Spefified the path to the `adj_parameter` zip file in `path_config.yaml`. Overwrite `metadriveasset` with the absolute path at which the assets are downloaded and `parentfolder` with `<path to parameter>`
+- Download the nuScenes Dataset as well as the nuScenes DevKit
 
 
 # Generate Scenarios
 - Checkout `scripts/test_scenegen.sh` for sample code.
+
+
+
+
+
+## nuScenes Scenarios (Real-world Observations)
+For the nuScenes Dataset, we have a script utilizing the nuScenes Devkit. You can checkout `vqa.nusc_devkit_annotation` for more details.
+
+## Waymo Scenarios (Rendered Observations)
+You can pre-process your traffic records into the ScenarioNet format and store them into a single folder(or multiple locations, referring to the ScenarioNet system). Then, you can simply use this stored location as your data source to prepare rendering.
+
+
+
+
+
+
 
 # Generate Questions
 ## Set-of-Mark Annotation:

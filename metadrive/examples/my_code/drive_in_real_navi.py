@@ -52,6 +52,7 @@ def masked_average_numpy(tensor, mask, dim):
     count = np.maximum(count, np.ones_like(count))
     return (tensor * mask).sum(axis=dim) / count
 
+
 class TurnAction:
     STOP = 0
     KEEP_STRAIGHT = 1
@@ -129,7 +130,7 @@ def get_navigation_signal(scenario, timestamp):
     ego_valid_mask = ego_track["state"]["valid"].astype(bool)
     T = ego_traj.shape[0]
     if timestamp + chunk_size > T:
-        timestamp  = T-chunk_size
+        timestamp = T - chunk_size
     traj = ego_traj[timestamp:timestamp + chunk_size]
     mask = ego_valid_mask[timestamp:timestamp + chunk_size]
     assert traj.shape[0] == chunk_size
@@ -160,6 +161,7 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
             return True, P_proj
         else:
             return False, None
+
     ego_id = scenario["metadata"]["sdc_id"]
     ego_track = scenario["tracks"][ego_id]
     ego_traj = ego_track["state"]["position"][..., :2]
@@ -178,7 +180,9 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
         future_pos = ego_traj[-1]
     else:
         projected_segment_index, projected_point = sorted(segments_with_projection, key=lambda x: x[0], reverse=True)[0]
-        future_pos = ego_traj[projected_segment_index + adjustment_duration] if adjustment_duration + projected_segment_index < T else ego_traj[-1]  # the end of this segment.
+        future_pos = ego_traj[projected_segment_index +
+                              adjustment_duration] if adjustment_duration + projected_segment_index < T else ego_traj[
+                                  -1]  # the end of this segment.
     pos_diff = future_pos - ego_pos
     angle = np.arccos(np.dot(pos_diff, ego_heading) / (np.linalg.norm(pos_diff) * np.linalg.norm(ego_heading)))
     wrapped_angle = angle * -1 if np.cross(pos_diff, ego_heading) > 0 else angle * 1
@@ -191,6 +195,7 @@ def dynamic_get_navigation_signal(scenario, timestamp, env):
         action = TurnAction.KEEP_STRAIGHT
     print("Action at step {}, t={}s: {}".format(timestamp, timestamp / 10, TurnAction.get_str(action)))
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--reactive_traffic", action="store_true")
@@ -201,7 +206,7 @@ if __name__ == "__main__":
     asset_path = AssetLoader.asset_path
     use_waymo = args.waymo
     print(HELP_MESSAGE)
-    data_dir ="D:/selected_normals"
+    data_dir = "D:/selected_normals"
     """
     AssetLoader.file_path(
                     asset_path, "waymo" if use_waymo else "nuscenes", unix_style=False
@@ -216,11 +221,9 @@ if __name__ == "__main__":
                 "reactive_traffic": True if args.reactive_traffic else False,
                 "use_render": True if not args.top_down else False,
                 "data_directory": data_dir,
-                "num_scenarios": 60,#3 if use_waymo else 10,
+                "num_scenarios": 60,  #3 if use_waymo else 10,
                 "agent_policy": ReplayEgoCarPolicy,
-                "vehicle_config":dict(
-                    vehicle_model="static_default"
-                )
+                "vehicle_config": dict(vehicle_model="static_default")
             }
         )
         o, _ = env.reset(seed=0)
@@ -234,9 +237,9 @@ if __name__ == "__main__":
             #exit()
             o, r, tm, tc, info = env.step([1.0, 0.])
             #if env.episode_step%5 == 0:
-                #print(env.episode_step)
-                #get_navigation_signal(env.engine.data_manager.current_scenario, timestamp=env.episode_step)
-                #dynamic_get_navigation_signal(env.engine.data_manager.current_scenario, timestamp=env.episode_step, env=env)
+            #print(env.episode_step)
+            #get_navigation_signal(env.engine.data_manager.current_scenario, timestamp=env.episode_step)
+            #dynamic_get_navigation_signal(env.engine.data_manager.current_scenario, timestamp=env.episode_step, env=env)
             env.render(
                 mode="top_down" if args.top_down else None,
                 text=None if args.top_down else RENDER_MESSAGE,

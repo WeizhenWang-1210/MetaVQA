@@ -381,8 +381,8 @@ class ScenarioEnv(BaseEnv):
             self.config["start_scenario_index"] + self.config["num_scenarios"])
         self.seed(current_seed)
 
-class ScenarioDiverseEnv(ScenarioEnv):
 
+class ScenarioDiverseEnv(ScenarioEnv):
     def setup_engine(self):
         super(ScenarioEnv, self).setup_engine()
         self.engine.register_manager("data_manager", ScenarioDataManager())
@@ -394,6 +394,7 @@ class ScenarioDiverseEnv(ScenarioEnv):
             self.engine.register_manager("light_manager", ScenarioLightManager())
         self.engine.register_manager("curriculum_manager", ScenarioCurriculumManager())
         # self.engine.register_manager("sidewalk_manager", SidewalkManager())
+
 
 if __name__ == "__main__":
     env = ScenarioEnv(

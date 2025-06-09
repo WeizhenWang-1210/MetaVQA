@@ -32,6 +32,8 @@ class TrafficMode:
 
     # Hybrid, some vehicles are triggered once on map and disappear when arriving at destination, others exist all time
     Hybrid = "hybrid"
+
+
 class NewAssetPGTrafficManager(PGTrafficManager):
     VEHICLE_GAP = 10  # m
 
@@ -96,7 +98,9 @@ class NewAssetPGTrafficManager(PGTrafficManager):
                 long = self.np_random.rand() * lane.length / 2
                 traffic_v_config = {"spawn_lane_index": lane_idx, "spawn_longitude": long}
                 if vehicle_type == CustomizedCar:
-                    new_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info = asset_metainfo)
+                    new_v = self.spawn_object(
+                        vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info=asset_metainfo
+                    )
                 else:
                     new_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config)
                 from metadrive.policy.idm_policy import IDMPolicy
@@ -126,7 +130,9 @@ class NewAssetPGTrafficManager(PGTrafficManager):
                 if use_original_vehicle:
                     random_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config)
                 else:
-                    random_v = self.spawn_object(vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info=asset_info)
+                    random_v = self.spawn_object(
+                        vehicle_type, vehicle_config=traffic_v_config, test_asset_meta_info=asset_info
+                    )
                 from metadrive.policy.idm_policy import IDMPolicy
                 self.add_policy(random_v.id, IDMPolicy, random_v, self.generate_seed())
                 self._traffic_vehicles.append(random_v)

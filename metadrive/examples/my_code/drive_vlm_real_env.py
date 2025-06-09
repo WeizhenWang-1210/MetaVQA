@@ -18,6 +18,7 @@ from metadrive.envs.scenario_env import ScenarioEnv
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy, InterventionPolicy
 import json
 
+
 def string2choices(control):
     if control == "TURN_LEFT":
         return "(A)"
@@ -37,6 +38,7 @@ def string2choices(control):
         return "(H)"
     else:
         raise ValueError
+
 
 def control2string(control):
     if control[0] == 0.15 and control[1] == 0.8:
@@ -116,8 +118,7 @@ def borderline(im_array):
     return im_array
 
 
-def render_text(text, font=cv2.FONT_HERSHEY_DUPLEX, font_scale=3, font_color=(0, 0, 0), thickness=2,
-                line_spacing=1.5):
+def render_text(text, font=cv2.FONT_HERSHEY_DUPLEX, font_scale=3, font_color=(0, 0, 0), thickness=2, line_spacing=1.5):
     """
     Render text on an image with automatic line breaks and scaling.
     """
@@ -206,6 +207,7 @@ def warning(text, image, size=40):
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 
+
 def find_navigation(prompt):
     pattern = r". Currently"
     cleaned_prompt = re.sub(pattern, ".\nCurrently", prompt)
@@ -218,10 +220,7 @@ def find_navigation(prompt):
     return cleaned_prompt
 
 
-
-def overlay_wrapped(
-        image, text, font_path="arial.ttf", font_size=50, text_color=(0, 0, 0), margin=20, line_spacing=8
-):
+def overlay_wrapped(image, text, font_path="arial.ttf", font_size=50, text_color=(0, 0, 0), margin=20, line_spacing=8):
     """
     Draw wrapped text on an image with PIL.ImageDraw.
 
@@ -247,10 +246,8 @@ def overlay_wrapped(
     # Wrap the text into lines
     lines = []
 
-
-
     for idx, line in enumerate(text.split("\n")):
-        if idx == len(text.split("\n"))-1:
+        if idx == len(text.split("\n")) - 1:
             lines.append("\n")
         lines.extend(textwrap.wrap(line, width=100))  # Adjust width based on approximate characters per line
         if idx == 0:
@@ -265,7 +262,7 @@ def overlay_wrapped(
         line_height = bbox[3] - bbox[1]  # Height
 
         # Draw the text
-        if idx == len(lines)-1:
+        if idx == len(lines) - 1:
             draw.text((margin, y), line, fill=text_color, font=emphasized_font, stroke_width=1)
         elif idx == 2 or idx == 3 or idx == 4:
             draw.text((margin, y), line, fill=text_color, font=font, stroke_width=1)
@@ -280,6 +277,7 @@ def overlay_wrapped(
             break
     return image
 
+
 def reduce_prompt(prompt):
     import re
     pattern = r", if chosen.*\n"
@@ -289,6 +287,7 @@ def reduce_prompt(prompt):
     cleaned_prompt = re.sub(pattern, "\n", cleaned_prompt)
     cleaned_prompt = "\n".join(cleaned_prompt.split("\n")[:-1])
     return cleaned_prompt
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -304,7 +303,6 @@ if __name__ == "__main__":
     num_scenarios = 120
 
     model = "E:/closed_loops/qwen2_waymonusc"
-
 
     template = f"{model}/*/action_buffer.json"
 
@@ -336,7 +334,7 @@ if __name__ == "__main__":
         env = ScenarioEnv(
             {
                 "sequential_seed": True,
-                "use_render": False,#True,
+                "use_render": False,  #True,
                 "data_directory": data_directory,
                 "num_scenarios": num_scenarios,
                 "agent_policy": InterventionPolicy,
@@ -374,12 +372,17 @@ if __name__ == "__main__":
                 offroad = "OFFROAD" if info["out_of_road"] else ""
 
                 front_cam = np.array(Image.open(front_cams[idx // 5]).resize(size=(800, 450)))
-                front_cam = np.array(overlay(f"Scenario at t = {Inference_Time}",
-                                             Image.fromarray(front_cam), size=45))[:, :, ::-1]
+                front_cam = np.array(overlay(f"Scenario at t = {Inference_Time}", Image.fromarray(front_cam),
+                                             size=45))[:, :, ::-1]
 
                 som_obs = np.array(Image.open(observations[idx // 5]))
-                som_obs = np.array(overlay(f"Observation at t = {Inference_Time} | Action = {control2string(action)}",
-                                           Image.fromarray(som_obs), size=45))[:, :, ::-1]
+                som_obs = np.array(
+                    overlay(
+                        f"Observation at t = {Inference_Time} | Action = {control2string(action)}",
+                        Image.fromarray(som_obs),
+                        size=45
+                    )
+                )[:, :, ::-1]
 
                 prompt = prompts[idx // 5]
                 prompt = reduce_prompt(prompt)
@@ -392,18 +395,21 @@ if __name__ == "__main__":
 
                 if filename.find("trainval") != -1:
                     o = env.render(
-                        mode="top_down", target_agent_heading_up=True,
+                        mode="top_down",
+                        target_agent_heading_up=True,
                         # text=dict(Time=Time),
-                        film_size=(20000, 20000), screen_size=(800, 450)
+                        film_size=(20000, 20000),
+                        screen_size=(800, 450)
                     )
                 else:
                     o = env.render(
-                        mode="top_down", target_agent_heading_up=True, screen_size=(800, 450),
+                        mode="top_down",
+                        target_agent_heading_up=True,
+                        screen_size=(800, 450),
                         # text=dict(Time=Time)
                     )
                 top_down = o[:, :, ::-1]
-                top_down = np.array(overlay(f"Top-down at t = {Time}",
-                                            Image.fromarray(top_down), size=45))
+                top_down = np.array(overlay(f"Top-down at t = {Time}", Image.fromarray(top_down), size=45))
 
                 if collision == "" and offroad == "":
                     status = ""
@@ -452,5 +458,5 @@ if __name__ == "__main__":
             print("save video to {}".format(video_path))
             create_video(frames, video_path, fps=5)
     finally:
-        json.dump(save_dict,open("mapping.json","w"), indent=1)
+        json.dump(save_dict, open("mapping.json", "w"), indent=1)
         env.close()

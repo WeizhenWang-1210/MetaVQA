@@ -1,5 +1,5 @@
 ---
-storage_path : "/bigdata/weizhen/metavqa_release/scenarios/nusc_sim"
+storage_path : "/bigdata/weizhen/releases/MetaVQA/scenarios/nusc_sim"
 sample_frequency: 5
 num_samples: 100000000000
 max_iterations: 100000000000000000

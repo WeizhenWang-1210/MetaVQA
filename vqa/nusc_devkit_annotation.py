@@ -13,48 +13,13 @@ import os
 from nuscenes.eval.common.utils import quaternion_yaw
 from PIL import Image
 import tqdm
-
-ALL_TYPE = {
-    "noise": 'noise',
-    "human.pedestrian.adult": 'Pedestrian',
-    "human.pedestrian.child": 'Pedestrian',
-    "human.pedestrian.wheelchair": 'Wheelchair',
-    "human.pedestrian.stroller": 'Stroller',
-    "human.pedestrian.personal_mobility": 'p.mobility',
-    "human.pedestrian.police_officer": 'Police_officer',
-    "human.pedestrian.construction_worker": 'Construction_worker',
-    "animal": 'Animal',
-    "vehicle.car": 'Car',
-    "vehicle.motorcycle": 'Motorcycle',
-    "vehicle.bicycle": 'Bike',
-    "vehicle.bus.bendy": 'Bus',
-    "vehicle.bus.rigid": 'Bus',
-    "vehicle.truck": 'Truck',
-    "vehicle.construction": 'Construction_vehicle',
-    "vehicle.emergency.ambulance": 'Ambulance',
-    "vehicle.emergency.police": 'Policecar',
-    "vehicle.trailer": 'Trailer',
-    "movable_object.barrier": 'Barrier',
-    "movable_object.trafficcone": 'Cone',
-    "movable_object.pushable_pullable": 'push/pullable',
-    "movable_object.debris": 'debris',
-    "static_object.bicycle_rack": 'bicycle racks',
-    "flat.driveable_surface": 'driveable',
-    "flat.sidewalk": 'sidewalk',
-    "flat.terrain": 'terrain',
-    "flat.other": 'flat.other',
-    "static.manmade": 'manmade',
-    "static.vegetation": 'vegetation',
-    "static.other": 'static.other',
-    "vehicle.ego": "ego"
-}
+from vqa.macros import IGNORED_NUSC_TYPE, ALL_NUSC_TYPE, NUSC_EGO_SHAPE, NUSC_VERSION, NUSC_PATH
 
 
-IGNORED_NUSC_TYPE = (
-    "noise", "human.pedestrian.personal_mobility", "movable_object.pushable_pullable", "movable_object.debris",
-    "static_object.bicycle_rack", "flat.driveable_surface", "flat.sidewalk", "flat.terrain", "flat.other",
-    "static.manmade",
-    "static.vegetation", "static.other")
+
+
+
+
 
 
 def normalize_point(shape, point):
@@ -169,6 +134,12 @@ def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
 
 
 def traverse(nusc, start, steps):
+    """
+    Traverse the sample list in nusc, return the sample after `steps` steps (or we exhaust all samples).
+    :param nusc: NuScenes object
+    :param start: Starting sample
+    :param steps: Number of steps to traverse
+    :return: Sample after `steps` steps"""
     cur_sample = start
     while steps > 0 and cur_sample["next"] != "":
         cur_sample = nusc.get("sample", cur_sample["next"])
@@ -187,9 +158,8 @@ def split_ranges(start, end, chunk_size):
 
 def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
     if nusc is None:
-        nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
+        nusc = NuScenes(version=NUSC_VERSION, dataroot=NUSC_PATH, verbose=True)
     nusc_scenes = nusc.scene
-    EGO_SHAPE = (1.730, 4.084, 1.562)
     for scene_idx, nusc_scene in tqdm.tqdm(enumerate(nusc_scenes[job_range[0]:job_range[1]]),
                                            desc=f"Process-{proc_id}",
                                            total=job_range[1] - job_range[0],
@@ -255,7 +225,7 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                 # Get ego's top-down bounding box's corners in world coordinates. (4,2)
                 ego_box_world_bottom = Box(
                     center=ego_translation,
-                    size=EGO_SHAPE,
+                    size=NUSC_EGO_SHAPE,
                     orientation=Quaternion(ego_rotation),
                     name="EGO"
                 ).bottom_corners()[:2, :].T
@@ -289,7 +259,7 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                         pos=instance_translations[idx][:2],
                         speed=np.linalg.norm(nusc.box_velocity(visible_boxes_token[idx])),
                         bbox=visible_boxes_world_bottom[idx].tolist(),
-                        type=ALL_TYPE[instance_types[idx]],
+                        type=ALL_NUSC_TYPE[instance_types[idx]],
                         height=sample_annotations[idx]["size"][2],
                         class_name=instance_types[idx],
                         visible=True,
@@ -305,8 +275,8 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                     pos=ego_translation[:2],
                     speed=0,
                     bbox=ego_box_world_bottom.tolist(),
-                    type=ALL_TYPE["vehicle.ego"],
-                    height=EGO_SHAPE[2],
+                    type=ALL_NUSC_TYPE["vehicle.ego"],
+                    height=NUSC_EGO_SHAPE[2],
                     class_name="vehicle.ego",
                     visible=False,
                     observing_camera=[],
@@ -371,7 +341,7 @@ def main():
     job_ranges = split_ranges(job_range[0], job_range[1], chunk_size)
     assert len(job_ranges) == num_proc and job_ranges[0][0] == job_range[0] and job_ranges[-1][1] == job_range[1]
     root = args.store_dir
-    nusc = NuScenes(version='v1.0-trainval', dataroot='/bigdata/datasets/nuscenes', verbose=True)
+    nusc = NuScenes(version=NUSC_VERSION, dataroot=NUSC_PATH, verbose=True)
     total_scenes = len(nusc.scene)
     assert args.start >=0 and args.end <= total_scenes and num_scenes <= total_scenes, "Invalid range!"
     processes = []
