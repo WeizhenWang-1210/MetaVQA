@@ -1,6 +1,7 @@
+import argparse, cv2, pickle, os, json, yaml
 from metadrive.envs.base_env import BaseEnv
 from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
-import argparse
+from collections import defaultdict
 import numpy as np
 from vqa.dataset_utils import l2_distance
 from metadrive import MetaDriveEnv
@@ -12,12 +13,9 @@ from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.engine_utils import get_engine
 from vqa.configs.NAMESPACE import OBS_HEIGHT, OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-import pickle
-from collections import defaultdict
-import cv2
-import os
-import json
-import yaml
+
+
+
 
 def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):
     def preprocess_topdown(image):
@@ -27,8 +25,10 @@ def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=
         rgb_image = np.dstack((r, g, b))
         return rgb_image
 
-    """This function will save all information regarding one frame into a single dict, and it can be saved into the 
-    buffer to log later."""
+    """
+    This function will save all information regarding one frame into a single dict, and it can be saved into the 
+    buffer to log later.
+    """
     result = dict()
     result["world"] = scene_dict
     result["lidar"] = lidar
@@ -109,11 +109,11 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
     Record an episode of observations. Note that multiple episodes can be extracted from one seed. Moreover,
     by setting episode_length to 1, you get single-frame observations.
     """
-    print("I'm in the episode! Starting at env{}, step{}".format(env.current_seed, env.episode_step))
+    print("Starting at env{}, step{}".format(env.current_seed, env.episode_step))
     total_steps = 0  # record how many steps have actually taken place in the current episode
     buffer = dict()  # Store all frame annotations for the current episode.
     env_id = ".".join(env.engine.data_manager.current_scenario_file_name.split(".")[:-1])  #env.current_seed
-    print(env_id)
+    print(f"The SN Record is {env_id}")
     env_start = env.episode_step
     depth_cam, semantic_cam = engine.sensors["depth"], engine.sensors["semantic"]
     while total_steps < episode_length:
@@ -156,9 +156,9 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
             visible_ids_set = set()
             # to be considered as observable, the object must not be black/white(reserved) and must have at least 960
             # in any of the 1920*1080 resolution camera
-            filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and not (
-                    r == 0 and g == 0 and b == 0) and (
-                                                c > MIN_OBSERVABLE_PIXEL)
+            filter = lambda r, g, b, c: not (r == 1 and g == 1 and b == 1) and \
+                                        not (r == 0 and g == 0 and b == 0) and \
+                                            (c > MIN_OBSERVABLE_PIXEL)
             Log_Mapping = dict()
             for perspective in rgb_annotations.keys():
                 visible_ids, log_mapping = get_visible_object_ids(rgb_annotations[perspective]["mask"], mapping, filter)
@@ -167,7 +167,7 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                 Log_Mapping.update(log_mapping)
 
             # Record only if there are observable objects.
-            # get all objectes within 100m of the ego(except agent)
+            # get all objectes within 75m of the ego(except agent)
             valid_objects = engine.get_objects(
                 lambda x: l2_distance(x, env.agent) <= MAX_DETECT_DISTANCE and x.id != env.agent.id and not isinstance(x, BaseTrafficLight))
             observing_camera = []
@@ -179,10 +179,9 @@ def annotate_episode(env, engine, sample_frequency, episode_length, camera, inst
                 observing_camera.append(final)
             # We will determine visibility for all valid_objects set.
             visible_mask = [True if x in visible_ids_set else False for x in valid_objects.keys()]
-            # we will annotate all objects within 50 meters with respective to ego.
+            # we will annotate all objects within 75 meters with respective to ego.
             # TODO unify annotation nomenclature with Chenda.
-            objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask,
-                                                       observing_camera)
+            objects_annotations = generate_annotations(list(valid_objects.values()), env, visible_mask, observing_camera)
             ego_annotation = genearte_annotation(env.agent, env)
             scene_annotation = dict(
                 ego=ego_annotation,
@@ -302,95 +301,96 @@ def generate_episodes(env: BaseEnv, num_points: int, sample_frequency: int, max_
         env.close()
 
 
-def annotate_scenarios():
-    # Set up the config
-    cwd = os.getcwd()
-    full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
-    try:
-        # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
-        with open(full_path, 'r') as f:
-            config = yaml.safe_load(f)
-    except Exception as e:
-        raise e
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
-    parser.add_argument("--scenarios", default=False, help="Use ScenarioNet environment", action="store_true")
-    parser.add_argument("--data_directory", type=str, default=None, help="the paths that stores the ScenarioNet data")
-    args = parser.parse_args()
-    for key, value in args.__dict__.items():
-        print("{}: {}".format(key, value))
-    if args.headless:
-        use_render = False
-    else:
-        use_render = True
-    # Setup the gymnasium environment
-    if args.scenarios:
-        from metadrive.engine.asset_loader import AssetLoader
-        asset_path = AssetLoader.asset_path
-        use_waymo = True
-        from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-        # Load the dicrectory.
-        if args.data_directory:
-            from metadrive.scenario import utils as sd_utils
-            scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
-            num_scenarios = len(scenario_summary.keys())
-        else:
-            num_scenarios = 3 if use_waymo else 10
-        env_config = {
-            "sequential_seed": True,
-            "reactive_traffic": True,
-            "use_render": use_render,
-            "data_directory": args.data_directory if args.data_directory is not None else AssetLoader.file_path(
-                asset_path, "waymo" if use_waymo else "nuscenes", unix_style=False
-            ),
-            "num_scenarios": num_scenarios,
-            "agent_policy": ReplayEgoCarPolicy,
-            "sensors": dict(
-                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
-                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
-                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
-                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
-            ),
-            "height_scale": 1
-        }
-        print("Finished reading")
-        env = ScenarioDiverseEnv(env_config)
-        env.reset(seed=0)
-    else:
-        env_config = dict(
-            use_render=use_render,
-            manual_control=True,
-            traffic_density=config["map_setting"]["traffic_density"],
-            num_scenarios=config["map_setting"]["num_scenarios"],
-            random_agent_model=False,
-            random_lane_width=True,
-            random_lane_num=True,
-            need_inverse_traffic=config["map_setting"]["inverse_traffic"],
-            on_continuous_line_done=False,
-            out_of_route_done=True,
-            vehicle_config=dict(show_lidar=False, show_navi_mark=False),
-            map=config["map_setting"]["map_size"] if config["map_setting"]["PG"] else config["map_setting"][
-                "map_sequence"],
-            start_seed=config["map_setting"]["start_seed"],
-            debug=False,
-            sensors=dict(
-                rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
-                instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
-                semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
-                depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
-            ),
-            height_scale=1
-        )
-        env = MetaDriveEnv(env_config)
-        env.reset()
-        env.agent.expert_takeover = True
-
-    generate_episodes(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
-                      max_iterations=config["max_iterations"],
-                      IO_config=dict(batch_folder=config["storage_path"], log=True),
-                      episode_length=config["episode_length"], skip_length=config["skip_length"], job_range=[2,5])
 
 
 if __name__ == "__main__":
+    def annotate_scenarios():
+        # Set up the config
+        cwd = os.getcwd()
+        full_path = os.path.join(cwd, "vqa", "configs", "scene_generation_config.yaml")
+        try:
+            # If your path is not correct, run this file with root folder based at metavqa instead of vqa.
+            with open(full_path, 'r') as f:
+                config = yaml.safe_load(f)
+        except Exception as e:
+            raise e
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--headless", default=False, help="Rendering in headless mode", action="store_true")
+        parser.add_argument("--scenarios", default=False, help="Use ScenarioNet environment", action="store_true")
+        parser.add_argument("--data_directory", type=str, default=None, help="the paths that stores the ScenarioNet data")
+        args = parser.parse_args()
+        for key, value in args.__dict__.items():
+            print("{}: {}".format(key, value))
+        if args.headless:
+            use_render = False
+        else:
+            use_render = True
+        # Setup the gymnasium environment
+        if args.scenarios:
+            from metadrive.engine.asset_loader import AssetLoader
+            asset_path = AssetLoader.asset_path
+            use_waymo = True
+            from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+            # Load the dicrectory.
+            if args.data_directory:
+                from metadrive.scenario import utils as sd_utils
+                scenario_summary, scenario_ids, scenario_files = sd_utils.read_dataset_summary(args.data_directory)
+                num_scenarios = len(scenario_summary.keys())
+            else:
+                num_scenarios = 3 if use_waymo else 10
+            env_config = {
+                "sequential_seed": True,
+                "reactive_traffic": True,
+                "use_render": use_render,
+                "data_directory": args.data_directory if args.data_directory is not None else AssetLoader.file_path(
+                    asset_path, "waymo" if use_waymo else "nuscenes", unix_style=False
+                ),
+                "num_scenarios": num_scenarios,
+                "agent_policy": ReplayEgoCarPolicy,
+                "sensors": dict(
+                    rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                    instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                    semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                    depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
+                ),
+                "height_scale": 1
+            }
+            print("Finished reading")
+            env = ScenarioDiverseEnv(env_config)
+            env.reset(seed=0)
+        else:
+            env_config = dict(
+                use_render=use_render,
+                manual_control=True,
+                traffic_density=config["map_setting"]["traffic_density"],
+                num_scenarios=config["map_setting"]["num_scenarios"],
+                random_agent_model=False,
+                random_lane_width=True,
+                random_lane_num=True,
+                need_inverse_traffic=config["map_setting"]["inverse_traffic"],
+                on_continuous_line_done=False,
+                out_of_route_done=True,
+                vehicle_config=dict(show_lidar=False, show_navi_mark=False),
+                map=config["map_setting"]["map_size"] if config["map_setting"]["PG"] else config["map_setting"][
+                    "map_sequence"],
+                start_seed=config["map_setting"]["start_seed"],
+                debug=False,
+                sensors=dict(
+                    rgb=(RGBCamera, OBS_WIDTH, OBS_HEIGHT),
+                    instance=(InstanceCamera, OBS_WIDTH, OBS_HEIGHT),
+                    semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
+                    depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
+                ),
+                height_scale=1
+            )
+            env = MetaDriveEnv(env_config)
+            env.reset()
+            env.agent.expert_takeover = True
+
+        generate_episodes(env=env, num_points=config["num_samples"], sample_frequency=config["sample_frequency"],
+                        max_iterations=config["max_iterations"],
+                        IO_config=dict(batch_folder=config["storage_path"], log=True),
+                        episode_length=config["episode_length"], skip_length=config["skip_length"], job_range=[2,5])
+
     annotate_scenarios()

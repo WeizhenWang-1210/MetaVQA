@@ -1,4 +1,5 @@
 NAMESPACE = dict(
+    # type field is not accessed Anywhere Anymore, depcreated.
     type = [
         "SUV", "sedan", "truck", "sportscar","jeep","pickup","Compact Sedan",
         "Traffic Cone", "Warning Sign", "Planar Barrier", "Vehicle", "Pedestrian",
@@ -22,3 +23,14 @@ MAX_DETECT_DISTANCE = 75
 MIN_OBSERVABLE_PIXEL = 1200
 OBS_WIDTH = 1920
 OBS_HEIGHT = 1080
+
+
+
+
+METADRIVE_TYPES = [
+    "Hatchback", "Sedan", "Pickup", "Truck", "Barrier", "Warning", "Cone", "Bike", "Pedestrian", "TrafficLight"
+]
+
+METADRIVE_COLORS = [
+    "Blue", "White", "Gray", "Red", "Orange", "Traffic Light"
+]

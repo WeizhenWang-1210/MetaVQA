@@ -1,7 +1,4 @@
-import argparse
-import os
-import yaml
-import multiprocessing
+import argparse, os, yaml, multiprocessing, json
 from metadrive import MetaDriveEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
@@ -11,23 +8,42 @@ from metadrive.component.sensors.depth_camera import DepthCamera
 from metadrive.scenario import utils as sd_utils
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+from vqa.common_utils import divide_into_intervals_exclusive
 from vqa.episodes_generation import generate_episodes
 from vqa.configs.NAMESPACE import OBS_WIDTH, OBS_HEIGHT
-import json
+
+def session_summary(path, dataset_summary_path, source, split, collision):
+    summary_dict = dict(
+        dataset_summary=dataset_summary_path,
+        source=source,
+        split=split,
+        collision=collision
+    )
+    json.dump(summary_dict, open(path, 'w'), indent=2)
 
 
 def main(data_directory, scenarios, headless, config, num_scenarios, job_range=None):
+    """
+    Main function to set up the environment and generate episodes.
+
+    Parameters:
+        data_directory (str): Path to the directory containing scenario data.
+        scenarios (bool): Whether to use ScenarioNet environment.
+        headless (bool): Whether to run the environment in headless mode.
+        config (dict): Configuration dictionary for the environment.
+        num_scenarios (int): Total number of scenarios available under `data_directory`.
+        job_range (tuple): A tuple indicating the range of jobs to process, e.g., (start, end).
+    Returns:
+        None
+    """
     # Set up the gymnasium environment
-    if headless:
-        use_render = False
-    else:
-        use_render = True
+    use_render = not headless
     if scenarios:
         asset_path = AssetLoader.asset_path
         assert job_range is not None
         env_config = {
             "sequential_seed": True,
-            "reactive_traffic": True,
+            "reactive_traffic": False,
             "use_render": use_render,
             "data_directory": data_directory if data_directory is not None else AssetLoader.file_path(
                 asset_path, "nuscenes", unix_style=False
@@ -40,13 +56,14 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                 semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
                 depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
-            "vehicle_config": dict(show_lidar=True, show_navi_mark=False, show_line_to_navi_mark=False),
-            "height_scale": 1,
+            "vehicle_config": dict(show_lidar=False, show_navi_mark=False, show_line_to_navi_mark=False),
+            "height_scale": 0.1,
         }
         print("Finished reading")
         env = ScenarioDiverseEnv(env_config)
         env.reset(seed=job_range[0])
     else:
+        # Legacy MetaDrive environment setup
         env_config = dict(
             use_render=use_render,
             manual_control=True,
@@ -69,7 +86,7 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                 semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT),
                 depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
-            height_scale=1,
+            height_scale= 0.1,
         )
         env = MetaDriveEnv(env_config)
         if not job_range:
@@ -81,31 +98,7 @@ def main(data_directory, scenarios, headless, config, num_scenarios, job_range=N
                       dict(batch_folder=config["storage_path"], log=True),
                       episode_length=config["episode_length"],
                       skip_length=config["skip_length"], job_range=job_range)
-
-
-def divide_into_intervals_exclusive(total, n, start=0):
-    # Calculate the basic size of each interval and the remainder
-    interval_size, remainder = divmod(total, n)
-    intervals = []
-    for i in range(n):
-        # Determine the exclusive end of the current interval
-        # If there's a remainder, distribute it among the first few intervals
-        end = start + interval_size + (1 if i < remainder else 0)
-        # Add the interval to the list, note that the 'end' is now exclusive
-        intervals.append((start, end))
-        # Update the start for the next interval
-        start = end
-    return intervals
-
-
-def session_summary(path, dataset_summary_path, source, split, collision):
-    summary_dict = dict(
-        dataset_summary=dataset_summary_path,
-        source=source,
-        split=split,
-        collision=collision
-    )
-    json.dump(summary_dict, open(path, 'w'), indent=2)
+    env.close()
 
 
 def normal():
@@ -179,4 +172,3 @@ if __name__ == "__main__":
         normal()
     else:
         raise NotImplementedError
-        #safety_critical()

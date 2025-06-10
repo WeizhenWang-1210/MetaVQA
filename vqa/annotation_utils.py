@@ -93,15 +93,19 @@ def annotate_collision(obj):
     return result
 
 
-def get_visible_object_ids(imgs: np.array, mapping: dict(), filter: Callable) -> Iterable[str]:
-    '''
-    imgs: np.array(H,W,C), the observation by the instance segmentation camera, clipped between 0,1
-    mapping: dictionary mapping (r,g,b) to object id. Note that each float is rounded to 5 points
-    filter: boolean function to filter out certain colors. Takes a tuple (r,g,b) and an int c 
+def get_visible_object_ids(imgs: np.array, mapping: dict, filter: Callable) -> Iterable[str]:
+    """
+    Find all visible objects' ids in the `img` array, which is the observation of the instance segmentation camera.
+
+    Args: 
+        imgs (np.array): In the shape of H,W,C the observation by the instance segmentation camera, clipped between 0,1.
+        mapping (dict): dictionary mapping r,g,b to object id. Note that each float is rounded to 5 points.
+        filter (callable -> bool): boolean function to filter out certain colors. Takes a tuple r,g,b and an int c.
     
-    return an iterable containings the ids of all visible items, mapping of all objects to their respective colors
-    note that objects can be considered "invisible" by having few pixels observed.
-    '''
+    Returns:
+        an iterable containings the ids of all visible items, mapping of all objects to their respective colors note that objects can be considered "invisible" by having few pixels observed.
+   
+    """
     flattened = imgs.reshape(-1, imgs.shape[2])
     unique_colors, counts = np.unique(flattened, axis=0, return_counts=True)
     unique_colors, counts = unique_colors.tolist(), counts.tolist()
@@ -111,8 +115,7 @@ def get_visible_object_ids(imgs: np.array, mapping: dict(), filter: Callable) ->
         {mapping[unique_colors_processed[i]]: unique_colors_filtered[i] for i in range(len(unique_colors_processed))}
 
 
-def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_mask: List[bool] = [False],
-                         observing_camera=[[]]) -> Iterable[dict]:
+def generate_annotations(objects: Iterable[BaseObject], env: BaseEnv, visible_mask: List[bool] = [False], observing_camera=[[]]) -> Iterable[dict]:
     result = []
     for idx, obj in enumerate(objects):
         g_min_point, g_max_point = obj.origin.getTightBounds()

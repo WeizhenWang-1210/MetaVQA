@@ -212,7 +212,7 @@ def paired_logging(headless, data_dir, num_scenarios, config, seeds):
     env = ScenarioDiverseEnv(
         {
             "sequential_seed": True,
-            "reactive_traffic": True,
+            "reactive_traffic": False,
             "use_render": not headless,
             "data_directory": data_dir,
             "num_scenarios": num_scenarios,
@@ -223,7 +223,7 @@ def paired_logging(headless, data_dir, num_scenarios, config, seeds):
                 depth=(DepthCamera, OBS_WIDTH, OBS_HEIGHT),
                 semantic=(SemanticCamera, OBS_WIDTH, OBS_HEIGHT)
             ),
-            "height_scale": 1
+            "height_scale": 0.1
         }
     )
     env.reset()
