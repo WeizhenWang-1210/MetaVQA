@@ -1,8 +1,7 @@
 from collections import defaultdict
 from typing import Iterable, Callable
-from vqa.object_node import ObjectNode, transform, TemporalNode, transform_vec
-from vqa.dataset_utils import transform_heading
-import numpy as np
+from vqa.vqagen.object_node import ObjectNode, transform, TemporalNode, transform_vec
+from vqa.vqagen.dataset_utils import transform_heading
 
 
 def color_wrapper(colors: Iterable[str]) -> Callable:

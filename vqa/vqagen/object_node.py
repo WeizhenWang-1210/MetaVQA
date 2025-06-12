@@ -1,7 +1,8 @@
 from collections import defaultdict
 import numpy as np
-from vqa.dataset_utils import dot, get_distance, norm, position_frontback_relative_to_obj1, \
+from vqa.vqagen.dataset_utils import dot, norm, position_frontback_relative_to_obj1, \
     position_left_right_relative_to_obj1, majority_true
+from vqa.vqagen.geometric_utils import get_distance
 from typing import Iterable, Tuple, List, Union
 
 

@@ -2,8 +2,8 @@ from typing import Any, Iterable, Union, Callable
 from relic.vqa.functionals import color_wrapper, type_wrapper, state_wrapper, action_wrapper, pos_wrapper, count, \
     CountGreater, CountEqual, Identity, locate_wrapper, extract_color, extract_type, extract_color_unique, \
     extract_type_unique
-from vqa.scene_graph import SceneGraph
-from vqa.object_node import ObjectNode
+from vqa.vqagen.scene_graph import SceneGraph
+from vqa.vqagen.object_node import ObjectNode
 from relic.vqa.grammar import STATIC_GRAMMAR
 import random
 import json
@@ -11,7 +11,7 @@ import argparse
 import os
 from relic.vqa.visualization import generate_highlighted
 from collections import defaultdict
-from vqa.object_node import transform, nodify
+from vqa.vqagen.object_node import transform, nodify
 
 GRAMMAR = STATIC_GRAMMAR
 
@@ -819,7 +819,7 @@ def main():
             scene_dict = json.load(scene_file)
     except Exception as e:
         raise e
-    from vqa.scene_graph import nodify
+    from vqa.vqagen.scene_graph import nodify
     agent_id, nodes = nodify(scene_dict)
     graph = SceneGraph(agent_id, nodes, folder="some/5_80_119/5_100/world_5_100")
     # episode_graph = EpisodicGraph()

@@ -8,14 +8,14 @@ from collections import deque
 import cv2
 import os
 import json
-from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import pickle
 from collections import defaultdict
-from vqa.dataset_utils import l2_distance
+from vqa.vqagen.dataset_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.sensors.instance_camera import InstanceCamera
-from vqa.episodes_generation import postprocess_annotation
-from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
+from vqa.scenegen.metadrive_annotation import postprocess_annotation
+from vqa.configs.namespace import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 
 
 def find_collision_step(env):

@@ -1,16 +1,22 @@
-import argparse, os, yaml, multiprocessing, json
+import argparse
+import json
+import multiprocessing
+import os
+import yaml
+
 from metadrive import MetaDriveEnv
-from metadrive.envs.scenario_env import ScenarioDiverseEnv
-from metadrive.component.sensors.rgb_camera import RGBCamera
-from metadrive.component.sensors.instance_camera import InstanceCamera
-from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
-from metadrive.scenario import utils as sd_utils
+from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.rgb_camera import RGBCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.engine.asset_loader import AssetLoader
+from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-from vqa.common_utils import divide_into_intervals_exclusive
-from vqa.episodes_generation import generate_episodes
-from vqa.configs.NAMESPACE import OBS_WIDTH, OBS_HEIGHT
+from metadrive.scenario import utils as sd_utils
+from vqa.configs.namespace import OBS_WIDTH, OBS_HEIGHT
+from vqa.scenegen.metadrive_annotation import generate_episodes
+from vqa.utils.common_utils import divide_into_intervals_exclusive
+
 
 def session_summary(path, dataset_summary_path, source, split, collision):
     summary_dict = dict(

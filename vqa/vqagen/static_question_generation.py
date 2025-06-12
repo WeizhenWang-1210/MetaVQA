@@ -5,12 +5,12 @@ from som.grounding_question import generate_grounding, grounding_ablations, SETT
 from som.parameterized_questions import parameterized_generate
 from som.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
 from som.utils import enumerate_frame_labels, get, fill_in_label
-from som.masking import labelframe, static_id2label
-from vqa.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect
-from vqa.scene_graph import SceneGraph
-from vqa.dataset_utils import get_distance
-from vqa.dataset_utils import transform_heading
-from vqa.configs.NAMESPACE import NAMESPACE, POSITION2CHOICE
+from vqa.vqagen.set_of_marks import labelframe, static_id2label
+from vqa.vqagen.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect
+from vqa.vqagen.scene_graph import SceneGraph
+from vqa.vqagen.geometric_utils import get_distance
+from vqa.vqagen.dataset_utils import transform_heading
+from vqa.configs.namespace import NAMESPACE, POSITION2CHOICE
 
 
 

@@ -1,18 +1,16 @@
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-from metadrive.component.sensors.rgb_camera import RGBCamera
 from collections import deque
 import cv2
 import os
 import json
-from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import pickle
 from collections import defaultdict
-from vqa.dataset_utils import l2_distance
+from vqa.vqagen.dataset_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
-from metadrive.component.sensors.instance_camera import InstanceCamera
-from vqa.episodes_generation import postprocess_annotation
+from vqa.scenegen.metadrive_annotation import postprocess_annotation
 
 
 def find_collision_step(env):

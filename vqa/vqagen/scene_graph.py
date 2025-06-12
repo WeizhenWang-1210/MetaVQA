@@ -1,10 +1,10 @@
 import math
 from typing import Iterable
 from collections import defaultdict
-from vqa.object_node import ObjectNode, TemporalNode
+from vqa.vqagen.object_node import ObjectNode, TemporalNode
 import json
-from vqa.dataset_utils import transform_heading
-from vqa.object_node import transform_vec
+from vqa.vqagen.dataset_utils import transform_heading
+from vqa.vqagen.object_node import transform_vec
 
 
 class SceneGraph:
@@ -279,7 +279,6 @@ class TemporalGraph:
         }
 
     def export_trajectories(self, ego=False):
-        from vqa.object_node import transform
         center_traj = {}
         bbox_traj = {}
         heading_traj = {}

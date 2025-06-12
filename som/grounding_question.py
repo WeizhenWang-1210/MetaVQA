@@ -1,14 +1,14 @@
+import itertools
 import json
 import os
 import random
+
 import numpy as np
 import tqdm
-from som.masking import grounding_labelframe
+
 from som.qa_utils import create_options, create_multiple_choice
 from som.utils import enumerate_frame_labels
-import itertools
-
-
+from vqa.vqagen.set_of_marks import grounding_labelframe
 
 TEXTSCALES=(0.75,1.25)
 FORMS=("box", "mask", "contour")

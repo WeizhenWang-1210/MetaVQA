@@ -12,7 +12,7 @@
 # DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # METAVQA_DIR="$(dirname "$DIR")"
 # cd $METAVQA_DIR;
-# python -m vqa.nusc_devkit_annotation --start $START_IDX --end $END_IDX --num_proc $NUM_PROC --store_dir $SAVE_DIR
+# python -m vqa.scenegen.nusc_devkit_annotation --start $START_IDX --end $END_IDX --num_proc $NUM_PROC --store_dir $SAVE_DIR
 
 # # 2 nusc sim scenario annotations.
 # SAVE_DIR is specified in config.
@@ -23,7 +23,7 @@
 # END_IDX=408
 # NUM_PROC=1
 # cd $METAVQA_DIR;
-# python -m vqa.find_nuscenes_observation --headless --num_proc $NUM_PROC --config $CONFIG --start $START_IDX --end $END_IDX
+# python -m vqa.scenegen.nusc_metadrive_annotation --headless --num_proc $NUM_PROC --config $CONFIG --start $START_IDX --end $END_IDX
 
 
 # 3 waymo sim scenario annotations.
@@ -43,7 +43,7 @@ cd $METAVQA_DIR;
 for path in "${paths[@]}"; do
     if [ -d "$path" ]; then
         echo "Working on $path."
-        python -m vqa.multiprocess_episodes_generation --headless --num_proc $NUM_PROC \
+        python -m vqa.scenegen.multiprocess_metadrive_annotation --headless --num_proc $NUM_PROC \
         --scenarios --data_directory "$path" --config $CONFIG --source "waymo" --split ""\
         --start $START_IDX --end $END_IDX
     else

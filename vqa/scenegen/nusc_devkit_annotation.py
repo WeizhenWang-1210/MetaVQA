@@ -1,25 +1,21 @@
-from nuscenes.nuscenes import NuScenes
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.path import Path
 import copy
-from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
-from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibility
-from pyquaternion import Quaternion
-from vqa.configs.NAMESPACE import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-from som.masking import find_areas
 import json
 import os
-from nuscenes.eval.common.utils import quaternion_yaw
-from PIL import Image
+
+import matplotlib.pyplot as plt
+import numpy as np
 import tqdm
-from vqa.macros import IGNORED_NUSC_TYPE, ALL_NUSC_TYPE, NUSC_EGO_SHAPE, NUSC_VERSION, NUSC_PATH
+from PIL import Image
+from matplotlib.path import Path
+from nuscenes.eval.common.utils import quaternion_yaw
+from nuscenes.nuscenes import NuScenes
+from nuscenes.utils.data_classes import Box
+from nuscenes.utils.geometry_utils import view_points, BoxVisibility
+from pyquaternion import Quaternion
 
-
-
-
-
-
+from vqa.vqagen.set_of_marks import find_areas
+from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
+from vqa.scenegen.macros import IGNORED_NUSC_TYPE, ALL_NUSC_TYPE, NUSC_EGO_SHAPE, NUSC_VERSION, NUSC_PATH
 
 
 def normalize_point(shape, point):
@@ -116,7 +112,7 @@ def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
         final_result = np.where(bmask_3d, individual_mask, final_result)
     combined_image_pil = Image.fromarray(final_result.astype('uint8'))
 
-    #further processing to account for observable pixels after occlusion.
+    # further processing to account for observable pixels after occlusion.
     areas, masks = find_areas(img=final_result.astype('uint8'), colors=[tuple(val) for val in color_mapping.values()])
     new_color_mapping = {}
     new_corners_mapping = {}
@@ -125,7 +121,7 @@ def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
             new_color_mapping[key] = value
             new_corners_mapping[key] = corners_mapping[key]
         else:
-            visibilities_copy[key] = False  #key here is the old indices consistent in visibilities.
+            visibilities_copy[key] = False  # key here is the old indices consistent in visibilities.
 
     # fig, axes = plt.subplots(figsize=(1600 / 100, 900 / 100), dpi=100)
     # axes.imshow(combined_image_pil)
@@ -172,10 +168,10 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
         frame_annotations = {}
         scene_name = nusc_scene["name"]
         scene_length = nusc_scene["nbr_samples"]
-        #TODO create scene-consistent color mapping.
+        # TODO create scene-consistent color mapping.
         for frame_idx in tqdm.tqdm(range(scene_length),
                                    desc=f"Process-{proc_id}, annotating {scene_name} with {scene_length} frames",
-                                   unit="frame"):  #while frame_idx < nusc_scene["nbr_samples"]:
+                                   unit="frame"):  # while frame_idx < nusc_scene["nbr_samples"]:
             # Get CAM_FRONT data
             cam_front_sample_data = nusc.get("sample_data", sample["data"]["CAM_FRONT"])
             # Get the path to img, bboxes, and camera_instrinsics.
@@ -230,9 +226,10 @@ def job(job_range=[1, 2], root="./", nusc=None, proc_id=0):
                     name="EGO"
                 ).bottom_corners()[:2, :].T
                 medium_visible_indices = []
-                #first, filter out some clearly none-visible objects.
+                # first, filter out some clearly none-visible objects.
                 for idx, box in enumerate(visible_boxes):
-                    if num_lidar_points[idx] < 5 or visibility_levels[idx]["token"] not in ["3", "4"] or distance_to_ego[idx] > MAX_DETECT_DISTANCE:
+                    if num_lidar_points[idx] < 5 or visibility_levels[idx]["token"] not in ["3", "4"] or \
+                            distance_to_ego[idx] > MAX_DETECT_DISTANCE:
                         medium_visible_indices.append(False)
                     else:
                         medium_visible_indices.append(True)
@@ -343,7 +340,7 @@ def main():
     root = args.store_dir
     nusc = NuScenes(version=NUSC_VERSION, dataroot=NUSC_PATH, verbose=True)
     total_scenes = len(nusc.scene)
-    assert args.start >=0 and args.end <= total_scenes and num_scenes <= total_scenes, "Invalid range!"
+    assert args.start >= 0 and args.end <= total_scenes and num_scenes <= total_scenes, "Invalid range!"
     processes = []
     for proc_id in range(num_proc):
         print(f"Sending job {proc_id}")

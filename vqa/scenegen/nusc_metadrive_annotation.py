@@ -1,20 +1,30 @@
-import argparse, json, re, os, cv2, multiprocessing, pickle, yaml
+import argparse
+import json
+import multiprocessing
+import os
+import pickle
+import re
 from collections import defaultdict
-from PIL import Image 
+
+import cv2
+import yaml
+from PIL import Image
 from tqdm import tqdm
-from metadrive.envs.scenario_env import ScenarioDiverseEnv
-from metadrive.component.sensors.rgb_camera import RGBCamera
-from metadrive.component.sensors.instance_camera import InstanceCamera
+
 from metadrive.component.sensors.depth_camera import DepthCamera
+from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
-from metadrive.scenario import utils as sd_utils
+from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-from vqa.common_utils import divide_list_into_n_chunks
-from vqa.dataset_utils import l2_distance
-from vqa.episodes_generation import get_visible_object_ids, generate_annotations, genearte_annotation, postprocess_annotation
-from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
-from vqa.macros import NUSCENES_SN_PATH, PAIRING_PATH
+from metadrive.scenario import utils as sd_utils
+from vqa.configs.namespace import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
+from vqa.scenegen.macros import NUSCENES_SN_PATH, PAIRING_PATH
+from vqa.scenegen.metadrive_annotation import get_visible_object_ids, generate_annotations, genearte_annotation, \
+    postprocess_annotation
+from vqa.utils.common_utils import divide_list_into_n_chunks
+from vqa.vqagen.dataset_utils import l2_distance
 
 PAIRED_OBSERVATION = json.load(open(PAIRING_PATH, "r"))
 

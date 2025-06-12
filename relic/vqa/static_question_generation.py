@@ -2,9 +2,9 @@ import json
 import os
 from relic.vqa.grammar import NO_COLOR_STATIC, NO_TYPE_STATIC
 from relic.vqa.grammar import STATIC_GRAMMAR
-from vqa.object_node import nodify
-from vqa.object_node import transform
-from vqa.scene_graph import SceneGraph
+from vqa.vqagen.object_node import nodify
+from vqa.vqagen.object_node import transform
+from vqa.vqagen.scene_graph import SceneGraph
 from relic.vqa.static_question_generator import QuerySpecifier, NAMED_MAPPING
 
 

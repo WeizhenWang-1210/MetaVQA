@@ -1,20 +1,25 @@
-import argparse, cv2, pickle, os, json, yaml
-from metadrive.envs.base_env import BaseEnv
-from vqa.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+import argparse
+import cv2
+import json
+import os
+import pickle
+import yaml
 from collections import defaultdict
+
 import numpy as np
-from vqa.dataset_utils import l2_distance
+
 from metadrive import MetaDriveEnv
-from metadrive.envs.scenario_env import ScenarioDiverseEnv
-from metadrive.component.sensors.rgb_camera import RGBCamera
-from metadrive.component.sensors.instance_camera import InstanceCamera
-from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.sensors.depth_camera import DepthCamera
+from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.rgb_camera import RGBCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.engine.engine_utils import get_engine
-from vqa.configs.NAMESPACE import OBS_HEIGHT, OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-
-
+from metadrive.envs.base_env import BaseEnv
+from metadrive.envs.scenario_env import ScenarioDiverseEnv
+from vqa.configs.namespace import OBS_HEIGHT, OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
+from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.vqagen.dataset_utils import l2_distance
 
 
 def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):

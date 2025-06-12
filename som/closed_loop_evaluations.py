@@ -6,9 +6,9 @@ from collections import defaultdict
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.policy.replay_policy import InterventionPolicy
 from som.closed_loop_utils import computeADE, computeFDE
-from vqa.configs.NAMESPACE import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-from vqa.dataset_utils import l2_distance
-from vqa.annotation_utils import get_visible_object_ids
+from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
+from vqa.vqagen.dataset_utils import l2_distance
+from vqa.scenegen.annotation_utils import get_visible_object_ids
 import numpy as np
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from som.navigation import get_trajectory, dynamic_get_navigation_signal, dest_navigation_signal
@@ -48,7 +48,7 @@ sys.path.append('/home/chenda/lmms-finetune/chenda_scripts/')
 sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
 from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model
-from som.masking import find_center, put_text, put_rectangle
+from vqa.vqagen.set_of_marks import find_center, put_text, put_rectangle
 import random
 
 

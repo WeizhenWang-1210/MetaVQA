@@ -1,8 +1,8 @@
-from vqa.scene_graph import TemporalGraph
-from vqa.object_node import TemporalNode, transform_vec, box_overlap, box_trajectories_overlap
+from vqa.vqagen.scene_graph import TemporalGraph
+from vqa.vqagen.object_node import TemporalNode, box_overlap, box_trajectories_overlap
 from typing import Tuple, Iterable
-from vqa.dataset_utils import sample_keypoints
-from vqa.object_node import extrapolate_bounding_boxes
+from vqa.vqagen.dataset_utils import sample_keypoints
+from vqa.vqagen.object_node import extrapolate_bounding_boxes
 import numpy as np
 
 
@@ -39,7 +39,7 @@ def counterfactual_trajectory(graph, injected_trajectory):
     return True
 
 
-from vqa.dataset_utils import generate_stopped_trajectory
+from vqa.vqagen.dataset_utils import generate_stopped_trajectory
 
 
 def counterfactual_stop(graph, stop_step):

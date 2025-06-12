@@ -44,10 +44,6 @@ def l2_distance(o1: BaseObject, o2: BaseObject) -> float:
     return np.sqrt((pos_1[0] - pos_2[0]) ** 2 + (pos_1[1] - pos_2[1]) ** 2)
 
 
-def get_distance(pos_1: list, pos_2: list) -> float:
-    return np.sqrt((pos_1[0] - pos_2[0]) ** 2 + (pos_1[1] - pos_2[1]) ** 2)
-
-
 def extend_bbox(bbox: Iterable[Iterable[float]], z: float) -> Iterable[Iterable[float]]:
     """
     Provided bbox of from the top-down view and the height of the bx, return a 3-d bounding box

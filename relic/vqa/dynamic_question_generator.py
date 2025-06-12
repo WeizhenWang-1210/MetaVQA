@@ -1,5 +1,5 @@
 from typing import Union
-from vqa.scene_graph import TemporalGraph
+from vqa.vqagen.scene_graph import TemporalGraph
 from relic.vqa.static_question_generator import Tree, Query
 from collections import defaultdict
 from relic.vqa.grammar import CFG_GRAMMAR, NO_STATE_CFG
@@ -13,7 +13,7 @@ from relic.vqa.functionals import is_stationary, count, \
     accelerated
 
 from typing import Callable
-from vqa.object_node import transform
+from vqa.vqagen.object_node import transform
 
 
 class DynamicQuerySpecifier:

@@ -1,43 +1,14 @@
-import json, traceback, cv2, glob, os
-import numpy as np
+import cv2
+import glob
+import json
+import os
 from typing import List
+
+import numpy as np
 from tqdm import tqdm
-from vqa.dataset_utils import get_distance
-from vqa.configs.NAMESPACE import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL
 
-def contrastive_color(image, center):
-    center = center[1], center[0]
-    surrounding_size = 10  # Number of pixels around the center to sample
-    height, width, _ = image.shape
-
-    # Get the surrounding pixels' coordinates (clamp to image boundaries)
-    y, x = center
-    y_min = max(0, y - surrounding_size)
-    y_max = min(height, y + surrounding_size + 1)
-    x_min = max(0, x - surrounding_size)
-    x_max = min(width, x + surrounding_size + 1)
-    # Sample the surrounding pixels' colors
-    surrounding_pixels = image[y_min:y_max, x_min:x_max]
-    # Calculate the mean color of the surrounding pixels
-    average_color = surrounding_pixels.mean(axis=(0, 1))
-    # Determine a contrastive color (simple inversion approach)
-    contrastive_color = 255 - average_color  # Invert the color for contrast
-    # Convert to integer tuple for OpenCV color usage
-    contrastive_color = tuple([int(c) for c in list(contrastive_color)])
-    return contrastive_color
-
-
-def contrastive_background(rgb):
-    """
-    Borrowed from Microsoft's implementation of Set of Marks
-    :param rgb:
-    :return: (0,0,0) or (255,255,255)
-    """
-    R, G, B = rgb
-    # Calculate the Y value
-    Y = 0.299 * R + 0.587 * G + 0.114 * B
-    # If Y value is greater than 128, it's closer to white so return black. Otherwise, return white.
-    return (0, 0, 0)
+from vqa.configs.namespace import MAX_DETECT_DISTANCE
+from vqa.vqagen.geometric_utils import get_distance
 
 
 def find_center(bitmask):
@@ -99,7 +70,7 @@ def put_text(image, text, center, color=(255, 255, 255), font_scale=0.75, backgr
     top_left = (x + text_width, y - text_height)
     # Set the background color (e.g., white) and text color (e.g., black)
     if not background_color:
-        background_color = contrastive_background(color)
+        background_color = background_color(color)
     text_color = color  # Black
     # Draw the filled rectangle (background) around the text
     cv2.rectangle(image, center, top_left, background_color, thickness=-1)
@@ -125,7 +96,7 @@ def put_rectangle(image, text, center, color=(255, 255, 255), font_scale=0.75):
 def find_areas(img: np.array, colors: List, mode="RGB"):
     """
     Find the areas occupied by each color in <colors> in <img>. Default color indexing is "RGB"
-    :param img: (H, W, C) numpy array
+    :param img: (H, W, C) numpy array, in np.float32
     :param colors: List of colors converted to 0-255 scale
     :param mode: if in anything other than "RGB", will swap channels here
     :return: areas(int) in list and corresponding boolean bitmasks(np.array) for each color.
@@ -154,7 +125,7 @@ def find_areas(img: np.array, colors: List, mode="RGB"):
     return results, masks
 
 
-def id2label(episode_path: str, perspective: str = "front", overwrite=False):
+def temporal_id2label(episode_path: str, perspective: str = "front", overwrite=False):
     """
     Find all front-visible objects in the episode and provide them with unique labels(within the scope of this episode).
     :param perspective:
@@ -442,9 +413,6 @@ def sample_labeling():
         assert len(matches) == 1, f"Found {len(matches)} matches for {template}. Please check the template."
         id2l = json.load(open(matches[0], "r"))
         labelframe(frame_path=frame, perspective="front", id2l=id2l, font_scale=1, bounding_box=True)
-
-
-
 
 
 if __name__ == "__main__":

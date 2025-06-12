@@ -8,10 +8,10 @@ import json
 import os
 import re
 import glob
-from vqa.scene_graph import TemporalGraph
+from vqa.vqagen.scene_graph import TemporalGraph
 from relic.vqa.dynamic_question_generator import DynamicQuerySpecifier
 from relic.vqa.static_question_generator import NAMED_MAPPING
-from vqa.object_node import transform, transform_vec
+from vqa.vqagen.object_node import transform, transform_vec
 import random
 from collections import defaultdict
 import math
