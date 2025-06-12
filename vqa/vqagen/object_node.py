@@ -1,9 +1,11 @@
 from collections import defaultdict
+from typing import Iterable, Tuple, List, Union
+
 import numpy as np
+
 from vqa.vqagen.dataset_utils import dot, norm, position_frontback_relative_to_obj1, \
     position_left_right_relative_to_obj1, majority_true
 from vqa.vqagen.geometric_utils import get_distance
-from typing import Iterable, Tuple, List, Union
 
 
 class ObjectNode:
@@ -164,7 +166,8 @@ class ObjectNode:
 
 
 class TemporalNode:
-    def __init__(self, now_frame, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras, collisions, interaction=None):
+    def __init__(self, now_frame, id, type, height, positions, color, speeds, headings, bboxes, observing_cameras,
+                 collisions, interaction=None):
         # time-invariant properties
         self.now_frame = now_frame  # 0-indexed.indicate when is "now". The past is history and inclusive of now.
         self.id = id  # as defined in the metadrive env
@@ -476,8 +479,8 @@ class TemporalNode:
         return self.id
 
 
-def find_extremities(ref_heading: Iterable[float],
-                     bboxes: Iterable[Iterable], center: Iterable[float]) -> Tuple[Iterable[float], ...]:
+def find_extremities(ref_heading: Iterable[float], bboxes: Iterable[Iterable],
+                     center: Iterable[float]) -> Tuple[Iterable[float], ...]:
     """
     Find the two vertice of bbox that are the extremeties along the provided positive axis.
     """
@@ -544,7 +547,7 @@ def nodify(scene_dict: dict, multiview=True) -> Tuple[str, List[ObjectNode]]:
     return ego_id, nodes
 
 
-def transform(ego: Union[ObjectNode|TemporalNode], bbox: Iterable[Iterable[float]]) -> Iterable:
+def transform(ego: Union[ObjectNode | TemporalNode], bbox: Iterable[Iterable[float]]) -> Iterable:
     """
     Coordinate system transformation from world coordinate to ego's coordinate.
     +x being ego's heading, +y being +x rotate 90 degrees counterclockwise.
@@ -620,14 +623,15 @@ def box_trajectories_overlap(bboxes1, bboxes2):
             return True
     return False
 
+
 def box_trajectories_intersect(bboxes1, bboxes2):
     records = []
     for id1, box1 in enumerate(bboxes1):
         for id2, box2 in enumerate(bboxes2):
             if box_overlap(box1, box2):
-                records.append((id1,id2))
-    records = sorted(records, key=lambda x:min(x))
-    if len(records)>0:
+                records.append((id1, id2))
+    records = sorted(records, key=lambda x: min(x))
+    if len(records) > 0:
         """if records[0][0] < records[0][1]:
             print("2 run into 1")
         else:

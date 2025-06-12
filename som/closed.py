@@ -171,7 +171,7 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
         put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale,
-                 background_color=background_color)
+                 bg_color=background_color)
     return (base_img * 255).astype(np.uint8), id2l
 
 

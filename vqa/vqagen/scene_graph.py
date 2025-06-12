@@ -1,21 +1,19 @@
-import math
-from typing import Iterable
-from collections import defaultdict
-from vqa.vqagen.object_node import ObjectNode, TemporalNode
 import json
+import math
+from collections import defaultdict
+from typing import Iterable
+
 from vqa.vqagen.dataset_utils import transform_heading
+from vqa.vqagen.object_node import ObjectNode, TemporalNode
 from vqa.vqagen.object_node import transform_vec
 
 
 class SceneGraph:
-    def __init__(self,
-                 ego_id: str,
-                 nodes: list = [],
-                 folder: str = "./"
-                 ):
-        self.nodes: dict[str, ObjectNode] = {}
-        for node in nodes:
-            self.nodes[node.id] = node
+    def __init__(self, ego_id: str, nodes: list = None, folder: str = "./"):
+        self.nodes: dict[str, ObjectNode] = dict()
+        if nodes is not None:
+            for node in nodes:
+                self.nodes[node.id] = node
         self.ego_id: str = ego_id
         self.spatial_graph: dict = self.compute_spatial_graph()
         self.folder = folder
@@ -42,8 +40,8 @@ class SceneGraph:
             }
             ego_node = self.nodes[ego_id]
             ref_node = self.nodes[ref_id]
-            for node_id, node in self.nodes.items():
-                if node_id != ego_id:
+            for nodeId, node in self.nodes.items():
+                if nodeId != ego_id:
                     relation = ego_node.compute_relation(node, ref_node.heading)
                     side, front = relation['side'], relation['front']
                     if side == -1 and front == 0:
@@ -63,8 +61,7 @@ class SceneGraph:
                     elif side == 1 and front == 1:
                         edges['rf'].append(node.id)
                     else:
-                        # print("Erroenous Relations!\n{}:{},\n{}:{}".format(ego_node.id, ego_node.pos, node.id, node.pos))
-                        # exit()
+                        # Overlapping.
                         edges['s'].append(node.id)
             return edges
 
@@ -95,7 +92,7 @@ class SceneGraph:
 
 
 class TemporalGraph:
-    def __init__(self, framepaths, observable_at_key=True, tolerance=0.8, observation_percentage = 0.8):
+    def __init__(self, framepaths, observable_at_key=True, tolerance=0.8, observation_percentage=0.8):
         """
         We ask questions based on the observation_phase and return answr for the prediction phase
         Note that in MetaDrive each step is 0.1s
@@ -104,7 +101,7 @@ class TemporalGraph:
         Each graph will store the path to the original annotation("For statistics purpose") and also the loaded information
 
         """
-        self.observation_phase = observation_percentage # This is the percentage of frames belonging into observation. The last frame
+        self.observation_phase = observation_percentage  # This is the percentage of frames belonging into observation. The last frame
         # is "present"
         self.prediction_phase = 1.0 - self.observation_phase
         self.tolerance = tolerance  # The percentage(of observation phase) of being observable for objects to be
@@ -320,14 +317,11 @@ class TemporalGraph:
 
 
 if __name__ == "__main__":
-    EPISODE = "/bigdata/weizhen/metavqa_iclr/scenarios/waymo/0_1_50/**/world*.json"#"C:/school/Bolei/Merging/MetaVQA/test_collision/0_40_69/**/world*.json"
-    import glob
+    import pathlib, os, json
+    from vqa.vqagen.object_node import nodify
 
-    episode_folder = EPISODE
-    # episode_folder = "E:/Bolei/MetaVQA/multiview/0_30_54/**/world*.json"
-    frame_files = sorted(glob.glob(episode_folder, recursive=True))
-    # print(len(frame_files))
-    graph = TemporalGraph(frame_files)
-    print(graph.nodes.values())
-    print(graph)
-    #graph.export_trajectories()
+    repo_folder = pathlib.Path(__file__).parent.parent.parent
+    frame = os.path.join(repo_folder, "metavqa_asset/scenarios/nusc_real/scene-0517_0_39/7_4/world_7_4.json")
+    record = json.load(open(frame, "r"))
+    egoid, nodes = nodify(record)
+    scene_graph = SceneGraph(ego_id=egoid, nodes=nodes, folder=os.path.basename(frame))

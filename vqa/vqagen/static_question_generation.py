@@ -1,10 +1,14 @@
 import os, json, random, itertools, traceback, glob, tqdm, math, copy, argparse
 import numpy as np
 import multiprocessing as multp
-from som.grounding_question import generate_grounding, grounding_ablations, SETTINGS
-from som.parameterized_questions import parameterized_generate
+
+from vqa.vqagen.config import NAMED_MAPPING, FONT_SCALE, BACKGROUND, USEBOX, TYPES_WITHOUT_HEADINGS, DIRECTION_MAPPING, \
+    SECTORS
+from vqa.vqagen.grounding_question import generate_grounding, SETTINGS
+from vqa.vqagen.ablations import grounding_ablations
+from vqa.vqagen.parameterized_questions import parameterized_generate
 from som.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
-from som.utils import enumerate_frame_labels, get, fill_in_label
+from vqa.vqagen.utils import enumerate_frame_labels, get, fill_in_label
 from vqa.vqagen.set_of_marks import labelframe, static_id2label
 from vqa.vqagen.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect
 from vqa.vqagen.scene_graph import SceneGraph
@@ -15,71 +19,12 @@ from vqa.configs.namespace import NAMESPACE, POSITION2CHOICE
 
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
-NAMED_MAPPING = dict(
-                nil=dict(singular="traffic object", plural="traffic objects"),
-                Bus=dict(singular="bus", plural="buses"),
-                Caravan=dict(singular="caravan", plural="caravans"),
-                Coupe=dict(singular="coupe", plural="coupes"),
-                FireTruck=dict(singular="fire engine", plural="fire engines"),
-                Jeep=dict(singular="jeep", plural="jeeps"),
-                Pickup=dict(singular="pickup", plural="pickups"),
-                Policecar=dict(singular="police car", plural="police cars"),
-                SUV=dict(singular="SUV", plural="SUVs"),
-                SchoolBus=dict(singular="school bus", plural="school buses"),
-                Sedan=dict(singular="sedan", plural="sedans"),
-                SportCar=dict(singular="sports car", plural="sports cars"),
-                Truck=dict(singular="truck", plural="trucks"),
-                Hatchback=dict(singular="hatchback", plural="hatchbacks"),
-                Pedestrian=dict(singular="pedestrian", plural="pedestrians"),
-                vehicle=dict(singular="vehicle", plural="vehicles"),
-                Bike=dict(singular="bike", plural="bikes"),
-                Barrier=dict(singular="traffic barrier", plural="traffic barriers"),
-                Warning=dict(singular="warning sign", plural="warning signs"),
-                Cone=dict(singular="traffic cone", plural="traffic cones"),
-                #nusc additions
-                Wheelchair=dict(singular="wheel chair", plural="wheel chairs"),
-                Police_officer=dict(singular="police officer", plural="police officers"),
-                Construction_worker=dict(singular="construction worker", plural="construction workers"),
-                Animal=dict(singular="animal", plural="animals"),
-                Car=dict(singular="car", plural="cars"),
-                Motorcycle=dict(singular="motorcycle", plural="motorcycles"),
-                Construction_vehicle=dict(singular="construction vehicle", plural="construction vehicles"),
-                Ambulance=dict(singular="ambulance", plural="ambulances"),
-                Trailer=dict(singular="trailer", plural="trailers"),
-                Stroller=dict(singular="stroller", plural="strollers")
-            )
-FONT_SCALE=1
-BACKGROUND=(0,0,0)
-USEBOX=True
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
-TYPES_WITHOUT_HEADINGS=["Cone", "Barrier", "Warning", "TrafficLight", "Trailer"]
-DIRECTION_MAPPING = {
-    "l": "to the left of",
-    "r": "to the right of",
-    "f": "directly in front of",
-    "b": "directly behind",
-    "lf": "to the left and in front of",
-    "rf": "to the right and in front of",
-    "lb": "to the left and behind",
-    "rb": "to the right and behind",
-    "m": "in close proximity to"
-}
-CLOCK_TO_SECTOR = {1:"rf", 2:"rf", 3:"r", 4:"rb", 5:"rb", 6:"b", 7:"lb", 8:"lb",9:"l", 10:"lf", 11:"lf", 12:"f"}
-SECTORS = ["rf", "rb", "lb", "lf", "f", "r", "b", "l"]
 
 
 
-#{
-# l->2,3,4, lf->4,5, f->5,6,7, rf->7,8 -> r->8,9,10, rb->10 11 b->11 12 1 lb->1 2, m-determine if rays intersect with my line
-# }
-#
-# 12->f, 1->rf, 2->rf, 3->r, 4->rb, 5->rb, 6 ->b, 7->lf, 8->lb 9->l, 10 lf, 11lf
 
 
-# 345, 15 -> front; 15-75 right-front; 75->105 right; 105-165->right back; 165-195->back; 195->255->left back; 255->285 left; 285, 345->left front
-#
-
-#TODO refactor this ugly code.
 
 def identify_angle(origin_pos, origin_heading):
     def helper(search_spaces):
@@ -267,8 +212,8 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                  f"Choose the best answer from option (A) through (D): {multiple_choice_string}"])
             answer = answer2label[POSITION2CHOICE[pos]]
             explanation = "The {} {} (<{}>) is {} us.".format(color.lower(), NAMED_MAPPING[type]["singular"],
-                                                             selected_label,
-                                                             DIRECTION_MAPPING[pos])
+                                                              selected_label,
+                                                              DIRECTION_MAPPING[pos])
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "identify_heading":
         non_ego_labels = [label for label in labels if
@@ -305,11 +250,11 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             question = " ".join(
                 [question, "Choose the best answer from option (A) through (D): {}".format(multiple_choice_string)])
             explanation = "The {} {} (<{}>) {} us is facing our {} direction.".format(color.lower(),
-                                                                                             NAMED_MAPPING[type][
+                                                                                      NAMED_MAPPING[type][
                                                                                                  "singular"],
-                                                                                             selected_label,
-                                                                                             DIRECTION_MAPPING[pos],
-                                                                                             POSITION2CHOICE[heading])
+                                                                                      selected_label,
+                                                                                      DIRECTION_MAPPING[pos],
+                                                                                      POSITION2CHOICE[heading])
             ids_of_interest.append(label2id[selected_label])
     elif question_type == "pick_closer":
         non_ego_labels = [label for label in labels if label != -1]
@@ -1273,7 +1218,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
             count += frame_id
             #Seperate function to generate grounding questions
             grounding_records = generate_grounding(frame_path=frame_path, perspective=perspective, verbose=verbose,
-                                                 id2label_path=static_id2label_path, box=box, font_scale=FONT_SCALE, domain=domain)
+                                                   id2label_path=static_id2label_path, box=box, font_scale=FONT_SCALE, domain=domain)
             for g_id, record in grounding_records.items():
                 records[g_id + count] = record
                 records[g_id + count]["domain"] = domain

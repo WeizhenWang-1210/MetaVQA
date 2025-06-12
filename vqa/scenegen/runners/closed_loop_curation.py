@@ -3,14 +3,13 @@
 This script demonstrates how to use the environment where traffic and road map are loaded from Waymo dataset.
 """
 import argparse
-import random
+import json
 
 from metadrive.constants import HELP_MESSAGE
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.envs.scenario_env import ScenarioEnv
-from metadrive.scenario import utils as sd_utils
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
-import json
+from metadrive.scenario import utils as sd_utils
 
 RENDER_MESSAGE = {
     "Quit": "ESC",
@@ -18,6 +17,7 @@ RENDER_MESSAGE = {
     "Reset Episode": "R",
     "Keyboard Control": "W,A,S,D",
 }
+
 
 def inspect():
     parser = argparse.ArgumentParser()
@@ -73,22 +73,25 @@ def inspect():
         )
         env.close()
 
+
 def filter():
-    records = json.load(open("/data_weizhen/CAT/summary.json","r"))
+    records = json.load(open("/data_weizhen/CAT/summary.json", "r"))
     selected_scenarios = set()
     for scene, record in records.items():
         if record["total_step"] >= 30 and "collision" in record.keys():
             selected_scenarios.add(scene)
     string = ";\n".join(list(selected_scenarios))
-    with open("/data_weizhen/CAT/selected.txt","w") as f:
+    with open("/data_weizhen/CAT/selected.txt", "w") as f:
         f.write(string)
         f.close()
 
 
 import os
 import shutil
+
+
 def curate_cat():
-    records = json.load(open("/data_weizhen/CAT/summary.json","r"))
+    records = json.load(open("/data_weizhen/CAT/summary.json", "r"))
     src_dir = "/data_weizhen/CAT"
     target_dir = "/data_weizhen/scenarios"
     os.makedirs(target_dir, exist_ok=True)
@@ -100,8 +103,5 @@ def curate_cat():
             )
 
 
-
-
 if __name__ == "__main__":
     curate_cat()
-
