@@ -1,6 +1,6 @@
 #!/bin/bash
-SCENARIOS="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim"
-SAVEPATH="/bigdata/weizhen/metavqa_cvpr/vqas/nusc_sim/nusc_sim.json"
+SCENARIOS="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim" # Replace with your scenarios root dir.
+SAVEPATH="/bigdata/weizhen/metavqa_cvpr/vqas/nusc_sim/nusc_sim.json" # Replace with you desired VQA save path
 NUMPROC=32
 DOMAIN="sim"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
