@@ -1,8 +1,10 @@
 import math
 from typing import Iterable, Tuple
-from metadrive.base_class.base_object import BaseObject
+
 import numpy as np
 from scipy.interpolate import CubicSpline
+
+from metadrive.base_class.base_object import BaseObject
 
 
 def dot(v1: Iterable[float], v2: Iterable[float]) -> float:

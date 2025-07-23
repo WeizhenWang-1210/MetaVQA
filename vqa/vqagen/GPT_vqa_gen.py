@@ -1,8 +1,6 @@
 import asyncio
 import aiohttp
 import json
-from openai import OpenAI, AsyncOpenAI
-from collections import defaultdict
 import base64
 
 API_KEY = None

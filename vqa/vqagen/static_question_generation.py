@@ -1,22 +1,31 @@
-import os, json, random, itertools, traceback, glob, tqdm, math, copy, argparse
-import numpy as np
+import argparse
+import copy
+import glob
+import itertools
+import json
+import math
 import multiprocessing as multp
+import os
+import random
+import tqdm
+import traceback
 
+import numpy as np
+
+from vqa.configs.namespace import NAMESPACE, POSITION2CHOICE
+from vqa.vqagen.ablations import grounding_ablations
 from vqa.vqagen.config import NAMED_MAPPING, FONT_SCALE, BACKGROUND, USEBOX, TYPES_WITHOUT_HEADINGS, DIRECTION_MAPPING, \
     SECTORS
+from vqa.vqagen.dataset_utils import transform_heading
+from vqa.vqagen.geometric_utils import get_distance
 from vqa.vqagen.grounding_question import generate_grounding, SETTINGS
-from vqa.vqagen.ablations import grounding_ablations
+from vqa.vqagen.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, \
+    box_trajectories_intersect
 from vqa.vqagen.parameterized_questions import parameterized_generate
 from vqa.vqagen.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
-from vqa.vqagen.utils import enumerate_frame_labels, get, fill_in_label
-from vqa.vqagen.set_of_marks import labelframe, static_id2label
-from vqa.vqagen.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect
 from vqa.vqagen.scene_graph import SceneGraph
-from vqa.vqagen.geometric_utils import get_distance
-from vqa.vqagen.dataset_utils import transform_heading
-from vqa.configs.namespace import NAMESPACE, POSITION2CHOICE
-
-
+from vqa.vqagen.set_of_marks import labelframe, static_id2label
+from vqa.vqagen.utils import enumerate_frame_labels, get, fill_in_label
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))
