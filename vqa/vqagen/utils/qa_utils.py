@@ -15,7 +15,7 @@ def replace_substrs(original_string, mapping):
         # Extract the number n from <n>
         n = int(match.group(1))
         # Check if n is in the mapping and replace with its mapped value
-        return f"<{str(get(n, match.group(0)))}>"
+        return f"<{str(mapping.get(n, match.group(0)))}>"
 
     # Substitute using re.sub with the replacer function
     replaced_string = re.sub(pattern, replacer, original_string)
@@ -69,6 +69,18 @@ def fill_in_label(template_str: str, replacement: dict):
 
 
 def get(world, target_id):
+    """
+    world is the dictionary object you loaded using world_*.json
+    """
+    for obj in world["objects"]:
+        if obj["id"] == target_id:
+            return obj
+    if world["ego"]["id"] == target_id:
+        return world["ego"]
+    print("No object of id {} is found! Something is wrong.".format(world))
+    return None
+
+def get_from_world(world, target_id):
     """
     world is the dictionary object you loaded using world_*.json
     """
