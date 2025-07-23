@@ -8,7 +8,7 @@ from collections import deque
 import cv2
 import os
 import json
-from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.scenegen.utils.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import pickle
 from collections import defaultdict
 from vqa.vqagen.utils.metadrive_utils import l2_distance

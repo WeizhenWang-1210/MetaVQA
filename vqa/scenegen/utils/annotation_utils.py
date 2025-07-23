@@ -1,14 +1,16 @@
 from typing import Iterable, Callable, List
+
 import numpy as np
-from metadrive.envs.base_env import BaseEnv
+
 from metadrive.base_class.base_object import BaseObject
-from metadrive.component.vehicle.vehicle_type import BaseVehicle, SVehicle, MVehicle, LVehicle, XLVehicle, \
-    DefaultVehicle, StaticDefaultVehicle, VaryingDynamicsVehicle, CustomizedCar
+from metadrive.component.static_object.test_new_object import TestObject
 from metadrive.component.static_object.traffic_object import TrafficBarrier, TrafficCone, TrafficWarning
 from metadrive.component.traffic_light.scenario_traffic_light import ScenarioTrafficLight
-from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.component.traffic_participants.cyclist import Cyclist
-from metadrive.component.static_object.test_new_object import TestObject
+from metadrive.component.traffic_participants.pedestrian import Pedestrian
+from metadrive.component.vehicle.vehicle_type import BaseVehicle, SVehicle, MVehicle, LVehicle, XLVehicle, \
+    DefaultVehicle, StaticDefaultVehicle, VaryingDynamicsVehicle, CustomizedCar
+from metadrive.envs.base_env import BaseEnv
 
 
 def annotate_type(object):

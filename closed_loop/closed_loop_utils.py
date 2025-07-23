@@ -7,7 +7,7 @@ from vqa.vqagen.utils.qa_utils import angle2sector
 from vqa.vqagen.config import TYPES_WITHOUT_HEADINGS, SECTORS
 from vqa.vqagen.utils.geometric_utils import extrapolate_bounding_boxes, box_trajectories_collide, transform_vec
 from vqa.configs.namespace import POSITION2CHOICE
-from vqa.scenegen.annotation_utils import annotate_type
+from vqa.scenegen.utils.annotation_utils import annotate_type
 
 
 def computeADE(traj1, traj2):

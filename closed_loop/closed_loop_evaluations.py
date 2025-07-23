@@ -8,7 +8,7 @@ from metadrive.policy.replay_policy import InterventionPolicy
 from som.closed_loop_utils import computeADE, computeFDE
 from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from vqa.vqagen.utils.metadrive_utils import l2_distance
-from vqa.scenegen.annotation_utils import get_visible_object_ids
+from vqa.scenegen.utils.annotation_utils import get_visible_object_ids
 import numpy as np
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from som.navigation import get_trajectory, dynamic_get_navigation_signal, dest_navigation_signal

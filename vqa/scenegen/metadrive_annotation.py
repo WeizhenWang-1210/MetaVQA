@@ -1,12 +1,12 @@
 import argparse
-import cv2
 import json
 import os
 import pickle
-import yaml
 from collections import defaultdict
 
+import cv2
 import numpy as np
+import yaml
 
 from metadrive import MetaDriveEnv
 from metadrive.component.sensors.depth_camera import DepthCamera
@@ -18,7 +18,7 @@ from metadrive.engine.engine_utils import get_engine
 from metadrive.envs.base_env import BaseEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from vqa.configs.namespace import OBS_HEIGHT, OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
+from vqa.scenegen.utils.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 from vqa.vqagen.utils.metadrive_utils import l2_distance
 
 

@@ -2,6 +2,7 @@ import argparse
 import json
 import multiprocessing
 import os
+
 import yaml
 
 from metadrive import MetaDriveEnv

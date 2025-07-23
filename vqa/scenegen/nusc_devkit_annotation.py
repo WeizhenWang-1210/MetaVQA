@@ -14,9 +14,9 @@ from nuscenes.utils.geometry_utils import view_points, BoxVisibility
 from pyquaternion import Quaternion
 
 import vqa.vqagen.utils.qa_utils
-from vqa.vqagen.set_of_marks import find_areas
 from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from vqa.scenegen.macros import IGNORED_NUSC_TYPE, ALL_NUSC_TYPE, NUSC_EGO_SHAPE, NUSC_VERSION, NUSC_PATH
+from vqa.vqagen.set_of_marks import find_areas
 
 
 def normalize_point(shape, point):
