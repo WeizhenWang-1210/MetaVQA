@@ -5,10 +5,9 @@
 import tkinter as tk
 from tkinter import ttk
 from functools import partial
-
-import vqa.vqagen.utils.qa_utils
 from asset.read_config import configReader
 from metadrive.envs.test_asset_metadrive_env import TestAssetMetaDriveEnv
+from metadrive.component.static_object.traffic_object import TrafficCone, TrafficWarning
 from metadrive.component.vehicle.vehicle_type import CustomizedCar
 import json
 import os
@@ -186,7 +185,7 @@ class AutoAssetMetaInfoUpdater:
         detailed_type = self.detailed_type_var.get()
         self.save_path = f"car_{detailed_type}-{self.uid}.json"
         # Check if dimensions exist in the YAML data
-        self.dimensions = vqa.vqagen.utils.qa_utils.get(detailed_type)
+        self.dimensions = self.config.loadTypeInfo().get(detailed_type)
         if self.dimensions:
             # Set the scale or dimensions in the UI accordingly
             # Chenda:TODO: Add logic to set the scale in UI based on YAML data
@@ -373,7 +372,7 @@ class AutoAssetMetaInfoUpdater:
         - entry_var (StringVar): The Tkinter StringVar instance tied to the text entry.
         - idx (int, optional): Index of the tuple if the attribute is tuple-like.
         """
-        value = vqa.vqagen.utils.qa_utils.get()
+        value = entry_var.get()
         try:
             float_val = float(value)
             self.update_value(key, value, idx)

@@ -7,14 +7,12 @@
 import tkinter as tk
 from tkinter import ttk
 from functools import partial
-
-import vqa.vqagen.utils.qa_utils
+from metadrive.envs.metadrive_env import MetaDriveEnv
 import json
 import os
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
-
-
+from metadrive.component.static_object.traffic_object import TrafficCone, TrafficWarning
 class StaticAssetMetaInfoUpdater:
     def __init__(self, file_name, save_path=None, folder_name=None, isGLTF = False):
         self.isGLTF = isGLTF
@@ -155,7 +153,7 @@ class StaticAssetMetaInfoUpdater:
             self.entries[key].set(v)  # Update the entry with the new slider value for single value
 
     def entry_command(self, event, key, entry_var, idx=None):
-        value = vqa.vqagen.utils.qa_utils.get()
+        value = entry_var.get()
         try:
             float_val = float(value)
             self.update_value(key, value, idx)
