@@ -19,7 +19,7 @@ Methods:
 - go_to_next_asset: Skips to the next asset, discarding adjustments for the current one.
 - save_to_json: Saves the adjusted parameters to a JSON file.
 """
-import vqa.vqagen.utils.qa_utils
+from metadrive.component.traffic_participants.pedestrian import Pedestrian
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
 from asset.read_config import configReader
@@ -130,7 +130,7 @@ class AssetAdjuster:
             with open(output_filename, 'r') as f:
                 data = json.load(f)
             # Get the last set of values for this filepath, or an empty dictionary if none exists
-            return vqa.vqagen.utils.qa_utils.get(filepath, [{}])[-1]
+            return data.get(filepath, [{}])[-1]
         return {}
     def onlyStep(self, capture=False, pic_name_id=1):
         """
@@ -166,7 +166,7 @@ class AssetAdjuster:
 
         def on_entry_change(entry, scale):
             try:
-                scale_val = float(vqa.vqagen.utils.qa_utils.get())
+                scale_val = float(entry.get())
                 scale.set(scale_val)
             except ValueError:
                 pass  # You may want to provide a user feedback about invalid input
