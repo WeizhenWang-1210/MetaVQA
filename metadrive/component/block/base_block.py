@@ -1,6 +1,4 @@
 import logging
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.constants import Semantics, CameraTagStateKey
 import math
 import warnings
@@ -373,7 +371,7 @@ class BaseBlock(BaseObject, PGDrivableAreaProperty, ABC):
                 if polygons is None:
                     continue
                 for polygon in polygons:
-                    height = vqa.vqagen.utils.qa_utils.get("height", None)
+                    height = sidewalk.get("height", None)
                     if height is None:
                         height = PGDrivableAreaProperty.SIDEWALK_THICKNESS
                     z_pos = height / 2

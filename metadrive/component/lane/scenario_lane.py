@@ -2,7 +2,8 @@ import logging
 
 import numpy as np
 
-import vqa.vqagen.utils.qa_utils
+from metadrive.constants import PGDrivableAreaProperty
+import math
 
 from metadrive.component.lane.point_lane import PointLane
 from metadrive.scenario.scenario_description import ScenarioDescription
@@ -32,7 +33,7 @@ class ScenarioLane(PointLane):
         else:
             polygon = None
         if "speed_limit_kmh" in map_data[lane_id] or "speed_limit_mph" in map_data[lane_id]:
-            speed_limit_kmh = vqa.vqagen.utils.qa_utils.get("speed_limit_kmh", None)
+            speed_limit_kmh = map_data[lane_id].get("speed_limit_kmh", None)
             if speed_limit_kmh is None:
                 speed_limit_kmh = mph_to_kmh(map_data[lane_id]["speed_limit_mph"])
         else:
@@ -47,10 +48,10 @@ class ScenarioLane(PointLane):
         )
         self.index = lane_id
         self.lane_type = map_data[lane_id]["type"]
-        self.entry_lanes = vqa.vqagen.utils.qa_utils.get(ScenarioDescription.ENTRY, None)
-        self.exit_lanes = vqa.vqagen.utils.qa_utils.get(ScenarioDescription.EXIT, None)
-        self.left_lanes = vqa.vqagen.utils.qa_utils.get(ScenarioDescription.LEFT_NEIGHBORS, None)
-        self.right_lanes = vqa.vqagen.utils.qa_utils.get(ScenarioDescription.RIGHT_NEIGHBORS, None)
+        self.entry_lanes = map_data[lane_id].get(ScenarioDescription.ENTRY, None)
+        self.exit_lanes = map_data[lane_id].get(ScenarioDescription.EXIT, None)
+        self.left_lanes = map_data[lane_id].get(ScenarioDescription.LEFT_NEIGHBORS, None)
+        self.right_lanes = map_data[lane_id].get(ScenarioDescription.RIGHT_NEIGHBORS, None)
 
     @staticmethod
     def try_get_polygon(map_data, lane_id):
@@ -104,7 +105,7 @@ class ScenarioLane(PointLane):
         right_lanes = map_data[lane_id][ScenarioDescription.RIGHT_NEIGHBORS]
         left_lanes = map_data[lane_id][ScenarioDescription.LEFT_NEIGHBORS]
         if len(right_lanes) + len(left_lanes) == 0:
-            return max(sum(vqa.vqagen.utils.qa_utils.get("width", 0)), self.VIS_LANE_WIDTH)
+            return max(sum(map_data[lane_id].get("width", 0)), self.VIS_LANE_WIDTH)
         dist_to_left_lane = 0
         dist_to_right_lane = 0
         if len(right_lanes) > 0 and "feature_id" in right_lanes[0]:
