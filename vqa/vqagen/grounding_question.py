@@ -6,9 +6,8 @@ import random
 import numpy as np
 import tqdm
 
-from vqa.vqagen.qa_utils import create_options, create_multiple_choice
 from vqa.vqagen.set_of_marks import grounding_labelframe
-from vqa.vqagen.utils import enumerate_frame_labels
+from vqa.vqagen.utils.qa_utils import create_options, create_multiple_choice, enumerate_frame_labels
 
 TEXTSCALES = (0.75, 1.25)
 FORMS = ("box", "mask", "contour")

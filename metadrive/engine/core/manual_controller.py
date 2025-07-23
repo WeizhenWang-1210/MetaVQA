@@ -3,6 +3,7 @@ import math
 import numpy as np
 from direct.controls.InputState import InputState
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.utils import is_win, is_mac
 
 if (not is_win()) and (not is_mac()):
@@ -121,7 +122,7 @@ class KeyboardController(Controller):
         """This function allows the outer loop to call callback if some signal is received by the controller."""
         if (takeover_callback is None) or (not self.pygame_control) or (not pygame.get_init()):
             return
-        for event in pygame.event.get():
+        for event in vqa.vqagen.utils.qa_utils.get():
             if event.type == pygame.KEYDOWN and event.key == pygame.K_t:
                 # Here we allow user to press T for takeover callback.
                 takeover_callback()

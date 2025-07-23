@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.component.map.base_map import BaseMap
 from metadrive.component.road_network.edge_road_network import EdgeRoadNetwork
 from metadrive.component.scenario_block.scenario_block import ScenarioBlock
@@ -15,7 +16,7 @@ class ScenarioMap(BaseMap):
     def __init__(self, map_index, map_data, random_seed=None, need_lane_localization=False):
         self.map_index = map_index
         self.map_data = map_data
-        self.need_lane_localization = need_lane_localization or self.engine.global_config.get(
+        self.need_lane_localization = need_lane_localization or vqa.vqagen.utils.qa_utils.get(
             "need_lane_localization", False
         )
         super(ScenarioMap, self).__init__(dict(id=self.map_index), random_seed=random_seed)
@@ -64,7 +65,7 @@ class ScenarioMap(BaseMap):
         """
         ret = {}
         for lane_id, data in self.blocks[-1].map_data.items():
-            type = data.get("type", None)
+            type = vqa.vqagen.utils.qa_utils.get("type", None)
             map_feat_id = str(lane_id)
             if MetaDriveType.is_road_line(type):
                 if len(data[ScenarioDescription.POLYLINE]) <= 1:

@@ -1,3 +1,4 @@
+import vqa.vqagen.utils.qa_utils
 from metadrive.constants import DEFAULT_AGENT
 from metadrive.engine.logger import get_logger
 from metadrive.manager.base_manager import BaseAgentManager
@@ -39,7 +40,7 @@ class VehicleAgentManager(BaseAgentManager):
         ret = {}
         for agent_id, v_config in config_dict.items():
             v_type = random_vehicle_type(self.np_random) if self.engine.global_config["random_agent_model"] else \
-                vehicle_type[v_config["vehicle_model"] if v_config.get("vehicle_model", False) else "default"]
+                vehicle_type[v_config["vehicle_model"] if vqa.vqagen.utils.qa_utils.get("vehicle_model", False) else "default"]
 
             obj_name = agent_id if self.engine.global_config["force_reuse_object_name"] else None
             obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name)
@@ -66,7 +67,7 @@ class VehicleAgentManager(BaseAgentManager):
         if get_global_config()["agent_policy"] in [TakeoverPolicy, TakeoverPolicyWithoutBrake]:
             return get_global_config()["agent_policy"]
         if get_global_config()["manual_control"]:
-            if get_global_config().get("use_AI_protector", False):
+            if vqa.vqagen.utils.qa_utils.get("use_AI_protector", False):
                 policy = AIProtectPolicy
             else:
                 policy = ManualControlPolicy
@@ -110,7 +111,7 @@ class VehicleAgentManager(BaseAgentManager):
 
     def random_spawn_lane_in_single_agent(self):
         if not self.engine.global_config["is_multi_agent"] and \
-                self.engine.global_config.get("random_spawn_lane_index", False) and self.engine.current_map is not None:
+                vqa.vqagen.utils.qa_utils.get("random_spawn_lane_index", False) and self.engine.current_map is not None:
             spawn_road_start = self.engine.global_config["agent_configs"][DEFAULT_AGENT]["spawn_lane_index"][0]
             spawn_road_end = self.engine.global_config["agent_configs"][DEFAULT_AGENT]["spawn_lane_index"][1]
             index = self.np_random.randint(self.engine.current_map.config["lane_num"])

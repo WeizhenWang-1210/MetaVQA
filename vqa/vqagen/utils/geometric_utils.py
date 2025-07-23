@@ -3,7 +3,7 @@ from typing import Iterable, Tuple
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from vqa.vqagen.math_utils import dot, perpendicular_vectors
+from vqa.vqagen.utils.math_utils import dot, perpendicular_vectors, transform_heading
 
 
 def get_distance(pos_1: list, pos_2: list) -> float:
@@ -340,3 +340,20 @@ def transform_vec(origin, positive_x, bbox):
         return [x, y]
 
     return [change_bases(*point) for point in bbox]
+
+
+def identify_angle(origin_pos, origin_heading):
+    def helper(search_spaces):
+        import numpy as np
+        result = {}
+        for search_space in search_spaces:
+            for object in search_space:
+                angle_rotated = transform_heading(
+                    object.heading, origin_pos, origin_heading
+                )
+                angle = 2 * np.pi - angle_rotated  #so the range is now 0 to 360.
+                angle = angle % (2 * np.pi)
+                angle = np.degrees(angle)
+                result[object.id] = angle
+        return result
+    return helper

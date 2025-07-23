@@ -10,7 +10,7 @@ from som.closed_loop_evaluations import observe_som, in_forbidden_area
 import numpy as np
 from som.closed_loop_utils import computeFDE, ACTION, classify_speed
 from som.navigation import dynamic_get_navigation_signal
-from vqa.vqagen.qa_utils import split_list
+from vqa.utils.common_utils import split_list
 import traceback
 
 

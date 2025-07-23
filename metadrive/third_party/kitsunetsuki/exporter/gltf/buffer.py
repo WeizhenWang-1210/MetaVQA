@@ -17,6 +17,7 @@ import io
 import os
 import struct
 
+import vqa.vqagen.utils.qa_utils
 from . import spec
 
 
@@ -88,7 +89,7 @@ class GLTFBuffer(object):
         for i in range(len(self._channels)):
             channel = self._channels[i]
             metadata = self._metadata[i]
-            extras = metadata.get('extras') or {}
+            extras = vqa.vqagen.utils.qa_utils.get('extras') or {}
             parent_node['accessors'].append(metadata)
 
             part = channel.getbuffer()
@@ -104,8 +105,8 @@ class GLTFBuffer(object):
             data += part
 
         # embedded images + buffer views
-        for gltf_image in parent_node.get('images', []):
-            extras = gltf_image.get('extras') or {}
+        for gltf_image in vqa.vqagen.utils.qa_utils.get('images', []):
+            extras = vqa.vqagen.utils.qa_utils.get('extras') or {}
 
             part = None
 

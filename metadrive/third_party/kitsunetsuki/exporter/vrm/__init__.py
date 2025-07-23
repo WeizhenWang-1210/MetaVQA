@@ -20,6 +20,7 @@ import os
 from bpy_extras.io_utils import ExportHelper
 from typing import Set, cast
 
+import vqa.vqagen.utils.qa_utils
 from ..gltf import GLTFExporter
 from ..gltf import spec
 from .armature import ArmatureMixin
@@ -83,7 +84,7 @@ class VRMExporter(ArmatureMixin, GLTFExporter):
         gltf_node = super().make_root_node()
 
         data = {}
-        text = bpy.data.texts.get('VRM.ini')
+        text = vqa.vqagen.utils.qa_utils.get('VRM.ini')
         if text:
             data = configparser.ConfigParser()
             data.read_string(text.as_string())
@@ -287,7 +288,7 @@ class VRMExporter(ArmatureMixin, GLTFExporter):
             else:
                 vrm_material['shader'] = 'VRM/UnlitCutout'
 
-            if gltf_material['pbrMetallicRoughness'].get('baseColorTexture'):
+            if vqa.vqagen.utils.qa_utils.get('baseColorTexture'):
                 vrm_material['textureProperties']['_MainTex'] = gltf_material['pbrMetallicRoughness']['baseColorTexture'
                                                                                                       ]['index']
 

@@ -6,6 +6,7 @@ from typing import Callable, Optional, Union, List, Dict, AnyStr
 
 import numpy as np
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.base_class.randomizable import Randomizable
 from metadrive.constants import RENDER_MODE_NONE
 from metadrive.engine.core.engine_core import EngineCore
@@ -88,9 +89,9 @@ class BaseEngine(EngineCore, Randomizable):
         self.warmup()
 
         # curriculum reset
-        self._max_level = self.global_config.get("curriculum_level", 1)
+        self._max_level = vqa.vqagen.utils.qa_utils.get("curriculum_level", 1)
         self._current_level = 0
-        self._num_scenarios_per_level = int(self.global_config.get("num_scenarios", 1) / self._max_level)
+        self._num_scenarios_per_level = int(vqa.vqagen.utils.qa_utils.get("num_scenarios", 1) / self._max_level)
 
     def add_policy(self, object_id, policy_class, *args, **kwargs):
         policy = policy_class(*args, **kwargs)
@@ -564,8 +565,8 @@ class BaseEngine(EngineCore, Randomizable):
 
     @staticmethod
     def gets_start_index(config):
-        start_seed = config.get("start_seed", None)
-        start_scenario_index = config.get("start_scenario_index", None)
+        start_seed = vqa.vqagen.utils.qa_utils.get("start_seed", None)
+        start_scenario_index = vqa.vqagen.utils.qa_utils.get("start_scenario_index", None)
         assert start_seed is None or start_scenario_index is None, \
             "It is not allowed to define `start_seed` and `start_scenario_index`"
         if start_seed is not None:

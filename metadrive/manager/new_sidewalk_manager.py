@@ -3,16 +3,11 @@
 import math
 import os
 from collections import defaultdict
-from random import sample
+
+import vqa.vqagen.utils.qa_utils
 from asset.read_config import configReader
-from metadrive.component.lane.abs_lane import AbstractLane
-from metadrive.component.pgblock.curve import Curve
 from metadrive.component.pgblock.first_block import FirstPGBlock
-from metadrive.component.pgblock.ramp import InRampOnStraight, OutRampOnStraight
-from metadrive.component.pgblock.straight import Straight
-from metadrive.component.road_network import Road
-from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
-from metadrive.component.static_object.traffic_object import TrafficCone, TrafficWarning, TrafficBarrier
+from metadrive.component.static_object.test_new_object import TestObject
 from metadrive.engine.engine_utils import get_engine
 from metadrive.manager.base_manager import BaseManager
 from metadrive.constants import PGDrivableAreaProperty as DrivableAreaProperty
@@ -294,7 +289,7 @@ class SidewalkManager(BaseManager):
                             lane=lane,
                             position=lane_position,
                             static=self.engine.global_config["static_traffic_object"],
-                            heading_theta=lane.heading_theta_at(lane_position[0]) + obj['general'].get('heading', 0),
+                            heading_theta=lane.heading_theta_at(lane_position[0]) + vqa.vqagen.utils.qa_utils.get('heading', 0),
                             asset_metainfo=obj
                         )
 

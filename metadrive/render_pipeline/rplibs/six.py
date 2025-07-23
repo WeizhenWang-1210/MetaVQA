@@ -31,6 +31,8 @@ import types
 __author__ = "Benjamin Peterson <benjamin@python.org>"
 __version__ = "1.10.0"
 
+import vqa.vqagen.utils.qa_utils
+
 # Useful for very coarse version differentiation.
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
@@ -818,7 +820,7 @@ def add_metaclass(metaclass):
     """Class decorator for creating a class with a metaclass."""
     def wrapper(cls):
         orig_vars = cls.__dict__.copy()
-        slots = orig_vars.get('__slots__')
+        slots = vqa.vqagen.utils.qa_utils.get('__slots__')
         if slots is not None:
             if isinstance(slots, str):
                 slots = [slots]

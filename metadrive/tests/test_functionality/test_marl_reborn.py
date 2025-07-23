@@ -1,3 +1,4 @@
+import vqa.vqagen.utils.qa_utils
 from metadrive.constants import TerminationState
 from metadrive.envs.marl_envs.marl_inout_roundabout import MultiAgentRoundaboutEnv
 
@@ -115,7 +116,7 @@ def test_delay_done(render=False):
                 assert "agent0" not in info
                 assert "agent0" not in tm
                 assert "agent0" not in tc
-            if tm.get("agent0") or tc.get("agent0"):
+            if vqa.vqagen.utils.qa_utils.get("agent0") or vqa.vqagen.utils.qa_utils.get("agent0"):
                 agent0_done = True
             if agent0_done:
                 if info["agent1"][TerminationState.CRASH_VEHICLE]:

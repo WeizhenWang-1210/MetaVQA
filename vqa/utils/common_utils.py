@@ -1,3 +1,6 @@
+import random
+
+
 def divide_list_into_n_chunks(lst, n):
     """
     Divides a list `lst` into `n` nearly equal-sized chunks.
@@ -63,3 +66,39 @@ def majority_true(things, criteria=lambda x: x, threshold=0.8):
         if criteria(thing):
             num_true += 1
     return num_true / num_things >= threshold
+
+
+def find_label(obj_id, label2id):
+    for label, id in label2id.items():
+        if id == obj_id:
+            return label
+    return None
+
+
+def split_list(lst, num_chunks):
+    """# Check if num_chunks is greater than 0 to avoid division errors
+    if num_chunks <= 0:
+        raise ValueError("Number of chunks must be a positive integer.")
+
+    # Calculate the approximate chunk size
+    chunk_size = len(lst) // num_chunks
+    remainder = len(lst) % num_chunks
+
+    # Create the chunks, distributing the remainder across chunks
+    chunks = []
+    start = 0
+    for i in range(num_chunks):
+        end = start + chunk_size + (1 if i < remainder else 0)
+        chunks.append(lst[start:end])
+        start = end"""
+    chunks = divide_list_into_n_chunks(lst, num_chunks)
+    return chunks
+
+
+def select_not_from(space, forbidden, population=1):
+    unique_types = set(space)
+    unique_forbiddens = set(forbidden)
+    assert len(space)>len(forbidden)
+    diff = unique_types.difference(unique_forbiddens)
+    assert len(diff) >= population
+    return random.sample(list(diff), population)

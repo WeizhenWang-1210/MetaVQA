@@ -1,7 +1,7 @@
 from vqa.vqagen.scene_graph import TemporalGraph
 from vqa.vqagen.object_node import TemporalNode
 from typing import Tuple, Iterable
-from vqa.vqagen.geometric_utils import sample_keypoints, generate_stopped_trajectory, extrapolate_bounding_boxes, \
+from vqa.vqagen.utils.geometric_utils import sample_keypoints, generate_stopped_trajectory, extrapolate_bounding_boxes, \
     box_trajectories_collide, box_overlap
 import numpy as np
 

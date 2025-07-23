@@ -1,6 +1,6 @@
 from PIL import Image
 import numpy as np
-from vqa.vqagen.geometric_utils import get_distance
+from vqa.vqagen.utils.geometric_utils import get_distance
 
 
 def world_annotation_checker(filepath, colormappath, multiviewmask=None):

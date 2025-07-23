@@ -7,7 +7,7 @@ from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.policy.replay_policy import InterventionPolicy
 from som.closed_loop_utils import computeADE, computeFDE
 from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-from vqa.vqagen.metadrive_utils import l2_distance
+from vqa.vqagen.utils.metadrive_utils import l2_distance
 from vqa.scenegen.annotation_utils import get_visible_object_ids
 import numpy as np
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight

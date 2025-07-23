@@ -1,11 +1,7 @@
-from metadrive.constants import DEFAULT_AGENT
+import vqa.vqagen.utils.qa_utils
 from metadrive.engine.logger import get_logger
-from metadrive.manager.base_manager import BaseAgentManager
 from metadrive.manager.agent_manager import VehicleAgentManager
-from metadrive.policy.AI_protect_policy import AIProtectPolicy
 from metadrive.policy.idm_policy import TrajectoryIDMPolicy
-from metadrive.policy.manual_control_policy import ManualControlPolicy, TakeoverPolicy, TakeoverPolicyWithoutBrake
-from metadrive.policy.replay_policy import ReplayTrafficParticipantPolicy
 
 logger = get_logger()
 
@@ -45,12 +41,12 @@ class TestAssetAgentManager(VehicleAgentManager):
         ret = {}
         for agent_id, v_config in config_dict.items():
             v_type = random_vehicle_type(self.np_random) if self.engine.global_config["random_agent_model"] else \
-                vehicle_type[v_config["vehicle_model"] if v_config.get("vehicle_model", False) else "default"]
+                vehicle_type[v_config["vehicle_model"] if vqa.vqagen.utils.qa_utils.get("vehicle_model", False) else "default"]
 
             obj_name = agent_id if self.engine.global_config["force_reuse_object_name"] else None
 
             # Note: we must use force spawn
-            if v_config.get("vehicle_model", False) and v_config["vehicle_model"] == "test":
+            if vqa.vqagen.utils.qa_utils.get("vehicle_model", False) and v_config["vehicle_model"] == "test":
                 obj = self.spawn_object(
                     v_type,
                     position=self.initpos,

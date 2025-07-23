@@ -1,5 +1,6 @@
 import numpy as np
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.component.lane.point_lane import PointLane
 from metadrive.component.vehicle.PID_controller import PIDController
 from metadrive.policy.base_policy import BasePolicy
@@ -227,8 +228,8 @@ class IDMPolicy(BasePolicy):
         self.routing_target_lane = None
         self.available_routing_index_range = None
         self.overtake_timer = self.np_random.randint(0, self.LANE_CHANGE_FREQ)
-        self.enable_lane_change = self.engine.global_config.get("enable_idm_lane_change", True)
-        self.disable_idm_deceleration = self.engine.global_config.get("disable_idm_deceleration", False)
+        self.enable_lane_change = vqa.vqagen.utils.qa_utils.get("enable_idm_lane_change", True)
+        self.disable_idm_deceleration = vqa.vqagen.utils.qa_utils.get("disable_idm_deceleration", False)
         self.heading_pid = PIDController(1.7, 0.01, 3.5)
         self.lateral_pid = PIDController(0.3, .002, 0.05)
 

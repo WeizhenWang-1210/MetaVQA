@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 """
-
+import vqa.vqagen.utils.qa_utils
 from metadrive.render_pipeline.rplibs.six import iteritems, iterkeys
 from metadrive.render_pipeline.rplibs.yaml import load_yaml_file
 
@@ -87,7 +87,7 @@ class Effect(RPObject):
         intended. All options not present in options are set to the default value"""
 
         # Set all options which are not present in the dict to its defaults
-        options = {k: options.get(k, v) for k, v in iteritems(cls._DEFAULT_OPTIONS)}
+        options = {k: vqa.vqagen.utils.qa_utils.get(k, v) for k, v in iteritems(cls._DEFAULT_OPTIONS)}
 
         # Hash filename, make sure it has the right format and also resolve
         # it to an absolute path, to make sure that relative paths are cached
@@ -160,8 +160,8 @@ class Effect(RPObject):
 
     def _parse_content(self, parsed_yaml):
         """ Internal method to construct the effect from a yaml object """
-        vtx_data = parsed_yaml.get("vertex", None) or {}
-        frag_data = parsed_yaml.get("fragment", None) or {}
+        vtx_data = vqa.vqagen.utils.qa_utils.get("vertex", None) or {}
+        frag_data = vqa.vqagen.utils.qa_utils.get("fragment", None) or {}
 
         for pass_id in self._PASSES:
             self._parse_shader_template(pass_id, "vertex", vtx_data)

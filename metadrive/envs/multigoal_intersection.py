@@ -11,7 +11,7 @@ import gymnasium as gym
 import numpy as np
 import seaborn as sns
 
-import vqa.vqagen.math_utils
+import vqa.vqagen.utils.math_utils
 from metadrive.component.navigation_module.node_network_navigation import NodeNetworkNavigation
 from metadrive.component.pg_space import ParameterSpace, Parameter, DiscreteSpace, BoxSpace
 from metadrive.component.pgblock.first_block import FirstPGBlock
@@ -123,7 +123,7 @@ class CustomizedObservation(BaseObservation):
         # Current angular acceleration (yaw rate)
         heading_dir_last = vehicle.last_heading_dir
         heading_dir_now = vehicle.heading
-        cos_beta = vqa.vqagen.math_utils.dot(heading_dir_last) / (norm(*heading_dir_now) * norm(*heading_dir_last))
+        cos_beta = vqa.vqagen.utils.math_utils.dot(heading_dir_last) / (norm(*heading_dir_now) * norm(*heading_dir_last))
         beta_diff = np.arccos(clip(cos_beta, 0.0, 1.0))
         yaw_rate = beta_diff / 0.1
         info[4] = clip(yaw_rate, 0.0, 1.0)

@@ -2,6 +2,8 @@
 import argparse
 import time
 
+import vqa.vqagen.utils.qa_utils
+
 torch_available = True
 import cv2
 try:
@@ -62,7 +64,7 @@ def _test_rgb_camera_as_obs(render=False, image_on_cuda=True, debug=False, camer
 
     # for debug
     if debug:
-        ret = o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
+        ret = vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
         cv2.imwrite("reset_frame.png", ret * 255)
 
     action = [0.0, 0.1]
@@ -81,11 +83,11 @@ def _test_rgb_camera_as_obs(render=False, image_on_cuda=True, debug=False, camer
         if debug:
             cv2.imwrite(
                 "{}_frame.png".format(i),
-                (o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]) * 255
+                (vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]) * 255
             )
 
         if render:
-            ret = o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
+            ret = vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
             cv2.imshow("window", ret)
             cv2.waitKey(1)
         if d:

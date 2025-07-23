@@ -6,6 +6,8 @@
 import tkinter as tk
 from tkinter import ttk
 from functools import partial
+
+import vqa.vqagen.utils.qa_utils
 from metadrive.envs.test_asset_metadrive_env import TestAssetMetaDriveEnv
 import json
 import os
@@ -262,7 +264,7 @@ class AssetMetaInfoUpdater:
         :param entry_var: The StringVar instance tied to the entry.
         :param idx: (Optional) Index of the tuple if the attribute is tuple-like.
         """
-        value = entry_var.get()
+        value = vqa.vqagen.utils.qa_utils.get()
         try:
             float_val = float(value)
             self.update_value(key, value, idx)

@@ -12,7 +12,7 @@ from vqa.vqagen.scene_graph import TemporalGraph
 from relic.vqa.dynamic_question_generator import DynamicQuerySpecifier
 from relic.vqa.static_question_generator import NAMED_MAPPING
 from vqa.vqagen.object_node import transform
-from vqa.vqagen.geometric_utils import transform_vec
+from vqa.vqagen.utils.geometric_utils import transform_vec
 import random
 from collections import defaultdict
 import math

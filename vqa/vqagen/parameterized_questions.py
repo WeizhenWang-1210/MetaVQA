@@ -7,11 +7,10 @@ from copy import deepcopy
 
 from closed_loop.embodied_utils import ACTION, classify_speed, get_end_sector, determine_collisions
 from vqa.configs.namespace import POSITION2CHOICE
-from vqa.vqagen.geometric_utils import get_distance
 from vqa.vqagen.object_node import nodify, transform
-from vqa.vqagen.qa_utils import create_options, create_multiple_choice
 from vqa.vqagen.scene_graph import SceneGraph
-from vqa.vqagen.utils import enumerate_frame_labels, fill_in_label
+from vqa.vqagen.utils.geometric_utils import get_distance
+from vqa.vqagen.utils.qa_utils import create_options, create_multiple_choice, fill_in_label, enumerate_frame_labels
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = json.load(open(os.path.join(current_directory, "questions_templates.json"), "r"))

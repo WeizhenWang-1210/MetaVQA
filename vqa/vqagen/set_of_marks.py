@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 from vqa.configs.namespace import MAX_DETECT_DISTANCE
-from vqa.vqagen.geometric_utils import get_distance
+from vqa.vqagen.utils.geometric_utils import get_distance
 
 
 def background_color(rgb):
@@ -146,8 +146,7 @@ def temporal_id2label(episode_path: str, perspective: str = "front", overwrite=F
     for scene_graph in scene_graphs:
         world = json.load(open(scene_graph, "r"))
         for obj in world["objects"]:
-            if perspective in obj["observing_camera"] and get_distance(obj["pos"],
-                                                                       world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
+            if perspective in obj["observing_camera"] and get_distance(obj["pos"], world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
                 if obj["id"] in result.keys():
                     continue
                 result[obj["id"]] = currentlabel
@@ -166,8 +165,7 @@ def static_id2label(frame_path, perspective="front", write=True, overwrite=True)
     currentlabel = 0
     save_path = os.path.join(frame_path, f"static_id2label_{perspective}_{identifier}.json")
     for obj in world["objects"]:
-        if perspective in obj["observing_camera"] and get_distance(obj["pos"],
-                                                                   world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
+        if perspective in obj["observing_camera"] and get_distance(obj["pos"], world["ego"]["pos"]) < MAX_DETECT_DISTANCE:
             result[obj["id"]] = currentlabel
             currentlabel += 1
     if write:

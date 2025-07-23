@@ -3,6 +3,7 @@ import copy
 import gymnasium as gym
 import numpy as np
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.envs.marl_envs.marl_intersection import MultiAgentIntersectionEnv
 from metadrive.manager.agent_manager import VehicleAgentManager
 from metadrive.obs.state_obs import LidarStateObservation
@@ -282,7 +283,7 @@ class MixedIDMAgentManager(VehicleAgentManager):
             if self.engine.global_config["random_agent_model"]:
                 v_type = random_vehicle_type(self.np_random)
             else:
-                if v_config.get("vehicle_model", False):
+                if vqa.vqagen.utils.qa_utils.get("vehicle_model", False):
                     v_type = vehicle_type[v_config["vehicle_model"]]
                 else:
                     v_type = vehicle_type["default"]

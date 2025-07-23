@@ -1,9 +1,7 @@
-import logging
-from typing import Tuple
-
 import math
 import numpy as np
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.component.lane.point_lane import PointLane
 from metadrive.utils.opendrive.elements.geometry import Line, Arc
 from metadrive.utils.opendrive.map_load import get_lane_id
@@ -21,9 +19,9 @@ class OpenDriveLane(PointLane):
 
         self._section_index = lane_data.lane_section.idx
         self.index = get_lane_id(lane_data)
-        self.roadMark_color = lane_data.roadMark.get("color", None)
-        self.roadMark_type = lane_data.roadMark.get("type", None)
-        self.roadMark_material = lane_data.roadMark.get("material", None)
+        self.roadMark_color = vqa.vqagen.utils.qa_utils.get("color", None)
+        self.roadMark_type = vqa.vqagen.utils.qa_utils.get("type", None)
+        self.roadMark_material = vqa.vqagen.utils.qa_utils.get("material", None)
 
     def _initialize_geometry(self, geos):
         points = []

@@ -8,6 +8,7 @@ from direct.controls.InputState import InputState
 from panda3d.core import Vec3, Point3, PNMImage, NodePath
 from panda3d.core import WindowProperties
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.constants import CollisionGroup, CameraTagStateKey, Semantics
 from metadrive.engine.engine_utils import get_engine
 from metadrive.utils.coordinates_shift import panda_heading, panda_vector
@@ -239,7 +240,7 @@ class MainCamera(BaseSensor):
                          current_forward_dir[1]
 
         # don't put this line to if-else, strange bug happened
-        camera_pos = list(self.camera_queue.get())
+        camera_pos = list(vqa.vqagen.utils.qa_utils.get())
         if not self.camera_smooth:
             camera_pos = chassis_pos
         camera_pos[2] += self.chase_camera_height + vehicle.HEIGHT / 2

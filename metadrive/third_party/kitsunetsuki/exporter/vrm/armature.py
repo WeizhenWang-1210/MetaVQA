@@ -15,6 +15,7 @@
 
 import math
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.third_party.kitsunetsuki.base.armature import is_left_bone, is_bone_matches
 from metadrive.third_party.kitsunetsuki.base.objects import get_parent
 
@@ -146,15 +147,15 @@ class ArmatureMixin(object):
             # 'colliderGroups': [],
         }
 
-        if bone.get('jiggle_stiffness', None) is not None:
-            vrm_spring['stiffiness'] = bone.get('jiggle_stiffness')
+        if vqa.vqagen.utils.qa_utils.get('jiggle_stiffness', None) is not None:
+            vrm_spring['stiffiness'] = vqa.vqagen.utils.qa_utils.get('jiggle_stiffness')
 
-        if bone.get('jiggle_gravity', None) is not None:
-            vrm_spring['gravityPower'] = bone.get('jiggle_gravity')
+        if vqa.vqagen.utils.qa_utils.get('jiggle_gravity', None) is not None:
+            vrm_spring['gravityPower'] = vqa.vqagen.utils.qa_utils.get('jiggle_gravity')
 
-        if bone.get('jiggle_amplitude', None) is not None:
+        if vqa.vqagen.utils.qa_utils.get('jiggle_amplitude', None) is not None:
             max_amp = 200
-            jiggle_amplitude = min(max_amp, bone.get('jiggle_amplitude'))
+            jiggle_amplitude = min(max_amp, vqa.vqagen.utils.qa_utils.get('jiggle_amplitude'))
             vrm_spring['dragForce'] = (max_amp - jiggle_amplitude) / max_amp
 
         return vrm_spring
@@ -223,9 +224,9 @@ class ArmatureMixin(object):
 
             # Wiggle Bones addon
             # https://blenderartists.org/t/wiggle-bones-a-jiggle-bone-implementation-for-2-8/1154726
-            if pose_bone.get('jiggle_enable', False):
+            if vqa.vqagen.utils.qa_utils.get('jiggle_enable', False):
                 # search for root bone
-                while (pose_bone.parent and pose_bone.parent.get('jiggle_enable', False)):
+                while (pose_bone.parent and vqa.vqagen.utils.qa_utils.get('jiggle_enable', False)):
                     pose_bone = pose_bone.parent
 
                 if pose_bone.name not in vrm_springs:

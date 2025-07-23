@@ -1,3 +1,4 @@
+import vqa.vqagen.utils.qa_utils
 from metadrive.utils.opendrive.parser import parse_opendrive
 from metadrive.utils.opendrive.link_index import LinkIndex
 from lxml import etree
@@ -11,7 +12,7 @@ def get_lane_width(lane):
         # assert sum(lane.widths[0].polynomial_coefficients) == self.width, "Only support fixed lane width"
     else:
         # TODO LQY: remove 4.0
-        width = lane.roadMark.get("width", 4.0)
+        width = vqa.vqagen.utils.qa_utils.get("width", 4.0)
     return float(width) if isinstance(width, str) else width
 
 

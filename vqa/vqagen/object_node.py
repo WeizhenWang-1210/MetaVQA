@@ -4,8 +4,9 @@ from typing import Iterable, Tuple, List, Union
 import numpy as np
 
 from vqa.utils.common_utils import majority_true
-from vqa.vqagen.math_utils import dot, norm
-from vqa.vqagen.geometric_utils import get_distance, find_extremities, position_frontback_relative_to_obj1, position_left_right_relative_to_obj1
+from vqa.vqagen.utils.geometric_utils import get_distance, find_extremities, position_frontback_relative_to_obj1, \
+    position_left_right_relative_to_obj1
+from vqa.vqagen.utils.math_utils import dot, norm
 
 
 class ObjectNode:

@@ -34,15 +34,15 @@ Classes:
 import tkinter as tk
 from tkinter import ttk
 from functools import partial
-from metadrive.envs.metadrive_env import MetaDriveEnv
+
+import vqa.vqagen.utils.qa_utils
 import json
 import os
 import fnmatch
-import yaml
 from asset.read_config import configReader
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.component.static_object.test_new_object import TestObject, TestGLTFObject
-from metadrive.component.static_object.traffic_object import TrafficCone, TrafficWarning
+from metadrive.component.static_object.traffic_object import TrafficWarning
 class AutoStaticAssetMetaInfoUpdater:
     def __init__(self, file_name,  save_path_folder=None, uid = None, folder_name=None, isGLTF = False, spawnOffset = [10,0]):
         self.setInitValue(file_name, folder_name)
@@ -146,7 +146,7 @@ class AutoStaticAssetMetaInfoUpdater:
     def on_general_type_selected(self, event):
         # Populate detailed types based on selected general type
         general_type = self.general_type_var.get()
-        detailed_types = self.types.get(general_type, [])
+        detailed_types = vqa.vqagen.utils.qa_utils.get(general_type, [])
         self.detailed_type_dropdown['values'] = list(detailed_types.keys())
         if detailed_types:
             pass
@@ -164,7 +164,7 @@ class AutoStaticAssetMetaInfoUpdater:
         detailed_type = self.detailed_type_var.get()
         self.save_path = f"{self.general_type_var.get()}_{detailed_type}-{self.uid}.json"
         # Check if dimensions exist in the YAML data
-        self.dimensions = self.config.loadTypeInfo().get(detailed_type)
+        self.dimensions = vqa.vqagen.utils.qa_utils.get(detailed_type)
         if self.dimensions:
             # Set the scale or dimensions in the UI accordingly
             # Chenda:TODO: Add logic to set the scale in UI based on YAML data
@@ -283,7 +283,7 @@ class AutoStaticAssetMetaInfoUpdater:
             self.entries[key].set(v)  # Update the entry with the new slider value for single value
 
     def entry_command(self, event, key, entry_var, idx=None):
-        value = entry_var.get()
+        value = vqa.vqagen.utils.qa_utils.get()
         try:
             float_val = float(value)
             self.update_value(key, value, idx)

@@ -2,6 +2,7 @@ import time
 
 import cv2
 
+import vqa.vqagen.utils.qa_utils
 from metadrive import MetaDriveEnv
 from metadrive.policy.idm_policy import IDMPolicy
 
@@ -28,7 +29,7 @@ def _test_depth_camera_as_obs(render=False):
     for i in range(20000):
         o, r, tm, tc, _ = env.step(action)
         if render:
-            ret = o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
+            ret = vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
             cv2.imshow("window", ret)
             cv2.waitKey(1)
         # if d:
@@ -60,7 +61,7 @@ def _test_main_rgb_camera_as_obs_with_interface(render=False):
     for i in range(20000):
         o, r, tm, tc, _ = env.step(action)
         if render:
-            ret = o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
+            ret = vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
             cv2.imshow("window", ret)
             cv2.waitKey(1)
         if tm or tc:
@@ -93,7 +94,7 @@ def _test_main_rgb_camera_no_interface(render=False):
     for i in range(20000):
         o, r, tm, tc, _ = env.step(action)
         if render:
-            ret = o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
+            ret = vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
             cv2.imshow("window", ret)
             cv2.waitKey(1)
         if tm or tc:
@@ -124,7 +125,7 @@ def _test_rgb_camera_as_obs(render=False):
     for i in range(20000):
         o, r, tm, tc, _ = env.step(action)
         if render:
-            ret = o["image"].get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
+            ret = vqa.vqagen.utils.qa_utils.get()[..., -1] if env.config["image_on_cuda"] else o["image"][..., -1]
             cv2.imshow("window", ret)
             cv2.waitKey(1)
         if tm or tc:

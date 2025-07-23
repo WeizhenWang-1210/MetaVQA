@@ -13,6 +13,7 @@ from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import view_points, BoxVisibility
 from pyquaternion import Quaternion
 
+import vqa.vqagen.utils.qa_utils
 from vqa.vqagen.set_of_marks import find_areas
 from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from vqa.scenegen.macros import IGNORED_NUSC_TYPE, ALL_NUSC_TYPE, NUSC_EGO_SHAPE, NUSC_VERSION, NUSC_PATH
@@ -63,8 +64,10 @@ def func(nusc, ego_pose_token, boxes, visibilities, camera_intrinsic):
 
     ordered_boxes = sorted(
         list(enumerate(boxes)),
-        key=lambda pair: np.linalg.norm(np.array(nusc.get("sample_annotation", pair[1].token)["translation"][:2]) \
-                                        - np.array(nusc.get("ego_pose", ego_pose_token)["translation"][:2])),
+        key=lambda pair: np.linalg.norm(np.array(
+            vqa.vqagen.utils.qa_utils.get("sample_annotation", pair[1].token)["translation"][:2]) \
+                                        - np.array(
+            vqa.vqagen.utils.qa_utils.get("ego_pose", ego_pose_token)["translation"][:2])),
         reverse=True
     )
     individual_masks = []
@@ -138,7 +141,7 @@ def traverse(nusc, start, steps):
     :return: Sample after `steps` steps"""
     cur_sample = start
     while steps > 0 and cur_sample["next"] != "":
-        cur_sample = nusc.get("sample", cur_sample["next"])
+        cur_sample = vqa.vqagen.utils.qa_utils.get("sample", cur_sample["next"])
         steps -= 1
     return cur_sample
 

@@ -1,7 +1,7 @@
 import json
 import os
 
-from vqa.vqagen.utils import enumerate_frame_labels
+from vqa.vqagen.utils.qa_utils import enumerate_frame_labels
 from vqa.static_question_generation import generate_all_frame
 
 

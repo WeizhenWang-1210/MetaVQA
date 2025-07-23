@@ -14,7 +14,7 @@ import numpy as np
 
 from relic.vqa.scene_level_functionals import counterfactual_trajectory, \
     counterfactual_stop, locate_crash_timestamp, move_around, predict_collision
-from vqa.vqagen.geometric_utils import sample_keypoints, extrapolate_bounding_boxes, box_overlap, transform_vec
+from vqa.vqagen.utils.geometric_utils import sample_keypoints, extrapolate_bounding_boxes, box_overlap, transform_vec
 from relic.vqa.dynamic_question_generation import extract_frames, generate_context_string
 
 

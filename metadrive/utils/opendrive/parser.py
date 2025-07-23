@@ -4,6 +4,8 @@ These scripts are copied from https://github.com/liuyf5231/opendriveparser. Cred
 """
 import numpy as np
 from lxml import etree
+
+import vqa.vqagen.utils.qa_utils
 from metadrive.utils.opendrive.elements.opendrive import OpenDrive, Header
 from metadrive.utils.opendrive.elements.road import Road
 from metadrive.utils.opendrive.elements.roadLink import (
@@ -90,22 +92,22 @@ def parse_opendrive_road_link(newRoad, opendrive_road_link):
 
     if predecessor is not None:
         newRoad.link.predecessor = RoadLinkPredecessor(
-            predecessor.get("elementType"),
-            predecessor.get("elementId"),
-            predecessor.get("contactPoint"),
+            vqa.vqagen.utils.qa_utils.get("elementType"),
+            vqa.vqagen.utils.qa_utils.get("elementId"),
+            vqa.vqagen.utils.qa_utils.get("contactPoint"),
         )
 
     successor = opendrive_road_link.find("successor")
 
     if successor is not None:
         newRoad.link.successor = RoadLinkSuccessor(
-            successor.get("elementType"),
-            successor.get("elementId"),
-            successor.get("contactPoint"),
+            vqa.vqagen.utils.qa_utils.get("elementType"),
+            vqa.vqagen.utils.qa_utils.get("elementId"),
+            vqa.vqagen.utils.qa_utils.get("contactPoint"),
         )
 
     for neighbor in opendrive_road_link.findall("neighbor"):
-        newNeighbor = RoadLinkNeighbor(neighbor.get("side"), neighbor.get("elementId"), neighbor.get("direction"))
+        newNeighbor = RoadLinkNeighbor(vqa.vqagen.utils.qa_utils.get("side"), vqa.vqagen.utils.qa_utils.get("elementId"), vqa.vqagen.utils.qa_utils.get("direction"))
 
         newRoad.link.neighbors.append(newNeighbor)
 
@@ -122,13 +124,13 @@ def parse_opendrive_road_type(road, opendrive_xml_road_type: etree.ElementTree):
     speed = None
     if opendrive_xml_road_type.find("speed") is not None:
         speed = RoadTypeSpeed(
-            max_speed=opendrive_xml_road_type.find("speed").get("max"),
-            unit=opendrive_xml_road_type.find("speed").get("unit"),
+            max_speed=vqa.vqagen.utils.qa_utils.get("max"),
+            unit=vqa.vqagen.utils.qa_utils.get("unit"),
         )
 
     road_type = RoadType(
-        s_pos=opendrive_xml_road_type.get("s"),
-        use_type=opendrive_xml_road_type.get("type"),
+        s_pos=vqa.vqagen.utils.qa_utils.get("s"),
+        use_type=vqa.vqagen.utils.qa_utils.get("type"),
         speed=speed,
     )
     road.types.append(road_type)
@@ -143,49 +145,49 @@ def parse_opendrive_road_geometry(newRoad, road_geometry):
 
     """
 
-    startCoord = [float(road_geometry.get("x")), float(road_geometry.get("y"))]
+    startCoord = [float(vqa.vqagen.utils.qa_utils.get("x")), float(vqa.vqagen.utils.qa_utils.get("y"))]
 
     if road_geometry.find("line") is not None:
         newRoad.planView.addLine(
             startCoord,
-            float(road_geometry.get("hdg")),
-            float(road_geometry.get("length")),
+            float(vqa.vqagen.utils.qa_utils.get("hdg")),
+            float(vqa.vqagen.utils.qa_utils.get("length")),
         )
 
     elif road_geometry.find("spiral") is not None:
         newRoad.planView.addSpiral(
             startCoord,
-            float(road_geometry.get("hdg")),
-            float(road_geometry.get("length")),
-            float(road_geometry.find("spiral").get("curvStart")),
-            float(road_geometry.find("spiral").get("curvEnd")),
+            float(vqa.vqagen.utils.qa_utils.get("hdg")),
+            float(vqa.vqagen.utils.qa_utils.get("length")),
+            float(vqa.vqagen.utils.qa_utils.get("curvStart")),
+            float(vqa.vqagen.utils.qa_utils.get("curvEnd")),
         )
 
     elif road_geometry.find("arc") is not None:
         newRoad.planView.addArc(
             startCoord,
-            float(road_geometry.get("hdg")),
-            float(road_geometry.get("length")),
-            float(road_geometry.find("arc").get("curvature")),
+            float(vqa.vqagen.utils.qa_utils.get("hdg")),
+            float(vqa.vqagen.utils.qa_utils.get("length")),
+            float(vqa.vqagen.utils.qa_utils.get("curvature")),
         )
 
     elif road_geometry.find("poly3") is not None:
         newRoad.planView.addPoly3(
             startCoord,
-            float(road_geometry.get("hdg")),
-            float(road_geometry.get("length")),
-            float(road_geometry.find("poly3").get("a")),
-            float(road_geometry.find("poly3").get("b")),
-            float(road_geometry.find("poly3").get("c")),
-            float(road_geometry.find("poly3").get("d")),
+            float(vqa.vqagen.utils.qa_utils.get("hdg")),
+            float(vqa.vqagen.utils.qa_utils.get("length")),
+            float(vqa.vqagen.utils.qa_utils.get("a")),
+            float(vqa.vqagen.utils.qa_utils.get("b")),
+            float(vqa.vqagen.utils.qa_utils.get("c")),
+            float(vqa.vqagen.utils.qa_utils.get("d")),
         )
         # raise NotImplementedError()
 
     elif road_geometry.find("paramPoly3") is not None:
-        if road_geometry.find("paramPoly3").get("pRange"):
+        if vqa.vqagen.utils.qa_utils.get("pRange"):
 
-            if road_geometry.find("paramPoly3").get("pRange") == "arcLength":
-                pMax = float(road_geometry.get("length"))
+            if vqa.vqagen.utils.qa_utils.get("pRange") == "arcLength":
+                pMax = float(vqa.vqagen.utils.qa_utils.get("length"))
             else:
                 pMax = None
         else:
@@ -193,16 +195,16 @@ def parse_opendrive_road_geometry(newRoad, road_geometry):
 
         newRoad.planView.addParamPoly3(
             startCoord,
-            float(road_geometry.get("hdg")),
-            float(road_geometry.get("length")),
-            float(road_geometry.find("paramPoly3").get("aU")),
-            float(road_geometry.find("paramPoly3").get("bU")),
-            float(road_geometry.find("paramPoly3").get("cU")),
-            float(road_geometry.find("paramPoly3").get("dU")),
-            float(road_geometry.find("paramPoly3").get("aV")),
-            float(road_geometry.find("paramPoly3").get("bV")),
-            float(road_geometry.find("paramPoly3").get("cV")),
-            float(road_geometry.find("paramPoly3").get("dV")),
+            float(vqa.vqagen.utils.qa_utils.get("hdg")),
+            float(vqa.vqagen.utils.qa_utils.get("length")),
+            float(vqa.vqagen.utils.qa_utils.get("aU")),
+            float(vqa.vqagen.utils.qa_utils.get("bU")),
+            float(vqa.vqagen.utils.qa_utils.get("cU")),
+            float(vqa.vqagen.utils.qa_utils.get("dU")),
+            float(vqa.vqagen.utils.qa_utils.get("aV")),
+            float(vqa.vqagen.utils.qa_utils.get("bV")),
+            float(vqa.vqagen.utils.qa_utils.get("cV")),
+            float(vqa.vqagen.utils.qa_utils.get("dV")),
             pMax,
         )
 
@@ -222,11 +224,11 @@ def parse_opendrive_road_elevation_profile(newRoad, road_elevation_profile):
     for elevation in road_elevation_profile.findall("elevation"):
         newElevation = (
             RoadElevationProfile(
-                float(elevation.get("a")),
-                float(elevation.get("b")),
-                float(elevation.get("c")),
-                float(elevation.get("d")),
-                start_pos=float(elevation.get("s")),
+                float(vqa.vqagen.utils.qa_utils.get("a")),
+                float(vqa.vqagen.utils.qa_utils.get("b")),
+                float(vqa.vqagen.utils.qa_utils.get("c")),
+                float(vqa.vqagen.utils.qa_utils.get("d")),
+                start_pos=float(vqa.vqagen.utils.qa_utils.get("s")),
             ),
         )
 
@@ -244,35 +246,35 @@ def parse_opendrive_road_lateral_profile(newRoad, road_lateral_profile):
 
     for superelevation in road_lateral_profile.findall("superelevation"):
         newSuperelevation = RoadLateralProfileSuperelevation(
-            float(superelevation.get("a")),
-            float(superelevation.get("b")),
-            float(superelevation.get("c")),
-            float(superelevation.get("d")),
-            start_pos=float(superelevation.get("s")),
+            float(vqa.vqagen.utils.qa_utils.get("a")),
+            float(vqa.vqagen.utils.qa_utils.get("b")),
+            float(vqa.vqagen.utils.qa_utils.get("c")),
+            float(vqa.vqagen.utils.qa_utils.get("d")),
+            start_pos=float(vqa.vqagen.utils.qa_utils.get("s")),
         )
 
         newRoad.lateralProfile.superelevations.append(newSuperelevation)
 
     for crossfall in road_lateral_profile.findall("crossfall"):
         newCrossfall = RoadLateralProfileCrossfall(
-            float(crossfall.get("a")),
-            float(crossfall.get("b")),
-            float(crossfall.get("c")),
-            float(crossfall.get("d")),
-            side=crossfall.get("side"),
-            start_pos=float(crossfall.get("s")),
+            float(vqa.vqagen.utils.qa_utils.get("a")),
+            float(vqa.vqagen.utils.qa_utils.get("b")),
+            float(vqa.vqagen.utils.qa_utils.get("c")),
+            float(vqa.vqagen.utils.qa_utils.get("d")),
+            side=vqa.vqagen.utils.qa_utils.get("side"),
+            start_pos=float(vqa.vqagen.utils.qa_utils.get("s")),
         )
 
         newRoad.lateralProfile.crossfalls.append(newCrossfall)
 
     for shape in road_lateral_profile.findall("shape"):
         newShape = RoadLateralProfileShape(
-            float(shape.get("a")),
-            float(shape.get("b")),
-            float(shape.get("c")),
-            float(shape.get("d")),
-            start_pos=float(shape.get("s")),
-            start_pos_t=float(shape.get("t")),
+            float(vqa.vqagen.utils.qa_utils.get("a")),
+            float(vqa.vqagen.utils.qa_utils.get("b")),
+            float(vqa.vqagen.utils.qa_utils.get("c")),
+            float(vqa.vqagen.utils.qa_utils.get("d")),
+            start_pos=float(vqa.vqagen.utils.qa_utils.get("s")),
+            start_pos_t=float(vqa.vqagen.utils.qa_utils.get("t")),
         )
 
         newRoad.lateralProfile.shapes.append(newShape)
@@ -288,11 +290,11 @@ def parse_opendrive_road_lane_offset(newRoad, lane_offset):
     """
 
     newLaneOffset = RoadLanesLaneOffset(
-        float(lane_offset.get("a")),
-        float(lane_offset.get("b")),
-        float(lane_offset.get("c")),
-        float(lane_offset.get("d")),
-        start_pos=float(lane_offset.get("s")),
+        float(vqa.vqagen.utils.qa_utils.get("a")),
+        float(vqa.vqagen.utils.qa_utils.get("b")),
+        float(vqa.vqagen.utils.qa_utils.get("c")),
+        float(vqa.vqagen.utils.qa_utils.get("d")),
+        start_pos=float(vqa.vqagen.utils.qa_utils.get("s")),
     )
 
     newRoad.lanes.laneOffsets.append(newLaneOffset)
@@ -313,8 +315,8 @@ def parse_opendrive_road_lane_section(newRoad, lane_section_id, lane_section):
     # Manually enumerate lane sections for referencing purposes
     newLaneSection.idx = lane_section_id
 
-    newLaneSection.sPos = float(lane_section.get("s"))
-    newLaneSection.singleSide = lane_section.get("singleSide")
+    newLaneSection.sPos = float(vqa.vqagen.utils.qa_utils.get("s"))
+    newLaneSection.singleSide = vqa.vqagen.utils.qa_utils.get("singleSide")
 
     sides = dict(
         left=newLaneSection.leftLanes,
@@ -333,30 +335,30 @@ def parse_opendrive_road_lane_section(newRoad, lane_section_id, lane_section):
         for lane in side.findall("lane"):
 
             new_lane = RoadLaneSectionLane(parentRoad=newRoad, lane_section=newLaneSection)
-            new_lane.id = lane.get("id")
-            new_lane.type = lane.get("type")
+            new_lane.id = vqa.vqagen.utils.qa_utils.get("id")
+            new_lane.type = vqa.vqagen.utils.qa_utils.get("type")
 
             # In some sample files the level is not specified according to the OpenDRIVE spec
-            new_lane.level = ("true" if lane.get("level") in [1, "1", "true"] else "false")
+            new_lane.level = ("true" if vqa.vqagen.utils.qa_utils.get("level") in [1, "1", "true"] else "false")
 
             # Lane Links
             if lane.find("link") is not None:
 
                 if lane.find("link").find("predecessor") is not None:
-                    new_lane.link.predecessorId = (lane.find("link").find("predecessor").get("id"))
+                    new_lane.link.predecessorId = (vqa.vqagen.utils.qa_utils.get("id"))
 
                 if lane.find("link").find("successor") is not None:
-                    new_lane.link.successorId = (lane.find("link").find("successor").get("id"))
+                    new_lane.link.successorId = (vqa.vqagen.utils.qa_utils.get("id"))
 
             # Width
             for widthIdx, width in enumerate(lane.findall("width")):
                 newWidth = RoadLaneSectionLaneWidth(
-                    float(width.get("a")),
-                    float(width.get("b")),
-                    float(width.get("c")),
-                    float(width.get("d")),
+                    float(vqa.vqagen.utils.qa_utils.get("a")),
+                    float(vqa.vqagen.utils.qa_utils.get("b")),
+                    float(vqa.vqagen.utils.qa_utils.get("c")),
+                    float(vqa.vqagen.utils.qa_utils.get("d")),
                     idx=widthIdx,
-                    start_offset=float(width.get("sOffset")),
+                    start_offset=float(vqa.vqagen.utils.qa_utils.get("sOffset")),
                 )
 
                 new_lane.widths.append(newWidth)
@@ -364,12 +366,12 @@ def parse_opendrive_road_lane_section(newRoad, lane_section_id, lane_section):
             # Border
             for borderIdx, border in enumerate(lane.findall("border")):
                 newBorder = RoadLaneSectionLaneBorder(
-                    float(border.get("a")),
-                    float(border.get("b")),
-                    float(border.get("c")),
-                    float(border.get("d")),
+                    float(vqa.vqagen.utils.qa_utils.get("a")),
+                    float(vqa.vqagen.utils.qa_utils.get("b")),
+                    float(vqa.vqagen.utils.qa_utils.get("c")),
+                    float(vqa.vqagen.utils.qa_utils.get("d")),
                     idx=borderIdx,
-                    start_offset=float(border.get("sOffset")),
+                    start_offset=float(vqa.vqagen.utils.qa_utils.get("sOffset")),
                 )
 
                 new_lane.borders.append(newBorder)
@@ -420,16 +422,16 @@ def parse_opendrive_road(opendrive, road):
 
     newRoad = Road()
 
-    newRoad.id = int(road.get("id"))
-    newRoad.name = road.get("name")
+    newRoad.id = int(vqa.vqagen.utils.qa_utils.get("id"))
+    newRoad.name = vqa.vqagen.utils.qa_utils.get("name")
 
-    junctionId = int(road.get("junction")) if road.get("junction") != "-1" else None
+    junctionId = int(vqa.vqagen.utils.qa_utils.get("junction")) if vqa.vqagen.utils.qa_utils.get("junction") != "-1" else None
 
     if junctionId:
         newRoad.junction = opendrive.getJunction(junctionId)
 
     # TODO verify road length
-    newRoad.length = float(road.get("length"))
+    newRoad.length = float(vqa.vqagen.utils.qa_utils.get("length"))
 
     # Links
     opendrive_road_link = road.find("link")
@@ -516,15 +518,15 @@ def parse_opendrive_header(opendrive, header):
     """
 
     parsed_header = Header(
-        header.get("revMajor"),
-        header.get("revMinor"),
-        header.get("name"),
-        header.get("version"),
-        header.get("date"),
-        header.get("north"),
-        header.get("south"),
-        header.get("west"),
-        header.get("vendor"),
+        vqa.vqagen.utils.qa_utils.get("revMajor"),
+        vqa.vqagen.utils.qa_utils.get("revMinor"),
+        vqa.vqagen.utils.qa_utils.get("name"),
+        vqa.vqagen.utils.qa_utils.get("version"),
+        vqa.vqagen.utils.qa_utils.get("date"),
+        vqa.vqagen.utils.qa_utils.get("north"),
+        vqa.vqagen.utils.qa_utils.get("south"),
+        vqa.vqagen.utils.qa_utils.get("west"),
+        vqa.vqagen.utils.qa_utils.get("vendor"),
     )
     # Reference
     if header.find("geoReference") is not None:
@@ -544,23 +546,23 @@ def parse_opendrive_junction(opendrive, junction):
     """
     newJunction = Junction()
 
-    newJunction.id = int(junction.get("id"))
-    newJunction.name = str(junction.get("name"))
+    newJunction.id = int(vqa.vqagen.utils.qa_utils.get("id"))
+    newJunction.name = str(vqa.vqagen.utils.qa_utils.get("name"))
 
     for connection in junction.findall("connection"):
 
         newConnection = JunctionConnection()
 
-        newConnection.id = connection.get("id")
-        newConnection.incomingRoad = connection.get("incomingRoad")
-        newConnection.connectingRoad = connection.get("connectingRoad")
-        newConnection.contactPoint = connection.get("contactPoint")
+        newConnection.id = vqa.vqagen.utils.qa_utils.get("id")
+        newConnection.incomingRoad = vqa.vqagen.utils.qa_utils.get("incomingRoad")
+        newConnection.connectingRoad = vqa.vqagen.utils.qa_utils.get("connectingRoad")
+        newConnection.contactPoint = vqa.vqagen.utils.qa_utils.get("contactPoint")
 
         for laneLink in connection.findall("laneLink"):
             newLaneLink = JunctionConnectionLaneLink()
 
-            newLaneLink.fromId = laneLink.get("from")
-            newLaneLink.toId = laneLink.get("to")
+            newLaneLink.fromId = vqa.vqagen.utils.qa_utils.get("from")
+            newLaneLink.toId = vqa.vqagen.utils.qa_utils.get("to")
 
             newConnection.addLaneLink(newLaneLink)
 

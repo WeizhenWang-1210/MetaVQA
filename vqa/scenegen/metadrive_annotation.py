@@ -19,7 +19,7 @@ from metadrive.envs.base_env import BaseEnv
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from vqa.configs.namespace import OBS_HEIGHT, OBS_WIDTH, MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
-from vqa.vqagen.metadrive_utils import l2_distance
+from vqa.vqagen.utils.metadrive_utils import l2_distance
 
 
 def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=False):

@@ -4,6 +4,7 @@ import numpy as np
 from panda3d.bullet import BulletBoxShape, BulletGhostNode
 from panda3d.core import Vec3
 
+import vqa.vqagen.utils.qa_utils
 from metadrive.component.lane.straight_lane import StraightLane
 from metadrive.component.map.pg_map import PGMap
 from metadrive.component.pgblock.first_block import FirstPGBlock
@@ -103,7 +104,7 @@ class ParkingLotSpawnManager(SpawnManager):
                 # If no parking space, vehicles will never be spawned.
                 continue
             # save time calculate once
-            if not bp.get("spawn_point_position", False):
+            if not vqa.vqagen.utils.qa_utils.get("spawn_point_position", False):
                 lane = map.road_network.get_lane(bp["config"]["spawn_lane_index"])
                 assert isinstance(lane, StraightLane), "Now we don't support respawn on circular lane"
                 long = self.RESPAWN_REGION_LONGITUDE / 2
@@ -122,7 +123,7 @@ class ParkingLotSpawnManager(SpawnManager):
                 CollisionGroup.Vehicle
             )
             if (engine.global_config["debug"] or engine.global_config["debug_physics_world"]) \
-                    and bp.get("need_debug", True):
+                    and vqa.vqagen.utils.qa_utils.get("need_debug", True):
                 shape = BulletBoxShape(Vec3(self.RESPAWN_REGION_LONGITUDE / 2, self.RESPAWN_REGION_LATERAL / 2, 1))
                 vis_body = engine.render.attach_new_node(BulletGhostNode("debug"))
                 vis_body.node().addShape(shape)
