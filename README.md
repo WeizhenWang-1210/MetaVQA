@@ -1,12 +1,4 @@
-
-
-
 # Embodied Scene Understanding for Vision Language Models via MetaVQA 
-<!---
-[![build](https://github.com/metadriverse/metadrive/workflows/test/badge.svg)](http://github.com/metadriverse/metadrive/actions)
-[![Documentation](https://readthedocs.org/projects/metadrive-simulator/badge/?version=latest)](https://metadrive-simulator.readthedocs.io)
-[![Downloads](https://static.pepy.tech/badge/MetaDrive-simulator)](https://pepy.tech/project/MetaDrive-simulator)
--->
 [![GitHub license](https://img.shields.io/github/license/metadriverse/metadrive)](https://github.com/metadriverse/metadrive/blob/main/LICENSE.txt)
 [![GitHub contributors](https://img.shields.io/github/contributors/metadriverse/metadrive)](https://github.com/WeizhenWang-1210/MetaVQA/graphs/contributors)
 
@@ -17,7 +9,7 @@
 [
 <a href="https://metadriverse.github.io/metavqa/">Website</a>
 |
-<a href="https://metadriverse.github.io/metaVQA/">Data Preview(coming)</a>
+<a href="https://huggingface.co/datasets/Weizhen011210/MetaVQA-Train">Data Preview</a>
 |
 <a href="https://arxiv.org/abs/2501.09167">Arxiv</a>
 |
@@ -30,9 +22,9 @@
 
 [Weizhen Wang](https://github.com/WeizhenWang-1210), [Chenda Duan](https://chendaduan.com/), [Zhenghao Peng](https://pengzhenghao.github.io/), [Yuxin Liu](https://github.com/Yuxin45), [Bolei Zhou](https://boleizhou.github.io/)
 
+This is the official repository for **Embodied Scene Understanding for Vision Language Models via MetaVQA** from CVPR 2025. It contains the necessary toolkit for creating this benchmark, including both VQA datasets and closed-loop challenges. 
 
-
-# Installation Guide
+# Installation
 - Clone the repository and create a virtual environment/Conda envrionment with Python 3.11
 - install the dependencies by running `pip install -e .`
 - missing `yaml`, `pip install nuscenes-devkit`, `imageio`, `pip install imageio[ffmpeg]`
@@ -41,46 +33,97 @@
 - Download the nuScenes Dataset as well as the nuScenes DevKit
 
 
-# Generate Scenarios
-- Checkout `scripts/test_scenegen.sh` for sample code.
+# Scenario Generation
+We prepared two distinct pipelines for curating the real-world scenarios and simulator-rendered scenarios. Checkout `scripts_cvpr/scene_gen/nusc_real.sh` and `scripts_cvpr/scene_gen/waymo_sim.sh` for examples.
+
+## nuScenes Scenarios (with real-image Observations)
+We utilize the nuScenes_Devkit tools to prepare nuScenes scenarios. You can checkout `vqa.scenegen.nusc_devkit_annotation` for implementation details.
+
+## WOMD Scenarios (with simulator-rendered Observations)
+You can pre-process your traffic records into the [ScenarioNet](https://github.com/metadriverse/scenarionet) format, which can be directly loaded into the MetaDrive simulator. Check out `vqa.scenegen.metadrive_annotation.py` for more details. Note that nuScenes scenarios can also be converted to this format, and you can essentially create a "digital twin" for the same traffic layout.
 
 
-
-
-
-## nuScenes Scenarios (Real-world Observations)
-For the nuScenes Dataset, we have a script utilizing the nuScenes Devkit. You can checkout `vqa.nusc_devkit_annotation` for more details.
-
-## Waymo Scenarios (Rendered Observations)
-You can pre-process your traffic records into the ScenarioNet format and store them into a single folder(or multiple locations, referring to the ScenarioNet system). Then, you can simply use this stored location as your data source to prepare rendering.
-
-
-
-
-
-
-
-# Generate Questions
+# VQA Curation
 ## Set-of-Mark Annotation:
-- Checkout `som/masking.py`
+Checkout `som/masking.py`
 ## VQA Generation
-- Checkout `scripts/test_vqagen.sh` for sample code. The creation of set-of-mark annotated data will also be taken care of.
+Checkout `scripts/test_vqagen.sh` for sample code. The creation of set-of-mark annotated data will also be taken care of.
 
-## Export the dataset
-- Checkout `som/qa_utils.py`
 
-# Dataset Release
 
-# Model Checkpoints & Benchmark Reproduction
-## VQA Eval
 
-## Closed-loop Eval
 
-# Model Training and Inference
+
+
+
+# VQA Datasets
+The Training-Validation and Testing sets used in our CVPR 2025 paper have been released on Hugginface in JSON files. Check the table below. 
+
+| Split     | URL       |  Size (#VQAs)
+|---------  |:---------:|:---------:|
+| Train-Val | https://huggingface.co/datasets/Weizhen011210/MetaVQA-Train  | 150 K
+| Test      | https://huggingface.co/datasets/Weizhen011210/MetaVQA-Eval   | 9,375
+
+Larger scale version will be released soon.
+
+
+# Fine-tuned Checkpoints 
+You can find fine-tuned checkpoints for models referred in the paper here. You can simply load them using the [Transformers](https://huggingface.co/docs/transformers/en/index) package and inferencing in consistent paradigm their base models.
+
+| Table       | Code Name       |  URL
+|:---------:  |:---------:|:---------:|
+| 4           | Qwen2-finetuned      | https://huggingface.co/Weizhen011210/Qwen2-VL_MetaVQA-Train 
+| 4           | Llama3.2-finetuned   | https://huggingface.co/Weizhen011210/Llama3.2_MetaVQA-Train 
+| 5           | Qwen2-tuned          | https://huggingface.co/Weizhen011210/Qwen2-VL_MetaVQA-Closed-Loop
+| 5           | Llama3.2-tuned       | https://huggingface.co/Weizhen011210/Llama3.2_MetaVQA-Closed-Loop
+| 5           | InternVL2-4B-tuned   | https://huggingface.co/Weizhen011210/InternVL2-4B_MetaVQA-Closed-Loop
+| 5           | InternVL2-8B-tuned   | https://huggingface.co/Weizhen011210/InternVL2-8B_MetaVQA-Closed-Loop
+
+# Benchmark Reproduction
+
+
+
+<!---
+## VQA Evaluation Results
+For transparency, you can find the original VLM inference results and our computed metric files listed below.
+
+### Table 2. Sim-to-Real
+
+
+
+## Closed-loop Evaluation Results
+For transparency, we provide the closed-loop inference results below.
+-->
+
+
+
+# Model Fine-tuning and Inference
+
+## Supervised Fine-tuning
+We used InternVL2's native repository for the LoRA fine-tuning of InternVL2. For Qwen-2-VL and Llama-3.2-VL, we used LLaMa-Factory. For inference, we used the [Transformers](https://huggingface.co/docs/transformers/en/index) package (except for GPT-4o, which we uses web API).
+
+## VQA Inference
+
+## Closed-loop Inference
+
+
+# Acknowledgements
+MetaVQA is built on top of <a href="https://github.com/metadriverse/metadrive">MetaDrive</a> simulator. Safety-critical scenarios
+are generated using <a href="https://github.com/metadriverse/cat">CAT</a>. 
+
+
 
 # Citation
+If you find our work useful, please cite as follows:
 
-
+```latex
+@inproceedings{wang2025metavqa,
+  title={Embodied Scene Understanding for Vision Language Models via MetaVQA},
+  author={Wang, Weizhen and Duan, Chenda and Peng, Zhenghao and Liu, Yuxin and Zhou, Bolei},
+  booktitle={IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  year={2025},
+}
+```
 
 <!---
 ## Highlights <a name="highlights"></a>
