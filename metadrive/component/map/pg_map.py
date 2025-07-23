@@ -1,6 +1,4 @@
 import copy
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.algorithm.blocks_prob_dist import PGBlockDistConfig
 from metadrive.type import MetaDriveType
 from metadrive.constants import PGLineType, PGLineColor
@@ -66,15 +64,15 @@ class PGMap(BaseMap):
 
     def _big_generate(self, parent_node_path: NodePath, physics_world: PhysicsWorld):
         big_map = BIG(
-            vqa.vqagen.utils.qa_utils.get(self.LANE_NUM, 2),
-            vqa.vqagen.utils.qa_utils.get(self.LANE_WIDTH, 3.5),
+            self._config.get(self.LANE_NUM, 2),
+            self._config.get(self.LANE_WIDTH, 3.5),
             self.road_network,
             parent_node_path,
             physics_world,
             # self._config["block_type_version"],
-            exit_length=vqa.vqagen.utils.qa_utils.get("exit_length", 50),
+            exit_length=self._config.get("exit_length", 50),
             random_seed=self.engine.global_random_seed,
-            block_dist_config=vqa.vqagen.utils.qa_utils.get("block_dist_config", PGBlockDistConfig)
+            block_dist_config=self.engine.global_config.get("block_dist_config", PGBlockDistConfig)
         )
         big_map.generate(self._config[self.GENERATE_TYPE], self._config[self.GENERATE_CONFIG])
         self.blocks = big_map.blocks
@@ -84,12 +82,12 @@ class PGMap(BaseMap):
         assert len(self.road_network.graph) == 0, "These Map is not empty, please create a new map to read config"
         last_block = FirstPGBlock(
             global_network=self.road_network,
-            lane_width=vqa.vqagen.utils.qa_utils.get(self.LANE_WIDTH, 3.5),
-            lane_num=vqa.vqagen.utils.qa_utils.get(self.LANE_NUM, 2),
+            lane_width=self._config.get(self.LANE_WIDTH, 3.5),
+            lane_num=self._config.get(self.LANE_NUM, 2),
             render_root_np=parent_node_path,
             physics_world=physics_world,
-            length=vqa.vqagen.utils.qa_utils.get("exit_length", 50),
-            start_point=vqa.vqagen.utils.qa_utils.get("start_position", [0, 0]),
+            length=self._config.get("exit_length", 50),
+            start_point=self._config.get("start_position", [0, 0]),
             ignore_intersection_checking=True
         )
         self.blocks.append(last_block)
