@@ -23,7 +23,7 @@ from vqa.vqagen.set_of_marks import labelframe, static_id2label
 from vqa.vqagen.utils.geometric_utils import get_distance, extrapolate_bounding_boxes, box_trajectories_collide, \
     box_trajectories_intersect, identify_angle
 from vqa.vqagen.utils.math_utils import transform_heading
-from vqa.vqagen.utils.qa_utils import create_options, create_multiple_choice, replace_substrs, fill_in_label, get, \
+from vqa.vqagen.utils.qa_utils import create_options, create_multiple_choice, replace_substrs, fill_in_label, get_from_world, \
     enumerate_frame_labels, angle2sector
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +54,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             # Fill the question template's <id...> with the chosen label.
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
             # Getting the answer from SceneGraph. In addition, grab extra information from the scene graph for explanation string.
-            object = get(world, label2id[selected_label])
+            object = get_from_world(world, label2id[selected_label])
             color, type = object["color"], object["type"]
             assert len(color)>0, "Empty string for color"
             # First, get a pool of sensible answers for the multiple-choice setup from the scenario. If no sufficient number
@@ -80,7 +80,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             #print(type_space)
             selected_label = random.choice(non_ego_labels)
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
-            object = get(world, label2id[selected_label])
+            object = get_from_world(world, label2id[selected_label])
             color, type = object["color"], object["type"]
             #print(type)
 
