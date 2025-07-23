@@ -1,5 +1,4 @@
 #!/bin/bash
-SAVE_DIR="/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim" # Replace with you desired scenario save path
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
 CONFIG="${METAVQA_DIR}/vqa/scenegen/configs/nusc_sim.yaml"
