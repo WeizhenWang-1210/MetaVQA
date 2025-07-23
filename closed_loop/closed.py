@@ -20,7 +20,7 @@ from som.navigation import get_trajectory, dynamic_get_navigation_signal, dest_n
 from som.parse_responses import parse_response
 from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
 from vqa.scenegen.annotation_utils import get_visible_object_ids
-from vqa.vqagen.dataset_utils import l2_distance
+from vqa.vqagen.metadrive_utils import l2_distance
 from vqa.vqagen.static_question_generation import POSITION2CHOICE
 
 INTERNVL = os.getenv("INTERNVL", False)

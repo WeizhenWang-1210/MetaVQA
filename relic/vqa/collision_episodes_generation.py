@@ -11,7 +11,7 @@ import json
 from vqa.scenegen.annotation_utils import get_visible_object_ids, genearte_annotation, generate_annotations
 import pickle
 from collections import defaultdict
-from vqa.vqagen.dataset_utils import l2_distance
+from vqa.vqagen.metadrive_utils import l2_distance
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.sensors.instance_camera import InstanceCamera
 from vqa.scenegen.metadrive_annotation import postprocess_annotation

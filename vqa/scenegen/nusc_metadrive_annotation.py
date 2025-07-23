@@ -24,7 +24,7 @@ from vqa.scenegen.macros import NUSCENES_SN_PATH, PAIRING_PATH
 from vqa.scenegen.metadrive_annotation import get_visible_object_ids, generate_annotations, genearte_annotation, \
     postprocess_annotation
 from vqa.utils.common_utils import divide_list_into_n_chunks
-from vqa.vqagen.dataset_utils import l2_distance
+from vqa.vqagen.metadrive_utils import l2_distance
 
 PAIRED_OBSERVATION = json.load(open(PAIRING_PATH, "r"))
 
