@@ -33,30 +33,35 @@ This is the official repository for **Embodied Scene Understanding for Vision La
 - Download the nuScenes Dataset as well as the nuScenes DevKit
 
 
-# Scenario Generation
+# Scenario Aggregation
 We prepared two distinct pipelines for curating the real-world scenarios and simulator-rendered scenarios. Checkout `scripts_cvpr/scene_gen/nusc_real.sh` and `scripts_cvpr/scene_gen/waymo_sim.sh` for examples.
+
+## Preliminaries
+Please download the [nuScenes Dataset](https://www.nuscenes.org/nuscenes) via the official website if you want to utilize nuScenes scenarios for VQA generation. For Waymo Open Motion Dataset(WOMD), you can refer to [ScenarioNet](https://github.com/metadriverse/scenarionet) to pre-process the tfrecords into `pkl` files compatible with [MetaDrive](https://github.com/metadriverse/metadrive) simulator.
 
 ## nuScenes Scenarios (with real-image Observations)
 We utilize the nuScenes_Devkit tools to prepare nuScenes scenarios. You can checkout `vqa.scenegen.nusc_devkit_annotation` for implementation details.
 
 ## WOMD Scenarios (with simulator-rendered Observations)
-You can pre-process your traffic records into the [ScenarioNet](https://github.com/metadriverse/scenarionet) format, which can be directly loaded into the MetaDrive simulator. Check out `vqa.scenegen.metadrive_annotation.py` for more details. Note that nuScenes scenarios can also be converted to this format, and you can essentially create a "digital twin" for the same traffic layout.
+Check out `vqa.scenegen.metadrive_annotation.py` for more details. Note that nuScenes scenarios can also be converted to this format, and you can essentially create a "digital twin" for the same traffic layout.
+
+<!--
+## End Product #TODO
+By the end of this stage, suppose you specify your logging path at `/data`, you will have the following file structure.
+-->
+
 
 
 # VQA Curation
 ## Set-of-Mark Annotation:
-Checkout `som/masking.py`
+Checkout `vqa.vqagen.set_of_marks.py` for implementation details.
+
 ## VQA Generation
-Checkout `scripts/test_vqagen.sh` for sample code. The creation of set-of-mark annotated data will also be taken care of.
+Checkout `scripts_cvpr/vqa_gen/*.sh` for sample code and `vqa/vqa_gen/static_question_generation.py` for implementation details. All the question templates are defined in `vqa/vqa_gen/questions_templates.json`. Note that the Set-of-Mark annotation is automatically applied during the generation process.
 
 
 
-
-
-
-
-
-# VQA Datasets
+# MetaVQA-Datasets
 The Training-Validation and Testing sets used in our CVPR 2025 paper have been released on Hugginface in JSON files. Check the table below. 
 
 | Split     | URL       |  Size (#VQAs)
@@ -64,11 +69,16 @@ The Training-Validation and Testing sets used in our CVPR 2025 paper have been r
 | Train-Val | https://huggingface.co/datasets/Weizhen011210/MetaVQA-Train  | 150 K
 | Test      | https://huggingface.co/datasets/Weizhen011210/MetaVQA-Eval   | 9,375
 
-Larger scale version will be released soon.
+
+A much larger version will be released soon.
+
+
+# Closed-loop Evaluation (Coming soon)
+
 
 
 # Fine-tuned Checkpoints 
-You can find fine-tuned checkpoints for models referred in the paper here. You can simply load them using the [Transformers](https://huggingface.co/docs/transformers/en/index) package and inferencing in consistent paradigm their base models.
+You can find fine-tuned checkpoints for models referred in the paper here. You can simply load them using the [Transformers](https://huggingface.co/docs/transformers/en/index) package and inference in consistent paradigm their base models.
 
 | Table       | Code Name       |  URL
 |:---------:  |:---------:|:---------:|
@@ -79,11 +89,13 @@ You can find fine-tuned checkpoints for models referred in the paper here. You c
 | 5           | InternVL2-4B-tuned   | https://huggingface.co/Weizhen011210/InternVL2-4B_MetaVQA-Closed-Loop
 | 5           | InternVL2-8B-tuned   | https://huggingface.co/Weizhen011210/InternVL2-8B_MetaVQA-Closed-Loop
 
-# Benchmark Reproduction
+
 
 
 
 <!---
+
+# Benchmark Reproduction
 ## VQA Evaluation Results
 For transparency, you can find the original VLM inference results and our computed metric files listed below.
 
@@ -93,7 +105,7 @@ For transparency, you can find the original VLM inference results and our comput
 
 ## Closed-loop Evaluation Results
 For transparency, we provide the closed-loop inference results below.
--->
+
 
 
 
@@ -105,7 +117,7 @@ We used InternVL2's native repository for the LoRA fine-tuning of InternVL2. For
 ## VQA Inference
 
 ## Closed-loop Inference
-
+-->
 
 # Acknowledgements
 MetaVQA is built on top of <a href="https://github.com/metadriverse/metadrive">MetaDrive</a> simulator. Safety-critical scenarios
@@ -143,17 +155,7 @@ MetaVQA a visual question-answering benchmark for improving and evaluating the e
 
 
 
-## Repository Update Timeline
-- [x] Release of Demo VQA dataset(downloadable in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>)
-- [ ] Release of MetaVQA-2M dataset
-- [x] Demo for generating new VQA data
-- [ ] Release of benchmark models and checkpoints.
-- [x] Release of benchmark training repository.
-- [ ] Setup of leaderboard website.
 
-## MetaVQA-2M Dataset
-
-We will release MetaVQA-2M in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>
 
 
 
@@ -235,12 +237,6 @@ Finally, to export the dataset into a self-contained folder, with `export.py`. T
 ## Benchmark Training and Testing
 The training and evaluation scripts are available at  <a href="https://github.com/Dadaism6/MetaVQA-Training">this repository</a>. You can find the experiment
 results in the <a href="https://metadriverse.github.io/metaVQA/">official Website</a>.
-
-
-
-## Acknowledgements
-MetaVQA is built on top of <a href="https://github.com/metadriverse/metadrive">MetaDrive</a> simulator. Safety-critical scenarios
-are generated using <a href="https://github.com/metadriverse/cat">CAT</a>. 
 
 
 -->
