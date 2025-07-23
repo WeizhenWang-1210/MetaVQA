@@ -54,3 +54,12 @@ def divide_into_intervals_exclusive(total, n, start=0):
         # Update the start for the next interval
         start = end
     return intervals
+
+
+def majority_true(things, criteria=lambda x: x, threshold=0.8):
+    num_things = len(things)
+    num_true = 0
+    for thing in things:
+        if criteria(thing):
+            num_true += 1
+    return num_true / num_things >= threshold

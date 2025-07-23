@@ -1,8 +1,8 @@
 from vqa.vqagen.scene_graph import TemporalGraph
-from vqa.vqagen.object_node import TemporalNode, box_overlap, box_trajectories_overlap
+from vqa.vqagen.object_node import TemporalNode
 from typing import Tuple, Iterable
-from vqa.vqagen.dataset_utils import sample_keypoints
-from vqa.vqagen.object_node import extrapolate_bounding_boxes
+from vqa.vqagen.geometric_utils import sample_keypoints, generate_stopped_trajectory, extrapolate_bounding_boxes, \
+    box_trajectories_collide, box_overlap
 import numpy as np
 
 
@@ -34,12 +34,9 @@ def counterfactual_trajectory(graph, injected_trajectory):
     ego = graph.get_ego_node()
     nodes = [graph.get_node(id) for id in graph.nodes.keys() if id != ego.id]
     for other in nodes:
-        if box_trajectories_overlap(injected_trajectory, other.bboxes):
+        if box_trajectories_collide(injected_trajectory, other.bboxes):
             return False
     return True
-
-
-from vqa.vqagen.dataset_utils import generate_stopped_trajectory
 
 
 def counterfactual_stop(graph, stop_step):
@@ -53,7 +50,7 @@ def counterfactual_stop(graph, stop_step):
     # stopped_ego_trajectory = generate_stopped_trajectory(stop_step, ego_trajectory)
     stopped_ego_bboxes = generate_stopped_trajectory(stop_step, ego_bboxes)
     for other in nodes:
-        if box_trajectories_overlap(stopped_ego_bboxes, other.bboxes):
+        if box_trajectories_collide(stopped_ego_bboxes, other.bboxes):
             return False
     return True
 

@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from vqa.vqagen.dataset_utils import find_extremities
+from vqa.vqagen.geometric_utils import find_extremities, box_overlap
 import os
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TRAJECTORIES = json.load(open(os.path.join(current_directory,"trajectories_collection.json"),"r"))
@@ -375,9 +375,6 @@ def end_with_average(traj_dicts, action, speed, duration, bucket_size=10):
 def get_end_sector(action, speed, duration, bucket_size=10):
     processed = PROCESSED
     return end_with_average(processed, action=action, speed=speed, duration=duration, bucket_size=bucket_size)
-
-
-from vqa.vqagen.object_node import box_overlap
 
 
 def determine_collisions(obj_box,  action, speed, duration, bucket_size=10, traj_dicts = PROCESSED):

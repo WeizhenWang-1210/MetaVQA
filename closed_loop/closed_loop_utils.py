@@ -5,7 +5,7 @@ from closed_loop.embodied_utils import classify_distance, l2_distance, find_sect
     describe_speed, ACTION, determine_collisions
 from vqa.vqagen.static_question_generation import angle2sector
 from vqa.vqagen.config import TYPES_WITHOUT_HEADINGS, SECTORS
-from vqa.vqagen.object_node import extrapolate_bounding_boxes, box_trajectories_overlap, transform_vec
+from vqa.vqagen.geometric_utils import extrapolate_bounding_boxes, box_trajectories_collide, transform_vec
 from vqa.configs.namespace import POSITION2CHOICE
 from vqa.scenegen.annotation_utils import annotate_type
 
@@ -118,7 +118,7 @@ def CoT_prompts(env: BaseEnv, label2id: dict):
                                                         np.arctan2(object.heading[1], object.heading[0]),
                                                         object.bounding_box)
         ego_boxes = [ego.bounding_box for i in range(50)]
-        crash = box_trajectories_overlap(extrapolated_boxes, ego_boxes)
+        crash = box_trajectories_collide(extrapolated_boxes, ego_boxes)
         answer = "Yes" if crash else "No"
         ground_truth = "A" if crash else "B"
         option2answer = dict(A="Yes", B="No")

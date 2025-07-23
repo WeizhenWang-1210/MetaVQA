@@ -16,11 +16,11 @@ from vqa.configs.namespace import NAMESPACE, POSITION2CHOICE
 from vqa.vqagen.ablations import grounding_ablations
 from vqa.vqagen.config import NAMED_MAPPING, FONT_SCALE, BACKGROUND, USEBOX, TYPES_WITHOUT_HEADINGS, DIRECTION_MAPPING, \
     SECTORS
-from vqa.vqagen.dataset_utils import transform_heading
-from vqa.vqagen.geometric_utils import get_distance
-from vqa.vqagen.grounding_question import generate_grounding, SETTINGS
-from vqa.vqagen.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, \
+from vqa.vqagen.math_utils import transform_heading
+from vqa.vqagen.geometric_utils import get_distance, extrapolate_bounding_boxes, box_trajectories_collide, \
     box_trajectories_intersect
+from vqa.vqagen.grounding_question import generate_grounding, SETTINGS
+from vqa.vqagen.object_node import nodify
 from vqa.vqagen.parameterized_questions import parameterized_generate
 from vqa.vqagen.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
 from vqa.vqagen.scene_graph import SceneGraph
@@ -329,7 +329,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                             np.arctan2(object.heading[1], object.heading[0]),
                                                             object.bbox)
             ego_boxes = [ego_node.bbox for i in range(50)]
-            crash = box_trajectories_overlap(extrapolated_boxes, ego_boxes)
+            crash = box_trajectories_collide(extrapolated_boxes, ego_boxes)
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0], {"<id1>": str(selected_label)})
             object = graph.get_node(label2id[selected_label])
             color, type = object.color, object.type
@@ -375,7 +375,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             ego_boxes = extrapolate_bounding_boxes(ego_centers,
                                                    np.arctan2(ego_node.heading[1], ego_node.heading[0]), ego_node.bbox)
 
-            crash = box_trajectories_overlap(extrapolated_boxes, ego_boxes)
+            crash = box_trajectories_collide(extrapolated_boxes, ego_boxes)
             intersect = box_trajectories_intersect(extrapolated_boxes, ego_boxes)
             options = ["Yes", "No"]
 
@@ -539,7 +539,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
                                                             np.arctan2(object1.heading[1], object1.heading[0]),
                                                             object1.bbox)
             object2_boxes = [object2.bbox for i in range(50)]
-            crash = box_trajectories_overlap(extrapolated_boxes, object2_boxes)
+            crash = box_trajectories_collide(extrapolated_boxes, object2_boxes)
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
                                      {"<id1>": str(id1), "<id2>": str(id2)})
             color1, type1 = object1.color, object1.type
@@ -589,7 +589,7 @@ def generate(frame_path: str, question_type: str, perspective: str = "front", ve
             extrapolated_boxes2 = extrapolate_bounding_boxes(extrapolated_centers2,
                                                              np.arctan2(object2.heading[1], object2.heading[0]),
                                                              object2.bbox)
-            crash = box_trajectories_overlap(extrapolated_boxes1, extrapolated_boxes2)
+            crash = box_trajectories_collide(extrapolated_boxes1, extrapolated_boxes2)
             intersect = box_trajectories_intersect(extrapolated_boxes1, extrapolated_boxes2)
             question = fill_in_label(TEMPLATES["static"][question_type]["text"][0],
                                      {"<id1>": str(id1), "<id2>": str(id2)})

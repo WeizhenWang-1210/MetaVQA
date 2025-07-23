@@ -2,9 +2,9 @@ import math
 from collections import defaultdict
 from typing import Iterable
 
-from vqa.vqagen.dataset_utils import transform_heading
+from vqa.vqagen.math_utils import transform_heading
 from vqa.vqagen.object_node import ObjectNode, TemporalNode
-from vqa.vqagen.object_node import transform_vec
+from vqa.vqagen.geometric_utils import transform_vec
 
 
 class SceneGraph:

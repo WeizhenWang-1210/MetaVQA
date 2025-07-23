@@ -3,9 +3,9 @@ from typing import Iterable, Tuple, List, Union
 
 import numpy as np
 
-from vqa.vqagen.dataset_utils import dot, norm, position_frontback_relative_to_obj1, \
-    position_left_right_relative_to_obj1, majority_true
-from vqa.vqagen.geometric_utils import get_distance
+from vqa.utils.common_utils import majority_true
+from vqa.vqagen.math_utils import dot, norm
+from vqa.vqagen.geometric_utils import get_distance, find_extremities, position_frontback_relative_to_obj1, position_left_right_relative_to_obj1
 
 
 class ObjectNode:
@@ -479,30 +479,6 @@ class TemporalNode:
         return self.id
 
 
-def find_extremities(ref_heading: Iterable[float], bboxes: Iterable[Iterable],
-                     center: Iterable[float]) -> Tuple[Iterable[float], ...]:
-    """
-    Find the two vertice of bbox that are the extremeties along the provided positive axis.
-    """
-    recentered_bboxes = [[bbox[0] - center[0], bbox[1] - center[1]] for bbox in bboxes]
-    max_dot, min_dot = float("-inf"), float("inf")
-    left_bbox, right_bbox = bboxes[0], bboxes[1]
-    for bbox in recentered_bboxes:
-        dotp = dot(bbox, ref_heading)
-        if dotp > max_dot:
-            left_bbox = bbox
-            max_dot = dotp
-        if dotp < min_dot:
-            right_bbox = bbox
-            min_dot = dotp
-    left_bbox[0] += center[0]
-    left_bbox[1] += center[1]
-    right_bbox[0] += center[0]
-    right_bbox[1] += center[1]
-
-    return left_bbox, right_bbox
-
-
 def nodify(scene_dict: dict, multiview=True) -> Tuple[str, List[ObjectNode]]:
     """
     Read world JSON file into nodes. 
@@ -565,18 +541,6 @@ def transform(ego: Union[ObjectNode | TemporalNode], bbox: Iterable[Iterable[flo
     return [change_bases(*point) for point in bbox]
 
 
-def transform_vec(origin, positive_x, bbox):
-    def change_bases(x, y):
-        relative_x, relative_y = x - origin[0], y - origin[1]
-        new_x = positive_x
-        new_y = (-new_x[1], new_x[0])
-        x = (relative_x * new_x[0] + relative_y * new_x[1])
-        y = (relative_x * new_y[0] + relative_y * new_y[1])
-        return [x, y]
-
-    return [change_bases(*point) for point in bbox]
-
-
 def distance(node1: ObjectNode, node2: ObjectNode) -> float:
     """
     Return the Euclidean distance between two AgentNodes
@@ -585,108 +549,3 @@ def distance(node1: ObjectNode, node2: ObjectNode) -> float:
     return np.sqrt(dx ** 2 + dy ** 2)
 
 
-def box_overlap(box1, box2):
-    def project_polygon(axis, polygon):
-        """ Project a polygon onto an axis and return the minimum and maximum points of projection. """
-        dots = [np.dot(vertex, axis) for vertex in polygon]
-        return min(dots), max(dots)
-
-    def overlap_on_axis(axis, poly1, poly2):
-        """ Check if projections of two polygons on a given axis overlap. """
-        min1, max1 = project_polygon(axis, poly1)
-        min2, max2 = project_polygon(axis, poly2)
-        return max(min1, min2) <= min(max1, max2)
-
-    def separating_axis_theorem(poly1, poly2):
-        """ Use the Separating Axis Theorem to determine if two polygons overlap. """
-        # Get the list of axes to check
-        num_vertices = len(poly1)
-        axes = [np.subtract(poly1[(i + 1) % num_vertices], poly1[i]) for i in range(num_vertices)]
-        num_vertices = len(poly2)
-        axes += [np.subtract(poly2[(i + 1) % num_vertices], poly2[i]) for i in range(num_vertices)]
-
-        # Normalize the axes
-        axes = [np.array([-axis[1], axis[0]]) for axis in axes]  # Perpendicular vector
-
-        # Check overlap for all axes
-        for axis in axes:
-            if not overlap_on_axis(axis, poly1, poly2):
-                return False  # Found a separating axis
-        return True  # No separating axis found, polygons must overlap
-
-    return separating_axis_theorem(np.array(box1), np.array(box2))
-
-
-def box_trajectories_overlap(bboxes1, bboxes2):
-    for box1, box2 in zip(bboxes1, bboxes2):
-        if box_overlap(box1, box2):
-            return True
-    return False
-
-
-def box_trajectories_intersect(bboxes1, bboxes2):
-    records = []
-    for id1, box1 in enumerate(bboxes1):
-        for id2, box2 in enumerate(bboxes2):
-            if box_overlap(box1, box2):
-                records.append((id1, id2))
-    records = sorted(records, key=lambda x: min(x))
-    if len(records) > 0:
-        """if records[0][0] < records[0][1]:
-            print("2 run into 1")
-        else:
-            print("1 run into 2")"""
-        return True
-    else:
-        return False
-
-
-def rotate_point(point, origin, angle):
-    """
-    rotate clockwise by angle around origin
-    """
-    relative_point = point - origin
-    relative_point_rotated = np.dot(relative_point,
-                                    np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]))
-    return (relative_point_rotated + origin).tolist()
-
-
-def rotate_box(vertices, origin, angle):
-    """
-      rotate clockwise by angle around origin.
-      Vertices in world cooridnate.
-      Origin in world coordinate.
-      Return in world coordinate.
-      """
-    return [rotate_point(np.array(vertex), np.array(origin), -angle) for vertex in vertices]
-
-
-def translate_box(box, offset):
-    new_box = []
-    for vertice in box:
-        x, y = vertice
-        new_x = x + offset[0]
-        new_y = y + offset[1]
-        new_box.append([new_x, new_y])
-    return new_box
-
-
-def extrapolate_bounding_boxes(centers, initial_angle, initial_box):
-    bounding_boxes = [initial_box]
-    coordinate = centers[0], initial_angle
-    for i, waypoint in enumerate(centers[1:]):
-        origin, heading = coordinate
-        # find the rotated angle
-        translation_vector = waypoint[0] - origin[0], waypoint[1] - origin[1]
-        diff = transform_vec(origin, [np.cos(heading), np.sin(heading)], [waypoint])[0]
-        # print(np.rad2deg(np.arctan2(diff[1], )))
-        delta_angle = np.arctan2(diff[1], diff[0])
-        cur_box = bounding_boxes[-1]
-        # rotate_box
-        rotated_box = rotate_box(cur_box, origin, delta_angle)
-        # translate_box
-        translated_box = translate_box(rotated_box, translation_vector)
-        bounding_boxes.append(translated_box)
-        # update coordinate
-        coordinate = waypoint, coordinate[1] + delta_angle
-    return bounding_boxes

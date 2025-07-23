@@ -1,7 +1,8 @@
 import asyncio
-import aiohttp
-import json
 import base64
+import json
+
+import aiohttp
 
 API_KEY = None
 
@@ -78,7 +79,6 @@ async def fill_qa(results, vqas, api_key):
             results[index]["world"] = vqas[index]["world"]
 
 
-import time
 import tqdm
 
 if __name__ == "__main__":
