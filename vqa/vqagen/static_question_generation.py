@@ -1092,7 +1092,7 @@ def batch_generate_static(world_paths, save_path="./", verbose=False, perspectiv
         count = 0
         frame_paths = frame_paths
         for frame_path in tqdm.tqdm(frame_paths, desc=f"Proc-{proc_id}", unit="frame"):
-            # First, create som-annotated images.
+            # First, create closed_loop-annotated images.
             current_frame = frame_path
             frame_records = {}
             frame_id = 0
@@ -1494,7 +1494,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_path", default="/bigdata/weizhen/metavqa_cvpr/vqas/scratch/qa.json", help="Name template for qas. Each process will have its proc_id as prefix to the basename.")
     parser.add_argument("--num_proc", default=1, type=int, help="Number of process generating qas.")
     parser.add_argument("--use_existing_labels", action="store_true", help="If set, will generate new frame-level labelling regardless of if such labelling already exists.")
-    parser.add_argument("--nusc_real", action="store_true", help="If set, will load additional corner files for generating som for nuscenes data with real observations. Also will skip color-identification problems.")
+    parser.add_argument("--nusc_real", action="store_true", help="If set, will load additional corner files for generating closed_loop for nuscenes data with real observations. Also will skip color-identification problems.")
     parser.add_argument("--verbose", action="store_true", help="Set verbosity for debugging")
     parser.add_argument("--domain", default="sim", help="Specify the observation domains. Either \"sim\" or \"real\" ")
     args = parser.parse_args()

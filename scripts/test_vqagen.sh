@@ -20,6 +20,6 @@ python -m som.static_question_generation --scenarios $SCENARIOS \
 # DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # METAVQA_DIR="$(dirname "$DIR")"
 # cd $METAVQA_DIR;
-# python -m som.static_question_generation --scenarios $SCENARIOS \
+# python -m closed_loop.static_question_generation --scenarios $SCENARIOS \
 #   --save_path $SAVEPATH --num_proc $NUMPROC \
 #   --domain $DOMAIN
