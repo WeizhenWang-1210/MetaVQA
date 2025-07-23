@@ -7,7 +7,7 @@ from vqa.vqagen.config import NAMED_MAPPING, FONT_SCALE, BACKGROUND, USEBOX, TYP
 from vqa.vqagen.grounding_question import generate_grounding, SETTINGS
 from vqa.vqagen.ablations import grounding_ablations
 from vqa.vqagen.parameterized_questions import parameterized_generate
-from som.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
+from vqa.vqagen.qa_utils import create_options, create_multiple_choice, split_list, find_label, replace_substrs
 from vqa.vqagen.utils import enumerate_frame_labels, get, fill_in_label
 from vqa.vqagen.set_of_marks import labelframe, static_id2label
 from vqa.vqagen.object_node import nodify, extrapolate_bounding_boxes, box_trajectories_overlap, box_trajectories_intersect

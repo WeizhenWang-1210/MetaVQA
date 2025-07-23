@@ -1,30 +1,34 @@
 import argparse
-from metadrive.envs.scenario_env import ScenarioEnv
+import json
+import os
 import sys
 from collections import defaultdict
-from metadrive.component.sensors.rgb_camera import RGBCamera
-from metadrive.policy.replay_policy import InterventionPolicy
-from som.closed_loop_utils import computeADE
-from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
-from vqa.vqagen.dataset_utils import l2_distance
-from vqa.scenegen.annotation_utils import get_visible_object_ids
+
+import cv2
 import numpy as np
+from PIL import Image
+
+from metadrive.component.sensors.instance_camera import InstanceCamera
+from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
+from metadrive.envs.scenario_env import ScenarioEnv
+from metadrive.policy.replay_policy import InterventionPolicy
+from som.closed_loop_utils import absoluteFDE
+from som.closed_loop_utils import computeADE
+from som.embodied_utils import ACTION, classify_distance
 from som.navigation import get_trajectory, dynamic_get_navigation_signal, dest_navigation_signal
 from som.parse_responses import parse_response
-from som.closed_loop_utils import absoluteFDE
-import cv2
-import os
-from PIL import Image
-from metadrive.component.sensors.instance_camera import InstanceCamera
-import json
-from som.embodied_utils import ACTION, classify_distance
+from vqa.configs.namespace import MIN_OBSERVABLE_PIXEL, MAX_DETECT_DISTANCE
+from vqa.scenegen.annotation_utils import get_visible_object_ids
+from vqa.vqagen.dataset_utils import l2_distance
 from vqa.vqagen.static_question_generation import POSITION2CHOICE
 
 INTERNVL = os.getenv("INTERNVL", False)
 INTERNVLZEROSHOT = os.getenv("INTERNVLZEROSHOT", False)
 
 print(INTERNVL, INTERNVLZEROSHOT)
+
+
 def divide_list(lst, n):
     # Calculate the size of each chunk
     chunk_size = len(lst) // n
@@ -37,6 +41,7 @@ def divide_list(lst, n):
         result.append(lst[start:end])
         start = end
     return result
+
 
 def in_forbidden_area(agent):
     """forbidden_places = ["GROUND"]
@@ -66,7 +71,7 @@ from som.closed_loop_utils import classify_speed
 
 
 def observe(env):
-    #obs = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -15, 3], [0, -0.8, 0])
+    # obs = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -15, 3], [0, -0.8, 0])
     position = (0., -2, 1.4)
     hpr = [0, 0, 0]
     obs = env.engine.get_sensor("rgb").perceive(to_float=False, new_parent_node=env.agent.origin, position=position,
@@ -145,7 +150,7 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
         center_list.append(center)
         contour_list.append(contours)
         text_boxes = put_rectangle(text_boxes, str(id2l[query_id]), center, [1., 1., 1.], font_scale)
-    #Put boxes/shapes/contours
+    # Put boxes/shapes/contours
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
         if bounding_box:
@@ -167,7 +172,7 @@ def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)
             cv2.rectangle(base_img, (min(tlxs), min(tlys)), (max(brxs), max(brys)), color, 2)  # Draw green bounding box
         else:
             cv2.drawContours(base_img, contour_list[i], -1, color, 2)
-    #Put the text
+    # Put the text
     for i in range(len(area_ascending)):
         query_id, color, area, binary_mask = area_ascending[i]
         put_text(base_img, str(id2l[query_id]), center_list[i], color=color, font_scale=font_scale,
@@ -200,14 +205,14 @@ def capture_som(env):
 
 
 INTERVENED = {
-    "a": [0.15, 0.8],  #turn_left
-    "b": [-0.15, 0.8],  #turn_right
-    "c": [0, -0.135],  #slow_down
-    "d": [0, -0.26],  #brake_now
-    "e": [0, 0.15],  #keep_straight
-    "f": [0, 0.3],  #speed_up
-    "g": [0.6, 0.2],  #big_left
-    "h": [-0.6, 0.2]  #big_right
+    "a": [0.15, 0.8],  # turn_left
+    "b": [-0.15, 0.8],  # turn_right
+    "c": [0, -0.135],  # slow_down
+    "d": [0, -0.26],  # brake_now
+    "e": [0, 0.15],  # keep_straight
+    "f": [0, 0.3],  # speed_up
+    "g": [0.6, 0.2],  # big_left
+    "h": [-0.6, 0.2]  # big_right
 }
 NON_INTERVENED = INTERVENED
 
@@ -227,6 +232,7 @@ def convert_action(action, intervened):
     else:
         return ACTION_MAPPING["e"]
 
+
 def generation_action(model, processor, tokenizer, prompt, obs, intervened):
     print(f"{obs.mean()}, {obs.std()}")
     if INTERNVL:
@@ -237,7 +243,7 @@ def generation_action(model, processor, tokenizer, prompt, obs, intervened):
             answer = inference_internvl(model, processor, tokenizer, prompt, obs[:, :, ::-1])
     else:
         answer = inference(model, processor, tokenizer, prompt, obs[:, :, ::-1])
-    #print(prompt, answer)
+    # print(prompt, answer)
     answer = parse_response(answer, ACTION2OPTION)
     answer = answer.lower()
     ACTION_STATISTICS[answer] += 1
@@ -316,7 +322,7 @@ def prepare_prompt_dest(speed, dir, dist):
         BIG_RIGHT="if chosen, your steering wheel will be turned significantly right while your speed will remain relatively constant"
     )
     question = (
-        f"You are the driver of a vehicle on the road, and your final destination is at {distance} distance{dist_creteria[distance]} to your {sector_string} at this moment. " 
+        f"You are the driver of a vehicle on the road, and your final destination is at {distance} distance{dist_creteria[distance]} to your {sector_string} at this moment. "
         f"Currently, you are driving with {speed_class} speed{desc}. The image is observed in front of you. "
         f"In order to reach your final destination, carefully examine the image. Choose the best action to execute for the next 0.5 seconds from the following options:\n"
         f"(A) TURN_LEFT, {explanation[ACTION.get_action(ACTION.TURN_LEFT)]}.\n"
@@ -332,7 +338,6 @@ def prepare_prompt_dest(speed, dir, dist):
     return question
 
 
-
 def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
     record = record_folder is not None
     if INTERNVL:
@@ -344,7 +349,7 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
     total_out_of_road = total_completions = total_rewards = num_collisions = num_src_collisions = 0
     command_frequency = 5
     collided_scenarios = set()
-    offroad_scenarios= set()
+    offroad_scenarios = set()
     ADEs, FDEs = [], []
     for seed in seeds:
         env.reset(seed)
@@ -379,17 +384,17 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
                 print("Perceive & Act")
                 ###Changed heree###Changed heree
                 dir, dist = dest_navigation_signal(env.engine.data_manager.current_scenario,
-                                                           timestamp=env.episode_step, env=env)
+                                                   timestamp=env.episode_step, env=env)
                 prompt = prepare_prompt_dest(env.agent.speed, dir, dist)
                 ###Changed heree###Changed heree
                 obs, front, id2label = capture_som(env)
-                #Image.fromarray(obs[:, :, ::-1]).save(
+                # Image.fromarray(obs[:, :, ::-1]).save(
                 #    f"{record_folder}/{seed}_{env.engine.episode_step}.png")
                 intervention, intervened = generation_action(model, processor, tokenizer, prompt, obs, intervened)
                 RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["action"] = intervention
                 RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["navigation"] = (dir, dist)
                 RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["prompt"] = prompt
-                #print(intervention, intervened)
+                # print(intervention, intervened)
             assert not (intervention[0] == 0 and intervention[1] == 0)
             o, r, tm, tc, info = env.step(intervention)
             episodic_reward, episodic_completion = info["episode_reward"], info["route_completion"]
@@ -397,7 +402,7 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
                 print("VLM collided.")
                 collided_scenarios.add(env.engine.data_manager.current_scenario_file_name)
                 collide = 1
-                #run = False
+                # run = False
             if info["out_of_road"]:
                 print("VLM wander off road")
                 offroad = 1
@@ -410,7 +415,8 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
         total_out_of_road += offroad
         total_rewards += episodic_reward
         total_completions += episodic_completion
-        ADE, FDE = computeADE(original_trajectory, np.array(trajectory)), absoluteFDE(original_trajectory, np.array(trajectory))
+        ADE, FDE = computeADE(original_trajectory, np.array(trajectory)), absoluteFDE(original_trajectory,
+                                                                                      np.array(trajectory))
         ADEs.append(ADE)
         FDEs.append(FDE)
         if record:
@@ -424,8 +430,10 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
                     Image.fromarray(frame["obs"][:, :, ::-1]).save(obs_path)
                     Image.fromarray(frame["front"][:, :, ::-1]).save(front_path)
                     action_buffer[frame_id] = dict(
-                        scene=env.engine.data_manager.current_scenario_file_name, collide=collide, offroad=offroad, ADE=ADE, FDE=FDE,
-                        prompt=frame["prompt"], action=frame["action"], state=frame["state"], navigation=frame["navigation"],
+                        scene=env.engine.data_manager.current_scenario_file_name, collide=collide, offroad=offroad,
+                        ADE=ADE, FDE=FDE,
+                        prompt=frame["prompt"], action=frame["action"], state=frame["state"],
+                        navigation=frame["navigation"],
                     )
                 json.dump(action_buffer, open(os.path.join(folder_path, "action_buffer.json"), "w"))
             RECORD_BUFFER.clear()
@@ -433,11 +441,8 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
         print(f"episodic_reward: {episodic_reward}")
         print(f"episodic_completion:{episodic_completion}")
         print(f"ADE:{ADE}; FDE{FDE}")
-    return num_collisions, num_src_collisions, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, list(collided_scenarios), list(offroad_scenarios)
-
-
-
-
+    return num_collisions, num_src_collisions, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, list(
+        collided_scenarios), list(offroad_scenarios)
 
 
 def main():
@@ -457,7 +462,7 @@ def main():
     print("Running with the following parameters")
     for key, value in args.__dict__.items():
         print("{}: {}".format(key, value))
-    #assert INTERNVL or args.model_path in MODELPATHS, f"No implementation for model {args.model_path}"
+    # assert INTERNVL or args.model_path in MODELPATHS, f"No implementation for model {args.model_path}"
     use_render = False if args.headless else True
     traffic = args.data_directory
     num_scenarios = args.num_scenarios
@@ -471,7 +476,7 @@ def main():
             rgb=(RGBCamera, 1600, 900),
             instance=(InstanceCamera, 1600, 900)
         ),
-        #"out_of_road_done": True,
+        # "out_of_road_done": True,
         "vehicle_config": dict(vehicle_model="static_default"),
         "height_scale": 1
     }
@@ -508,10 +513,5 @@ def main():
     json.dump(summary, open(args.result_path, "w"), indent=2)
 
 
-
-
 if __name__ == "__main__":
-
-
-
     main()

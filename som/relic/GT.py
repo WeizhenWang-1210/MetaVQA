@@ -1,10 +1,6 @@
-import argparse
-
 import PIL
 import os
 from metadrive.envs.scenario_env import ScenarioEnv
-from metadrive.scenario import utils as sd_utils
-import sys
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.policy.replay_policy import InterventionPolicy
 from metadrive.component.sensors.instance_camera import InstanceCamera
@@ -13,9 +9,8 @@ import tqdm
 from som.closed_loop_evaluations import observe_som, in_forbidden_area
 import numpy as np
 from som.closed_loop_utils import computeFDE, ACTION, classify_speed
-from som.navigation import dynamic_get_navigation_signal, get_navigation_signal, TurnAction
-import math
-from som.qa_utils import split_list
+from som.navigation import dynamic_get_navigation_signal
+from vqa.vqagen.qa_utils import split_list
 import traceback
 
 

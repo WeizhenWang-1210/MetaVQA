@@ -4,7 +4,7 @@ import os
 import random
 from collections import defaultdict
 from copy import deepcopy
-from som.qa_utils import create_options, create_multiple_choice
+from vqa.vqagen.qa_utils import create_options, create_multiple_choice
 from vqa.vqagen.utils import enumerate_frame_labels, fill_in_label
 from vqa.configs.namespace import POSITION2CHOICE
 from vqa.vqagen.geometric_utils import get_distance

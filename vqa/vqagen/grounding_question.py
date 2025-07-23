@@ -6,7 +6,7 @@ import random
 import numpy as np
 import tqdm
 
-from som.qa_utils import create_options, create_multiple_choice
+from vqa.vqagen.qa_utils import create_options, create_multiple_choice
 from vqa.vqagen.utils import enumerate_frame_labels
 from vqa.vqagen.set_of_marks import grounding_labelframe
 
