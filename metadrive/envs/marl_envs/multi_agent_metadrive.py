@@ -1,7 +1,6 @@
 import copy
 from typing import Dict, Any
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.pgblock.first_block import FirstPGBlock
 from metadrive.component.road_network import Road
 from metadrive.component.sensors.lidar import Lidar
@@ -160,7 +159,7 @@ class MultiAgentMetaDrive(MetaDriveEnv):
                 # finish all terminated and truncated vehicles
                 self.agent_manager._finish(
                     dead_vehicle_id,
-                    ignore_delay_done=vqa.vqagen.utils.qa_utils.get(TerminationState.SUCCESS, False),
+                    ignore_delay_done=info[dead_vehicle_id].get(TerminationState.SUCCESS, False),
                 )
                 self._update_camera_after_finish()
         return obs, reward, terminated, truncated, info
