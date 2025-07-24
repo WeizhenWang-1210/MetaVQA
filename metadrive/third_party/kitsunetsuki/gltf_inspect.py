@@ -18,8 +18,6 @@ import argparse
 import json
 import struct
 
-import vqa.vqagen.utils.qa_utils
-
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -67,13 +65,13 @@ def print_node(gltf_data, node_id, joints=None, skeletons=None, indent=1, parent
         if 'skin' in gltf_node:
             skin_id = gltf_node['skin']
             gltf_skin = gltf_data['skins'][skin_id]
-            v = '{} ({} joints)'.format(vqa.vqagen.utils.qa_utils.get('name', 'SKIN #{}'.format(skin_id)), len(gltf_skin['joints']))
+            v = '{} ({} joints)'.format(gltf_skin.get('name', 'SKIN #{}'.format(skin_id)), len(gltf_skin['joints']))
             refs.append(('skin', v))
 
             if 'skeleton' in gltf_skin:
                 skeleton_id = gltf_skin['skeleton']
                 gltf_skeleton = gltf_data['nodes'][skeleton_id]
-                v = '{}'.format(vqa.vqagen.utils.qa_utils.get('name', 'SKELETON #{}'.format(skeleton_id)))
+                v = '{}'.format(gltf_skeleton.get('name', 'SKELETON #{}'.format(skeleton_id)))
                 refs.append(('skeleton', v))
 
         if 'mesh' in gltf_node:
@@ -83,7 +81,7 @@ def print_node(gltf_data, node_id, joints=None, skeletons=None, indent=1, parent
 
         extra += ' {' + ', '.join(['{}: {}'.format(*i) for i in refs]) + '}'
 
-    if 'VRM' in (vqa.vqagen.utils.qa_utils.get('extensions') or {}):
+    if 'VRM' in (gltf_data.get('extensions') or {}):
         vrm_extra = []
 
         vrm_bones = gltf_data['extensions']['VRM']['humanoid']['humanBones']
@@ -116,10 +114,10 @@ def print_node(gltf_data, node_id, joints=None, skeletons=None, indent=1, parent
     print('{} [{}] {}{}'.format(is_, type_, gltf_node['name'], extra))
 
     if extras:
-        for k, v in vqa.vqagen.utils.qa_utils.get('extras', {}).items():
+        for k, v in gltf_node.get('extras', {}).items():
             print('   {}  {}: {}'.format(is_, k, v))
 
-    for child_node_id in vqa.vqagen.utils.qa_utils.get('children', []):
+    for child_node_id in gltf_node.get('children', []):
         print_node(
             gltf_data, child_node_id, joints=joints, skeletons=skeletons, indent=indent + 1, parent_node=gltf_node
         )
@@ -127,12 +125,12 @@ def print_node(gltf_data, node_id, joints=None, skeletons=None, indent=1, parent
 
 def print_scene(gltf_data, scene_id, extras=False):
     gltf_scene = gltf_data['scenes'][scene_id]
-    print(' [R] {}'.format(vqa.vqagen.utils.qa_utils.get('name', 'SCENE')))
+    print(' [R] {}'.format(gltf_scene.get('name', 'SCENE')))
 
     # child to parent mapping
     parents = {}
     for parent_id, gltf_node in enumerate(gltf_data['nodes']):
-        for child_id in vqa.vqagen.utils.qa_utils.get('children', ()):
+        for child_id in gltf_node.get('children', ()):
             parents[child_id] = parent_id
 
     skeletons = set()
@@ -161,9 +159,9 @@ def print_anim(gltf_data, gltf_anim):
 
 def print_mat(gltf_data, gltf_mat):
     tex_ids = []
-    if 'baseColorTexture' in vqa.vqagen.utils.qa_utils.get('pbrMetallicRoughness', {}):
+    if 'baseColorTexture' in gltf_mat.get('pbrMetallicRoughness', {}):
         tex_ids.append(('Color', gltf_mat['pbrMetallicRoughness']['baseColorTexture']['index']))
-    if 'metallicRoughnessTexture' in vqa.vqagen.utils.qa_utils.get('pbrMetallicRoughness', {}):
+    if 'metallicRoughnessTexture' in gltf_mat.get('pbrMetallicRoughness', {}):
         tex_ids.append(('MetRough', gltf_mat['pbrMetallicRoughness']['metallicRoughnessTexture']['index']))
     if 'normalTexture' in gltf_mat:
         tex_ids.append(('Norm', gltf_mat['normalTexture']['index']))
@@ -180,7 +178,7 @@ def print_tex(gltf_data, gltf_tex_type, gltf_tex):
     # source = gltf_data['images'][gltf_tex['source']]
     print('  + [T] {name} <{type}>'.format(**{
         'type': gltf_tex_type,
-        'name': vqa.vqagen.utils.qa_utils.get('name', 'SAMPLER'),
+        'name': sampler.get('name', 'SAMPLER'),
     }))
 
 

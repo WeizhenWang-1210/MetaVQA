@@ -16,7 +16,6 @@
 import bpy
 import os
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.third_party.kitsunetsuki.base.collections import get_object_collection
 from metadrive.third_party.kitsunetsuki.base.objects import (
     get_object_properties, is_collision, is_object_visible, set_active_object
@@ -85,7 +84,7 @@ class Exporter(GeomMixin, MaterialMixin, TextureMixin, VertexMixin):
             return ''
 
     def execute_script(self, name):
-        script = vqa.vqagen.utils.qa_utils.get(name)
+        script = bpy.data.texts.get(name)
         if script:
             code = compile(script.as_string(), name, 'exec')
             exec(code, None, self._script_locals)
@@ -108,7 +107,7 @@ class Exporter(GeomMixin, MaterialMixin, TextureMixin, VertexMixin):
             return False
 
         obj_props = get_object_properties(obj)
-        if vqa.vqagen.utils.qa_utils.get('type') in NOT_MERGED_TYPES:
+        if obj_props.get('type') in NOT_MERGED_TYPES:
             return False
 
         if obj.type == 'MESH':

@@ -22,7 +22,6 @@ import struct
 from bpy_extras.io_utils import ExportHelper
 from typing import Set, cast
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.third_party.kitsunetsuki.base.armature import get_armature
 from metadrive.third_party.kitsunetsuki.base.context import Mode
 from metadrive.third_party.kitsunetsuki.base.collections import get_object_collection
@@ -178,7 +177,7 @@ class GLTFExporter(AnimationMixin, GeomMixin, MaterialMixin, VertexMixin, Textur
                 )
 
         # setup collisions
-        if not can_merge and is_collision(obj) and vqa.vqagen.utils.qa_utils.get('type') != 'Portal':
+        if not can_merge and is_collision(obj) and obj_props.get('type') != 'Portal':
             collision = {}
             node['extensions'] = {
                 'BLENDER_physics': collision,
@@ -215,8 +214,8 @@ class GLTFExporter(AnimationMixin, GeomMixin, MaterialMixin, VertexMixin, Textur
             node['extras'] = {}
 
         for k, v in obj_props.items():
-            if vqa.vqagen.utils.qa_utils.get(k):  # tag exists
-                tag = vqa.vqagen.utils.qa_utils.get(k)
+            if node['extras'].get(k):  # tag exists
+                tag = node['extras'].get(k)
 
             if type(v) in (tuple, list, dict):
                 tag = json.dumps(v)
@@ -424,7 +423,7 @@ class GLTFExporter(AnimationMixin, GeomMixin, MaterialMixin, VertexMixin, Textur
         # if not self.can_merge(obj) or self._keep:
         if True:
             obj_props = get_object_properties(obj)
-            if vqa.vqagen.utils.qa_utils.get('type') == 'Portal':
+            if obj_props.get('type') == 'Portal':
                 vertices = [list(vertex.co) for vertex in obj.data.vertices]
                 gltf_node = {
                     'name': obj.name,

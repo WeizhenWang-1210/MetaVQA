@@ -21,7 +21,6 @@ import itertools
 from panda3d.core import CS_zup_right, LMatrix4d
 from panda3d.egg import EggComment, EggData, EggGroup, EggPolygon, EggTransform
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.third_party.kitsunetsuki.base.armature import get_armature
 from metadrive.third_party.kitsunetsuki.base.collections import get_object_collection
 from metadrive.third_party.kitsunetsuki.base.matrices import get_object_matrix, get_bone_matrix
@@ -73,7 +72,7 @@ class EggExporter(AnimationMixin, GeomMixin, MaterialMixin, TextureMixin, Vertex
         if not can_merge and not armature:
             node.add_matrix4(matrix_to_panda(obj_matrix))
 
-        if vqa.vqagen.utils.qa_utils.get('type') == 'Portal':
+        if obj_props.get('type') == 'Portal':
             node.set_portal_flag(True)
 
         # setup collisions

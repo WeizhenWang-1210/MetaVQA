@@ -16,11 +16,9 @@
 import bpy
 import json
 
-import vqa.vqagen.utils.qa_utils
-
 
 def get_object_properties(obj):
-    text = vqa.vqagen.utils.qa_utils.get(obj.name)
+    text = bpy.data.texts.get(obj.name)
     if text:
         return json.loads(text.as_string() or '{}')
     else:

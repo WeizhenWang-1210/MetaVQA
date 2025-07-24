@@ -8,7 +8,6 @@ import socket
 import numpy as np
 from panda3d.bullet import BulletBodyNode
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.constants import MetaDriveType
 
 
@@ -151,7 +150,7 @@ def _deep_update(
                 continue
 
         # Both orginal value and new one are dicts.
-        if isinstance(vqa.vqagen.utils.qa_utils.get(k), dict) and isinstance(value, dict):
+        if isinstance(original.get(k), dict) and isinstance(value, dict):
             # Check old type vs old one. If different, override entire value.
             if k in override_all_if_type_changes and \
                     "type" in value and "type" in original[k] and \
