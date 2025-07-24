@@ -1,6 +1,5 @@
 import copy
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.map.scenario_map import ScenarioMap
 from metadrive.constants import DEFAULT_AGENT
 from metadrive.manager.base_manager import BaseManager
@@ -13,7 +12,7 @@ class ScenarioMapManager(BaseManager):
 
     def __init__(self):
         super(ScenarioMapManager, self).__init__()
-        self.store_map = vqa.vqagen.utils.qa_utils.get("store_map", False)
+        self.store_map = self.engine.global_config.get("store_map", False)
         self.current_map = None
         self._no_map = self.engine.global_config["no_map"]
         self.map_num = self.engine.global_config["num_scenarios"]

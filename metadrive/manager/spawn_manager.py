@@ -5,7 +5,6 @@ from math import floor
 from panda3d.bullet import BulletBoxShape, BulletGhostNode
 from panda3d.core import Vec3
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.lane.straight_lane import StraightLane
 from metadrive.component.pgblock.first_block import FirstPGBlock
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
@@ -96,10 +95,10 @@ class SpawnManager(BaseManager):
         agent_configs = {}
         for agent_id, config in ret.items():
             init_config = copy.deepcopy(self._init_agent_configs[agent_id])
-            if not vqa.vqagen.utils.qa_utils.get("_specified_spawn_lane", False):
+            if not init_config.get("_specified_spawn_lane", False):
                 init_config.update(config)
             config = init_config
-            if not vqa.vqagen.utils.qa_utils.get("destination", False) or config["destination"] is None:
+            if not config.get("destination", False) or config["destination"] is None:
                 config = self.update_destination_for(agent_id, config)
             agent_configs[agent_id] = config
 
