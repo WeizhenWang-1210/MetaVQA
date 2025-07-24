@@ -32,8 +32,6 @@ import zipfile
 import shutil
 
 from metadrive.render_pipeline.rplibs.six.moves import urllib  # pylint: disable=import-error
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.render_pipeline.rplibs.six import BytesIO, binary_type
 
 
@@ -55,7 +53,7 @@ def download_file(url, chunk_size=100 * 1024):
         # Progressively download the file
         try:
             usock = urllib.request.urlopen(url)
-            file_size = int(vqa.vqagen.utils.qa_utils.get("Content-Length", 1e10))
+            file_size = int(usock.headers.get("Content-Length", 1e10))
             print("File size is", round(file_size / (1024**2), 2), "MB")
             progressbar = ProgressBar(widgets=widgets, maxval=file_size).start()
             while True:

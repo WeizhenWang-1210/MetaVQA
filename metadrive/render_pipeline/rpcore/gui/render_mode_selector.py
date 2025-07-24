@@ -29,7 +29,6 @@ from functools import partial
 
 from panda3d.core import Vec3
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.render_pipeline.rplibs.yaml import load_yaml_file
 
 from metadrive.render_pipeline.rpcore.native import NATIVE_CXX_LOADED
@@ -70,9 +69,9 @@ class RenderModeSelector(DraggableWindow):
         # Read modes from configuration
         for mode in config["render_modes"]:
             data = [mode["name"], mode["key"]]
-            data.append(vqa.vqagen.utils.qa_utils.get("cxx_only", False))
-            data.append(vqa.vqagen.utils.qa_utils.get("requires", ""))
-            data.append(vqa.vqagen.utils.qa_utils.get("special", False))
+            data.append(mode.get("cxx_only", False))
+            data.append(mode.get("requires", ""))
+            data.append(mode.get("special", False))
             render_modes.append(data)
 
         collection = CheckboxCollection()
