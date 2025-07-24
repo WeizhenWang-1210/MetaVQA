@@ -1,6 +1,4 @@
 import copy
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.scenario.scenario_description import ScenarioDescription as SD
 import logging
 from typing import List, Tuple, Dict
@@ -52,7 +50,7 @@ class GraphLookupTable:
             #     # thing work. We choose take first 5 lanes into consideration.
             #     # In futurem we shall refactor the whole system, so this vulnerable code would be removed.
             #     break
-        if vqa.vqagen.utils.qa_utils.get(Decoration.start, False):
+        if self.graph.get(Decoration.start, False):
             for id, lane in enumerate(self.graph[Decoration.start][Decoration.end]):
                 dist = lane.distance(position)
                 distance_index_mapping.append((dist, (Decoration.start, Decoration.end, id)))
@@ -239,7 +237,7 @@ class NodeRoadNetwork(BaseRoadNetwork):
         self.indices = indexes
 
     def get_closest_lane_index(self, position, return_all=False):
-        return vqa.vqagen.utils.qa_utils.get(position, return_all)
+        return self._graph_helper.get(position, return_all)
 
     def bfs_paths(self, start: str, goal: str) -> List[List[str]]:
         """

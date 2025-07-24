@@ -1,12 +1,10 @@
 import copy
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.engine.logger import get_logger
 
 from metadrive.utils import generate_gif
 import math
 from collections import deque
-from typing import Optional, Union
+from typing import Optional, Union, Iterable
 
 import numpy as np
 
@@ -573,7 +571,7 @@ class TopDownRenderer:
         """
         if self.no_window:
             return
-        events = vqa.vqagen.utils.qa_utils.get()
+        events = pygame.event.get()
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:

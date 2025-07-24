@@ -6,7 +6,6 @@ from typing import Callable, Optional, Union, List, Dict, AnyStr
 
 import numpy as np
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.base_class.randomizable import Randomizable
 from metadrive.constants import RENDER_MODE_NONE
 from metadrive.engine.core.engine_core import EngineCore
@@ -89,9 +88,9 @@ class BaseEngine(EngineCore, Randomizable):
         self.warmup()
 
         # curriculum reset
-        self._max_level = vqa.vqagen.utils.qa_utils.get("curriculum_level", 1)
+        self._max_level = self.global_config.get("curriculum_level", 1)
         self._current_level = 0
-        self._num_scenarios_per_level = int(vqa.vqagen.utils.qa_utils.get("num_scenarios", 1) / self._max_level)
+        self._num_scenarios_per_level = int(self.global_config.get("num_scenarios", 1) / self._max_level)
 
     def add_policy(self, object_id, policy_class, *args, **kwargs):
         policy = policy_class(*args, **kwargs)
@@ -251,7 +250,7 @@ class BaseEngine(EngineCore, Randomizable):
         """
         """
         In addition, we need to remove a color mapping whenever an object is destructed.
-        
+
         """
         force_destroy_this_obj = True if force_destroy or self.global_config["force_destroy"] else False
 
@@ -273,7 +272,7 @@ class BaseEngine(EngineCore, Randomizable):
                 policy = self._object_policies.pop(id)
                 policy.destroy()
             if force_destroy_this_obj:
-                #self._clean_color(obj.id)
+                # self._clean_color(obj.id)
                 obj.destroy()
             else:
                 obj.detach_from_world(self.physics_world)
@@ -288,7 +287,7 @@ class BaseEngine(EngineCore, Randomizable):
                 if len(self._dying_objects[obj.class_name]) < self.global_config["num_buffering_objects"]:
                     self._dying_objects[obj.class_name].append(obj)
                 else:
-                    #self._clean_color(obj.id)
+                    # self._clean_color(obj.id)
                     obj.destroy()
             if self.global_config["record_episode"] and not self.replay_episode and record:
                 self.record_manager.add_clear_info(obj)
@@ -330,7 +329,6 @@ class BaseEngine(EngineCore, Randomizable):
         _debug_memory_usage = False
 
         if _debug_memory_usage:
-
             def process_memory():
                 import psutil
                 import os
@@ -565,8 +563,8 @@ class BaseEngine(EngineCore, Randomizable):
 
     @staticmethod
     def gets_start_index(config):
-        start_seed = vqa.vqagen.utils.qa_utils.get("start_seed", None)
-        start_scenario_index = vqa.vqagen.utils.qa_utils.get("start_scenario_index", None)
+        start_seed = config.get("start_seed", None)
+        start_scenario_index = config.get("start_scenario_index", None)
         assert start_seed is None or start_scenario_index is None, \
             "It is not allowed to define `start_seed` and `start_scenario_index`"
         if start_seed is not None:

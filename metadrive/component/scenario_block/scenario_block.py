@@ -1,12 +1,13 @@
 import numpy as np
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.block.base_block import BaseBlock
 from metadrive.component.lane.scenario_lane import ScenarioLane
 from metadrive.component.road_network.edge_road_network import EdgeRoadNetwork
-from metadrive.constants import PGLineColor
+from metadrive.constants import PGDrivableAreaProperty
+from metadrive.constants import PGLineType, PGLineColor
 from metadrive.scenario.scenario_description import ScenarioDescription
 from metadrive.type import MetaDriveType
+from metadrive.utils.interpolating_line import InterpolatingLine
 from metadrive.utils.math import resample_polyline, get_polyline_length
 
 
@@ -22,7 +23,7 @@ class ScenarioBlock(BaseBlock):
 
     def _sample_topology(self) -> bool:
         for object_id, data in self.map_data.items():
-            if MetaDriveType.is_lane(vqa.vqagen.utils.qa_utils.get("type", False)):
+            if MetaDriveType.is_lane(data.get("type", False)):
                 if len(data[ScenarioDescription.POLYLINE]) <= 1:
                     continue
                 lane = ScenarioLane(object_id, self.map_data, self.need_lane_localization)
@@ -51,7 +52,7 @@ class ScenarioBlock(BaseBlock):
             self._construct_lane(lane, lane_index=id)
         # draw
         for lane_id, data in self.map_data.items():
-            type = vqa.vqagen.utils.qa_utils.get("type", None)
+            type = data.get("type", None)
             if ScenarioDescription.POLYLINE in data and len(data[ScenarioDescription.POLYLINE]) <= 1:
                 continue
 
