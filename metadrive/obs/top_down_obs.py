@@ -9,7 +9,6 @@ from typing import Tuple
 import gymnasium as gym
 import numpy as np
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
 from metadrive.constants import Decoration, DEFAULT_AGENT, EDITION
 from metadrive.obs.observation_base import BaseObservation
@@ -82,7 +81,7 @@ class TopDownObservation(BaseObservation):
 
     def render(self) -> np.ndarray:
         if self.onscreen:
-            for event in vqa.vqagen.utils.qa_utils.get():
+            for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         sys.exit()
