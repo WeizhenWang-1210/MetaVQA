@@ -1,12 +1,12 @@
 import sys
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.sensors.depth_camera import DepthCamera
 import os
 
 import cv2
 from metadrive import MetaDrive_PACKAGE_DIR
+from metadrive.component.sensors.mini_map import MiniMap
 from metadrive.component.sensors.rgb_camera import RGBCamera
+from metadrive.component.sensors.dashboard import DashBoard
 from metadrive.envs.metadrive_env import MetaDriveEnv
 
 
@@ -41,7 +41,7 @@ def capture_headless_image(cuda, image_source="main_camera"):
             o, r, tm, tc, i = env.step([0, 1])
         assert isinstance(o, dict)
         # print("The observation is a dict with numpy arrays as values: ", {k: v.shape for k, v in o.items()})
-        o = o["image"][..., -1] * 255 if not cuda else vqa.vqagen.utils.qa_utils.get()[..., -1] * 255
+        o = o["image"][..., -1] * 255 if not cuda else o["image"].get()[..., -1] * 255
         cv2.imwrite(
             os.path.join(
                 MetaDrive_PACKAGE_DIR, "examples",

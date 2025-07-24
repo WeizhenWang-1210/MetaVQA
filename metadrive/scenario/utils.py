@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.pyplot import figure
 
-import vqa.vqagen.utils.qa_utils
 from metadrive.component.static_object.traffic_object import TrafficCone, TrafficBarrier
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
 from metadrive.component.traffic_participants.cyclist import Cyclist
@@ -41,9 +40,9 @@ def dict_recursive_remove_array_and_set(d):
 def draw_map(map_features, show=False):
     figure(figsize=(8, 6), dpi=500)
     for key, value in map_features.items():
-        if MetaDriveType.is_lane(vqa.vqagen.utils.qa_utils.get("type", None)):
+        if MetaDriveType.is_lane(value.get("type", None)):
             plt.scatter([x[0] for x in value["polyline"]], [y[1] for y in value["polyline"]], s=0.1)
-        elif vqa.vqagen.utils.qa_utils.get("type", None) == "road_edge":
+        elif value.get("type", None) == "road_edge":
             plt.scatter([x[0] for x in value["polyline"]], [y[1] for y in value["polyline"]], s=0.1, c=(0, 0, 0))
         # elif value.get("type", None) == "road_line":
         #     plt.scatter([x[0] for x in value["polyline"]], [y[1] for y in value["polyline"]], s=0.5, c=(0.8,0.8,0.8))
@@ -324,7 +323,7 @@ def convert_recorded_scenario_exported(record_episode, scenario_log_interval=0.1
     result[SD.METADATA]["object_to_agent"] = {str(k): str(v) for k, v in object_to_agent.items()}
 
     if data_manager_name is not None:
-        data_manager_raw_data = vqa.vqagen.utils.qa_utils.get("raw_data", None)
+        data_manager_raw_data = record_episode["manager_metadata"][data_manager_name].get("raw_data", None)
         if data_manager_raw_data:
             result[SD.METADATA]["history_metadata"] = data_manager_raw_data["metadata"]
     if to_dict:

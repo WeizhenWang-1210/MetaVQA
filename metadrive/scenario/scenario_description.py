@@ -115,8 +115,6 @@ import math
 import os
 from collections import defaultdict
 from typing import Optional
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.utils.math import norm
 import numpy as np
 
@@ -552,7 +550,7 @@ class ScenarioDescription(dict):
         if object_type is None:
             return metadata[SD.SUMMARY.NUMBER_SUMMARY][SD.SUMMARY.NUM_OBJECTS]
         else:
-            return vqa.vqagen.utils.qa_utils.get(object_type, 0)
+            return metadata[SD.SUMMARY.NUMBER_SUMMARY][SD.SUMMARY.NUM_OBJECTS_EACH_TYPE].get(object_type, 0)
 
     @staticmethod
     def num_object(scenario, object_type: Optional[str] = None):
@@ -588,7 +586,7 @@ class ScenarioDescription(dict):
         if object_type is None:
             return num_summary[SD.SUMMARY.NUM_MOVING_OBJECTS]
         else:
-            return vqa.vqagen.utils.qa_utils.get(object_type, 0)
+            return num_summary[SD.SUMMARY.NUM_MOVING_OBJECTS_EACH_TYPE].get(object_type, 0)
 
     @staticmethod
     def num_moving_object(scenario, object_type=None):
