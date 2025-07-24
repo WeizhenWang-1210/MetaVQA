@@ -1,8 +1,11 @@
 import argparse
+
+from closed_loop.baselines import always_stop, always_straight, random_action, closed_loop_baselines
+from closed_loop.configs import ACTION_STATISTICS, RECORD_BUFFER
+from closed_loop.utils.prompt_utils import observe
 from metadrive.envs.scenario_env import ScenarioDiverseEnv
 from metadrive.scenario import utils as sd_utils
 import sys
-from collections import defaultdict
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.policy.replay_policy import InterventionPolicy
 from som.closed_loop_utils import computeADE, computeFDE
@@ -11,7 +14,7 @@ from vqa.vqagen.utils.metadrive_utils import l2_distance
 from vqa.scenegen.utils.annotation_utils import get_visible_object_ids
 import numpy as np
 from metadrive.component.traffic_light.base_traffic_light import BaseTrafficLight
-from som.navigation import get_trajectory, dynamic_get_navigation_signal, dest_navigation_signal
+from som.navigation import get_trajectory, dynamic_get_navigation_signal
 import cv2
 import os
 from PIL import Image
@@ -34,9 +37,7 @@ def in_forbidden_area(agent):
         return False
 
 
-ACTION_STATISTICS = defaultdict(lambda: 0)
 device = "cuda"
-RECORD_BUFFER = defaultdict(lambda: defaultdict(lambda: dict()))
 RECORD_FOLDER = "/home/weizhen/closed_loops"
 MODELPATHS = (
     "llava-hf/llava-v1.6-vicuna-7b-hf",
@@ -49,16 +50,6 @@ sys.path.append('/home/chenda/internvl/internvl_chat/chenda_scripts/')
 from inference_with_onevisn_finetuned import load_model, inference
 from zero_shot import load_internvl, inference_internvl, inference_internvl_zeroshot, split_model
 from vqa.vqagen.set_of_marks import find_center, put_text, put_rectangle
-import random
-
-
-def observe(env):
-    #obs = env.engine.get_sensor("rgb").perceive(False, env.agent.origin, [0, -15, 3], [0, -0.8, 0])
-    position = (0., -2, 1.4)
-    hpr = [0, 0, 0]
-    obs = env.engine.get_sensor("rgb").perceive(to_float=False, new_parent_node=env.agent.origin, position=position,
-                                                hpr=hpr)
-    return obs
 
 
 def observe_som(env, font_scale=1, bounding_box=True, background_color=(0, 0, 0)):
@@ -216,34 +207,7 @@ def convert_action(action, intervened):
         return ACTION_MAPPING["e"]
 
 
-def always_stop(intervened):
-    ACTION_MAPPING = INTERVENED
-    ACTION_STATISTICS["d"] += 1
-    return ACTION_MAPPING["d"], True
-
-
-def always_straight(intervened):
-    ACTION_MAPPING = INTERVENED
-    ACTION_STATISTICS["e"] += 1
-    return ACTION_MAPPING["e"], True
-
-
-def random_action(intervened):
-    if intervened:
-        ACTION_MAPPING = INTERVENED
-        action = random.choice(list(ACTION_MAPPING.keys()))
-        ACTION_STATISTICS[action] += 1
-        return ACTION_MAPPING[action], True
-    else:
-        ACTION_MAPPING = NON_INTERVENED
-        action = random.choice(list(ACTION_MAPPING.keys()))
-        ACTION_STATISTICS[action] += 1
-        if not (ACTION_MAPPING[action][0] == 0 and ACTION_MAPPING[action][1] == 0):
-            intervened = True
-        return ACTION_MAPPING[action], intervened
-
-
-from som.parse_responses import parse_response
+from vqa.eval.parse_responses import parse_response
 
 
 def generation_action(model, processor, tokenizer, prompt, obs, intervened):
@@ -269,7 +233,7 @@ def generation_action(model, processor, tokenizer, prompt, obs, intervened):
         return intervention, False
 
 
-from som.closed_loop_utils import classify_speed
+from closed_loop.closed_loop_utils import classify_speed
 
 
 def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
@@ -375,99 +339,6 @@ def closed_loop(env: ScenarioDiverseEnv, seeds, model_path, record_folder=None):
         print(f"episodic_completion:{episodic_completion}")
         print(f"ADE:{ADE}; FDE{FDE}")
     return num_collisions, num_src_collisions, total_rewards, total_completions, ADEs, FDEs
-
-
-def closed_loop_baselines(env: ScenarioDiverseEnv, seeds, actor: callable, record_folder=None):
-    record = record_folder is not None
-    total_out_of_road = total_completions = total_rewards = num_collisions = num_src_collisions = 0
-    command_frequency = 5
-    collided_scenarios = set()
-    offroad_scenarios = set()
-    ADEs, FDEs = [], []
-    for seed in seeds:
-        env.reset(seed)
-        original_trajectory = get_trajectory(env)
-        max_step = original_trajectory.shape[0]
-        print(f"Rolling out seed {env.engine.current_seed}")
-        roll_out = True
-        while roll_out:
-            o, r, tm, tc, info = env.step([0, 0])
-            if len(env.agent.crashed_objects) > 0:
-                print(f"{seed} contains collision.")
-                num_src_collisions += 1
-                roll_out = False
-            if tm or tc:
-                roll_out = False
-        env.reset(seed)
-        print(f"Evaluating seed {env.engine.current_seed}")
-        run = True
-        intervened = False
-        step = episodic_completion = episodic_reward = 0
-        intervention = [0, 0]
-        trajectory = []
-        offroad = collide = 0
-        while run:
-            index = max(int(env.engine.episode_step), 0)
-            if index >= max_step:
-                print("Time horizon ended")
-                run = False
-                break
-            trajectory.append(env.agent.position)
-            if step % command_frequency == 0:
-                print("Perceive & Act")
-                dir, dist = dest_navigation_signal(env.engine.data_manager.current_scenario,
-                                                   timestamp=env.episode_step, env=env)
-                obs, front, id2label = capture_som(env)
-                intervention, intervened = actor(intervened)
-                print(intervention, intervened)
-                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["action"] = intervention
-                RECORD_BUFFER[env.engine.current_seed][env.engine.episode_step]["navigation"] = (dir, dist)
-            assert not (intervention[0] == 0 and intervention[1] == 0)
-            o, r, tm, tc, info = env.step(intervention)
-            episodic_reward, episodic_completion = info["episode_reward"], info["route_completion"]
-            if len(env.agent.crashed_objects) > 0:
-                print("VLM still collided.")
-                collided_scenarios.add(env.engine.data_manager.current_scenario_file_name)
-                collide = 1
-            if info["out_of_road"]:
-                print("VLM wander off road")
-                offroad = 1
-                offroad_scenarios.add(env.engine.data_manager.current_scenario_file_name)
-                run = False
-            if tm or tc:
-                run = False
-            step += 1
-        num_collisions += collide
-        total_out_of_road += offroad
-        total_rewards += episodic_reward
-        total_completions += episodic_completion
-        ADE, FDE = computeADE(original_trajectory, np.array(trajectory)), computeFDE(original_trajectory,
-                                                                                     np.array(trajectory))
-        ADEs.append(ADE)
-        FDEs.append(FDE)
-        if record:
-            for episode_id, frames in RECORD_BUFFER.items():
-                action_buffer = {}
-                folder_path = os.path.join(record_folder, str(episode_id))
-                os.makedirs(folder_path, exist_ok=True)
-                for frame_id, frame in frames.items():
-                    obs_path = os.path.join(folder_path, f"obs_{frame_id}.jpg")
-                    front_path = os.path.join(folder_path, f"front_{frame_id}.jpg")
-                    Image.fromarray(frame["obs"][:, :, ::-1]).save(obs_path)
-                    Image.fromarray(frame["front"][:, :, ::-1]).save(front_path)
-                    action_buffer[frame_id] = dict(
-                        scene=env.engine.data_manager.current_scenario_file_name, collide=collide, offroad=offroad,
-                        ADE=ADE, FDE=FDE,
-                        action=frame["action"], state=frame["state"],
-                        navigation=frame["navigation"],
-                    )
-                json.dump(action_buffer, open(os.path.join(folder_path, "action_buffer.json"), "w"))
-            RECORD_BUFFER.clear()
-        print(f"Finished seed {env.engine.current_seed}")
-        print(f"episodic_reward: {episodic_reward}")
-        print(f"episodic_completion:{episodic_completion}")
-        print(f"ADE:{ADE}; FDE{FDE}")
-    return num_collisions, num_src_collisions, total_rewards, total_completions, ADEs, FDEs, total_out_of_road, list(collided_scenarios), list(offroad_scenarios)
 
 
 from metadrive.component.sensors.instance_camera import InstanceCamera

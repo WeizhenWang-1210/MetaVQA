@@ -67,19 +67,6 @@ def fill_in_label(template_str: str, replacement: dict):
         template_str = template_str.replace(placeholder, value)
     return template_str
 
-
-def get(world, target_id):
-    """
-    world is the dictionary object you loaded using world_*.json
-    """
-    for obj in world["objects"]:
-        if obj["id"] == target_id:
-            return obj
-    if world["ego"]["id"] == target_id:
-        return world["ego"]
-    print("No object of id {} is found! Something is wrong.".format(world))
-    return None
-
 def get_from_world(world, target_id):
     """
     world is the dictionary object you loaded using world_*.json

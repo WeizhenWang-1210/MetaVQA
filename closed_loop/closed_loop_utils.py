@@ -1,6 +1,6 @@
 from metadrive.envs.base_env import BaseEnv
 import numpy as np
-from vqa.functionals import identify_angle
+from vqa.vqagen.utils.geometric_utils import identify_angle
 from closed_loop.embodied_utils import classify_distance, l2_distance, find_sector, get_end_sector, classify_speed, \
     describe_speed, ACTION, determine_collisions
 from vqa.vqagen.utils.qa_utils import angle2sector
@@ -15,9 +15,17 @@ def computeADE(traj1, traj2):
     Traj1 is Ground Truth
     Traj2 is the generated trajectory, which can be shorter than GT
     """
-    traj1 = traj1[:traj2.shape[0], :]
-    distances = np.linalg.norm((traj1 - traj2), axis=1)
-    ade = np.mean(distances)
+    gt_list = traj1.tolist()
+    driven_list = traj2.tolist()
+    while len(driven_list) < len(gt_list):
+        driven_list.append(driven_list[-1])
+    while len(driven_list) > len(gt_list):
+        driven_list.pop()
+
+    gt_traj = np.array(gt_list)
+    driven_traj = np.array(driven_list)
+    assert driven_traj.shape == gt_traj.shape, (driven_traj.shape, gt_traj.shape)
+    ade = np.linalg.norm(driven_traj - gt_traj, axis=1).mean()
     return float(ade)
 
 
