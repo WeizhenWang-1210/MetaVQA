@@ -1,7 +1,5 @@
 import json
 import re
-import os
-from pprint import pprint
 
 raw_path = "/data_weizhen/metavqa_cvpr/datasets/trainval/experiments/gpt_annotated.json"
 save_path = "/data_weizhen/metavqa_cvpr/datasets/trainval/experiments/gpt_annotated_processed.json"
@@ -31,7 +29,6 @@ for old_id, data in raw_responses.items():
     domain = data["domain"]
     world = data["world"]
     qas = preprocess(data["model_response"])
-    #print(type(qas))
     if isinstance(qas, dict):
         continue
     for qa in qas:

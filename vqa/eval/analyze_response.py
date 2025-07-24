@@ -1,9 +1,9 @@
 import json
 import glob
 import re
-from som.parse_responses import parse_response, parse_gpt
+from vqa.eval.parse_responses import parse_response, parse_gpt
 
-NOT_YET_PARSED = ["describe_scenario"]
+IGNORED_Q_TYPE = ["describe_scenario"]
 path_template = "/home/chenda/evaluations/rebuttal/InternVL_rebuttal_gpt/*_test_results.json"
 merged_path = "/home/weizhen/experiments/rebuttal/InternVL_rebuttal_gpt_test_results.json"
 stat_path = "/home/weizhen/experiments/rebuttal/InternVL_rebuttal_gpt_test_results_stats.json"
@@ -23,7 +23,6 @@ def merge_responses(response_paths):
             final[key] = value
             final[key]["options"]= original_qa[key]["options"]
             final[key]["domain"] = original_qa[key]["domain"]
-            #print(final[key])
     return final
 
 
@@ -31,7 +30,7 @@ def accuracy_by_domain(qa_records):
     statistics = dict()
     total_correct = total = 0
     for qid, record in qa_records.items():
-        if record["type"] in NOT_YET_PARSED:
+        if record["type"] in IGNORED_Q_TYPE:
             continue
         identifier = "_".join([record["domain"], record["type"]])
         if identifier not in statistics.keys():
@@ -47,14 +46,15 @@ def accuracy_by_domain(qa_records):
     return statistics, total, total_correct
 
 
-def analyze(basepath, mergepath, statpath):
+def analyze_res(basepath, mergepath, statpath):
     final = merge_responses(basepath)
     parsefail = 0
     for qid in final.keys():
         answer2opt = {str(val): str(key) for key, val in final[qid]["options"].items()} if final[qid]["options"] is not None \
             else {}
-        choice = parse_response(final[qid]["model_response"], answer2opt) #parse_gpt(final[qid]["model_response"])#parse_response(final[qid]["model_response"], answer2opt)
-        if choice == "" and final[qid]["type"] not in NOT_YET_PARSED:
+        choice = parse_response(final[qid]["model_response"], answer2opt)
+        # Optionally, use parse_gpt.  parse_gpt(final[qid]["model_response"])
+        if choice == "" and final[qid]["type"] not in IGNORED_Q_TYPE:
             parsefail += 1
         print(final[qid]["model_response"])
         print(f"Parsed choice: {choice}")
@@ -79,4 +79,4 @@ def analyze(basepath, mergepath, statpath):
 
 
 if __name__ == "__main__":
-    analyze(path_template, merged_path, stat_path)
+    analyze_res(path_template, merged_path, stat_path)

@@ -5,7 +5,8 @@ import random
 import numpy as np
 from PIL import Image
 
-from closed_loop.closed_loop_evaluations import INTERVENED, NON_INTERVENED, capture_som
+from closed_loop.configs import INTERVENED, NON_INTERVENED
+from closed_loop.utils.log_utils import capture_som
 from closed_loop.configs import ACTION_STATISTICS, RECORD_BUFFER
 from closed_loop.navigation import get_trajectory, dest_navigation_signal
 from closed_loop.closed_loop_utils import computeADE, absoluteFDE

@@ -8,17 +8,12 @@ def parse_response(response, answer2opt):
         generated = response.split("ASSISTANT")[-1][1:]
     else:
         generated = response
-    print(generated)
-    #print("!!!!!!!!!!!!!!!!")
-    #print(generated)
-    #print("!!!!!!!!!!!!!!!!")
     answer = ""
     if len(generated) == 1:
         #Generated only a single token. Use that as an option.
         answer = generated[-1]
     else:
         # try to match key world
-        # print(answer2opt)
         for keyword in answer2opt.keys():
             print(f"Matching {keyword}")
             if keyword in generated:
@@ -26,7 +21,6 @@ def parse_response(response, answer2opt):
                 print(f"Matched: {answer}")
         if answer == "":
             # try match option string.
-            # print("!!!!!!!!!!!!!!!!")
             answer = parse_option(generated)
             if answer == "":
                 #try to match answer field.
@@ -37,8 +31,8 @@ def parse_response(response, answer2opt):
                     answer = matches[-1][-2][-1]
     print("Answer :", answer)
     return answer.capitalize()
-import random
 
+import random
 def parse_response_safe(response, answer2opt):
     if "assistant" in response:
         generated = response.split("assistant")[-1][1:]
@@ -46,20 +40,13 @@ def parse_response_safe(response, answer2opt):
         generated = response.split("ASSISTANT")[-1][1:]
     else:
         generated = response
-    #print("!!!!!!!!!!!!!!!!")
-    #print(generated)
-    #print("!!!!!!!!!!!!!!!!")
     answer = ""
     if len(generated) == 1:
         #Generated only a single token. Use that as an option.
         answer = generated[-1]
     else:
         #try match option string.
-        #print("!!!!!!!!!!!!!!!!")
         answer = parse_option(generated)
-        #print(generated)
-        #print(f"Answer:{answer}")
-        #print("!!!!!!!!!!!!!!!!")
         if answer == "":
             #try to match key world
             #print(answer2opt)
@@ -70,8 +57,6 @@ def parse_response_safe(response, answer2opt):
                 #try to match answer field.
                 pattern = r'Answer(.*?):(.*?)([A-Z])([^a-zA-Z0-9]*?)'
                 matches = re.findall(pattern, generated)
-                #print(generated)
-                #print(matches)
                 if len(matches) > 0:
                     answer = matches[-1][-2][-1]
     answer = answer.upper()
@@ -86,11 +71,6 @@ def parse_option(response):
     # Get the last match if it exists
     if matches:
         last_occurrence = matches[-1]
-        #print(last_occurrence)
-        #print(last_occurrence.group())
-        #print("Last occurrence:", last_occurrence.group())
-        #print("Position:", last_occurrence.start())
-        #print("Context:", response[last_occurrence.start() - 200:])
         answer = last_occurrence.group()
         if len(answer) > 1:
             return last_occurrence.group()[1]
