@@ -7,7 +7,6 @@ import gymnasium as gym
 import numpy as np
 from panda3d.core import PNMImage
 
-import vqa.vqagen.utils.qa_utils
 from metadrive import constants
 from metadrive.component.sensors.base_camera import BaseCamera
 from metadrive.component.sensors.dashboard import DashBoard
@@ -417,7 +416,7 @@ class BaseEnv(gym.Env):
         self._after_lazy_init()
         self.logger.info(
             "Start Scenario Index: {}, Num Scenarios : {}".format(
-                self.engine.gets_start_index(self.config), vqa.vqagen.utils.qa_utils.get("num_scenarios", 1)
+                self.engine.gets_start_index(self.config), self.config.get("num_scenarios", 1)
             )
         )
 
@@ -516,7 +515,7 @@ class BaseEnv(gym.Env):
         """
         if self.logger is None:
             self.logger = get_logger()
-            log_level = vqa.vqagen.utils.qa_utils.get("log_level", logging.DEBUG if vqa.vqagen.utils.qa_utils.get("debug", False) else logging.INFO)
+            log_level = self.config.get("log_level", logging.DEBUG if self.config.get("debug", False) else logging.INFO)
             set_log_level(log_level)
         self.lazy_init()  # it only works the first time when reset() is called to avoid the error when render
         self._reset_global_seed(seed)
@@ -617,7 +616,7 @@ class BaseEnv(gym.Env):
             obses[v_id] = o
 
         step_infos = concat_step_infos([engine_info, done_infos, reward_infos, cost_infos])
-        truncateds = {k: vqa.vqagen.utils.qa_utils.get(TerminationState.MAX_STEP, False) for k in self.agents.keys()}
+        truncateds = {k: step_infos[k].get(TerminationState.MAX_STEP, False) for k in self.agents.keys()}
         terminateds = {k: self.dones[k] for k in self.agents.keys()}
 
         # For extreme scenario only. Force to terminate all agents if the environmental step exceeds 5 times horizon.
