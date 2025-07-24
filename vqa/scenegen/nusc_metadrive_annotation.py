@@ -275,7 +275,7 @@ def main():
     Main function for reconstructing nuScenes scenarios using the MetaDrive rendering.
     """
     cwd = os.getcwd()
-    full_path = os.path.join(cwd, "scripts", "scenegen_config", "nusc_sim.yaml")
+    full_path = os.path.join(cwd, "sample_scripts", "scenegen_config", "nusc_sim.yaml")
     parser = argparse.ArgumentParser()
     parser.add_argument("--start", type=int, default=0, help="Starting index")
     parser.add_argument("--end", type=int, default=400, help="non-inclusive ending index")

@@ -18,7 +18,7 @@
 # SAVE_DIR is specified in config.
 # DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # METAVQA_DIR="$(dirname "$DIR")"
-# CONFIG="${METAVQA_DIR}/scripts/scenegen_config/nusc_sim.yaml"
+# CONFIG="${METAVQA_DIR}/sample_scripts/scenegen_config/nusc_sim.yaml"
 # START_IDX=400
 # END_IDX=408
 # NUM_PROC=1
