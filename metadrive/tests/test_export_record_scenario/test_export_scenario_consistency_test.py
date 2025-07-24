@@ -1,6 +1,4 @@
 import os
-
-import vqa.vqagen.utils.qa_utils
 from metadrive.scenario.scenario_description import ScenarioDescription as SD
 import pathlib
 import pickle
@@ -110,7 +108,7 @@ def test_export_metadrive_scenario_easy(num_scenarios=5, render_export_env=False
         shutil.rmtree(dir1)
 
     for scenario_id in scenarios_restored:
-        o = vqa.vqagen.utils.qa_utils.get(
+        o = scenarios_restored[scenario_id]["metadata"]["history_metadata"].get(
             "old_origin_in_current_coordinate", np.array([0, 0])
         )
         scenarios_restored[scenario_id] = SD.offset_scenario_with_new_origin(scenarios_restored[scenario_id], o)
@@ -178,7 +176,7 @@ def test_export_metadrive_scenario_hard(start_seed=0, num_scenarios=3, render_ex
         shutil.rmtree(dir1)
 
     for scenario_id in scenarios_restored:
-        o = vqa.vqagen.utils.qa_utils.get(
+        o = scenarios_restored[scenario_id]["metadata"]["history_metadata"].get(
             "old_origin_in_current_coordinate", np.array([0, 0])
         )
         scenarios_restored[scenario_id] = SD.offset_scenario_with_new_origin(scenarios_restored[scenario_id], o)
@@ -395,7 +393,7 @@ def test_waymo_export_and_original_consistency(num_scenarios=3, render_export_en
             policy, scenario_index=[i for i in range(num_scenarios)], verbose=True
         )
         for scenario_id in scenarios:
-            o = vqa.vqagen.utils.qa_utils.get(
+            o = scenarios[scenario_id]["metadata"]["history_metadata"].get(
                 "old_origin_in_current_coordinate", np.array([0, 0])
             )
             scenarios[scenario_id] = SD.offset_scenario_with_new_origin(scenarios[scenario_id], o)
