@@ -1,8 +1,8 @@
 #!/bin/bash
 NUMSCENARIOS=120
-DATA="/data_weizhen/scenarios"
+DATA="/data_weizhen/scenarios" # Where the test scenarios are located
 MODELPATH="/data_weizhen/chenda_data/LLaMA-Factory/models/llama-3.2-11B-Vision-Instruct_lora_sft_waymonusc"  #Where the ckpt is stored
-RECORDPATH="/home/weizhen/closed_loops/llama_waymonusc/"
+RECORDPATH="/home/weizhen/closed_loops/llama_waymonusc/" # Where you store the closed-loop results and visualizations
 PROMPTSCHEMA="direct"
 RESULTPATH="/home/weizhen/closed_loops/llama_waymonusc/llama_waymonusc.json"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"

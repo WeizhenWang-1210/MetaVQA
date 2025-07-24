@@ -1,8 +1,8 @@
 #!/bin/bash
 NUMSCENARIOS=120
-DATA="/data_weizhen/scenarios"
+DATA="/data_weizhen/scenarios" # Where the test scenarios are located
 MODELPATH="Qwen/Qwen2-VL-7B-Instruct" #Where the ckpt is stored
-RECORDPATH="/home/weizhen/closed_loops/qwen2_zeroshot/"
+RECORDPATH="/home/weizhen/closed_loops/qwen2_zeroshot/" # Where you store the closed-loop results and visualizations
 PROMPTSCHEMA="direct"
 RESULTPATH="/home/weizhen/closed_loops/qwen2_zeroshot/qwen2_zeroshot.json"
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"

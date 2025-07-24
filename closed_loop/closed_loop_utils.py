@@ -34,6 +34,7 @@ def computeFDE(traj1, traj2):
     Traj1 is Ground Truth
     Traj2 is the generated trajectory, which can be shorter than GT
     """
+    raise DeprecationWarning
     t = traj2.shape[0]
     assert traj1.shape[-1]==2, traj1.shape
     assert not (traj1[t - 1, :] == 0.0).all()

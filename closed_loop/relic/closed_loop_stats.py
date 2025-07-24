@@ -1,6 +1,6 @@
 import os, json, re
 import glob
-from som.visualize_closed_loop import control2string
+
 
 
 def navi_action_match(question, answer, options):
