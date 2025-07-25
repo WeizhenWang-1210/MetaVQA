@@ -1,15 +1,13 @@
-from panda3d.core import RenderState, LightAttrib, ColorAttrib, ShaderAttrib, TextureAttrib, FrameBufferProperties
+from typing import Union
+
+import numpy as np
+from panda3d.core import NodePath
+from panda3d.core import RenderState, LightAttrib, ColorAttrib, ShaderAttrib, TextureAttrib
 
 from metadrive.component.sensors.base_camera import BaseCamera
 from metadrive.constants import CamMask
 from metadrive.constants import CameraTagStateKey
 from metadrive.engine.engine_utils import get_engine
-
-from typing import Union
-
-import cv2
-import numpy as np
-from panda3d.core import NodePath
 
 
 class InstanceCamera(BaseCamera):
@@ -35,9 +33,8 @@ class InstanceCamera(BaseCamera):
 
     def _setup_effect(self):
         """
-        Use tag to apply color to different objects(instances)
+        Use tag to apply color to different objects (instances)
         Returns: None
-
         """
         # setup camera
 
@@ -64,4 +61,5 @@ class InstanceCamera(BaseCamera):
 
             for id in spawned_objects.keys():
                 c = mapping[id]
+                assert c in self.engine.COLORS_OCCUPIED
                 cam.setTagState(id, RenderState.make(ColorAttrib.makeFlat((c[0], c[1], c[2], 1)), 1))
