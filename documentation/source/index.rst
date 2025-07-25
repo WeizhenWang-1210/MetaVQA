@@ -15,7 +15,7 @@ Welcome to the MetaDrive documentation!
 MetaDrive is an efficient and compositional driving simulator with the following key features:
 
 * Compositional: It supports generating infinite scenes with various road maps and traffic settings for the research of generalizable RL.
-* Lightweight: It is easy to install and run. It can run up to 300 FPS on a standard PC.
+* Lightweight: It is easy to install and run. It can run up to 1,500 FPS on a standard PC.
 * Realistic: Accurate physics simulation and multiple sensory input including Lidar, RGB images, top-down semantic map and first-person view images.
 
 
@@ -34,36 +34,57 @@ Please feel free to contact us if you have any suggestions or ideas!
 
    install.rst
    get_start.rst
+   before_reading.ipynb
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: RL Training with MetaDrive
 
-   rl_environments.rst
-   observation.rst
-   reward_cost_and_termination_function.rst
-   action_and_dynamics.rst
-   config_system.rst
-   read_data_from_dataset.rst
-   training_with_rllib.rst
+   rl_environments.ipynb
+   config_system.ipynb
+   obs.ipynb
+   action.ipynb
+   reward_cost_done.ipynb
+   training.ipynb
+   multigoal_intersection.ipynb
+
+.. toctree::
+   :includehidden:
+   :maxdepth: 1
+   :caption: Concepts and Customization
+
+   new_env.ipynb
+   system_design.ipynb
+   sensors.ipynb
+   top_down_render.ipynb
+   panda_render.ipynb
+   map.ipynb
+   vehicle.ipynb
+   navigation.ipynb
+   scenario_description.ipynb
+   record_replay.ipynb
+   simgen_render.ipynb
 
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Concept and Customization
+   :caption: Debugging
 
-   concept.rst
-   development.rst
-   policy.rst
-
+   debug_mode.ipynb
+   points_and_lines.ipynb
+   log_msg.ipynb
 
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Issues
+   :caption: Ecosystem
 
-   known_issues.rst
+   scenarionet.rst
+   ros.rst
+   di_drive.rst
+   sumo.rst
+   opendrive.rst
 
 
 .. raw:: html
