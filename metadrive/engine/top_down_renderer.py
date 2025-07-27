@@ -1,7 +1,7 @@
 import copy
 from metadrive.engine.logger import get_logger
 
-from metadrive.utils import generate_gif
+from metadrive.utils.doc_utils import generate_gif
 import math
 from collections import deque
 from typing import Optional, Union, Iterable
@@ -16,7 +16,7 @@ from metadrive.scenario.scenario_description import ScenarioDescription
 from metadrive.utils.utils import import_pygame
 from metadrive.utils.utils import is_map_related_instance
 
-pygame, gfxdraw = import_pygame()
+pygame = import_pygame()
 
 color_white = (255, 255, 255)
 
@@ -24,6 +24,7 @@ color_white = (255, 255, 255)
 def draw_top_down_map_native(
     map,
     semantic_map=True,
+    draw_center_line=False,
     return_surface=False,
     film_size=(2000, 2000),
     scaling=None,
@@ -34,6 +35,7 @@ def draw_top_down_map_native(
     Args:
         map: MetaDrive.BaseMap instance
         semantic_map: return semantic map
+        draw_center_line: Draw the center line of the lane
         return_surface: Return the pygame.Surface in fime_size instead of cv2.image
         film_size: The size of the film to draw the map
         scaling: the scaling factor, how many pixels per meter
@@ -53,7 +55,10 @@ def draw_top_down_map_native(
     y_len = b_box[3] - b_box[2]
     max_len = max(x_len, y_len)
     # scaling and center can be easily found by bounding box
-    scaling = scaling if scaling is not None else (film_size[1] / max_len - 0.1)
+    if scaling is None:
+        scaling = (film_size[1] / max_len - 0.1)
+    else:
+        scaling = min(scaling, (film_size[1] / max_len - 0.1))
     surface.scaling = scaling
     centering_pos = ((b_box[0] + b_box[1]) / 2, (b_box[2] + b_box[3]) / 2)
     surface.move_display_window_to(centering_pos)
@@ -63,24 +68,27 @@ def draw_top_down_map_native(
         all_lanes = map.get_map_features(line_sample_interval)
 
         for obj in all_lanes.values():
-            if MetaDriveType.is_lane(obj["type"]):
+            if MetaDriveType.is_lane(obj["type"]) and not draw_center_line:
                 pygame.draw.polygon(
                     surface, TopDownSemanticColor.get_color(obj["type"]),
                     [surface.pos2pix(p[0], p[1]) for p in obj["polygon"]]
                 )
 
-            elif MetaDriveType.is_road_line(obj["type"]) or MetaDriveType.is_road_boundary_line(obj["type"]):
+            elif (MetaDriveType.is_road_line(obj["type"]) or MetaDriveType.is_road_boundary_line(obj["type"])
+                  or (MetaDriveType.is_lane(obj["type"]) and draw_center_line)):
                 if semantic_broken_line and MetaDriveType.is_broken_line(obj["type"]):
                     points_to_skip = math.floor(PGDrivableAreaProperty.STRIPE_LENGTH * 2 / line_sample_interval) * 2
                 else:
                     points_to_skip = 1
                 for index in range(0, len(obj["polyline"]) - 1, points_to_skip):
+                    color = [255, 0, 0] if MetaDriveType.is_lane(obj["type"]) and index==0\
+                        else TopDownSemanticColor.get_color(obj["type"])
                     if index + 1 < len(obj["polyline"]):
                         s_p = obj["polyline"][index]
                         e_p = obj["polyline"][index + 1]
                         pygame.draw.line(
                             surface,
-                            TopDownSemanticColor.get_color(obj["type"]),
+                            color,
                             surface.vec2pix([s_p[0], s_p[1]]),
                             surface.vec2pix([e_p[0], e_p[1]]),
                             # max(surface.pix(LaneGraphics.STRIPE_WIDTH),
@@ -179,10 +187,12 @@ class TopDownRenderer:
         target_vehicle_heading_up=None,
         draw_target_vehicle_trajectory=False,
         semantic_map=False,
+        draw_center_line=False,
         semantic_broken_line=True,
         draw_contour=True,
         window=True,
         screen_record=False,
+        center_on_map=False,
     ):
         """
         Launch a top-down renderer for current episode. Usually, it is launched by env.render(mode="topdown") and will
@@ -216,6 +226,8 @@ class TopDownRenderer:
 
             semantic_map: Whether to draw semantic color for each object. The color scheme is in TopDownSemanticColor.
 
+            draw_center_line: Whether to draw center line for each lane, this can be used to debug the lane connectivity
+
             semantic_broken_line: Whether to draw broken line for semantic map
 
             draw_contour: Whether to draw a counter for objects
@@ -224,6 +236,9 @@ class TopDownRenderer:
 
             screen_record: Whether to record the episode. The recorded result can be accessed by
             env.top_down_renderer.screen_frames or env.top_down_renderer.generate_gif(file_name, fps)
+
+            center_on_map: Whether to center the camera on the map. If set to True, the camera will not move with the
+            ego car, and the camera position will be fixed at the center of the map.
         """
         # doc-end
         # LQY: do not delete the above line !!!!!
@@ -240,6 +255,7 @@ class TopDownRenderer:
             target_agent_heading_up = target_vehicle_heading_up
 
         self.position = camera_position
+        self.center_on_map = center_on_map
         self.target_agent_heading_up = target_agent_heading_up
         self.show_agent_name = show_agent_name
         self.draw_target_vehicle_trajectory = draw_target_vehicle_trajectory
@@ -274,12 +290,14 @@ class TopDownRenderer:
         # It is fixed and will never change unless the map changes.
         self._background_canvas = draw_top_down_map_native(
             self.map,
+            draw_center_line=draw_center_line,
             scaling=self.scaling,
             semantic_map=self.semantic_map,
             return_surface=True,
             film_size=self.film_size,
             semantic_broken_line=self.semantic_broken_line
         )
+        self.scaling = self._background_canvas.scaling
 
         # (2) frame is a copy of the background so you can draw movable things on it.
         # It is super large as the background.
@@ -512,8 +530,12 @@ class TopDownRenderer:
         field = self._screen_canvas.get_size()
         if not self.target_agent_heading_up:
             if self.position is not None or v is not None:
-                cam_pos = (self.position or v.position)
-                position = self._frame_canvas.pos2pix(*cam_pos)
+                if self.center_on_map:
+                    frame_canvas_size = self._frame_canvas.get_size()
+                    position = (frame_canvas_size[0] / 2, frame_canvas_size[1] / 2)
+                else:
+                    cam_pos = (self.position or v.position)
+                    position = self._frame_canvas.pos2pix(*cam_pos)
             else:
                 position = (field[0] / 2, field[1] / 2)
             off = (position[0] - field[0] / 2, position[1] - field[1] / 2)
