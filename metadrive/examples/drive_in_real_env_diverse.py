@@ -31,11 +31,11 @@ if __name__ == "__main__":
     print(HELP_MESSAGE)
 
     cfg = {
-        "manual_control": True,
+        "manual_control": False,
         "map_region_size": 1024,  # use a large number if your map is toooooo big
         "sequential_seed": True,
         "reactive_traffic": True if args.reactive_traffic else False,
-        "use_render": True if not args.top_down else False,
+        "use_render": False if not args.top_down else False,
         "data_directory": AssetLoader.file_path(asset_path, "waymo" if use_waymo else "nuscenes", unix_style=False),
         "num_scenarios": 3 if use_waymo else 10
     }
