@@ -39,7 +39,7 @@ $ pip install -e .
 
 MetaVQA needs some extra pacakges. You can use
 ```bash
-$ pip install pyyaml
+$ pip install PyYAML
 $ pip install imageio[ffmpeg]
 ```
 Once the previous steps are finished, use the following for installation verification
