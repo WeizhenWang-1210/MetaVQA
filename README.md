@@ -25,13 +25,64 @@
 This is the official repository for **Embodied Scene Understanding for Vision Language Models via MetaVQA** from CVPR 2025. It contains the necessary toolkit for creating this benchmark, including both VQA datasets and closed-loop challenges. 
 
 # Installation
-- Clone the repository and create a virtual environment/Conda envrionment with Python 3.11
-- install the dependencies by running `pip install -e .`
-- missing `yaml`, `pip install nuscenes-devkit`, `imageio`, `pip install imageio[ffmpeg]`
-- install the `adj_parameter` zip file, and unzip it at specified location `<path to parameter>`
-- Spefified the path to the `adj_parameter` zip file in `path_config.yaml`. Overwrite `metadriveasset` with the absolute path at which the assets are downloaded and `parentfolder` with `<path to parameter>`
-- Download the nuScenes Dataset as well as the nuScenes DevKit
+Clone the repository and create a virtual environment/Conda envrionment with Python 3.11
+```bash
+$ git clone 
+$ cd MetaVQA
+$ conda create -n metavqa python=3.11 -y
+$ conda activate metavqa
+```
+install the metadrive dependencies by running 
+```bash
+$ pip install -e .
+```
 
+MetaVQA needs some extra pacakges. You can use
+```bash
+$ pip install pyyaml
+$ pip install imageio[ffmpeg]
+```
+Once the previous steps are finished, use the following for installation verification
+```bash
+$ python metadrive.examples.drive_in_single_agent_env
+```
+
+For visually diverse simulation envrionments, download and unzip the `asset_v0.0.4.zip` and `adj_parameter_folder_v0.0.4.zip` from [this link](https://github.com/WeizhenWang-1210/MetaVQA/releases). Move the `test` folder within `asset_v0.0.4.zip` into `metadrive/assets/models`. You need to pull the vanilla metadrive asset first, and **this will be automatically done when you do verification**. 
+
+You should have the following file structure
+```
+-MetaVQA
+    -metadrive
+        -assets
+            -models
+                -test/*
+```
+
+Lastly, modify the `path_config.yaml` by overwriting 
+```yaml
+...
+ # Specify location of the asset within metadrive, download "asset-model.zip" from github release and put it at corresponding location.
+metadriveasset: <absolute path to MetaVQA's parent folder>/MetaVQA/metadrive/assets/models/test
+# The parent path for the subfolders below
+parentfolder: <absolute path to the parameter folder>/adj_parameter_folder_v0.0.4
+...
+```
+You can verify the installation of additional assets by running
+```bash
+$ python metadrive.examples.drive_in_real_env_diverse
+```
+
+## Preparation of the nuScenes Dataset
+As part of the MetaVQA-Datasets leverage nuScenes Dataset, we provide a brief tutorial to set it up.
+Go to the (nuScenes official webpage)[https://www.nuscenes.org/nuscenes] download the dataset. Additional, this website provides details on the dataset composition.
+
+Much of the data collection is done using the `nuScenes-Devkit`. We recommend starting a dedicated virtualized environments:
+```bash
+$ conda create -n nusc python=3.7 -y
+$ conda activate nusc
+$ pip install nuscenes-devkit
+```
+In case of confusion, check out the devkit's implementation (here)[https://github.com/nutonomy/nuscenes-devkit]
 
 # Scenario Aggregation
 We prepared two distinct pipelines for curating the real-world scenarios and simulator-rendered scenarios. Checkout `scripts_cvpr/scene_gen/nusc_real.sh` and `scripts_cvpr/scene_gen/waymo_sim.sh` for examples.
