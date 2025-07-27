@@ -73,8 +73,8 @@ $ python metadrive.examples.drive_in_real_env_diverse
 ```
 
 ## Preparation of the nuScenes Dataset
-As part of the MetaVQA-Datasets leverage nuScenes Dataset, we provide a brief tutorial to set it up.
-Go to the (nuScenes official webpage)[https://www.nuscenes.org/nuscenes] download the dataset. Additional, this website provides details on the dataset composition.
+As part of the MetaVQA-Dataset leverage nuScenes Dataset, we provide a brief tutorial to set it up.
+Go to the [nuScenes official webpage](https://www.nuscenes.org/nuscenes) download the dataset. Additional, this website provides details on the dataset composition.
 
 Much of the data collection is done using the `nuScenes-Devkit`. We recommend starting a dedicated virtualized environments:
 ```bash
@@ -82,7 +82,7 @@ $ conda create -n nusc python=3.7 -y
 $ conda activate nusc
 $ pip install nuscenes-devkit
 ```
-In case of confusion, check out the devkit's implementation (here)[https://github.com/nutonomy/nuscenes-devkit]
+In case of confusion, check out the devkit's implementation [here](https://github.com/nutonomy/nuscenes-devkit)
 
 # Scenario Aggregation
 We prepared two distinct pipelines for curating the real-world scenarios and simulator-rendered scenarios. Checkout `scripts_cvpr/scene_gen/nusc_real.sh` and `scripts_cvpr/scene_gen/waymo_sim.sh` for examples.
