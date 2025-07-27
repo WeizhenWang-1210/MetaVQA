@@ -69,6 +69,11 @@ class NewAssetPGTrafficManager(PGTrafficManager):
                         print(loaded_metainfo)
                         self.car_asset_metainfos.append(loaded_metainfo)
 
+    def random_vehicle_type(self):
+        from metadrive.component.vehicle.vehicle_type import custom_random_vehicle_type
+        vehicle_type = custom_random_vehicle_type(self.np_random, [0.2, 0.2, 0.2, 0.2, 0.0, 0.2])
+        return vehicle_type
+
     def randomCustomizedCar(self):
         return CustomizedCar, random.choice(self.car_asset_metainfos)
 

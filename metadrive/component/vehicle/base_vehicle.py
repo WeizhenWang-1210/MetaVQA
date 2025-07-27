@@ -58,6 +58,7 @@ class BaseVehicleState:
         self.on_crosswalk = False
 
         # contact results, a set containing objects type name for rendering
+        self.crashed_objects = set()
         self.contact_results = set()
 
 

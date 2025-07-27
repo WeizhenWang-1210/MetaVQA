@@ -615,6 +615,20 @@ def random_vehicle_type(np_random, p=None):
         "l": LVehicle,
         "xl": XLVehicle,
         "default": DefaultVehicle,
+    }
+    if p:
+        assert len(p) == len(v_type), \
+            "This function only allows to choose a vehicle from 6 types: {}".format(v_type.keys())
+    prob = [1 / len(v_type) for _ in range(len(v_type))] if p is None else p
+    return v_type[np_random.choice(list(v_type.keys()), p=prob)]
+
+def custom_random_vehicle_type(np_random, p=None):
+    v_type = {
+        "s": SVehicle,
+        "m": MVehicle,
+        "l": LVehicle,
+        "xl": XLVehicle,
+        "default": DefaultVehicle,
         "test": CustomizedCar
     }
     if p:
