@@ -45,7 +45,7 @@ def postprocess_annotation(env, lidar, rgb_dict, scene_dict, log_mapping, debug=
     for perspective in rgb_dict.keys():
         result["rgb"][perspective] = rgb_dict[perspective]["rgb"] * 255
         result["mask"][perspective] = rgb_dict[perspective]["mask"] * 255
-        result["depth"][perspective] = rgb_dict[perspective]["depth"] * 255
+        result["depth"][perspective] = (rgb_dict[perspective]["depth"] * 255).astype(np.uint8) # depth_image = Image.fromarray((depth_inverted.squeeze() * (65535 if depth_16bit else 255)).astype(np.uint16 if depth_16bit else np.uint8), mode="I;16" if depth_16bit else "L")
         result["semantic"][perspective] = rgb_dict[perspective]["semantic"] * 255
     if debug:
         # With name and history.

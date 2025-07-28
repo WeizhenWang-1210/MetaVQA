@@ -1,5 +1,5 @@
 ---
-storage_path : "/bigdata/weizhen/releases/MetaVQA/scenarios/waymo_sim"
+storage_path : "/bigdata/weizhen/releases/MetaVQA_migrated/scenarios/waymo_sim"
 sample_frequency: 5
 num_samples: 100000000 # Doesn't matter
 max_iterations: 1000000000000000 # Doesn't matter

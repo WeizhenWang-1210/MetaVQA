@@ -2,13 +2,13 @@
 
 # 1 nusc real scenario annotations.
 # This is the root directory at which the generated scenarios are saved.
-# SAVE_DIR="/bigdata/weizhen/releases/MetaVQA/scenarios/nusc_real"
+# SAVE_DIR="/bigdata/weizhen/releases/MetaVQA_migrated/scenarios/nusc_real"
 # START_IDX=400
 # END_IDX=408
 # # Number of independent processed to use. This program is trivially parallelizable as no inter-process communication is needed.
 # # The number of processes should be equal to the number of CPU cores on your machine.
 # # The scenarios are saved independently, so you can run this script multiple times with different start and end indices.
-# NUM_PROC=1
+# NUM_PROC=4
 # DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # METAVQA_DIR="$(dirname "$DIR")"
 # cd $METAVQA_DIR;
@@ -20,7 +20,7 @@
 # METAVQA_DIR="$(dirname "$DIR")"
 # CONFIG="${METAVQA_DIR}/sample_scripts/scenegen_config/nusc_sim.yaml"
 # START_IDX=400
-# END_IDX=408
+# END_IDX=401
 # NUM_PROC=1
 # cd $METAVQA_DIR;
 # python -m vqa.scenegen.nusc_metadrive_annotation --headless --num_proc $NUM_PROC --config $CONFIG --start $START_IDX --end $END_IDX
@@ -32,10 +32,10 @@ paths=(
 )
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
-CONFIG="${METAVQA_DIR}/scripts/scenegen_config/waymo_sim.yaml"
+CONFIG="${METAVQA_DIR}/sample_scripts/scenegen_config/waymo_sim.yaml"
 SETTING="NORMAL"
 START_IDX=400
-END_IDX=416
+END_IDX=401
 NUM_PROC=1
 export SETTING
 
