@@ -91,10 +91,40 @@ We prepared two distinct pipelines for curating the real-world scenarios and sim
 Please download the [nuScenes Dataset](https://www.nuscenes.org/nuscenes) via the official website if you want to utilize nuScenes scenarios for VQA generation. For Waymo Open Motion Dataset(WOMD), you can refer to [ScenarioNet](https://github.com/metadriverse/scenarionet) to pre-process the tfrecords into `pkl` files compatible with [MetaDrive](https://github.com/metadriverse/metadrive) simulator.
 
 ## nuScenes Scenarios (with real-image Observations)
-We utilize the nuScenes_Devkit tools to prepare nuScenes scenarios. You can checkout `vqa.scenegen.nusc_devkit_annotation` for implementation details.
+We utilize the nuScenes_Devkit tools to prepare nuScenes scenarios. You can checkout `vqa/scenegen/nusc_devkit_annotation.py` for implementation details. Suppose you download the nuScenes dataset at `nusc` folder, you should overwrite `vqa/scenegen/macros.py` with
+```python
+NUSC_PATH = 'nusc'
+NUSC_VERSION = 'v1.0-trainval'
+```
+You will have output in the following structure
+```
+nusc_scenarios/
+    |-scene-0510_0_40/
+    |               |
+    |               |-1_0/
+    |               |    |-world_1_0.json (the recorded scene graph)
+    |               |    |-rgb_front_1_0.json (CAM_FRONT RGB image)
+    |               |    |-mask_front_1_0.png (Instance Segmentation Mask, in boxes)
+    |               |    |id2corner_1_0.json (Map an object id in the scene graph to a 2D pixel coordinates)
+    |               |    |id2c_1_0.json (Map an object id to an instance color, rounded to 5 in float)
+    |               |-1_1
+    |               |...
+    |               |-<seed_id>_<keyframe_idx>
+    |-scene-0515_0_40/*
+    |...      
+    |-<scene_id>_<keyframe_start>_<keyframe_end>
+
+```
 
 ## WOMD Scenarios (with simulator-rendered Observations)
-Check out `vqa.scenegen.metadrive_annotation.py` for more details. Note that nuScenes scenarios can also be converted to this format, and you can essentially create a "digital twin" for the same traffic layout.
+Check out `vqa/scenegen/metadrive_annotation.py` for more details. 
+
+
+Note that nuScenes scenarios can also be converted to this format, and you can essentially create a "digital twin" for the same traffic layout. Check out `vqa/scenegen/nusc_metadrive_annotation.py` for paired aggregation. Note that you have to first collect camera data in order to use it, see `vqa/scenegen/macros.py`:
+```python
+PAIRING_PATH = "/bigdata/weizhen/data_nusc_multiview_trainval.json"
+NUSCENES_SN_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"
+```
 
 <!--
 ## End Product #TODO

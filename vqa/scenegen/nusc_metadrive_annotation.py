@@ -21,8 +21,7 @@ from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 from metadrive.scenario import utils as sd_utils
 from vqa.configs.namespace import MAX_DETECT_DISTANCE, MIN_OBSERVABLE_PIXEL, OBS_WIDTH, OBS_HEIGHT
 from vqa.scenegen.macros import NUSCENES_SN_PATH, PAIRING_PATH
-from vqa.scenegen.metadrive_annotation import get_visible_object_ids, generate_annotations, genearte_annotation, \
-    postprocess_annotation
+from vqa.scenegen.metadrive_annotation import get_visible_object_ids, generate_annotations, genearte_annotation, postprocess_annotation
 from vqa.utils.common_utils import divide_list_into_n_chunks
 from vqa.vqagen.utils.metadrive_utils import l2_distance
 

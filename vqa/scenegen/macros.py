@@ -45,6 +45,6 @@ ALL_NUSC_TYPE = {
     "vehicle.ego": "ego"
 }
 
-PAIRING_PATH = "/bigdata/weizhen/data_nusc_multiview_trainval.json"
+PAIRING_PATH = "/bigdata/weizhen/datasets/data_nusc_multiview_trainval.json"
 
 NUSCENES_SN_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"

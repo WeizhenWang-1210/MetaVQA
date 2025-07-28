@@ -152,7 +152,8 @@ def order_points_clockwise(points):
     """
     points = np.array(points)
     center = np.mean(points, axis=0)
-    arctan2 = lambda s, c: angle if (angle := np.arctan2(s, c)) >= 0 else 2 * np.pi + angle
+
+    arctan2 = lambda s, c: np.arctan2(s, c) if np.arctan2(s, c) >= 0 else 2 * np.pi + np.arctan2(s, c)
 
     def clockwise_around_center(point):
         diff = point - center
