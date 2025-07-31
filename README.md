@@ -85,7 +85,7 @@ $ pip install nuscenes-devkit
 In case of confusion, check out the devkit's implementation [here](https://github.com/nutonomy/nuscenes-devkit)
 
 # Scenario Aggregation
-We prepared two distinct pipelines for curating the real-world scenarios and simulator-rendered scenarios. Checkout `scripts_cvpr/scene_gen/nusc_real.sh` and `scripts_cvpr/scene_gen/waymo_sim.sh` for examples.
+We prepared two distinct pipelines for curating the real-world scenarios and simulator-rendered scenarios. Checkout `scripts_cvpr/scene_gen/nusc_real.sh` and `scripts_cvpr/scene_gen/waymo_sim.sh` for examples. You can also see `sample_scripts/test_scengen.sh`.
 
 ## Preliminaries
 Please download the [nuScenes Dataset](https://www.nuscenes.org/nuscenes) via the official website if you want to utilize nuScenes scenarios for VQA generation. For Waymo Open Motion Dataset(WOMD), you can refer to [ScenarioNet](https://github.com/metadriverse/scenarionet) to pre-process the tfrecords into `pkl` files compatible with [MetaDrive](https://github.com/metadriverse/metadrive) simulator.
@@ -117,7 +117,7 @@ nusc_scenarios/
 ```
 
 ## WOMD Scenarios (with simulator-rendered Observations)
-Check out `vqa/scenegen/metadrive_annotation.py` for more details. 
+Check out `vqa/scenegen/metadrive_annotation.py` for more details.
 
 
 Note that nuScenes scenarios can also be converted to this format, and you can essentially create a "digital twin" for the same traffic layout. Check out `vqa/scenegen/nusc_metadrive_annotation.py` for paired aggregation. Note that you have to first collect camera data in order to use it, see `vqa/scenegen/macros.py`:
@@ -126,19 +126,13 @@ PAIRING_PATH = "/bigdata/weizhen/data_nusc_multiview_trainval.json"
 NUSCENES_SN_PATH = "/bigdata/datasets/scenarionet/nuscenes/trainval"
 ```
 
-<!--
-## End Product #TODO
-By the end of this stage, suppose you specify your logging path at `/data`, you will have the following file structure.
--->
-
-
 
 # VQA Curation
 ## Set-of-Mark Annotation:
-Checkout `vqa.vqagen.set_of_marks.py` for implementation details.
+Checkout `vqa.vqagen.set_of_marks.py` for implementation details. You can freely specify the annotation style(bounding box v.s. contours v.s. masks, etc.) Note that the SoM will be automatically applied during the VQA generation process.
 
 ## VQA Generation
-Checkout `scripts_cvpr/vqa_gen/*.sh` for sample code and `vqa/vqa_gen/static_question_generation.py` for implementation details. All the question templates are defined in `vqa/vqa_gen/questions_templates.json`. Note that the Set-of-Mark annotation is automatically applied during the generation process.
+Checkout `sample_scripts/test_vqagen.sh` for sample code and `vqa/vqa_gen/static_question_generation.py` for implementation details. All the question templates are defined in `vqa/vqa_gen/questions_templates.json`.
 
 
 
