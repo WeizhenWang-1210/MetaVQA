@@ -44,7 +44,7 @@ $ pip install imageio[ffmpeg]
 ```
 Once the previous steps are finished, use the following for installation verification
 ```bash
-$ python metadrive.examples.drive_in_single_agent_env
+$ python -m metadrive.examples.drive_in_single_agent_env
 ```
 
 For visually diverse simulation envrionments, download and unzip the `asset_v0.0.4.zip` and `adj_parameter_folder_v0.0.4.zip` from [this link](https://github.com/WeizhenWang-1210/MetaVQA/releases). Move the `test` folder within `asset_v0.0.4.zip` into `metadrive/assets/models`. You need to pull the vanilla metadrive asset first, and **this will be automatically done when you do verification**. 
@@ -69,7 +69,7 @@ parentfolder: <absolute path to the parameter folder>/adj_parameter_folder_v0.0.
 ```
 You can verify the installation of additional assets by running
 ```bash
-$ python metadrive.examples.drive_in_real_env_diverse
+$ python -m metadrive.examples.drive_in_real_env_diverse
 ```
 
 ## Preparation of the nuScenes Dataset
