@@ -4,7 +4,7 @@ paths=(
 )
 DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 METAVQA_DIR="$(dirname "$DIR")"
-CONFIG="${METAVQA_DIR%/}/vqa/scenegen/configs/waymo_sim.yaml"
+CONFIG="${METAVQA_DIR%/}/scripts_cvpr/scene_gen/configs/waymo_sim.yaml"
 SETTING="NORMAL"
 START_IDX=0
 END_IDX=7000
