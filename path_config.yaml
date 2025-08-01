@@ -2,11 +2,11 @@ path:
   # Specify objaverse download folder, if you do not annotate new asset from objaverse, do not change it
   assetfolder: D:/research/dataset/.objaverse/hf-objaverse-v1
   # Specify location of the asset within metadrive, download "asset-model.zip" from github release and put it at corresponding location.
-  metadriveasset: /home/weizhen/repos/MetaVQA/metadrive/assets/models/test
+  metadriveasset: /home/weizhen/repo/migrate_cleanup/MetaVQA/metadrive/assets/models/test
   # Specify gltf asset, current not useful
   metadriveassetgltf: D:/research/dataset/pede
   # The parent path for the subfolders below
-  parentfolder: /home/weizhen/repos/
+  parentfolder: /home/weizhen/repo/adj_parameter_folder_v0.0.4
   # If you want to annotate raw assets, put it in the raw asset folder and annotate using "objverse_change_asset_script.py"
   raw_assetfolder: D:/research/dataset/raw_asset_folder
   subfolders:
