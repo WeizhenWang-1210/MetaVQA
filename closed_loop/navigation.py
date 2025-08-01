@@ -3,13 +3,11 @@
 This script demonstrates how to use the environment where traffic and road map are loaded from Waymo dataset.
 """
 import argparse
-import random
-
-from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 
 from metadrive.constants import HELP_MESSAGE
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.envs.scenario_env import ScenarioEnv
+from metadrive.policy.replay_policy import ReplayEgoCarPolicy
 
 RENDER_MESSAGE = {
     "Quit": "ESC",

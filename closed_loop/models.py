@@ -1,8 +1,8 @@
 import torch
 import torchvision.transforms as T
+from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
 from transformers import AutoProcessor, AutoModel, AutoTokenizer
-from PIL import Image
 
 
 def build_transform(input_size):
@@ -109,12 +109,6 @@ def load_model(model_path):
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     return model, processor, tokenizer
-
-from transformers import AutoConfig
-import json
-from pathlib import Path
-import os
-from safetensors.torch import load_file 
 
 
 def load_internvl(model_path):

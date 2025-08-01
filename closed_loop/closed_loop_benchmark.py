@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import sys
 
 import numpy as np
 from PIL import Image
@@ -9,6 +8,7 @@ from PIL import Image
 from closed_loop.baselines import closed_loop_baselines, random_action, always_stop, always_straight
 from closed_loop.closed_loop_utils import absoluteFDE, computeADE
 from closed_loop.configs import ACTION_STATISTICS, RECORD_BUFFER, ACTION2OPTION, convert_action
+from closed_loop.models import inference, load_model
 from closed_loop.navigation import get_trajectory, dest_navigation_signal
 from closed_loop.utils.log_utils import capture_som
 from closed_loop.utils.prompt_utils import prepare_prompt_dest
@@ -17,10 +17,6 @@ from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.envs.scenario_env import ScenarioEnv
 from metadrive.policy.replay_policy import InterventionPolicy
 from vqa.eval.parse_responses import parse_response
-from closed_loop.models import inference, load_model
-
-
-
 
 
 def generation_action(model, processor, tokenizer, prompt, obs, intervened):

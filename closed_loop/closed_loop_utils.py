@@ -1,13 +1,14 @@
-from metadrive.envs.base_env import BaseEnv
 import numpy as np
-from vqa.vqagen.utils.geometric_utils import identify_angle
+
 from closed_loop.embodied_utils import classify_distance, l2_distance, find_sector, get_end_sector, classify_speed, \
     describe_speed, ACTION, determine_collisions
-from vqa.vqagen.utils.qa_utils import angle2sector
-from vqa.vqagen.config import TYPES_WITHOUT_HEADINGS, SECTORS
-from vqa.vqagen.utils.geometric_utils import extrapolate_bounding_boxes, box_trajectories_collide, transform_vec
+from metadrive.envs.base_env import BaseEnv
 from vqa.configs.namespace import POSITION2CHOICE
 from vqa.scenegen.utils.annotation_utils import annotate_type
+from vqa.vqagen.config import TYPES_WITHOUT_HEADINGS, SECTORS
+from vqa.vqagen.utils.geometric_utils import extrapolate_bounding_boxes, box_trajectories_collide, transform_vec
+from vqa.vqagen.utils.geometric_utils import identify_angle
+from vqa.vqagen.utils.qa_utils import angle2sector
 
 
 def computeADE(traj1, traj2):

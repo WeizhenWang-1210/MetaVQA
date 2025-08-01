@@ -1,7 +1,10 @@
 import json
-import numpy as np
-from vqa.vqagen.utils.geometric_utils import find_extremities, box_overlap
 import os
+
+import numpy as np
+
+from vqa.vqagen.utils.geometric_utils import find_extremities, box_overlap
+
 current_directory = os.path.dirname(os.path.abspath(__file__))
 TRAJECTORIES = json.load(open(os.path.join(current_directory,"trajectories_collection.json"),"r"))
 PROCESSED = json.load(open(os.path.join(current_directory,"processed_trajectories.json"),"r"))
