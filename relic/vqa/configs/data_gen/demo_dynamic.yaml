@@ -1,7 +1,0 @@
----
-num_proc: 32
-root_directory: "/bigdata/weizhen/metavqa_final/scenarios/NuScenes_Mixed"
-output_directory: "/bigdata/weizhen/metavqa_demo/vqa_raw"
-src: "NuScenes"
-verbose: False
-...
