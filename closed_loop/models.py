@@ -87,26 +87,43 @@ def load_image_np(image_array, input_size=448, max_num=12):
 
 def load_model(model_path):
     """
-    Our implementation based on Transformers. You can also use other libraries.
+    Our implementation for CVPR2025 based on Transformers. You can also use other libraries.
     """
-    model = AutoModel.from_pretrained(
-        model_path,
-        torch_dtype=torch.bfloat16, 
-        low_cpu_mem_usage=True,    
-        trust_remote_code=True
-    ).eval()
+    if "qwen2" in model_path.lower():
+        from transformers import Qwen2VLForConditionalGeneration
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True
+        ).eval()
+    elif "llama" in model_path.lower():
+        from transformers import MllamaForConditionalGeneration
+        model = MllamaForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16, 
+            trust_remote_code=True
+        ).eval()
+    elif "internvl" in model_path.lower():
+        return load_internvl(model_path)
+    
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     return model, processor, tokenizer
+
+from transformers import AutoConfig
+import json
+from pathlib import Path
+import os
+from safetensors.torch import load_file 
 
 
 def load_internvl(model_path):
     model = AutoModel.from_pretrained(
         model_path,
         torch_dtype=torch.bfloat16,
-        trust_remote_code=True,
+        trust_remote_code=True
     ).eval()
-    processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+    processor = None #AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     return model, processor, tokenizer
 
@@ -114,7 +131,7 @@ def load_internvl(model_path):
 
 def inference(model, processor, tokenizer, prompt, obs):
     """
-    Our implementation based on Transformers. You can also use other libraries.
+    Our implementation for CVPR2025 based on Transformers. You can also use other libraries.
     """
     def prepare_prompt(prompt):
         conversation = [
@@ -140,7 +157,7 @@ def inference(model, processor, tokenizer, prompt, obs):
 
 def inference_internvl(model, processor, tokenizer, prompt, obs):
     """
-    Assuming obs(np.array) is already in RGB channeling
+    Our implementation for CVPR2025. Assuming obs(np.array) is already in RGB channeling
     """
     pixel_values = load_image_np(obs, max_num=12).to(torch.bfloat16).to("cuda")
     generation_config = dict(max_new_tokens=512, do_sample=False)
@@ -150,6 +167,9 @@ def inference_internvl(model, processor, tokenizer, prompt, obs):
 
 
 def inference_internvl_zeroshot(model, processor, tokenizer, prompt, obs):
+    """
+    Our implementation for CVPR2025
+    """
     pixel_values = load_image_np(obs, max_num=12).to(torch.bfloat16).to("cuda")
     generation_config = dict(max_new_tokens=512, do_sample=False)
     question = f'<image>\n{prompt}'

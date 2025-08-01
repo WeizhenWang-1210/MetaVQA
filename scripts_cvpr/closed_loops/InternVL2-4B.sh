@@ -11,5 +11,5 @@ CUDA_DEVICES=0
 export INTERNVL=true
 export INTERNVLZEROSHOT=true
 cd $METAVQA_DIR;
-CUDA_VISIBLE_DEVICES=$CUDA_DEVICES python -m som.closed_loop_cvpr --headless --num_scenarios $NUMSCENARIOS --data_directory $DATA --model_path $MODELPATH \
+CUDA_VISIBLE_DEVICES=$CUDA_DEVICES python -m closed_loop.closed_loop_cvpr --headless --num_scenarios $NUMSCENARIOS --data_directory $DATA --model_path $MODELPATH \
   --prompt_schema $PROMPTSCHEMA --record_path $RECORDPATH --result_path $RESULTPATH

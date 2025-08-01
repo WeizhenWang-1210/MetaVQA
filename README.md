@@ -41,6 +41,7 @@ MetaVQA needs some extra pacakges. You can use
 ```bash
 $ pip install PyYAML
 $ pip install imageio[ffmpeg]
+$ pip install scipy
 ```
 Once the previous steps are finished, use the following for installation verification
 ```bash
@@ -183,9 +184,17 @@ and run `python -m vqa.eval.analyze_response`. You will find the collected stati
 We prepared 60 real-world scenarios as well as 60 safety-critical scenarios for closed-loop evaluation. You can find them in `closed_loop/assets/scenarios`
 
 ## Preliminaries
+The following additional packages have been validated on our Ubuntu 24.04.1 LTS machine with
+```
+NVIDIA-SMI 560.35.03              Driver Version: 560.35.03      CUDA Version: 12.6
+```
+
 ```bash
 $ pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-$ pip install transformers
+$ pip install transformers==4.45.2 #(for compatibility with InternVL2 models)
+$ pip install einops==0.8.1  #(for using pre-trained InternVL2 models)
+$ pip install timm==1.0.19 #(for using pre-trained InternVL2 models)
+$ pip install sentencepiece==0.2.0 #(for using pre-trained InternVL2 models)
 ```
 ## Model Testing
 You can define your own `load_model` and `inference` functions, with the following signatures:
