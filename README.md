@@ -195,6 +195,7 @@ $ pip install transformers==4.45.2 #(for compatibility with InternVL2 models)
 $ pip install einops==0.8.1  #(for using pre-trained InternVL2 models)
 $ pip install timm==1.0.19 #(for using pre-trained InternVL2 models)
 $ pip install sentencepiece==0.2.0 #(for using pre-trained InternVL2 models)
+$ pip install flash-attn==2.8.2 --no-build-isolation #(for using pre-trained InternVL2 models)
 ```
 ## Model Testing
 You can define your own `load_model` and `inference` functions, with the following signatures:

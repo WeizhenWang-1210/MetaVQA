@@ -94,7 +94,8 @@ def load_model(model_path):
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch.bfloat16,
-            trust_remote_code=True
+            trust_remote_code=True,
+
         ).eval()
     elif "llama" in model_path.lower():
         from transformers import MllamaForConditionalGeneration
@@ -121,7 +122,8 @@ def load_internvl(model_path):
     model = AutoModel.from_pretrained(
         model_path,
         torch_dtype=torch.bfloat16,
-        trust_remote_code=True
+        trust_remote_code=True,
+        use_flash_attn=True
     ).eval()
     processor = None #AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
