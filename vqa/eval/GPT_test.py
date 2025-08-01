@@ -1,11 +1,10 @@
 import asyncio
+import base64
+import json
 import os.path
 
 import aiohttp
-import json
 from openai import OpenAI, AsyncOpenAI
-from collections import defaultdict
-import base64
 
 API_KEY = None
 

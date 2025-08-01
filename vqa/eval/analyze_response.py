@@ -1,7 +1,7 @@
-import json
 import glob
-import re
-from vqa.eval.parse_responses import parse_response, parse_gpt
+import json
+
+from vqa.eval.parse_responses import parse_response
 
 IGNORED_Q_TYPE = ["describe_scenario"]
 path_template = "/home/chenda/evaluations/rebuttal/InternVL_rebuttal_gpt/*_test_results.json"

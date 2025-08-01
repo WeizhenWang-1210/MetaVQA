@@ -43,7 +43,6 @@ if __name__ == "__main__":
     # (1) Let's visualize a nuScenes episode.
     import PIL.Image
     import numpy as np
-    import os
     from glob import glob
 
     pattern = '*/rgb_*.png'

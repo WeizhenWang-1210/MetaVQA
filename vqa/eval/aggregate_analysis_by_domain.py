@@ -1,5 +1,6 @@
-import os
 import json
+import os
+
 stats = [
     "/home/weizhen/experiments/main/random_test_results_stats.json",
     "/home/weizhen/experiments/main/LLavaNext_test_results_stats.json",
@@ -58,7 +59,6 @@ ids = [
 results = [
     json.load(open(stat,"r")) for stat in stats
 ]
-from pprint import pprint
 from collections import defaultdict
 
 

@@ -1,4 +1,3 @@
-import json
 import re
 
 def parse_response(response, answer2opt):
