@@ -21,15 +21,18 @@ logger = get_logger()
 
 
 def generate_distinct_rgb_values():
-    distinct_rgb_values = []
-    step = 256 // 16  # 8 intervals for each RGB component (0-31, 32-63, ..., 224-255)
+    # Try to avoid (0,0,0) and (255,255,255) to avoid confusion with the background and other objects.
+    r = np.linspace(16, 256 - 16, 16).astype(int)
+    g = np.linspace(16, 256 - 16, 16).astype(int)
+    b = np.linspace(16, 256 - 16, 16).astype(int)
 
-    for r in range(step, 256, step):
-        for g in range(0, 256, step):
-            for b in range(0, 256, step):
-                distinct_rgb_values.append((round(r / 255, 5), round(g / 255, 5), round(b / 255, 5)))
+    # Create a meshgrid and reshape to get all combinations of r, g, b
+    rgbs = np.array(np.meshgrid(r, g, b)).T.reshape(-1, 3)
 
-    return distinct_rgb_values[:8192]  # Return the first 4096 values
+    # Normalize the values to be between 0 and 1
+    rgbs = rgbs / 255.0
+
+    return tuple(tuple(round(vv, 5) for vv in v) for v in rgbs)
 
 
 COLOR_SPACE = generate_distinct_rgb_values()
@@ -151,8 +154,11 @@ class BaseEngine(EngineCore, Randomizable):
         self._spawned_objects[obj.id] = obj
         color = self._pick_color(obj.id)
         if color == (-1, -1, -1):
-            print("FK!~")
-            exit()
+            raise ValueError(
+                "No color available for object: {} instance segment mask. We already used all {} colors...".format(
+                    obj.id, BaseEngine.MAX_COLOR
+                )
+            )
 
         obj.attach_to_world(self.worldNP, self.physics_world)
         return obj
@@ -186,15 +192,15 @@ class BaseEngine(EngineCore, Randomizable):
 
         """
         if id in self.id_c.keys():
-            my_color = self.id_c[id]
+            my_color = self.id_c.pop(id)
             if my_color in BaseEngine.COLORS_OCCUPIED:
                 BaseEngine.COLORS_OCCUPIED.remove(my_color)
             BaseEngine.COLORS_FREE.add(my_color)
             # print("After cleaning:,", len(BaseEngine.COLORS_OCCUPIED), len(BaseEngine.COLORS_FREE))
-            if id in self.id_c.keys():
-                self.id_c.pop(id)
-            if my_color in self.c_id.keys():
-                self.c_id.pop(my_color)
+            # if id in self.id_c.keys():
+            #     self.id_c.pop(id)
+            assert my_color in self.c_id.keys()
+            self.c_id.pop(my_color)
 
     def id_to_color(self, id):
         if id in self.id_c.keys():

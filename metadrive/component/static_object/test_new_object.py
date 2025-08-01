@@ -13,7 +13,6 @@ from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.engine_utils import get_engine, engine_initialized
 from metadrive.engine.physics_node import BaseRigidBodyNode
 
-
 LaneIndex = Tuple[str, str, int]
 
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +26,9 @@ class TestObject(TrafficObject):
     # MASS = 10
     CLASS_NAME = "TestObject"
 
-    def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
+    def __init__(
+        self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None
+    ):
         super(TestObject, self).__init__(position, heading_theta, lane, random_seed, name)
         self.asset_metainfo = asset_metainfo
         if "general" in asset_metainfo.keys():
@@ -57,7 +58,6 @@ class TestObject(TrafficObject):
 
         # self.body.addShape(BulletBoxShape((self.WIDTH / 2, self.LENGTH / 2, self.height / 2)))
 
-
         # self.set_static(static)
         if self.render:
             # model_file_path1 = AssetLoader.file_path("models", "test", "stop sign-8be31e33b3df4d6db7c75730ff11dfd8.glb")
@@ -67,6 +67,7 @@ class TestObject(TrafficObject):
             model.setPos(self.pos0, self.pos1, self.pos2)
             model.setScale(self.scale)
             model.reparentTo(self.origin)
+
     def _create_building_chassis(self):
         shape = BulletBoxShape(Vec3(self.LENGTH / 2, self.WIDTH / 2, self.HEIGHT / 2))
         body_node = BaseRigidBodyNode(self.id, MetaDriveType.BUILDING)
@@ -76,6 +77,7 @@ class TestObject(TrafficObject):
         body_node.addShape(shape)
         body_node.setIntoCollideMask(CollisionGroup.InvisibleWall)
         return body_node
+
     def _create_obj_chassis(self):
         chassis = BaseRigidBodyNode(self.name, MetaDriveType.TRAFFIC_OBJECT)
         self._node_path_list.append(chassis)
@@ -90,8 +92,10 @@ class TestObject(TrafficObject):
         # vehicle_chassis.setCoordinateSystem(ZUp)
         self.dynamic_nodes.append(chassis)
         return chassis
+
     def get_asset_metainfo(self):
         return self.asset_metainfo
+
     @property
     def LENGTH(self):
         return self._length
@@ -115,8 +119,6 @@ class TestObject(TrafficObject):
         return self.LENGTH
 
 
-
-
 class TestGLTFObject(TrafficObject):
     """A barrier"""
 
@@ -124,7 +126,9 @@ class TestGLTFObject(TrafficObject):
     # MASS = 10
     CLASS_NAME = "TestObject"
 
-    def __init__(self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None):
+    def __init__(
+        self, asset_metainfo, position, heading_theta, lane=None, static: bool = False, random_seed=None, name=None
+    ):
         super(TestGLTFObject, self).__init__(position, heading_theta, lane, random_seed, name)
         self.asset_metainfo = asset_metainfo
         self.set_metadrive_type(MetaDriveType.TRAFFIC_OBJECT)
@@ -152,6 +156,7 @@ class TestGLTFObject(TrafficObject):
             model.setPos(self.pos0, self.pos1, self.pos2)
             model.setScale(self.scale)
             model.reparentTo(self.origin)
+
     @property
     def LENGTH(self):
         return self._length

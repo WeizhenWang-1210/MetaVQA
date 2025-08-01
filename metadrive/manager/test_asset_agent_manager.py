@@ -29,6 +29,7 @@ class TestAssetAgentManager(VehicleAgentManager):
         self.test_asset_meta_info = test_asset_meta_info
         self.saved_test_asset_obj = None
         self.initpos = initpos
+
     def set_test_asset_config_dict(self, newdict):
         self.test_asset_meta_info = newdict
         if self.saved_test_asset_obj is not None:
@@ -36,9 +37,9 @@ class TestAssetAgentManager(VehicleAgentManager):
             for vals in list(remove_dict.values()):
                 self._remove_vehicle(vals)
             self.episode_created_agents = self._create_agents(
-                config_dict=self.engine.global_config["agent_configs"],
-                test_asset_meta_info=self.test_asset_meta_info
+                config_dict=self.engine.global_config["agent_configs"], test_asset_meta_info=self.test_asset_meta_info
             )
+
     def _create_agents(self, config_dict: dict, test_asset_meta_info: dict):
         from metadrive.component.vehicle.vehicle_type import random_vehicle_type, vehicle_type
         ret = {}
@@ -50,8 +51,15 @@ class TestAssetAgentManager(VehicleAgentManager):
 
             # Note: we must use force spawn
             if v_config.get("vehicle_model", False) and v_config["vehicle_model"] == "test":
-                obj = self.spawn_object(v_type, position=self.initpos, heading=0, vehicle_config=v_config,
-                                        name=obj_name, force_spawn=True, test_asset_meta_info=test_asset_meta_info)
+                obj = self.spawn_object(
+                    v_type,
+                    position=self.initpos,
+                    heading=0,
+                    vehicle_config=v_config,
+                    name=obj_name,
+                    force_spawn=True,
+                    test_asset_meta_info=test_asset_meta_info
+                )
                 self.saved_test_asset_obj = obj
             else:
                 obj = self.spawn_object(v_type, vehicle_config=v_config, name=obj_name)
@@ -74,10 +82,8 @@ class TestAssetAgentManager(VehicleAgentManager):
         self._infinite_agents = config["num_agents"] == -1
         self._allow_respawn = config["allow_respawn"]
         self.episode_created_agents = self._create_agents(
-            config_dict=self.engine.global_config["agent_configs"],
-            test_asset_meta_info=self.test_asset_meta_info
+            config_dict=self.engine.global_config["agent_configs"], test_asset_meta_info=self.test_asset_meta_info
         )
-
 
     def _remove_vehicle(self, vehicle):
         vehicle_name = vehicle.name
@@ -86,10 +92,7 @@ class TestAssetAgentManager(VehicleAgentManager):
         if vehicle_name in self._active_objects:
             v = self._active_objects.pop(vehicle_name)
             self._agents_finished_this_frame[self._object_to_agent[vehicle_name]] = v.name
-                # self._check()
+            # self._check()
         if vehicle_name in self._object_to_agent:
             self._agent_to_object.pop(self._object_to_agent[vehicle_name])
             self._object_to_agent.pop(vehicle_name)
-
-
-

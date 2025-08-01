@@ -1,0 +1,9 @@
+---
+storage_path : "/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_sim" # Replace with you desired scenario save path
+sample_frequency: 5 # Sample every 5th rendered frame, corresponding to a 2HZ  sampling rate in wall time.
+num_samples: 100000000000
+max_iterations: 100000000000000000
+temporal_generation: True
+episode_length: 500
+skip_length: 20
+...

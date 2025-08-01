@@ -67,3 +67,8 @@ path_config.yaml
 /tmp/*
 /vqa/test_safety/*
 /vqa/test_temporal/*
+
+metavqa_asset/*
+__pycache__/
+.vscode
+!closed_loop/assets

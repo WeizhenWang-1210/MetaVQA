@@ -115,13 +115,20 @@ class TestAssetMetaDriveEnv(BaseEnv):
         # scenario setting
         self.start_seed = self.start_index = self.config["start_seed"]
         self.env_num = self.num_scenarios
+
     def _get_agent_manager(self):
-        return TestAssetAgentManager(init_observations=self._get_observations(), test_asset_meta_info = self.test_asset_meta_info, initpos=self.initpos)
+        return TestAssetAgentManager(
+            init_observations=self._get_observations(),
+            test_asset_meta_info=self.test_asset_meta_info,
+            initpos=self.initpos
+        )
+
     def _merge_extra_config(self, config: Union[dict, Config]) -> Config:
         config = self.default_config().update(config, allow_add_new_key=False)
         if config["vehicle_config"]["lidar"]["distance"] > 50:
             config["max_distance"] = config["vehicle_config"]["lidar"]["distance"]
         return config
+
     def _post_process_config(self, config):
         config = super(TestAssetMetaDriveEnv, self)._post_process_config(config)
         if not config["norm_pixel"]:
@@ -143,8 +150,8 @@ class TestAssetMetaDriveEnv(BaseEnv):
 
     def _get_observations(self):
         # return {DEFAULT_AGENT: self.get_single_observation(self.config["vehicle_config"]), "test_agent": self.get_single_observation(self.config["vehicle_config"])}
-        return {DEFAULT_AGENT: self.get_single_observation(),
-                "test_agent": self.get_single_observation()}
+        return {DEFAULT_AGENT: self.get_single_observation(), "test_agent": self.get_single_observation()}
+
     def done_function(self, vehicle_id: str):
         vehicle = self.agents[vehicle_id]
         done = False
@@ -309,6 +316,7 @@ class TestAssetMetaDriveEnv(BaseEnv):
         while self.in_stop:
             self.engine.taskMgr.step()
         return ret
+
     def setup_engine(self):
         super(TestAssetMetaDriveEnv, self).setup_engine()
         from metadrive.manager.traffic_manager import PGTrafficManager

@@ -113,6 +113,7 @@ class TestPedeMetaDriveEnv(BaseEnv):
         if config["vehicle_config"]["lidar"]["distance"] > 50:
             config["max_distance"] = config["vehicle_config"]["lidar"]["distance"]
         return config
+
     def _post_process_config(self, config):
         config = super(TestPedeMetaDriveEnv, self)._post_process_config(config)
         if not config["norm_pixel"]:
@@ -142,6 +143,7 @@ class TestPedeMetaDriveEnv(BaseEnv):
         else:
             o = LidarStateObservation(self.config)
         return o
+
     def done_function(self, vehicle_id: str):
         vehicle = self.agents[vehicle_id]
         done = False

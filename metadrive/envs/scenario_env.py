@@ -3,20 +3,21 @@ This environment can load all scenarios exported from other environments via env
 """
 
 import numpy as np
-from metadrive.component.navigation_module.edge_network_navigation import EdgeNetworkNavigation
+
 from metadrive.component.navigation_module.trajectory_navigation import TrajectoryNavigation
-from metadrive.constants import DEFAULT_AGENT
 from metadrive.constants import TerminationState
 from metadrive.engine.asset_loader import AssetLoader
 from metadrive.envs.base_env import BaseEnv
+from metadrive.manager.scenario_agent_manager import ScenarioAgentManager
 from metadrive.manager.scenario_curriculum_manager import ScenarioCurriculumManager
-from metadrive.manager.scenario_data_manager import ScenarioDataManager
+from metadrive.manager.scenario_data_manager import ScenarioDataManager, ScenarioOnlineDataManager
 from metadrive.manager.scenario_light_manager import ScenarioLightManager
 from metadrive.manager.scenario_map_manager import ScenarioMapManager
 from metadrive.manager.scenario_traffic_manager import ScenarioTrafficManager
 from metadrive.manager.scenario_diverse_traffic_manager import ScenarioDiverseTrafficManager
 from metadrive.manager.new_sidewalk_manager import SidewalkManager
 from metadrive.policy.replay_policy import ReplayEgoCarPolicy
+from metadrive.policy.waypoint_policy import WaypointPolicy
 from metadrive.utils import get_np_random
 from metadrive.utils.math import wrap_to_pi
 
@@ -24,6 +25,8 @@ SCENARIO_ENV_CONFIG = dict(
     # ===== Scenario Config =====
     data_directory=AssetLoader.file_path("nuscenes", unix_style=False),
     start_scenario_index=0,
+
+    # Set num_scenarios=-1 to load all scenarios in the data directory.
     num_scenarios=3,
     sequential_seed=False,  # Whether to set seed (the index of map) sequentially across episodes
     worker_index=0,  # Allowing multi-worker sampling with Rllib
@@ -39,7 +42,7 @@ SCENARIO_ENV_CONFIG = dict(
     store_data=True,
     need_lane_localization=True,
     no_map=False,
-    map_region_size=512,
+    map_region_size=1024,
     cull_lanes_outside_map=True,
 
     # ===== Scenario =====
@@ -48,11 +51,11 @@ SCENARIO_ENV_CONFIG = dict(
     no_light=False,  # no traffic light
     reactive_traffic=False,  # turn on to enable idm traffic
     filter_overlapping_car=True,  # If in one frame a traffic vehicle collides with ego car, it won't be created.
-    even_sample_vehicle_class=True,  # to make the scene more diverse
     default_vehicle_in_traffic=False,
     skip_missing_light=True,
     static_traffic_object=True,
     show_sidewalk=False,
+    even_sample_vehicle_class=None,  # Deprecated.
 
     # ===== Agent config =====
     vehicle_config=dict(
@@ -61,6 +64,12 @@ SCENARIO_ENV_CONFIG = dict(
         lane_line_detector=dict(num_lasers=0, distance=50),
         side_detector=dict(num_lasers=12, distance=50),
     ),
+    # If set_static=True, then the agent will not "fall from the sky". This will be helpful if you want to
+    # capture per-frame data for the agent (for example for collecting static sensor data).
+    # However, the physics simulation of the agent will be disable too. So in the visualization, the image will be
+    # very chunky as the agent will suddenly move to the next position for each step.
+    # Set to False for better visualization.
+    set_static=False,
 
     # ===== Reward Scheme =====
     # See: https://github.com/metadriverse/metadrive/issues/283
@@ -92,7 +101,18 @@ SCENARIO_ENV_CONFIG = dict(
 
     # ===== others =====
     allowed_more_steps=None,  # horizon, None=infinite
-    top_down_show_real_size=False
+    top_down_show_real_size=False,
+    use_bounding_box=False,  # Set True to use a cube in visualization to represent every dynamic objects.
+)
+
+SCENARIO_WAYPOINT_ENV_CONFIG = dict(
+    # How many waypoints will be used at each environmental step. Checkout ScenarioWaypointEnv for details.
+    waypoint_horizon=5,
+    agent_policy=WaypointPolicy,
+
+    # Must set this to True, otherwise the agent will drift away from the waypoint when doing
+    # "self.engine.step(self.config["decision_repeat"])" in "_step_simulator".
+    set_static=True,
 )
 
 
@@ -115,7 +135,18 @@ class ScenarioEnv(BaseEnv):
             assert self.config["sequential_seed"], \
                 "If using > 1 workers, you have to allow sequential_seed for consistency!"
         self.start_index = self.config["start_scenario_index"]
-        self.num_scenarios = self.config["num_scenarios"]
+
+    def _post_process_config(self, config):
+        config = super(ScenarioEnv, self)._post_process_config(config)
+        if config["use_bounding_box"]:
+            config["vehicle_config"]["random_color"] = True
+            config["vehicle_config"]["vehicle_model"] = "varying_dynamics_bounding_box"
+            config["agent_configs"]["default_agent"]["use_special_color"] = True
+            config["agent_configs"]["default_agent"]["vehicle_model"] = "varying_dynamics_bounding_box"
+        return config
+
+    def _get_agent_manager(self):
+        return ScenarioAgentManager(init_observations=self._get_observations())
 
     def setup_engine(self):
         super(ScenarioEnv, self).setup_engine()
@@ -160,32 +191,32 @@ class ScenarioEnv(BaseEnv):
 
         if done_info[TerminationState.SUCCESS]:
             done = True
-            self.logger.info(msg("arrive_dest"), extra={"log_once": True})
+            self.logger.debug(msg("arrive_dest"), extra={"log_once": True})
         elif done_info[TerminationState.OUT_OF_ROAD]:
             done = True
-            self.logger.info(msg("out_of_road"), extra={"log_once": True})
+            self.logger.debug(msg("out_of_road"), extra={"log_once": True})
         elif done_info[TerminationState.CRASH_HUMAN] and self.config["crash_human_done"]:
             done = True
-            self.logger.info(msg("crash human"), extra={"log_once": True})
+            self.logger.debug(msg("crash human"), extra={"log_once": True})
         elif done_info[TerminationState.CRASH_VEHICLE] and self.config["crash_vehicle_done"]:
             done = True
-            self.logger.info(msg("crash vehicle"), extra={"log_once": True})
+            self.logger.debug(msg("crash vehicle"), extra={"log_once": True})
         elif done_info[TerminationState.CRASH_OBJECT] and self.config["crash_object_done"]:
             done = True
-            self.logger.info(msg("crash object"), extra={"log_once": True})
+            self.logger.debug(msg("crash object"), extra={"log_once": True})
         elif done_info[TerminationState.CRASH_BUILDING] and self.config["crash_object_done"]:
             done = True
-            self.logger.info(msg("crash building"), extra={"log_once": True})
+            self.logger.debug(msg("crash building"), extra={"log_once": True})
         elif done_info[TerminationState.MAX_STEP]:
             if self.config["truncate_as_terminate"]:
                 done = True
-            self.logger.info(msg("max step"), extra={"log_once": True})
+            self.logger.debug(msg("max step"), extra={"log_once": True})
         elif self.config["allowed_more_steps"] and self.episode_lengths[vehicle_id] >= \
-                self.engine.data_manager.current_scenario_length + self.config["allowed_more_steps"]:
+            self.engine.data_manager.current_scenario_length + self.config["allowed_more_steps"]:
             if self.config["truncate_as_terminate"]:
                 done = True
             done_info[TerminationState.MAX_STEP] = True
-            self.logger.info(msg("more step than original episode"), extra={"log_once": True})
+            self.logger.debug(msg("more step than original episode"), extra={"log_once": True})
 
         # log data to curriculum manager
         self.engine.curriculum_manager.log_episode(
@@ -381,8 +412,8 @@ class ScenarioEnv(BaseEnv):
             self.config["start_scenario_index"] + self.config["num_scenarios"])
         self.seed(current_seed)
 
-class ScenarioDiverseEnv(ScenarioEnv):
 
+class ScenarioDiverseEnv(ScenarioEnv):
     def setup_engine(self):
         super(ScenarioEnv, self).setup_engine()
         self.engine.register_manager("data_manager", ScenarioDataManager())
@@ -394,6 +425,69 @@ class ScenarioDiverseEnv(ScenarioEnv):
             self.engine.register_manager("light_manager", ScenarioLightManager())
         self.engine.register_manager("curriculum_manager", ScenarioCurriculumManager())
         # self.engine.register_manager("sidewalk_manager", SidewalkManager())
+
+
+class ScenarioOnlineEnv(ScenarioEnv):
+    """
+    This environment allow the user to pass in scenario data directly.
+    """
+    def default_config(cls):
+        config = super(ScenarioOnlineEnv, cls).default_config()
+        config.update({
+            "store_map": False,
+        })
+        return config
+
+    def __init__(self, config=None):
+        super(ScenarioOnlineEnv, self).__init__(config)
+        self.lazy_init()
+
+        assert self.config["store_map"] is False, \
+            "ScenarioOnlineEnv should not store map. Please set store_map=False in config"
+
+    def setup_engine(self):
+        """Overwrite the data_manager by ScenarioOnlineDataManager"""
+        super().setup_engine()
+        self.engine.update_manager("data_manager", ScenarioOnlineDataManager())
+
+    def set_scenario(self, scenario_data):
+        """Please call this function before env.reset()"""
+        self.engine.data_manager.set_scenario(scenario_data)
+
+
+class ScenarioWaypointEnv(ScenarioEnv):
+    """
+    This environment use WaypointPolicy. Even though the environment still runs in 10 HZ, we allow the external
+    waypoint generator generates up to 5 waypoints at each step (controlled by config "waypoint_horizon").
+    Say at step t, we receive 5 waypoints. Then we will set the agent states for t+1, t+2, t+3, t+4, t+5 if at
+    t+1 ~ t+4 no additional waypoints are received. Here is the full timeline:
+
+    step t=0: env.reset(), initial positions/obs are sent out. This corresponds to the t=0 or t=10 in WOMD dataset
+    (TODO: we should allow control on the meaning of the t=0)
+    step t=1: env.step(), agent receives 5 waypoints, we will record the waypoint sequences. Set agent state for t=1,
+        and send out the obs for t=1.
+    step t=2: env.step(), it's possible to get action=None, which means the agent will use the cached waypoint t=2,
+        and set the agent state for t=2. The obs for t=2 will be sent out. If new waypoints are received, we will \
+        instead set agent state to the first new waypoint.
+    step t=3: ... continues the loop and receives action=None or new waypoints.
+    step t=4: ...
+    step t=5: ...
+    step t=6: if we only receive action at t=1, and t=2~t=5 are all None, then this step will force to receive
+        new waypoints. We will set the agent state to the first new waypoint.
+
+    Most of the functions are implemented in WaypointPolicy.
+    """
+    @classmethod
+    def default_config(cls):
+        config = super(ScenarioWaypointEnv, cls).default_config()
+        config.update(SCENARIO_WAYPOINT_ENV_CONFIG)
+        return config
+
+    def _post_process_config(self, config):
+        ret = super(ScenarioWaypointEnv, self)._post_process_config(config)
+        assert config["set_static"], "Waypoint policy requires set_static=True"
+        return ret
+
 
 if __name__ == "__main__":
     env = ScenarioEnv(
@@ -412,7 +506,8 @@ if __name__ == "__main__":
             # "no_traffic":True,
             # "start_scenario_index": 192,
             # "start_scenario_index": 1000,
-            "num_scenarios": 30,
+            "num_scenarios": 3,
+            "set_static": True,
             # "force_reuse_object_name": True,
             # "data_directory": "/home/shady/Downloads/test_processed",
             "horizon": 1000,
@@ -426,7 +521,7 @@ if __name__ == "__main__":
                 lane_line_detector=dict(num_lasers=12, distance=50),
                 side_detector=dict(num_lasers=160, distance=50)
             ),
-            "data_directory": AssetLoader.file_path("nuplan", unix_style=False),
+            "data_directory": AssetLoader.file_path("nuscenes", unix_style=False),
         }
     )
     success = []

@@ -35,6 +35,7 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
         self.adj_folder = self.path_config['adj_parameter_folder']
         self.init_car_adj_list()
         self.original_car_ratio = 0.4
+
     def init_car_adj_list(self):
         self.car_asset_metainfos = []  # List to store the file paths
         for root, dirs, files in os.walk(self.adj_folder):
@@ -44,8 +45,10 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
                         loaded_metainfo = json.load(file)
                         print(loaded_metainfo)
                         self.car_asset_metainfos.append(loaded_metainfo)
+
     def randomCustomizedCar(self):
         return CustomizedCar, random.choice(self.car_asset_metainfos)
+
     def spawn_vehicle(self, v_id, track):
         state = parse_object_state(track, self.episode_step)
 
@@ -69,7 +72,7 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
             return
 
         # create vehicle
-        use_original_vehicle = random.random()  < self.original_car_ratio
+        use_original_vehicle = random.random() < self.original_car_ratio
         if use_original_vehicle:
             if state["vehicle_class"]:
                 vehicle_class = state["vehicle_class"]
@@ -91,11 +94,19 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
                 )
         if use_original_vehicle:
             v = self.spawn_object(
-                vehicle_class, position=state["position"], heading=state["heading"], vehicle_config=v_cfg, name=obj_name
+                vehicle_class,
+                position=state["position"],
+                heading=state["heading"],
+                vehicle_config=v_cfg,
+                name=obj_name
             )
         else:
             v = self.spawn_object(
-                vehicle_class, position=state["position"], heading=state["heading"], vehicle_config=v_cfg, name=obj_name,
+                vehicle_class,
+                position=state["position"],
+                heading=state["heading"],
+                vehicle_config=v_cfg,
+                name=obj_name,
                 test_asset_meta_info=asset_info
             )
         self._scenario_id_to_obj_id[v_id] = v.name
@@ -122,7 +133,6 @@ class ScenarioDiverseTrafficManager(ScenarioTrafficManager):
             )
             # no act() is required for IDMPolicy
             self.idm_policy_count += 1
-
 
 
 type_count = [0 for i in range(3)]

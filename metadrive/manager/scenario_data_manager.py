@@ -24,23 +24,22 @@ class ScenarioDataManager(BaseManager):
 
         # for multi-worker
         self.worker_index = self.engine.global_config["worker_index"]
-        self.available_scenario_indices = [
-            i for i in range(
-                self.start_scenario_index + self.worker_index, self.start_scenario_index +
-                self.num_scenarios, self.engine.global_config["num_workers"]
-            )
-        ]
         self._scenarios = {}
 
         # Read summary file first:
         self.summary_dict, self.summary_lookup, self.mapping = read_dataset_summary(self.directory)
         self.summary_lookup[:self.start_scenario_index] = [None] * self.start_scenario_index
-        end_idx = self.start_scenario_index + self.num_scenarios
-        self.summary_lookup[end_idx:] = [None] * (len(self.summary_lookup) - end_idx)
 
         # sort scenario for curriculum training
         self.scenario_difficulty = None
         self.sort_scenarios()
+
+        if self.num_scenarios == -1:
+            self.num_scenarios = len(self.summary_lookup) - self.start_scenario_index
+            engine.global_config["num_scenarios"] = self.num_scenarios
+
+        end_idx = self.start_scenario_index + self.num_scenarios
+        self.summary_lookup[end_idx:] = [None] * (len(self.summary_lookup) - end_idx)
 
         # existence check
         assert self.start_scenario_index < len(self.summary_lookup), "Insufficient scenarios!"
@@ -54,6 +53,15 @@ class ScenarioDataManager(BaseManager):
 
         # stat
         self.coverage = [0 for _ in range(self.num_scenarios)]
+
+    @property
+    def available_scenario_indices(self):
+        return list(
+            range(
+                self.start_scenario_index + self.worker_index, self.start_scenario_index + self.num_scenarios,
+                self.engine.global_config["num_workers"]
+            )
+        )
 
     @property
     def current_scenario_summary(self):
@@ -172,3 +180,61 @@ class ScenarioDataManager(BaseManager):
         self.summary_lookup.clear()
         self.mapping.clear()
         self.summary_dict, self.summary_lookup, self.mapping = None, None, None
+
+
+class ScenarioOnlineDataManager(BaseManager):
+    """
+    Compared to ScenarioDataManager, this manager allow user to pass in Scenario Description online.
+    It will not read data from disk, but receive data from user.
+    """
+    PRIORITY = -10
+    _scenario = None
+
+    @property
+    def current_scenario_summary(self):
+        return self.current_scenario[SD.METADATA]
+
+    def set_scenario(self, scenario_description):
+        SD.sanity_check(scenario_description)
+        scenario_description = SD.centralize_to_ego_car_initial_position(scenario_description)
+        self._scenario = scenario_description
+
+    def get_scenario(self, seed=None, should_copy=False):
+        assert self._scenario is not None, "Please set scenario first via env.set_scenario(scenario_description)!"
+        if should_copy:
+            return copy.deepcopy(self._scenario)
+        return self._scenario
+
+    def get_metadata(self):
+        raise ValueError()
+        state = super(ScenarioDataManager, self).get_metadata()
+        raw_data = self.current_scenario
+        state["raw_data"] = raw_data
+        return state
+
+    @property
+    def current_scenario_length(self):
+        return self.current_scenario[SD.LENGTH]
+
+    @property
+    def current_scenario(self):
+        return self._scenario
+
+    @property
+    def current_scenario_difficulty(self):
+        return 0
+
+    @property
+    def current_scenario_id(self):
+        return self.current_scenario_summary["scenario_id"]
+
+    @property
+    def data_coverage(self):
+        return None
+
+    def destroy(self):
+        """
+        Clear memory
+        """
+        super(ScenarioOnlineDataManager, self).destroy()
+        self._scenario = None

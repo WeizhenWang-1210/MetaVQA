@@ -1,9 +1,0 @@
----
-storage_path : "/bigdata/weizhen/metavqa_cvpr/scenarios/waymo_sim"
-sample_frequency: 5
-num_samples: 100000000
-max_iterations: 1000000000000000
-temporal_generation: True
-episode_length: 50000
-skip_length: 10000
-...
