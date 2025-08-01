@@ -25,7 +25,6 @@ class GridCell:
     """
     Represents a single cell in a grid, which can be occupied by an object.
     """
-
     def __init__(self, position, occupied=False):
         """
         Args:
@@ -65,7 +64,6 @@ class ObjectPlacer:
     """
     This class is used to place objects on a grid, ensuring that they do not overlap.
     """
-
     def __init__(self, grid):
         """
         Args:
@@ -235,8 +233,9 @@ class SidewalkManager(BaseManager):
             self.num_dict[detail_type] = self.config.getSpawnNum(detail_type)
             self.pos_dict[detail_type] = self.config.getSpawnPos(detail_type)
             if self.config.getSpawnHeading(detail_type):
-                self.heading_dict[detail_type] = [heading * math.pi for heading in
-                                                  self.config.getSpawnHeading(detail_type)]
+                self.heading_dict[detail_type] = [
+                    heading * math.pi for heading in self.config.getSpawnHeading(detail_type)
+                ]
             else:
                 self.heading_dict[detail_type] = [0, math.pi]
 
@@ -285,8 +284,9 @@ class SidewalkManager(BaseManager):
                     # Iterate over the placed objects and spawn them in the simulation
                     for obj_name, (grid_position, obj) in object_placer.placed_objects.items():
                         # Convert the grid position to a lane position
-                        lane_position = self.convert_grid_to_lane_position(grid_position, lane,
-                                                                           self.calculate_lateral_range(region, lane))
+                        lane_position = self.convert_grid_to_lane_position(
+                            grid_position, lane, self.calculate_lateral_range(region, lane)
+                        )
                         self.count += 1
                         self.spawn_object(
                             TestObject,
@@ -294,8 +294,7 @@ class SidewalkManager(BaseManager):
                             lane=lane,
                             position=lane_position,
                             static=self.engine.global_config["static_traffic_object"],
-                            heading_theta=lane.heading_theta_at(lane_position[0]) + obj['general'].get(
-                                'heading', 0),
+                            heading_theta=lane.heading_theta_at(lane_position[0]) + obj['general'].get('heading', 0),
                             asset_metainfo=obj
                         )
 
@@ -318,8 +317,10 @@ class SidewalkManager(BaseManager):
         num_cells_lat = int((lateral_range[1] - lateral_range[0]) / cell_width)
 
         # Create the grid as a 2D array of GridCell objects
-        grid = [[GridCell(position=(i * cell_length, j * cell_width + lateral_range[0]))
-                 for j in range(num_cells_lat)] for i in range(num_cells_long)]
+        grid = [
+            [GridCell(position=(i * cell_length, j * cell_width + lateral_range[0])) for j in range(num_cells_lat)]
+            for i in range(num_cells_long)
+        ]
 
         return grid
 
@@ -412,8 +413,10 @@ class SidewalkManager(BaseManager):
             return (start_lat, start_lat + DrivableAreaProperty.SIDEWALK_WIDTH)
 
         elif region == 'outsidewalk':
-            return (lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 1,
-                    lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 1 + 5 * lane.width)
+            return (
+                lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 1,
+                lane.width_at(0) / 2 + 0.2 + DrivableAreaProperty.SIDEWALK_WIDTH + 1 + 5 * lane.width
+            )
 
         elif region == 'nearsidewalk':
             return (lane.width_at(0) / 2 + 0.2 - lane.width, lane.width_at(0) / 2 + 0.2)

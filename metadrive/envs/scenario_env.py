@@ -427,7 +427,6 @@ class ScenarioDiverseEnv(ScenarioEnv):
         # self.engine.register_manager("sidewalk_manager", SidewalkManager())
 
 
-
 class ScenarioOnlineEnv(ScenarioEnv):
     """
     This environment allow the user to pass in scenario data directly.
