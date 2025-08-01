@@ -95,14 +95,13 @@ def load_model(model_path):
             model_path,
             torch_dtype=torch.bfloat16,
             trust_remote_code=True,
-
         ).eval()
     elif "llama" in model_path.lower():
         from transformers import MllamaForConditionalGeneration
         model = MllamaForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch.bfloat16, 
-            trust_remote_code=True
+            trust_remote_code=True,
         ).eval()
     elif "internvl" in model_path.lower():
         return load_internvl(model_path)

@@ -221,7 +221,7 @@ def inference(*args, **kwargs):
     return response
 ```
 
-Once these methods are defined, simply run `python -m closed_loop.closed_loop_benchmark` to evaluate your model in the closed-loop driving task. We've prepared sample scripts in `scripts_cvpr/closed_loops` for illustrations. 
+Once these methods are defined, simply run `python -m closed_loop.closed_loop_benchmark` to evaluate your model in the closed-loop driving task. We've prepared sample scripts in `scripts_cvpr/closed_loops` for illustrations. You can checkout `sample_scripts/closed_loop_pretrained*.sh` for examples.
 
 
 
