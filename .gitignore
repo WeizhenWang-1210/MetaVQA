@@ -69,3 +69,6 @@ path_config.yaml
 /vqa/test_temporal/*
 
 metavqa_asset/*
+__pycache__/
+.vscode
+!closed_loop/assets

@@ -1,5 +1,5 @@
 #!/bin/bash
-NUMSCENARIOS=120
+NUMSCENARIOS=1
 DATA="/data_weizhen/scenarios" # Where the test scenarios are located
 MODELPATH="/data_weizhen/ckpt/internvl4b_finetuned_waymonusc_merge"   #Where the ckpt is stored
 RECORDPATH="/home/weizhen/test_close" # Where you store the closed-loop results and visualizations
