@@ -17,8 +17,6 @@ from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.envs.scenario_env import ScenarioEnv
 from metadrive.policy.replay_policy import InterventionPolicy
 from vqa.eval.parse_responses import parse_response
-
-
 from closed_loop.models import inference, load_model
 
 
@@ -137,17 +135,18 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
 
 
 def main():
+    cwd = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser()
     parser.add_argument("--headless", action="store_true", help="Set if don't use render")
-    parser.add_argument("--num_scenarios", type=int, default=5, help="How many scenarios(from the start) to use")
-    parser.add_argument("--data_directory", type=str, default="/home/weizhen/cat",
-                        help="Path to the folder storing dataset_summary.pkl")
+    parser.add_argument("--num_scenarios", type=int, default=120, help="How many scenarios(from the start) to use")
+    parser.add_argument("--data_directory", type=str, default=f"{cwd}/assets/scenarios",
+                        help="Path to the test scenarios")
     parser.add_argument("--model_path", type=str, default="/home/chenda/ckpt/internvl_demo_merge",
-                        help="Path to the model ckpt. Can be a name/local folder(if finetuned)")
+                        help="Path to the model ckpt. Compatible with transformers.AutoModel")
     parser.add_argument("--prompt_schema", type=str, default="direct", help="Whether to use CoT prompting or not")
     parser.add_argument("--record_path", type=str, default=None,
-                        help="Directory to store the visualizations of VLM's decision. If None, then won't store")
-    parser.add_argument("--result_path", type=str, default="/home/weizhen/closed_loops/eval.json",
+                        help="Directory to store the visualizations of VLM's decision. If None, no visualization will be saved")
+    parser.add_argument("--result_path", type=str, default="eval.json",
                         help="Path to the file storing experiment statistics")
     args = parser.parse_args()
     print("Running with the following parameters")
@@ -167,7 +166,7 @@ def main():
             instance=(InstanceCamera, 1600, 900)
         ),
         "vehicle_config": dict(vehicle_model="static_default"),
-        "height_scale": 1
+        "height_scale": 0.1
     }
     env = ScenarioEnv(env_config)
     if args.model_path in ['random', 'always_stop', 'always_straight']:
