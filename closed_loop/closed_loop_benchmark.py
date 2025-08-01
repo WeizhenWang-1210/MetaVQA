@@ -129,8 +129,8 @@ def closed_loop(env: ScenarioEnv, seeds, model_path, record_folder=None):
         print(f"episodic_reward: {episodic_reward}")
         print(f"episodic_completion:{episodic_completion}")
         print(f"ADE:{ADE}; FDE{FDE}")
-    return num_collisions, num_src_collisions, total_rewards, \
-        total_completions, ADEs, FDEs, total_out_of_road, list(collided_scenarios), list(offroad_scenarios)
+    return num_collisions, num_src_collisions, float(total_rewards), \
+        float(total_completions), ADEs, FDEs, total_out_of_road, list(collided_scenarios), list(offroad_scenarios)
 
 
 
