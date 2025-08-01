@@ -141,7 +141,7 @@ def main():
     parser.add_argument("--num_scenarios", type=int, default=120, help="How many scenarios(from the start) to use")
     parser.add_argument("--data_directory", type=str, default=f"{cwd}/assets/scenarios",
                         help="Path to the test scenarios")
-    parser.add_argument("--model_path", type=str, default="/home/chenda/ckpt/internvl_demo_merge",
+    parser.add_argument("--model_path", type=str, default="/data_weizhen/ckpt/internvl_finetuned_waymonusc_merge",
                         help="Path to the model ckpt. Compatible with transformers.AutoModel")
     parser.add_argument("--prompt_schema", type=str, default="direct", help="Whether to use CoT prompting or not")
     parser.add_argument("--record_path", type=str, default=None,
