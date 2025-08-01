@@ -1,4 +1,4 @@
-from closed_loop.closed import RECORD_BUFFER
+from closed_loop.configs import RECORD_BUFFER
 from closed_loop.navigation import dynamic_get_navigation_signal
 from closed_loop.utils.prompt_utils import observe_som, observe
 

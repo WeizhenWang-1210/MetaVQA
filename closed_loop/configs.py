@@ -1,7 +1,9 @@
 from collections import defaultdict
 
 ACTION_STATISTICS = defaultdict(lambda: 0)
+
 RECORD_BUFFER = defaultdict(lambda: defaultdict(lambda: dict()))
+
 INTERVENED = {
     "a": [0.15, 0.8],  # turn_left
     "b": [-0.15, 0.8],  # turn_right
@@ -12,18 +14,15 @@ INTERVENED = {
     "g": [0.6, 0.2],  # big_left
     "h": [-0.6, 0.2]  # big_right
 }
+
 NON_INTERVENED = INTERVENED
+
 ACTION2OPTION = {
     "TURN_LEFT": "A", "TURN_RIGHT": "B", "SLOW_DOWN": "C", "BRAKE": "D", "KEEP_STRAIGHT": "E",
     "SPEED_UP": "F", "BIG_LEFT": "G", "BIG_RIGHT": "H"
 }
-RECORD_FOLDER = "/home/weizhen/closed_loops"
-MODELPATHS = (
-    "llava-hf/llava-v1.6-vicuna-7b-hf",
-    "llava-hf/llava-onevision-qwen2-7b-ov-hf",
-    "Qwen/Qwen2-VL-7B-Instruct"
-)
 
+RECORD_FOLDER = "/home/weizhen/closed_loops"
 
 def convert_action(action, intervened):
     if intervened:
