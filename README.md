@@ -148,7 +148,71 @@ The Training-Validation and Testing sets used in our CVPR 2025 paper have been r
 A much larger version will be released soon.
 
 
-# Closed-loop Evaluation (Coming soon)
+## Evaluation
+To evaluate your VLM's performance on the test set, simply download the dataset from the link(suppose you name it `test.json`) above and prepare your generated responses in a single `JSON` file(let's say, `response.json`) with the following structure:
+```json
+{
+    "0": {
+        "question": "Suppose our current speed is moderate(10-30 mph), and we perform action \"BRAKE\" for 2.0 seconds. How far will we end up from our current position? Select the best option from: (A) Very close(0-2m); (B) Close(2-10m); (C) Medium(10-30m); (D) Far(30m-).",
+        "answer": "B",
+        "model_response": "B",
+        "explanation": "",
+        "type": "embodied_distance",
+        "objects": [],
+        "world": ["/bigdata/weizhen/metavqa_cvpr/scenarios/nusc_real/scene-0042_0_40/14_19"],
+        "obs": "/data_weizhen/metavqa_cvpr/datasets/test/test/obs/0.png"
+    },
+    "1":...
+}
+```
+In this example, the `"0"` is the `<qid>` that's recorded in `test.json`, as well as all other fields besides `model_response`. We keep these additional meta-informations for collecting statistics, and they will not impact the test accuracy of your model.
+
+To calculate the test accuracy, simply modify the `vqa/eval/analyze_response.py`'s first lines
+
+```python
+IGNORED_Q_TYPE = ["describe_scenario"] #describe_scenario is only used for training
+path_template = <path to "response.json">
+merged_path = <arbitrary path A>
+stat_path = <arbitrary path B>
+domained_path = <path to "test.json">
+```
+and run `python -m vqa.eval.analyze_response`. You will find the collected statistics in `<arbitrary path B>`
+
+
+# Closed-loop Evaluation
+We prepared 60 real-world scenarios as well as 60 safety-critical scenarios for closed-loop evaluation. You can find them in `closed_loop/assets/scenarios`
+
+## Preliminaries
+```bash
+$ pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+$ pip install transformers
+```
+## Model Testing
+You can define your own `load_model` and `inference` functions, with the following signatures:
+```python
+def load_model(*args, **kwargs)
+    """
+    You are free to modify the arguments, but you have to return
+    
+    Return:
+    model : AutoModel, processor: AutoProcessor, tokenizer: AutoTokenizer
+    """
+    ...
+    return model, processor, tokenizer
+
+def inference(*args, **kwargs):
+    """
+    Generate responses based on the current observation and navigation prompt.
+
+    Return:
+    response: str, the generated token sequence. Parsing will be taken care of later
+    """
+
+    return response
+```
+
+Once these methods are defined, simply run `python -m closed_loop.closed_loop_benchmark` to evaluate your model in the closed-loop driving task. We've prepared sample scripts in `scripts_cvpr/closed_loops` for illustrations. 
+
 
 
 
